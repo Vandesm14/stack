@@ -19,7 +19,7 @@ enum State {
 }
 
 fn is_symbol(c: char) -> bool {
-  matches!(c, 'a'..='z' | 'A'..='Z' | '_' | '+' | '=' | '%')
+  matches!(c, 'a'..='z' | 'A'..='Z' | '_' | '+' | '*' | '/' | '=' | '%')
 }
 
 pub fn parse(input: String) -> Vec<Token> {

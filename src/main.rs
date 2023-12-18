@@ -54,6 +54,15 @@ impl Program {
           panic!("Invalid operation");
         }
       }
+      "/" => {
+        let a = self.stack.pop();
+        let b = self.stack.pop();
+        if let (Some(Token::Integer(a)), Some(Token::Integer(b))) = (a, b) {
+          self.stack.push(Token::Integer(a / b));
+        } else {
+          panic!("Invalid operation");
+        }
+      }
       _ => {}
     }
   }
