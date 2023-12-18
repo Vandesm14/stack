@@ -15,6 +15,48 @@ impl Program {
     let tokens = stack::parse(line);
     self.stack.extend(tokens);
   }
+
+  fn eval(&mut self) {
+    let last = self.stack.pop();
+    let Some(Token::Symbol(symbol)) = last else {
+      if let Some(token) = last {
+        self.stack.push(token);
+      }
+      return;
+    };
+
+    // Only evaluate if we have a symbol at the end
+    match symbol.as_str() {
+      "+" => {
+        let a = self.stack.pop();
+        let b = self.stack.pop();
+        if let (Some(Token::Integer(a)), Some(Token::Integer(b))) = (a, b) {
+          self.stack.push(Token::Integer(a + b));
+        } else {
+          panic!("Invalid operation");
+        }
+      }
+      "-" => {
+        let a = self.stack.pop();
+        let b = self.stack.pop();
+        if let (Some(Token::Integer(a)), Some(Token::Integer(b))) = (a, b) {
+          self.stack.push(Token::Integer(a - b));
+        } else {
+          panic!("Invalid operation");
+        }
+      }
+      "*" => {
+        let a = self.stack.pop();
+        let b = self.stack.pop();
+        if let (Some(Token::Integer(a)), Some(Token::Integer(b))) = (a, b) {
+          self.stack.push(Token::Integer(a * b));
+        } else {
+          panic!("Invalid operation");
+        }
+      }
+      _ => {}
+    }
+  }
 }
 
 fn main() -> Result<()> {
@@ -29,6 +71,7 @@ fn main() -> Result<()> {
         rl.add_history_entry(line.as_str());
 
         program.parse_line(line);
+        program.eval();
         println!("{:?}", program.stack);
       }
       Err(ReadlineError::Interrupted) => {
