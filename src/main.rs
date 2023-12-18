@@ -12,6 +12,7 @@ enum State {
   Start,
   String,
   Integer,
+  Float,
   Symbol,
 }
 
@@ -19,7 +20,9 @@ fn main() {
   let mut state = State::Start;
   let mut tokens: Vec<Token> = vec![];
 
-  let input = "1 a2 add \"string hello\" var".chars().collect::<Vec<_>>();
+  let input = "1 a2 3.0 add \"string hello\" var"
+    .chars()
+    .collect::<Vec<_>>();
   let mut i = 0;
 
   let mut accumulator = String::new();
@@ -69,14 +72,21 @@ fn main() {
             accumulator.push(c);
             State::Integer
           }
-          // '.' => {
-          //   accumulator.push(c);
-          //   State::Float
-          // }
+          '.' => {
+            accumulator.push(c);
+            State::Float
+          }
+          _ => State::Start,
+        },
+        State::Float => match c {
+          '0'..='9' => {
+            accumulator.push(c);
+            State::Float
+          }
           _ => State::Start,
         },
         State::Symbol => match c {
-          'a'..='z' | 'A'..='Z' | '_' => {
+          'a'..='z' | 'A'..='Z' | '0'..='9' | '_' => {
             accumulator.push(c);
             State::Symbol
           }
@@ -98,6 +108,10 @@ fn main() {
       }
       (State::Integer, State::Start) => {
         tokens.push(Token::Integer(accumulator.parse::<usize>().unwrap()));
+        accumulator.clear();
+      }
+      (State::Float, State::Start) => {
+        tokens.push(Token::Float(accumulator.parse::<f64>().unwrap()));
         accumulator.clear();
       }
       (State::Symbol, State::Start) => {
