@@ -18,6 +18,10 @@ enum State {
   NegSign,
 }
 
+fn is_symbol(c: char) -> bool {
+  matches!(c, 'a'..='z' | 'A'..='Z' | '_' | '+' | '=' | '%')
+}
+
 pub fn parse(input: String) -> Vec<Token> {
   let mut state = State::Start;
   let mut tokens: Vec<Token> = vec![];
@@ -48,7 +52,7 @@ pub fn parse(input: String) -> Vec<Token> {
           }
 
           // Match a symbol
-          'a'..='z' | 'A'..='Z' | '_' | '+' | '=' => {
+          c if is_symbol(c) => {
             accumulator.push(c);
             State::Symbol
           }
@@ -88,7 +92,7 @@ pub fn parse(input: String) -> Vec<Token> {
           _ => State::Start,
         },
         State::Symbol => match c {
-          'a'..='z' | 'A'..='Z' | '0'..='9' | '_' => {
+          c if is_symbol(c) => {
             accumulator.push(c);
             State::Symbol
           }
