@@ -1,34 +1,35 @@
 use rustyline::error::ReadlineError;
 use rustyline::{DefaultEditor, Result};
-
-enum Value {
-  Integer(usize),
-  Float(f64),
-  String(String),
-  Symbol(String),
-  Nil,
-}
+use stack::Token;
 
 struct Program {
-  stack: Vec<Value>,
+  stack: Vec<Token>,
 }
 
 impl Program {
   fn new() -> Self {
     Self { stack: vec![] }
   }
+
+  fn parse_line(&mut self, line: String) {
+    let tokens = stack::parse(line);
+    self.stack.extend(tokens);
+  }
 }
 
 fn main() -> Result<()> {
   // `()` can be used when no completer is required
   let mut rl = DefaultEditor::new()?;
+  let mut program = Program::new();
 
   loop {
     let readline = rl.readline(">> ");
     match readline {
       Ok(line) => {
         rl.add_history_entry(line.as_str());
-        println!("Line: {}", line);
+
+        program.parse_line(line);
+        println!("{:?}", program.stack);
       }
       Err(ReadlineError::Interrupted) => {
         println!("CTRL-C");

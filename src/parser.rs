@@ -14,6 +14,8 @@ enum State {
   Integer,
   Float,
   Symbol,
+
+  NegSign,
 }
 
 pub fn parse(input: String) -> Vec<Token> {
@@ -32,19 +34,21 @@ pub fn parse(input: String) -> Vec<Token> {
 
     let new_state: State = if i < input.len() {
       let c = input[i];
-      let new_state = match state {
+      match state {
         State::Start => match c {
           // Match a double-quote
           '"' => State::String,
 
+          '-' => State::NegSign,
+
           // Match a digit (including negative sign)
-          '0'..='9' | '-' => {
+          '0'..='9' => {
             accumulator.push(c);
             State::Integer
           }
 
           // Match a symbol
-          'a'..='z' | 'A'..='Z' | '_' => {
+          'a'..='z' | 'A'..='Z' | '_' | '+' | '=' => {
             accumulator.push(c);
             State::Symbol
           }
@@ -54,7 +58,7 @@ pub fn parse(input: String) -> Vec<Token> {
 
           // Error on everything else
           _ => {
-            println!("Error: Unexpected character: {}", c);
+            eprintln!("Error: Unexpected character: {}", c);
             break;
           }
         },
@@ -90,11 +94,15 @@ pub fn parse(input: String) -> Vec<Token> {
           }
           _ => State::Start,
         },
-      };
-
-      println!("Current: {:?}, New: {:?}, Char: {}", state, new_state, c);
-
-      new_state
+        State::NegSign => match c {
+          '0'..='9' => {
+            accumulator.push('-');
+            accumulator.push(c);
+            State::Integer
+          }
+          _ => State::Start,
+        },
+      }
     } else {
       State::Start
     };
@@ -110,6 +118,10 @@ pub fn parse(input: String) -> Vec<Token> {
       }
       (State::Float, State::Start) => {
         tokens.push(Token::Float(accumulator.parse::<f64>().unwrap()));
+        accumulator.clear();
+      }
+      (State::NegSign, State::Start) => {
+        tokens.push(Token::Symbol('-'.into()));
         accumulator.clear();
       }
       (State::Symbol, State::Start) => {
