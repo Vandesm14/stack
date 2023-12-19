@@ -101,7 +101,7 @@ pub fn lex(input: String) -> Vec<Token> {
             }
 
             // Ignore whitespace
-            ' ' => State::Start,
+            c if c.is_whitespace() => State::Start,
 
             // Error on everything else
             _ => {
