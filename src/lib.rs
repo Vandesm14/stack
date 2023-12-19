@@ -1,5 +1,5 @@
+mod evaluator;
 mod parser;
-mod program;
 
+pub use evaluator::*;
 pub use parser::*;
-pub use program::*;
