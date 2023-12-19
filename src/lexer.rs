@@ -111,7 +111,10 @@ pub fn lex(input: String) -> Vec<Token> {
           }
         }
         State::String => match c {
-          '"' => State::Start,
+          '"' => {
+            i += 1;
+            State::Start
+          }
           _ => {
             accumulator.push(c);
             i += 1;
@@ -166,6 +169,7 @@ pub fn lex(input: String) -> Vec<Token> {
         },
       }
     } else {
+      // Evaluates at the end of input (sets the state to Start to trigger an eval)
       i += 1;
       State::Start
     };
