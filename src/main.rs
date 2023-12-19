@@ -12,7 +12,7 @@ fn main() -> Result<()> {
       Ok(line) => {
         rl.add_history_entry(line.as_str()).unwrap();
 
-        program.eval(line);
+        program.eval_string(line);
         println!("Stack: {:?}", program.stack);
         println!("Scope: {:?}", program.scope);
       }

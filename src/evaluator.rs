@@ -15,10 +15,14 @@ impl Program {
     }
   }
 
-  pub fn eval(&mut self, line: String) {
+  pub fn eval_string(&mut self, line: String) {
     let tokens = crate::lex(line.clone());
     let exprs = crate::parse(tokens);
 
+    self.eval(exprs);
+  }
+
+  pub fn eval(&mut self, exprs: Vec<Expr>) {
     for expr in exprs {
       match expr {
         Expr::Call(call) => match call.as_str() {
@@ -104,7 +108,7 @@ impl Program {
           "call" => {
             let a = self.stack.pop();
             if let Some(Expr::Symbol(a)) | Some(Expr::Call(a)) = a {
-              self.eval(a);
+              self.eval_string(a);
             } else {
               panic!("Invalid operation");
             }
@@ -136,28 +140,28 @@ mod tests {
     #[test]
     fn implicitly_adds_to_stack() {
       let mut program = Program::new();
-      program.eval("1 2".to_string());
+      program.eval_string("1 2".to_string());
       assert_eq!(program.stack, vec![Expr::Integer(1), Expr::Integer(2)]);
     }
 
     #[test]
     fn symbols_are_pushed() {
       let mut program = Program::new();
-      program.eval("'a".to_string());
+      program.eval_string("'a".to_string());
       assert_eq!(program.stack, vec![Expr::Symbol("a".to_string())]);
     }
 
     #[test]
     fn add_two_numbers() {
       let mut program = Program::new();
-      program.eval("1 2 +".to_string());
+      program.eval_string("1 2 +".to_string());
       assert_eq!(program.stack, vec![Expr::Integer(3)]);
     }
 
     #[test]
     fn complex_operations() {
       let mut program = Program::new();
-      program.eval("1 2 + 3 *".to_string());
+      program.eval_string("1 2 + 3 *".to_string());
       assert_eq!(program.stack, vec![Expr::Integer(9)]);
     }
   }
@@ -168,7 +172,7 @@ mod tests {
     #[test]
     fn storing_variables() {
       let mut program = Program::new();
-      program.eval("1 'a set".to_string());
+      program.eval_string("1 'a set".to_string());
       assert_eq!(
         program.scope,
         HashMap::from_iter(vec![("a".to_string(), Expr::Integer(1))])
@@ -178,14 +182,14 @@ mod tests {
     #[test]
     fn retrieving_variables() {
       let mut program = Program::new();
-      program.eval("1 'a set a".to_string());
+      program.eval_string("1 'a set a".to_string());
       assert_eq!(program.stack, vec![Expr::Integer(1)]);
     }
 
     #[test]
     fn evaluating_variables() {
       let mut program = Program::new();
-      program.eval("1 'a set a 2 +".to_string());
+      program.eval_string("1 'a set a 2 +".to_string());
       assert_eq!(program.stack, vec![Expr::Integer(3)]);
     }
   }
@@ -196,35 +200,35 @@ mod tests {
     #[test]
     fn clearing_stack() {
       let mut program = Program::new();
-      program.eval("1 2 clear".to_string());
+      program.eval_string("1 2 clear".to_string());
       assert_eq!(program.stack, vec![]);
     }
 
     #[test]
     fn popping_from_stack() {
       let mut program = Program::new();
-      program.eval("1 2 pop".to_string());
+      program.eval_string("1 2 pop".to_string());
       assert_eq!(program.stack, vec![Expr::Integer(1)]);
     }
 
     #[test]
     fn duplicating_stack_item() {
       let mut program = Program::new();
-      program.eval("1 dup".to_string());
+      program.eval_string("1 dup".to_string());
       assert_eq!(program.stack, vec![Expr::Integer(1), Expr::Integer(1)]);
     }
 
     #[test]
     fn swapping_stack_items() {
       let mut program = Program::new();
-      program.eval("1 2 swap".to_string());
+      program.eval_string("1 2 swap".to_string());
       assert_eq!(program.stack, vec![Expr::Integer(2), Expr::Integer(1)]);
     }
 
     #[test]
     fn swapping_with_index() {
       let mut program = Program::new();
-      program.eval("1 2 3 4 0 iswap".to_string());
+      program.eval_string("1 2 3 4 0 iswap".to_string());
       assert_eq!(
         program.stack,
         vec![
@@ -239,7 +243,7 @@ mod tests {
     #[test]
     fn swapping_with_index2() {
       let mut program = Program::new();
-      program.eval("1 2 3 4 1 iswap".to_string());
+      program.eval_string("1 2 3 4 1 iswap".to_string());
       assert_eq!(
         program.stack,
         vec![
