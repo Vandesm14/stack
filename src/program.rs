@@ -1,6 +1,5 @@
-use std::collections::HashMap;
-
 use crate::Token;
+use std::collections::HashMap;
 
 #[derive(Debug, Clone, Default)]
 pub struct Program {
@@ -122,6 +121,133 @@ impl Program {
           self.stack.push(token);
         }
       }
+    }
+  }
+}
+
+#[cfg(test)]
+mod tests {
+  use super::*;
+
+  mod eval {
+    use super::*;
+
+    #[test]
+    fn implicitly_adds_to_stack() {
+      let mut program = Program::new();
+      program.eval("1 2".to_string());
+      assert_eq!(program.stack, vec![Token::Integer(1), Token::Integer(2)]);
+    }
+
+    #[test]
+    fn symbols_are_pushed() {
+      let mut program = Program::new();
+      program.eval("'a".to_string());
+      assert_eq!(program.stack, vec![Token::Symbol("a".to_string())]);
+    }
+
+    #[test]
+    fn add_two_numbers() {
+      let mut program = Program::new();
+      program.eval("1 2 +".to_string());
+      assert_eq!(program.stack, vec![Token::Integer(3)]);
+    }
+
+    #[test]
+    fn complex_operations() {
+      let mut program = Program::new();
+      program.eval("1 2 + 3 *".to_string());
+      assert_eq!(program.stack, vec![Token::Integer(9)]);
+    }
+  }
+
+  mod variables {
+    use super::*;
+
+    #[test]
+    fn storing_variables() {
+      let mut program = Program::new();
+      program.eval("1 'a set".to_string());
+      assert_eq!(
+        program.scope,
+        HashMap::from_iter(vec![("a".to_string(), Token::Integer(1))])
+      );
+    }
+
+    #[test]
+    fn retrieving_variables() {
+      let mut program = Program::new();
+      program.eval("1 'a set a".to_string());
+      assert_eq!(program.stack, vec![Token::Integer(1)]);
+    }
+
+    #[test]
+    fn evaluating_variables() {
+      let mut program = Program::new();
+      program.eval("1 'a set a 2 +".to_string());
+      assert_eq!(program.stack, vec![Token::Integer(3)]);
+    }
+  }
+
+  mod stack_ops {
+    use super::*;
+
+    #[test]
+    fn clearing_stack() {
+      let mut program = Program::new();
+      program.eval("1 2 clear".to_string());
+      assert_eq!(program.stack, vec![]);
+    }
+
+    #[test]
+    fn popping_from_stack() {
+      let mut program = Program::new();
+      program.eval("1 2 pop".to_string());
+      assert_eq!(program.stack, vec![Token::Integer(1)]);
+    }
+
+    #[test]
+    fn duplicating_stack_item() {
+      let mut program = Program::new();
+      program.eval("1 dup".to_string());
+      assert_eq!(program.stack, vec![Token::Integer(1), Token::Integer(1)]);
+    }
+
+    #[test]
+    fn swapping_stack_items() {
+      let mut program = Program::new();
+      program.eval("1 2 swap".to_string());
+      assert_eq!(program.stack, vec![Token::Integer(2), Token::Integer(1)]);
+    }
+
+    #[test]
+    fn swapping_with_index() {
+      let mut program = Program::new();
+      program.eval("1 2 3 4 0 iswap".to_string());
+      assert_eq!(
+        program.stack,
+        vec![
+          Token::Integer(4),
+          Token::Integer(2),
+          Token::Integer(3),
+          Token::Integer(1)
+        ]
+      );
+    }
+
+    #[test]
+    fn swapping_with_index2() {
+      let mut program = Program::new();
+      program.eval("1 2 3 4 1 iswap".to_string());
+      assert_eq!(
+        program.stack,
+        vec![
+          Token::Integer(1),
+          Token::Integer(4),
+          Token::Integer(3),
+          Token::Integer(2)
+        ]
+      );
     }
   }
 }
