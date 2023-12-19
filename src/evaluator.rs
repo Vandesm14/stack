@@ -71,8 +71,6 @@ impl Program {
         let b = self.pop_eval();
         if let (Expr::Symbol(a), b) = (a, b) {
           self.scope.insert(a, b);
-          // TODO: Should this keep the original value or pop it?
-          // We are currently popping it
           None
         } else {
           panic!("Invalid args for: {}", call);

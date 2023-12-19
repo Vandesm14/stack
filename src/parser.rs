@@ -6,6 +6,7 @@ pub enum Expr {
   Float(f64),
 
   String(String),
+  Boolean(bool),
 
   Symbol(String),
   Call(String),
@@ -31,8 +32,15 @@ impl From<Option<Expr>> for Expr {
   }
 }
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+enum ListMode {
+  Paren,
+  Bracket,
+}
+
 pub fn parse(tokens: Vec<Token>) -> Vec<Expr> {
   let mut blocks: Vec<Vec<Expr>> = vec![Vec::new()];
+  let mut list_mode: Vec<ListMode> = Vec::new();
 
   for token in tokens {
     match token {
@@ -40,19 +48,37 @@ pub fn parse(tokens: Vec<Token>) -> Vec<Expr> {
       Token::Float(f) => blocks.last_mut().unwrap().push(Expr::Float(f)),
       Token::String(s) => blocks.last_mut().unwrap().push(Expr::String(s)),
       Token::Symbol(s) => blocks.last_mut().unwrap().push(Expr::Symbol(s)),
-      Token::Call(s) => blocks.last_mut().unwrap().push(Expr::Call(s)),
+      Token::Call(s) => match s.as_str() {
+        "true" => blocks.last_mut().unwrap().push(Expr::Boolean(true)),
+        "false" => blocks.last_mut().unwrap().push(Expr::Boolean(false)),
+        _ => blocks.last_mut().unwrap().push(Expr::Call(s)),
+      },
       Token::Nil => blocks.last_mut().unwrap().push(Expr::Nil),
 
       Token::ParenStart | Token::BracketStart => {
         blocks.push(Vec::new());
+
+        match token {
+          Token::ParenStart => list_mode.push(ListMode::Paren),
+          Token::BracketStart => list_mode.push(ListMode::Bracket),
+          _ => {}
+        }
       }
       Token::ParenEnd => {
-        let block = blocks.pop().unwrap();
-        blocks.last_mut().unwrap().push(Expr::Block(block));
+        if let Some(ListMode::Paren) = list_mode.pop() {
+          let block = blocks.pop().unwrap();
+          blocks.last_mut().unwrap().push(Expr::Block(block));
+        } else {
+          panic!("Mismatched brackets");
+        }
       }
       Token::BracketEnd => {
-        let block = blocks.pop().unwrap();
-        blocks.last_mut().unwrap().push(Expr::List(block));
+        if let Some(ListMode::Bracket) = list_mode.pop() {
+          let block = blocks.pop().unwrap();
+          blocks.last_mut().unwrap().push(Expr::List(block));
+        } else {
+          panic!("Mismatched brackets");
+        }
       }
     };
   }
@@ -113,6 +139,35 @@ mod tests {
       Expr::List(vec![Expr::Integer(2), Expr::Integer(3)]),
       Expr::Integer(4),
     ])];
+
+    assert_eq!(parse(tokens), expected);
+  }
+
+  #[test]
+  #[should_panic]
+  fn fail_for_only_start_paren() {
+    let tokens = crate::lex("(".to_owned());
+    parse(tokens);
+  }
+
+  #[test]
+  #[should_panic]
+  fn fail_for_only_end_paren() {
+    let tokens = crate::lex(")".to_owned());
+    parse(tokens);
+  }
+
+  #[test]
+  #[should_panic]
+  fn fail_for_mismatched_parens() {
+    let tokens = crate::lex("(1 2 3]".to_owned());
+    parse(tokens);
+  }
+
+  #[test]
+  fn booleans() {
+    let tokens = crate::lex("true false".to_owned());
+    let expected = vec![Expr::Boolean(true), Expr::Boolean(false)];
 
     assert_eq!(parse(tokens), expected);
   }
