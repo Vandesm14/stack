@@ -1,10 +1,10 @@
-use crate::Token;
+use crate::Expr;
 use std::collections::HashMap;
 
 #[derive(Debug, Clone, Default)]
 pub struct Program {
-  pub stack: Vec<Token>,
-  pub scope: HashMap<String, Token>,
+  pub stack: Vec<Expr>,
+  pub scope: HashMap<String, Expr>,
 }
 
 impl Program {
@@ -16,16 +16,17 @@ impl Program {
   }
 
   pub fn eval(&mut self, line: String) {
-    let tokens = crate::parse(line.clone());
+    let tokens = crate::lex(line.clone());
+    let exprs = crate::parse(tokens);
 
-    for token in tokens {
-      match token {
-        Token::Call(call) => match call.as_str() {
+    for expr in exprs {
+      match expr {
+        Expr::Call(call) => match call.as_str() {
           "+" => {
             let a = self.stack.pop();
             let b = self.stack.pop();
-            if let (Some(Token::Integer(a)), Some(Token::Integer(b))) = (a, b) {
-              self.stack.push(Token::Integer(a + b));
+            if let (Some(Expr::Integer(a)), Some(Expr::Integer(b))) = (a, b) {
+              self.stack.push(Expr::Integer(a + b));
             } else {
               panic!("Invalid args for: {}", call);
             }
@@ -33,8 +34,8 @@ impl Program {
           "-" => {
             let a = self.stack.pop();
             let b = self.stack.pop();
-            if let (Some(Token::Integer(a)), Some(Token::Integer(b))) = (a, b) {
-              self.stack.push(Token::Integer(a - b));
+            if let (Some(Expr::Integer(a)), Some(Expr::Integer(b))) = (a, b) {
+              self.stack.push(Expr::Integer(a - b));
             } else {
               panic!("Invalid args for: {}", call);
             }
@@ -42,8 +43,8 @@ impl Program {
           "*" => {
             let a = self.stack.pop();
             let b = self.stack.pop();
-            if let (Some(Token::Integer(a)), Some(Token::Integer(b))) = (a, b) {
-              self.stack.push(Token::Integer(a * b));
+            if let (Some(Expr::Integer(a)), Some(Expr::Integer(b))) = (a, b) {
+              self.stack.push(Expr::Integer(a * b));
             } else {
               panic!("Invalid args for: {}", call);
             }
@@ -51,8 +52,8 @@ impl Program {
           "/" => {
             let a = self.stack.pop();
             let b = self.stack.pop();
-            if let (Some(Token::Integer(a)), Some(Token::Integer(b))) = (a, b) {
-              self.stack.push(Token::Integer(a / b));
+            if let (Some(Expr::Integer(a)), Some(Expr::Integer(b))) = (a, b) {
+              self.stack.push(Expr::Integer(a / b));
             } else {
               panic!("Invalid args for: {}", call);
             }
@@ -60,7 +61,7 @@ impl Program {
           "set" => {
             let a = self.stack.pop();
             let b = self.stack.pop();
-            if let (Some(Token::Symbol(a)), Some(b)) = (a, b) {
+            if let (Some(Expr::Symbol(a)), Some(b)) = (a, b) {
               self.scope.insert(a, b);
             } else {
               panic!("Invalid args for: {}", call);
@@ -93,7 +94,7 @@ impl Program {
           }
           "iswap" => {
             let index = self.stack.pop();
-            if let Some(Token::Integer(index)) = index {
+            if let Some(Expr::Integer(index)) = index {
               let len = self.stack.len();
               self.stack.swap(len - 1, index as usize);
             } else {
@@ -102,7 +103,7 @@ impl Program {
           }
           "call" => {
             let a = self.stack.pop();
-            if let Some(Token::Symbol(a)) | Some(Token::Call(a)) = a {
+            if let Some(Expr::Symbol(a)) | Some(Expr::Call(a)) = a {
               self.eval(a);
             } else {
               panic!("Invalid operation");
@@ -118,7 +119,7 @@ impl Program {
           }
         },
         _ => {
-          self.stack.push(token);
+          self.stack.push(expr);
         }
       }
     }
@@ -136,28 +137,28 @@ mod tests {
     fn implicitly_adds_to_stack() {
       let mut program = Program::new();
       program.eval("1 2".to_string());
-      assert_eq!(program.stack, vec![Token::Integer(1), Token::Integer(2)]);
+      assert_eq!(program.stack, vec![Expr::Integer(1), Expr::Integer(2)]);
     }
 
     #[test]
     fn symbols_are_pushed() {
       let mut program = Program::new();
       program.eval("'a".to_string());
-      assert_eq!(program.stack, vec![Token::Symbol("a".to_string())]);
+      assert_eq!(program.stack, vec![Expr::Symbol("a".to_string())]);
     }
 
     #[test]
     fn add_two_numbers() {
       let mut program = Program::new();
       program.eval("1 2 +".to_string());
-      assert_eq!(program.stack, vec![Token::Integer(3)]);
+      assert_eq!(program.stack, vec![Expr::Integer(3)]);
     }
 
     #[test]
     fn complex_operations() {
       let mut program = Program::new();
       program.eval("1 2 + 3 *".to_string());
-      assert_eq!(program.stack, vec![Token::Integer(9)]);
+      assert_eq!(program.stack, vec![Expr::Integer(9)]);
     }
   }
 
@@ -170,7 +171,7 @@ mod tests {
       program.eval("1 'a set".to_string());
       assert_eq!(
         program.scope,
-        HashMap::from_iter(vec![("a".to_string(), Token::Integer(1))])
+        HashMap::from_iter(vec![("a".to_string(), Expr::Integer(1))])
       );
     }
 
@@ -178,14 +179,14 @@ mod tests {
     fn retrieving_variables() {
       let mut program = Program::new();
       program.eval("1 'a set a".to_string());
-      assert_eq!(program.stack, vec![Token::Integer(1)]);
+      assert_eq!(program.stack, vec![Expr::Integer(1)]);
     }
 
     #[test]
     fn evaluating_variables() {
       let mut program = Program::new();
       program.eval("1 'a set a 2 +".to_string());
-      assert_eq!(program.stack, vec![Token::Integer(3)]);
+      assert_eq!(program.stack, vec![Expr::Integer(3)]);
     }
   }
 
@@ -203,21 +204,21 @@ mod tests {
     fn popping_from_stack() {
       let mut program = Program::new();
       program.eval("1 2 pop".to_string());
-      assert_eq!(program.stack, vec![Token::Integer(1)]);
+      assert_eq!(program.stack, vec![Expr::Integer(1)]);
     }
 
     #[test]
     fn duplicating_stack_item() {
       let mut program = Program::new();
       program.eval("1 dup".to_string());
-      assert_eq!(program.stack, vec![Token::Integer(1), Token::Integer(1)]);
+      assert_eq!(program.stack, vec![Expr::Integer(1), Expr::Integer(1)]);
     }
 
     #[test]
     fn swapping_stack_items() {
       let mut program = Program::new();
       program.eval("1 2 swap".to_string());
-      assert_eq!(program.stack, vec![Token::Integer(2), Token::Integer(1)]);
+      assert_eq!(program.stack, vec![Expr::Integer(2), Expr::Integer(1)]);
     }
 
     #[test]
@@ -227,10 +228,10 @@ mod tests {
       assert_eq!(
         program.stack,
         vec![
-          Token::Integer(4),
-          Token::Integer(2),
-          Token::Integer(3),
-          Token::Integer(1)
+          Expr::Integer(4),
+          Expr::Integer(2),
+          Expr::Integer(3),
+          Expr::Integer(1)
         ]
       );
     }
@@ -242,10 +243,10 @@ mod tests {
       assert_eq!(
         program.stack,
         vec![
-          Token::Integer(1),
-          Token::Integer(4),
-          Token::Integer(3),
-          Token::Integer(2)
+          Expr::Integer(1),
+          Expr::Integer(4),
+          Expr::Integer(3),
+          Expr::Integer(2)
         ]
       );
     }
