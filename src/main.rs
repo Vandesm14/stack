@@ -80,6 +80,7 @@ fn eval_file(path: PathBuf, is_watching: bool) {
       }
 
       println!("Stack: {:?}", program.stack);
+      println!("Scope: {:?}", program.scope);
 
       if is_watching {
         println!("Watching file for changes...");
