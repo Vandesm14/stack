@@ -15,20 +15,26 @@ impl Program {
     }
   }
 
-  pub fn eval_string(&mut self, line: String) {
-    let tokens = crate::lex(line.clone());
-    let exprs = crate::parse(tokens);
-
-    self.eval(exprs);
+  fn pop_eval(&mut self) -> Expr {
+    let expr = self.stack.pop();
+    if let Some(expr) = expr {
+      if let Some(result) = self.eval_expr(expr) {
+        result
+      } else {
+        Expr::Nil
+      }
+    } else {
+      Expr::Nil
+    }
   }
 
-  fn eval_call(&mut self, call: String) {
+  fn eval_call(&mut self, call: String) -> Option<Expr> {
     match call.as_str() {
       "+" => {
         let a = self.pop_eval();
         let b = self.pop_eval();
         if let (Expr::Integer(a), Expr::Integer(b)) = (a, b) {
-          self.stack.push(Expr::Integer(a + b));
+          Some(Expr::Integer(a + b))
         } else {
           panic!("Invalid args for: {}", call);
         }
@@ -37,7 +43,7 @@ impl Program {
         let a = self.pop_eval();
         let b = self.pop_eval();
         if let (Expr::Integer(a), Expr::Integer(b)) = (a, b) {
-          self.stack.push(Expr::Integer(a - b));
+          Some(Expr::Integer(a - b))
         } else {
           panic!("Invalid args for: {}", call);
         }
@@ -46,7 +52,7 @@ impl Program {
         let a = self.pop_eval();
         let b = self.pop_eval();
         if let (Expr::Integer(a), Expr::Integer(b)) = (a, b) {
-          self.stack.push(Expr::Integer(a * b));
+          Some(Expr::Integer(a * b))
         } else {
           panic!("Invalid args for: {}", call);
         }
@@ -55,7 +61,7 @@ impl Program {
         let a = self.pop_eval();
         let b = self.pop_eval();
         if let (Expr::Integer(a), Expr::Integer(b)) = (a, b) {
-          self.stack.push(Expr::Integer(a / b));
+          Some(Expr::Integer(a / b))
         } else {
           panic!("Invalid args for: {}", call);
         }
@@ -65,15 +71,20 @@ impl Program {
         let b = self.pop_eval();
         if let (Expr::Symbol(a), b) = (a, b) {
           self.scope.insert(a, b);
+          // TODO: Should this keep the original value or pop it?
+          // We are currently popping it
+          None
         } else {
           panic!("Invalid args for: {}", call);
         }
       }
       "clear" => {
         self.stack.clear();
+        None
       }
       "pop" => {
         self.stack.pop();
+        None
       }
       "dup" => {
         if self.stack.is_empty() {
@@ -83,6 +94,7 @@ impl Program {
         let a = self.pop_eval();
         self.stack.push(a.clone());
         self.stack.push(a);
+        None
       }
       "swap" => {
         if self.stack.len() < 2 {
@@ -93,6 +105,7 @@ impl Program {
         let b = self.pop_eval();
         self.stack.push(a);
         self.stack.push(b);
+        None
       }
       "iswap" => {
         if self.stack.len() < 2 {
@@ -103,16 +116,18 @@ impl Program {
         if let Expr::Integer(index) = index {
           let len = self.stack.len();
           self.stack.swap(len - 1, index as usize);
+          None
         } else {
           panic!("Invalid args for: {}", call);
         }
       }
       "call" => {
         let a = self.stack.pop();
+
         if let Some(Expr::Symbol(a)) | Some(Expr::Call(a)) = a {
-          self.eval_string(a);
+          self.eval_expr(Expr::Call(a))
         } else {
-          panic!("Invalid operation");
+          panic!("Invalid args for: {}", call);
         }
       }
       "unwrap" => {
@@ -121,13 +136,17 @@ impl Program {
           for expr in a {
             self.stack.push(expr);
           }
+          None
         } else {
           panic!("Invalid args for: {}", call);
         }
       }
       _ => {
         if let Some(value) = self.scope.get(&call) {
-          self.eval(vec![value.clone()]);
+          self.eval_expr(value.clone())
+        } else {
+          eprintln!("Unknown call: {}", call);
+          None
         }
       }
     }
@@ -135,15 +154,8 @@ impl Program {
 
   fn eval_expr(&mut self, expr: Expr) -> Option<Expr> {
     match expr {
-      Expr::Call(call) => {
-        self.eval_call(call);
-        None
-      }
+      Expr::Call(call) => self.eval_call(call),
       Expr::List(list) => {
-        // let mut exprs: Vec<Expr> = Vec::new();
-        // for expr in list {
-        //   exprs.push(self.eval_expr(expr));
-        // }
         let exprs: Vec<Expr> = list
           .into_iter()
           .filter_map(|expr| self.eval_expr(expr))
@@ -155,23 +167,18 @@ impl Program {
     }
   }
 
-  fn pop_eval(&mut self) -> Expr {
-    let expr = self.stack.pop();
-    if let Some(expr) = expr {
-      if let Some(result) = self.eval_expr(expr) {
-        return result;
-      } else {
-        Expr::Nil
-      }
-    } else {
-      Expr::Nil
-    }
+  pub fn eval_string(&mut self, line: String) {
+    let tokens = crate::lex(line);
+    let exprs = crate::parse(tokens);
+
+    self.eval(exprs);
   }
 
   pub fn eval(&mut self, exprs: Vec<Expr>) {
     for expr in exprs {
-      let expr = self.eval_expr(expr);
-      if let Some(expr) = expr {
+      let result = self.eval_expr(expr);
+
+      if let Some(expr) = result {
         self.stack.push(expr);
       }
     }
@@ -211,6 +218,54 @@ mod tests {
       let mut program = Program::new();
       program.eval_string("1 2 + 3 *".to_string());
       assert_eq!(program.stack, vec![Expr::Integer(9)]);
+    }
+
+    #[test]
+    fn eval_from_stack() {
+      let mut program = Program::new();
+      program.eval_string("1 2 '+ call".to_string());
+      assert_eq!(program.stack, vec![Expr::Integer(3)]);
+    }
+
+    #[test]
+    fn dont_eval_blocks() {
+      let mut program = Program::new();
+      program.eval_string("6 'var set (var)".to_string());
+      assert_eq!(
+        program.stack,
+        vec![Expr::Block(vec![Expr::Call("var".to_string())])]
+      );
+    }
+
+    #[test]
+    fn dont_eval_blocks_symbols() {
+      let mut program = Program::new();
+      program.eval_string("6 'var set ('var)".to_string());
+      assert_eq!(
+        program.stack,
+        vec![Expr::Block(vec![Expr::Symbol("var".to_string())])]
+      );
+    }
+
+    #[test]
+    fn eval_lists() {
+      let mut program = Program::new();
+      program.eval_string("[1 2 3]".to_string());
+      assert_eq!(
+        program.stack,
+        vec![Expr::List(vec![
+          Expr::Integer(1),
+          Expr::Integer(2),
+          Expr::Integer(3)
+        ])]
+      );
+    }
+
+    #[test]
+    fn eval_lists_eagerly() {
+      let mut program = Program::new();
+      program.eval_string("6 'var set [var]".to_string());
+      assert_eq!(program.stack, vec![Expr::List(vec![Expr::Integer(6)])]);
     }
   }
 

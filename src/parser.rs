@@ -12,9 +12,11 @@ pub enum Expr {
 
   /// A block is lazy. It only gets evaluated when it's called.
   /// This is useful for things like if statements.
+  /// `(1 2 3)` is a block
   Block(Vec<Expr>),
 
   /// Lists are eager. They get evaluated before being pushed to the stack.
+  /// `[1 2 3]` is a list
   List(Vec<Expr>),
 
   Nil,
