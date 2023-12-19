@@ -76,6 +76,15 @@ impl Program {
           panic!("Invalid args for: {}", call);
         }
       }
+      "unset" => {
+        let a = self.pop_eval();
+        if let Expr::Symbol(a) = a {
+          self.scope.remove(&a);
+          None
+        } else {
+          panic!("Invalid args for: {}", call);
+        }
+      }
       "clear" => {
         self.stack.clear();
         None
@@ -292,6 +301,13 @@ mod tests {
       let mut program = Program::new();
       program.eval_string("1 'a set a 2 +".to_string());
       assert_eq!(program.stack, vec![Expr::Integer(3)]);
+    }
+
+    #[test]
+    fn removing_variables() {
+      let mut program = Program::new();
+      program.eval_string("1 'a set 'a unset".to_string());
+      assert_eq!(program.scope, HashMap::new());
     }
   }
 
