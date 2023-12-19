@@ -44,3 +44,57 @@ pub fn parse(tokens: Vec<Token>) -> Vec<Expr> {
 
   blocks.last().unwrap().clone()
 }
+
+#[cfg(test)]
+mod tests {
+  use super::*;
+
+  #[test]
+  fn implicit_block() {
+    let tokens = crate::lex("(1 2 3)".to_owned());
+    let expected = vec![Expr::Block(vec![
+      Expr::Integer(1),
+      Expr::Integer(2),
+      Expr::Integer(3),
+    ])];
+
+    assert_eq!(parse(tokens), expected);
+  }
+
+  #[test]
+  fn block_at_beginning() {
+    let tokens = crate::lex("(1 2 3) 4 5 6".to_owned());
+    let expected = vec![
+      Expr::Block(vec![Expr::Integer(1), Expr::Integer(2), Expr::Integer(3)]),
+      Expr::Integer(4),
+      Expr::Integer(5),
+      Expr::Integer(6),
+    ];
+
+    assert_eq!(parse(tokens), expected);
+  }
+
+  #[test]
+  fn nested_blocks() {
+    let tokens = crate::lex("(1 (2 3) 4)".to_owned());
+    let expected = vec![Expr::Block(vec![
+      Expr::Integer(1),
+      Expr::Block(vec![Expr::Integer(2), Expr::Integer(3)]),
+      Expr::Integer(4),
+    ])];
+
+    assert_eq!(parse(tokens), expected);
+  }
+
+  #[test]
+  fn blocks_and_lists() {
+    let tokens = crate::lex("(1 [2 3] 4)".to_owned());
+    let expected = vec![Expr::Block(vec![
+      Expr::Integer(1),
+      Expr::List(vec![Expr::Integer(2), Expr::Integer(3)]),
+      Expr::Integer(4),
+    ])];
+
+    assert_eq!(parse(tokens), expected);
+  }
+}
