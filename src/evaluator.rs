@@ -22,14 +22,115 @@ impl Program {
     self.eval(exprs);
   }
 
+  fn eval_call(&mut self, call: String) {
+    match call.as_str() {
+      "+" => {
+        let a = self.pop_eval();
+        let b = self.pop_eval();
+        if let (Expr::Integer(a), Expr::Integer(b)) = (a, b) {
+          self.stack.push(Expr::Integer(a + b));
+        } else {
+          panic!("Invalid args for: {}", call);
+        }
+      }
+      "-" => {
+        let a = self.pop_eval();
+        let b = self.pop_eval();
+        if let (Expr::Integer(a), Expr::Integer(b)) = (a, b) {
+          self.stack.push(Expr::Integer(a - b));
+        } else {
+          panic!("Invalid args for: {}", call);
+        }
+      }
+      "*" => {
+        let a = self.pop_eval();
+        let b = self.pop_eval();
+        if let (Expr::Integer(a), Expr::Integer(b)) = (a, b) {
+          self.stack.push(Expr::Integer(a * b));
+        } else {
+          panic!("Invalid args for: {}", call);
+        }
+      }
+      "/" => {
+        let a = self.pop_eval();
+        let b = self.pop_eval();
+        if let (Expr::Integer(a), Expr::Integer(b)) = (a, b) {
+          self.stack.push(Expr::Integer(a / b));
+        } else {
+          panic!("Invalid args for: {}", call);
+        }
+      }
+      "set" => {
+        let a = self.pop_eval();
+        let b = self.pop_eval();
+        if let (Expr::Symbol(a), b) = (a, b) {
+          self.scope.insert(a, b);
+        } else {
+          panic!("Invalid args for: {}", call);
+        }
+      }
+      "clear" => {
+        self.stack.clear();
+      }
+      "pop" => {
+        self.stack.pop();
+      }
+      "dup" => {
+        if self.stack.is_empty() {
+          panic!("Not enough items on stack");
+        }
+
+        let a = self.pop_eval();
+        self.stack.push(a.clone());
+        self.stack.push(a);
+      }
+      "swap" => {
+        if self.stack.len() < 2 {
+          panic!("Not enough items on stack");
+        }
+
+        let a = self.pop_eval();
+        let b = self.pop_eval();
+        self.stack.push(a);
+        self.stack.push(b);
+      }
+      "iswap" => {
+        if self.stack.len() < 2 {
+          panic!("Not enough items on stack");
+        }
+
+        let index = self.pop_eval();
+        if let Expr::Integer(index) = index {
+          let len = self.stack.len();
+          self.stack.swap(len - 1, index as usize);
+        } else {
+          panic!("Invalid args for: {}", call);
+        }
+      }
+      "call" => {
+        let a = self.stack.pop();
+        if let Some(Expr::Symbol(a)) | Some(Expr::Call(a)) = a {
+          self.eval_string(a);
+        } else {
+          panic!("Invalid operation");
+        }
+      }
+      _ => {
+        if let Some(value) = self.scope.get(&call) {
+          let result = self.eval_expr(value.clone());
+          self.stack.push(result);
+        }
+      }
+    }
+  }
+
   fn eval_expr(&mut self, expr: Expr) -> Expr {
+    println!("Eval: {:?}", expr);
+
     match expr {
       Expr::Call(call) => {
-        if let Some(value) = self.scope.get(&call) {
-          value.clone()
-        } else {
-          panic!("Unknown call: {}", call);
-        }
+        self.eval_call(call);
+        Expr::Nil
       }
       Expr::List(list) => {
         let mut exprs: Vec<Expr> = Vec::new();
@@ -51,100 +152,9 @@ impl Program {
   pub fn eval(&mut self, exprs: Vec<Expr>) {
     for expr in exprs {
       match expr {
-        Expr::Call(call) => match call.as_str() {
-          "+" => {
-            let a = self.pop_eval();
-            let b = self.pop_eval();
-            if let (Expr::Integer(a), Expr::Integer(b)) = (a, b) {
-              self.stack.push(Expr::Integer(a + b));
-            } else {
-              panic!("Invalid args for: {}", call);
-            }
-          }
-          "-" => {
-            let a = self.pop_eval();
-            let b = self.pop_eval();
-            if let (Expr::Integer(a), Expr::Integer(b)) = (a, b) {
-              self.stack.push(Expr::Integer(a - b));
-            } else {
-              panic!("Invalid args for: {}", call);
-            }
-          }
-          "*" => {
-            let a = self.pop_eval();
-            let b = self.pop_eval();
-            if let (Expr::Integer(a), Expr::Integer(b)) = (a, b) {
-              self.stack.push(Expr::Integer(a * b));
-            } else {
-              panic!("Invalid args for: {}", call);
-            }
-          }
-          "/" => {
-            let a = self.pop_eval();
-            let b = self.pop_eval();
-            if let (Expr::Integer(a), Expr::Integer(b)) = (a, b) {
-              self.stack.push(Expr::Integer(a / b));
-            } else {
-              panic!("Invalid args for: {}", call);
-            }
-          }
-          "set" => {
-            let a = self.pop_eval();
-            let b = self.pop_eval();
-            if let (Expr::Symbol(a), b) = (a, b) {
-              self.scope.insert(a, b);
-            } else {
-              panic!("Invalid args for: {}", call);
-            }
-          }
-          "clear" => {
-            self.stack.clear();
-          }
-          "pop" => {
-            self.stack.pop();
-          }
-          "dup" => {
-            if self.stack.is_empty() {
-              panic!("Not enough items on stack");
-            }
-
-            let a = self.pop_eval();
-            self.stack.push(a.clone());
-            self.stack.push(a);
-          }
-          "swap" => {
-            if self.stack.len() < 2 {
-              panic!("Not enough items on stack");
-            }
-
-            let a = self.pop_eval();
-            let b = self.pop_eval();
-            self.stack.push(a);
-            self.stack.push(b);
-          }
-          "iswap" => {
-            if self.stack.len() < 2 {
-              panic!("Not enough items on stack");
-            }
-
-            let index = self.pop_eval();
-            if let Expr::Integer(index) = index {
-              let len = self.stack.len();
-              self.stack.swap(len - 1, index as usize);
-            } else {
-              panic!("Invalid args for: {}", call);
-            }
-          }
-          "call" => {
-            let a = self.stack.pop();
-            if let Some(Expr::Symbol(a)) | Some(Expr::Call(a)) = a {
-              self.eval_string(a);
-            } else {
-              panic!("Invalid operation");
-            }
-          }
-          _ => {}
-        },
+        Expr::Call(call) => {
+          self.eval_call(call);
+        }
         _ => {
           self.stack.push(expr);
         }
