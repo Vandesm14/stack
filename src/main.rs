@@ -30,6 +30,15 @@ enum Commands {
   },
 }
 
+fn eval_string(program: &Program, result: Result<(), String>) {
+  println!("Stack: {:?}", program.stack);
+  println!("Scope: {:?}", program.scope);
+
+  if let Err(err) = result {
+    eprintln!("Error: {}", err);
+  }
+}
+
 fn repl() -> rustyline::Result<()> {
   let mut rl = DefaultEditor::new()?;
   let mut program = Program::new();
@@ -40,9 +49,8 @@ fn repl() -> rustyline::Result<()> {
       Ok(line) => {
         rl.add_history_entry(line.as_str()).unwrap();
 
-        program.eval_string(line);
-        println!("Stack: {:?}", program.stack);
-        println!("Scope: {:?}", program.scope);
+        let result = program.eval_string(line);
+        eval_string(&program, result);
       }
       Err(ReadlineError::Interrupted) => {
         println!("CTRL-C");
@@ -68,19 +76,15 @@ fn eval_file(path: PathBuf, is_watching: bool) {
   match fs::read(path) {
     Ok(contents) => {
       let contents = String::from_utf8(contents).unwrap();
-      let tokens = stack::lex(contents);
-      let exprs = stack::parse(tokens);
-
       let mut program = Program::new();
-      program.eval(exprs);
 
       if is_watching {
         execute!(stdout, Clear(ClearType::All)).unwrap();
         execute!(stdout, cursor::MoveTo(0, 0)).unwrap();
       }
 
-      println!("Stack: {:?}", program.stack);
-      println!("Scope: {:?}", program.scope);
+      let result = program.eval_string(contents);
+      eval_string(&program, result);
 
       if is_watching {
         println!("Watching file for changes...");
