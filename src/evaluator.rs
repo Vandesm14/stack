@@ -22,50 +22,76 @@ impl Program {
     self.eval(exprs);
   }
 
+  fn eval_expr(&mut self, expr: Expr) -> Expr {
+    match expr {
+      Expr::Call(call) => {
+        if let Some(value) = self.scope.get(&call) {
+          value.clone()
+        } else {
+          panic!("Unknown call: {}", call);
+        }
+      }
+      Expr::List(list) => {
+        let mut exprs: Vec<Expr> = Vec::new();
+        for expr in list {
+          exprs.push(self.eval_expr(expr));
+        }
+
+        Expr::List(exprs)
+      }
+      _ => expr,
+    }
+  }
+
+  fn pop_eval(&mut self) -> Expr {
+    let expr = self.stack.pop().unwrap();
+    self.eval_expr(expr)
+  }
+
   pub fn eval(&mut self, exprs: Vec<Expr>) {
     for expr in exprs {
       match expr {
         Expr::Call(call) => match call.as_str() {
           "+" => {
-            let a = self.stack.pop();
-            let b = self.stack.pop();
-            if let (Some(Expr::Integer(a)), Some(Expr::Integer(b))) = (a, b) {
+            let a = self.pop_eval();
+            let b = self.pop_eval();
+            if let (Expr::Integer(a), Expr::Integer(b)) = (a, b) {
               self.stack.push(Expr::Integer(a + b));
             } else {
               panic!("Invalid args for: {}", call);
             }
           }
           "-" => {
-            let a = self.stack.pop();
-            let b = self.stack.pop();
-            if let (Some(Expr::Integer(a)), Some(Expr::Integer(b))) = (a, b) {
+            let a = self.pop_eval();
+            let b = self.pop_eval();
+            if let (Expr::Integer(a), Expr::Integer(b)) = (a, b) {
               self.stack.push(Expr::Integer(a - b));
             } else {
               panic!("Invalid args for: {}", call);
             }
           }
           "*" => {
-            let a = self.stack.pop();
-            let b = self.stack.pop();
-            if let (Some(Expr::Integer(a)), Some(Expr::Integer(b))) = (a, b) {
+            let a = self.pop_eval();
+            let b = self.pop_eval();
+            if let (Expr::Integer(a), Expr::Integer(b)) = (a, b) {
               self.stack.push(Expr::Integer(a * b));
             } else {
               panic!("Invalid args for: {}", call);
             }
           }
           "/" => {
-            let a = self.stack.pop();
-            let b = self.stack.pop();
-            if let (Some(Expr::Integer(a)), Some(Expr::Integer(b))) = (a, b) {
+            let a = self.pop_eval();
+            let b = self.pop_eval();
+            if let (Expr::Integer(a), Expr::Integer(b)) = (a, b) {
               self.stack.push(Expr::Integer(a / b));
             } else {
               panic!("Invalid args for: {}", call);
             }
           }
           "set" => {
-            let a = self.stack.pop();
-            let b = self.stack.pop();
-            if let (Some(Expr::Symbol(a)), Some(b)) = (a, b) {
+            let a = self.pop_eval();
+            let b = self.pop_eval();
+            if let (Expr::Symbol(a), b) = (a, b) {
               self.scope.insert(a, b);
             } else {
               panic!("Invalid args for: {}", call);
@@ -78,27 +104,31 @@ impl Program {
             self.stack.pop();
           }
           "dup" => {
-            let a = self.stack.pop();
-            if let Some(a) = a {
-              self.stack.push(a.clone());
-              self.stack.push(a);
-            } else {
-              panic!("Invalid args for: {}", call);
+            if self.stack.is_empty() {
+              panic!("Not enough items on stack");
             }
+
+            let a = self.pop_eval();
+            self.stack.push(a.clone());
+            self.stack.push(a);
           }
           "swap" => {
-            let a = self.stack.pop();
-            let b = self.stack.pop();
-            if let (Some(a), Some(b)) = (a, b) {
-              self.stack.push(a);
-              self.stack.push(b);
-            } else {
-              panic!("Invalid args for: {}", call);
+            if self.stack.len() < 2 {
+              panic!("Not enough items on stack");
             }
+
+            let a = self.pop_eval();
+            let b = self.pop_eval();
+            self.stack.push(a);
+            self.stack.push(b);
           }
           "iswap" => {
-            let index = self.stack.pop();
-            if let Some(Expr::Integer(index)) = index {
+            if self.stack.len() < 2 {
+              panic!("Not enough items on stack");
+            }
+
+            let index = self.pop_eval();
+            if let Expr::Integer(index) = index {
               let len = self.stack.len();
               self.stack.swap(len - 1, index as usize);
             } else {
@@ -113,14 +143,7 @@ impl Program {
               panic!("Invalid operation");
             }
           }
-          _ => {
-            // Try to evaluate from scope
-            if let Some(value) = self.scope.get(&call) {
-              self.stack.push(value.clone());
-            } else {
-              panic!("Unknown call: {}", call);
-            }
-          }
+          _ => {}
         },
         _ => {
           self.stack.push(expr);

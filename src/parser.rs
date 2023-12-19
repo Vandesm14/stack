@@ -4,12 +4,29 @@ use crate::Token;
 pub enum Expr {
   Integer(i64),
   Float(f64),
+
   String(String),
+
   Symbol(String),
   Call(String),
+
+  /// A block is lazy. It only gets evaluated when it's called.
+  /// This is useful for things like if statements.
   Block(Vec<Expr>),
+
+  /// Lists are eager. They get evaluated before being pushed to the stack.
   List(Vec<Expr>),
+
   Nil,
+}
+
+impl From<Option<Expr>> for Expr {
+  fn from(value: Option<Expr>) -> Self {
+    match value {
+      Option::None => Expr::Nil,
+      Option::Some(value) => value,
+    }
+  }
 }
 
 pub fn parse(tokens: Vec<Token>) -> Vec<Expr> {
