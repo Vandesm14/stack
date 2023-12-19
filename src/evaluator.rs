@@ -115,49 +115,64 @@ impl Program {
           panic!("Invalid operation");
         }
       }
+      "unwrap" => {
+        let a = self.pop_eval();
+        if let Expr::List(a) | Expr::Block(a) = a {
+          for expr in a {
+            self.stack.push(expr);
+          }
+        } else {
+          panic!("Invalid args for: {}", call);
+        }
+      }
       _ => {
         if let Some(value) = self.scope.get(&call) {
-          let result = self.eval_expr(value.clone());
-          self.stack.push(result);
+          self.eval(vec![value.clone()]);
         }
       }
     }
   }
 
-  fn eval_expr(&mut self, expr: Expr) -> Expr {
-    println!("Eval: {:?}", expr);
-
+  fn eval_expr(&mut self, expr: Expr) -> Option<Expr> {
     match expr {
       Expr::Call(call) => {
         self.eval_call(call);
-        Expr::Nil
+        None
       }
       Expr::List(list) => {
-        let mut exprs: Vec<Expr> = Vec::new();
-        for expr in list {
-          exprs.push(self.eval_expr(expr));
-        }
+        // let mut exprs: Vec<Expr> = Vec::new();
+        // for expr in list {
+        //   exprs.push(self.eval_expr(expr));
+        // }
+        let exprs: Vec<Expr> = list
+          .into_iter()
+          .filter_map(|expr| self.eval_expr(expr))
+          .collect();
 
-        Expr::List(exprs)
+        Some(Expr::List(exprs))
       }
-      _ => expr,
+      _ => Some(expr),
     }
   }
 
   fn pop_eval(&mut self) -> Expr {
-    let expr = self.stack.pop().unwrap();
-    self.eval_expr(expr)
+    let expr = self.stack.pop();
+    if let Some(expr) = expr {
+      if let Some(result) = self.eval_expr(expr) {
+        return result;
+      } else {
+        Expr::Nil
+      }
+    } else {
+      Expr::Nil
+    }
   }
 
   pub fn eval(&mut self, exprs: Vec<Expr>) {
     for expr in exprs {
-      match expr {
-        Expr::Call(call) => {
-          self.eval_call(call);
-        }
-        _ => {
-          self.stack.push(expr);
-        }
+      let expr = self.eval_expr(expr);
+      if let Some(expr) = expr {
+        self.stack.push(expr);
       }
     }
   }
