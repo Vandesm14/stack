@@ -1,18 +1,24 @@
+use std::collections::HashMap;
+
 use rustyline::error::ReadlineError;
 use rustyline::{DefaultEditor, Result};
 use stack::Token;
 
 struct Program {
   stack: Vec<Token>,
+  scope: HashMap<String, Token>,
 }
 
 impl Program {
   fn new() -> Self {
-    Self { stack: vec![] }
+    Self {
+      stack: vec![],
+      scope: HashMap::new(),
+    }
   }
 
   fn parse_line(&mut self, line: String) {
-    let tokens = stack::parse(line);
+    let tokens = stack::parse(line.clone());
     self.stack.extend(tokens);
   }
 
@@ -63,7 +69,19 @@ impl Program {
           panic!("Invalid operation");
         }
       }
-      _ => {}
+      "set" => {
+        let a = self.stack.pop();
+        let b = self.stack.pop();
+        if let (Some(Token::Symbol(a)), Some(b)) = (a, b) {
+          self.scope.insert(a, b);
+        } else {
+          panic!("Invalid operation");
+        }
+      }
+      _ => {
+        // If we can't find a function for it, push it back to the stack
+        self.stack.push(Token::Symbol(symbol));
+      }
     }
   }
 }
@@ -81,7 +99,8 @@ fn main() -> Result<()> {
 
         program.parse_line(line);
         program.eval();
-        println!("{:?}", program.stack);
+        println!("Stack: {:?}", program.stack);
+        println!("Scope: {:?}", program.scope);
       }
       Err(ReadlineError::Interrupted) => {
         println!("CTRL-C");
