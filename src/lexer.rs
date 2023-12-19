@@ -194,10 +194,12 @@ pub fn lex(input: String) -> Vec<Token> {
       (State::Symbol, State::Start) => {
         let symbol = accumulator.clone();
 
-        tokens.push(match symbol.as_str() {
-          "nil" => Token::Nil,
-          _ => Token::Symbol(symbol),
-        });
+        if !symbol.is_empty() {
+          tokens.push(match symbol.as_str() {
+            "nil" => Token::Nil,
+            _ => Token::Symbol(symbol),
+          });
+        }
         accumulator.clear();
       }
       (State::Call, State::Start) => {
