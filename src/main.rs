@@ -22,63 +22,61 @@ impl Program {
 
     for token in tokens {
       match token {
-        Token::Symbol(symbol) => {
-          match symbol.as_str() {
-            "+" => {
-              let a = self.stack.pop();
-              let b = self.stack.pop();
-              if let (Some(Token::Integer(a)), Some(Token::Integer(b))) = (a, b)
-              {
-                self.stack.push(Token::Integer(a + b));
-              } else {
-                panic!("Invalid operation");
-              }
-            }
-            "-" => {
-              let a = self.stack.pop();
-              let b = self.stack.pop();
-              if let (Some(Token::Integer(a)), Some(Token::Integer(b))) = (a, b)
-              {
-                self.stack.push(Token::Integer(a - b));
-              } else {
-                panic!("Invalid operation");
-              }
-            }
-            "*" => {
-              let a = self.stack.pop();
-              let b = self.stack.pop();
-              if let (Some(Token::Integer(a)), Some(Token::Integer(b))) = (a, b)
-              {
-                self.stack.push(Token::Integer(a * b));
-              } else {
-                panic!("Invalid operation");
-              }
-            }
-            "/" => {
-              let a = self.stack.pop();
-              let b = self.stack.pop();
-              if let (Some(Token::Integer(a)), Some(Token::Integer(b))) = (a, b)
-              {
-                self.stack.push(Token::Integer(a / b));
-              } else {
-                panic!("Invalid operation");
-              }
-            }
-            "set" => {
-              let a = self.stack.pop();
-              let b = self.stack.pop();
-              if let (Some(Token::Symbol(a)), Some(b)) = (a, b) {
-                self.scope.insert(a, b);
-              } else {
-                panic!("Invalid operation");
-              }
-            }
-            _ => {
-              // If we can't find a function for it, push it back to the stack as a raw symbol
-              self.stack.push(Token::Symbol(symbol));
+        Token::Call(call) => match call.as_str() {
+          "+" => {
+            let a = self.stack.pop();
+            let b = self.stack.pop();
+            if let (Some(Token::Integer(a)), Some(Token::Integer(b))) = (a, b) {
+              self.stack.push(Token::Integer(a + b));
+            } else {
+              panic!("Invalid operation");
             }
           }
-        }
+          "-" => {
+            let a = self.stack.pop();
+            let b = self.stack.pop();
+            if let (Some(Token::Integer(a)), Some(Token::Integer(b))) = (a, b) {
+              self.stack.push(Token::Integer(a - b));
+            } else {
+              panic!("Invalid operation");
+            }
+          }
+          "*" => {
+            let a = self.stack.pop();
+            let b = self.stack.pop();
+            if let (Some(Token::Integer(a)), Some(Token::Integer(b))) = (a, b) {
+              self.stack.push(Token::Integer(a * b));
+            } else {
+              panic!("Invalid operation");
+            }
+          }
+          "/" => {
+            let a = self.stack.pop();
+            let b = self.stack.pop();
+            if let (Some(Token::Integer(a)), Some(Token::Integer(b))) = (a, b) {
+              self.stack.push(Token::Integer(a / b));
+            } else {
+              panic!("Invalid operation");
+            }
+          }
+          "set" => {
+            let a = self.stack.pop();
+            let b = self.stack.pop();
+            if let (Some(Token::Symbol(a)), Some(b)) = (a, b) {
+              self.scope.insert(a, b);
+            } else {
+              panic!("Invalid operation");
+            }
+          }
+          _ => {
+            // Try to evaluate from scope
+            if let Some(value) = self.scope.get(&call) {
+              self.stack.push(value.clone());
+            } else {
+              panic!("Unknown call: {}", call);
+            }
+          }
+        },
         _ => {
           self.stack.push(token);
         }
