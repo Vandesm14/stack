@@ -3,7 +3,6 @@ use rustyline::{DefaultEditor, Result};
 use stack::Program;
 
 fn main() -> Result<()> {
-  // `()` can be used when no completer is required
   let mut rl = DefaultEditor::new()?;
   let mut program = Program::new();
 
