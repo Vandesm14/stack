@@ -18,8 +18,13 @@ enum State {
   NegSign,
 }
 
-fn is_symbol(c: char) -> bool {
+fn is_symbol_start(c: char) -> bool {
   matches!(c, 'a'..='z' | 'A'..='Z' | '_' | '+' | '*' | '/' | '=' | '%')
+}
+
+fn is_symbol(c: char) -> bool {
+  // Numbers can be part of a symbol, but not the first character
+  is_symbol_start(c) || c.is_ascii_digit()
 }
 
 pub fn parse(input: String) -> Vec<Token> {
@@ -52,7 +57,7 @@ pub fn parse(input: String) -> Vec<Token> {
           }
 
           // Match a symbol
-          c if is_symbol(c) => {
+          c if is_symbol_start(c) => {
             accumulator.push(c);
             State::Symbol
           }
@@ -195,6 +200,14 @@ mod tests {
   fn test_symbol() {
     let input = "h3ll0_worl6".to_string();
     let expected = vec![Token::Symbol("h3ll0_worl6".to_string())];
+
+    assert_eq!(parse(input), expected);
+  }
+
+  #[test]
+  fn test_symbol_simple() {
+    let input = "myVar".to_string();
+    let expected = vec![Token::Symbol("myVar".to_string())];
 
     assert_eq!(parse(input), expected);
   }
