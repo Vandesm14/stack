@@ -4,6 +4,7 @@ pub enum Token {
   Float(f64),
   String(String),
   Symbol(String),
+  Call(String),
   Nil,
 }
 
@@ -14,7 +15,7 @@ enum State {
   Integer,
   Float,
   Symbol,
-
+  Call,
   NegSign,
 }
 
@@ -57,9 +58,12 @@ pub fn parse(input: String) -> Vec<Token> {
           }
 
           // Match a symbol
+          '\'' => State::Symbol,
+
+          // Match a call
           c if is_symbol_start(c) => {
             accumulator.push(c);
-            State::Symbol
+            State::Call
           }
 
           // Ignore whitespace
@@ -103,6 +107,13 @@ pub fn parse(input: String) -> Vec<Token> {
           }
           _ => State::Start,
         },
+        State::Call => match c {
+          c if is_symbol(c) => {
+            accumulator.push(c);
+            State::Call
+          }
+          _ => State::Start,
+        },
         State::NegSign => match c {
           '0'..='9' => {
             accumulator.push('-');
@@ -139,6 +150,15 @@ pub fn parse(input: String) -> Vec<Token> {
         tokens.push(match symbol.as_str() {
           "nil" => Token::Nil,
           _ => Token::Symbol(symbol),
+        });
+        accumulator.clear();
+      }
+      (State::Call, State::Start) => {
+        let call = accumulator.clone();
+
+        tokens.push(match call.as_str() {
+          "nil" => Token::Nil,
+          _ => Token::Call(call),
         });
         accumulator.clear();
       }
@@ -198,7 +218,7 @@ mod tests {
 
   #[test]
   fn test_symbol() {
-    let input = "h3ll0_worl6".to_string();
+    let input = "'h3ll0_worl6".to_string();
     let expected = vec![Token::Symbol("h3ll0_worl6".to_string())];
 
     assert_eq!(parse(input), expected);
@@ -206,8 +226,24 @@ mod tests {
 
   #[test]
   fn test_symbol_simple() {
-    let input = "myVar".to_string();
+    let input = "'myVar".to_string();
     let expected = vec![Token::Symbol("myVar".to_string())];
+
+    assert_eq!(parse(input), expected);
+  }
+
+  #[test]
+  fn test_call_plus() {
+    let input = "+".to_string();
+    let expected = vec![Token::Call("+".to_string())];
+
+    assert_eq!(parse(input), expected);
+  }
+
+  #[test]
+  fn test_symbol_var() {
+    let input = "myVar".to_string();
+    let expected = vec![Token::Call("myVar".to_string())];
 
     assert_eq!(parse(input), expected);
   }
@@ -222,7 +258,7 @@ mod tests {
 
   #[test]
   fn test_multiple() {
-    let input = "123 \"Hello, world!\" h3ll0_worl6 nil".to_string();
+    let input = "123 \"Hello, world!\" 'h3ll0_worl6 nil".to_string();
     let expected = vec![
       Token::Integer(123),
       Token::String("Hello, world!".to_string()),
@@ -235,14 +271,14 @@ mod tests {
 
   #[test]
   fn test_multiple2() {
-    let inpuit = "1 a2 3.0 add \"string hello\" var nil".to_string();
+    let inpuit = "1 'a2 3.0 add \"string hello\" var nil".to_string();
     let expected = vec![
       Token::Integer(1),
       Token::Symbol("a2".to_string()),
       Token::Float(3.0),
-      Token::Symbol("add".to_string()),
+      Token::Call("add".to_string()),
       Token::String("string hello".to_string()),
-      Token::Symbol("var".to_string()),
+      Token::Call("var".to_string()),
       Token::Nil,
     ];
 
