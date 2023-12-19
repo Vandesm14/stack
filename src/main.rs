@@ -1,4 +1,5 @@
 use std::collections::HashMap;
+use std::mem::swap;
 
 use rustyline::error::ReadlineError;
 use rustyline::{DefaultEditor, Result};
@@ -29,7 +30,7 @@ impl Program {
             if let (Some(Token::Integer(a)), Some(Token::Integer(b))) = (a, b) {
               self.stack.push(Token::Integer(a + b));
             } else {
-              panic!("Invalid operation");
+              panic!("Invalid args for: {}", call);
             }
           }
           "-" => {
@@ -38,7 +39,7 @@ impl Program {
             if let (Some(Token::Integer(a)), Some(Token::Integer(b))) = (a, b) {
               self.stack.push(Token::Integer(a - b));
             } else {
-              panic!("Invalid operation");
+              panic!("Invalid args for: {}", call);
             }
           }
           "*" => {
@@ -47,7 +48,7 @@ impl Program {
             if let (Some(Token::Integer(a)), Some(Token::Integer(b))) = (a, b) {
               self.stack.push(Token::Integer(a * b));
             } else {
-              panic!("Invalid operation");
+              panic!("Invalid args for: {}", call);
             }
           }
           "/" => {
@@ -56,7 +57,7 @@ impl Program {
             if let (Some(Token::Integer(a)), Some(Token::Integer(b))) = (a, b) {
               self.stack.push(Token::Integer(a / b));
             } else {
-              panic!("Invalid operation");
+              panic!("Invalid args for: {}", call);
             }
           }
           "set" => {
@@ -64,6 +65,48 @@ impl Program {
             let b = self.stack.pop();
             if let (Some(Token::Symbol(a)), Some(b)) = (a, b) {
               self.scope.insert(a, b);
+            } else {
+              panic!("Invalid args for: {}", call);
+            }
+          }
+          "clear" => {
+            self.stack.clear();
+          }
+          "pop" => {
+            self.stack.pop();
+          }
+          "dup" => {
+            let a = self.stack.pop();
+            if let Some(a) = a {
+              self.stack.push(a.clone());
+              self.stack.push(a);
+            } else {
+              panic!("Invalid args for: {}", call);
+            }
+          }
+          "swap" => {
+            let a = self.stack.pop();
+            let b = self.stack.pop();
+            if let (Some(a), Some(b)) = (a, b) {
+              self.stack.push(a);
+              self.stack.push(b);
+            } else {
+              panic!("Invalid args for: {}", call);
+            }
+          }
+          "iswap" => {
+            let index = self.stack.pop();
+            if let Some(Token::Integer(index)) = index {
+              let len = self.stack.len();
+              self.stack.swap(len - 1, index as usize);
+            } else {
+              panic!("Invalid args for: {}", call);
+            }
+          }
+          "call" => {
+            let a = self.stack.pop();
+            if let Some(Token::Symbol(a)) | Some(Token::Call(a)) = a {
+              self.eval(a);
             } else {
               panic!("Invalid operation");
             }
