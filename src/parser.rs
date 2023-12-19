@@ -69,7 +69,8 @@ pub fn parse(tokens: Vec<Token>) -> Vec<Expr> {
           let block = blocks.pop().unwrap();
           blocks.last_mut().unwrap().push(Expr::Block(block));
         } else {
-          panic!("Mismatched brackets");
+          eprintln!("Mismatched brackets");
+          return vec![];
         }
       }
       Token::BracketEnd => {
@@ -77,14 +78,16 @@ pub fn parse(tokens: Vec<Token>) -> Vec<Expr> {
           let block = blocks.pop().unwrap();
           blocks.last_mut().unwrap().push(Expr::List(block));
         } else {
-          panic!("Mismatched brackets");
+          eprintln!("Mismatched brackets");
+          return vec![];
         }
       }
     };
   }
 
   if blocks.len() != 1 {
-    panic!("Unbalanced blocks: {:?}", blocks);
+    eprintln!("Unbalanced blocks: {:?}", blocks);
+    return vec![];
   }
 
   blocks.last().unwrap().clone()
@@ -144,24 +147,24 @@ mod tests {
   }
 
   #[test]
-  #[should_panic]
   fn fail_for_only_start_paren() {
     let tokens = crate::lex("(".to_owned());
-    parse(tokens);
+    let exprs = parse(tokens);
+    assert_eq!(exprs, vec![]);
   }
 
   #[test]
-  #[should_panic]
   fn fail_for_only_end_paren() {
     let tokens = crate::lex(")".to_owned());
-    parse(tokens);
+    let exprs = parse(tokens);
+    assert_eq!(exprs, vec![]);
   }
 
   #[test]
-  #[should_panic]
   fn fail_for_mismatched_parens() {
     let tokens = crate::lex("(1 2 3]".to_owned());
-    parse(tokens);
+    let exprs = parse(tokens);
+    assert_eq!(exprs, vec![]);
   }
 
   #[test]
