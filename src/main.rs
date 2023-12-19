@@ -1,8 +1,31 @@
+use std::fs;
+use std::path::PathBuf;
+
+use clap::{Parser, Subcommand};
+
 use rustyline::error::ReadlineError;
 use rustyline::{DefaultEditor, Result};
 use stack::Program;
 
-fn main() -> Result<()> {
+#[derive(Parser)]
+#[command(author, version, about, long_about = None)]
+struct Cli {
+  #[command(subcommand)]
+  command: Option<Commands>,
+}
+
+#[derive(Subcommand)]
+enum Commands {
+  #[command(about = "Run a file")]
+  Run {
+    path: PathBuf,
+
+    #[arg(long)]
+    watch: bool,
+  },
+}
+
+fn repl() -> Result<()> {
   let mut rl = DefaultEditor::new()?;
   let mut program = Program::new();
 
@@ -32,4 +55,30 @@ fn main() -> Result<()> {
   }
 
   Ok(())
+}
+
+fn main() {
+  let cli = Cli::parse();
+
+  match cli.command {
+    Some(Commands::Run { path, watch }) => match fs::read(path) {
+      Ok(contents) => {
+        let contents = String::from_utf8(contents).unwrap();
+        let tokens = stack::lex(contents);
+        let exprs = stack::parse(tokens);
+
+        let mut program = Program::new();
+        program.eval(exprs);
+
+        println!("Stack: {:?}", program.stack);
+      }
+      Err(err) => {
+        eprintln!("Error: {:?}", err);
+      }
+    },
+    None => {
+      println!("Running REPL");
+      repl().unwrap();
+    }
+  }
 }
