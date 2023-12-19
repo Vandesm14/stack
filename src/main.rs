@@ -1,10 +1,15 @@
 use std::fs;
+use std::io::stdout;
 use std::path::PathBuf;
 
 use clap::{Parser, Subcommand};
+use crossterm::terminal::{Clear, ClearType};
+use crossterm::{cursor, execute};
+use notify::event::AccessKind;
+use notify::{Config, EventKind, RecommendedWatcher, RecursiveMode, Watcher};
 
 use rustyline::error::ReadlineError;
-use rustyline::{DefaultEditor, Result};
+use rustyline::DefaultEditor;
 use stack::Program;
 
 #[derive(Parser)]
@@ -25,7 +30,7 @@ enum Commands {
   },
 }
 
-fn repl() -> Result<()> {
+fn repl() -> rustyline::Result<()> {
   let mut rl = DefaultEditor::new()?;
   let mut program = Program::new();
 
@@ -57,24 +62,60 @@ fn repl() -> Result<()> {
   Ok(())
 }
 
+fn eval_file(path: PathBuf, is_watching: bool) {
+  let mut stdout = stdout();
+
+  match fs::read(path) {
+    Ok(contents) => {
+      let contents = String::from_utf8(contents).unwrap();
+      let tokens = stack::lex(contents);
+      let exprs = stack::parse(tokens);
+
+      let mut program = Program::new();
+      program.eval(exprs);
+
+      if is_watching {
+        execute!(stdout, Clear(ClearType::All)).unwrap();
+        execute!(stdout, cursor::MoveTo(0, 0)).unwrap();
+      }
+
+      println!("Stack: {:?}", program.stack);
+
+      if is_watching {
+        println!("Watching file for changes...");
+      }
+    }
+    Err(err) => {
+      eprintln!("Error: {:?}", err);
+    }
+  }
+}
+
 fn main() {
   let cli = Cli::parse();
 
   match cli.command {
-    Some(Commands::Run { path, watch }) => match fs::read(path) {
-      Ok(contents) => {
-        let contents = String::from_utf8(contents).unwrap();
-        let tokens = stack::lex(contents);
-        let exprs = stack::parse(tokens);
+    Some(Commands::Run { path, watch }) => match watch {
+      true => {
+        let (tx, rx) = std::sync::mpsc::channel();
 
-        let mut program = Program::new();
-        program.eval(exprs);
+        let mut watcher =
+          RecommendedWatcher::new(tx, Config::default()).unwrap();
+        watcher.watch(&path, RecursiveMode::NonRecursive).unwrap();
 
-        println!("Stack: {:?}", program.stack);
+        eval_file(path.clone(), true);
+        for res in rx {
+          match res {
+            Ok(event) => {
+              if let EventKind::Access(AccessKind::Close(_)) = event.kind {
+                eval_file(path.clone(), true);
+              }
+            }
+            Err(error) => eprintln!("Error: {error:?}"),
+          }
+        }
       }
-      Err(err) => {
-        eprintln!("Error: {:?}", err);
-      }
+      false => eval_file(path, false),
     },
     None => {
       println!("Running REPL");
