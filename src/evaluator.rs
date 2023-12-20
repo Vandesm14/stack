@@ -132,6 +132,17 @@ impl Program {
           Err(format!("Invalid args for: {}", call))
         }
       }
+      "concat" => {
+        let a = self.pop_eval()?;
+        let b = self.pop_eval()?;
+        if let (Expr::List(a), Expr::List(b)) = (a, b) {
+          let mut b = b;
+          b.extend(a);
+          Ok(Some(Expr::List(b)))
+        } else {
+          Err(format!("Invalid args for: {}", call))
+        }
+      }
       // "if" => {
       //   let condition = self.pop_eval()?;
       //   let block = self.pop_eval()?;
@@ -511,6 +522,23 @@ mod tests {
       assert_eq!(
         program.stack,
         vec![Expr::List(vec![Expr::Integer(1)]), Expr::Integer(2)]
+      );
+    }
+
+    #[test]
+    fn concatenating_lists() {
+      let mut program = Program::new();
+      program
+        .eval_string("[1 2] [3 \"4\"] concat".to_string())
+        .unwrap();
+      assert_eq!(
+        program.stack,
+        vec![Expr::List(vec![
+          Expr::Integer(1),
+          Expr::Integer(2),
+          Expr::Integer(3),
+          Expr::String("4".to_owned())
+        ])]
       );
     }
   }
