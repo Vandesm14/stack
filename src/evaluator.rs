@@ -221,6 +221,11 @@ impl Program {
 
         Ok(None)
       }
+      "print" => {
+        let a = self.pop_eval()?;
+        println!("{}", a.to_string());
+        Ok(None)
+      }
       "set" => {
         let a = self.pop_eval()?;
         let b = self.pop_eval()?;
