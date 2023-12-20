@@ -288,9 +288,25 @@ impl Program {
         if let (Expr::Integer(index), Expr::List(list)) =
           (index.clone(), list.clone())
         {
-          let index = index as usize;
-          if index < list.len() {
-            Ok(Some(list[index].clone()))
+          if index >= 0 && index < list.len() as i64 {
+            Ok(Some(list[index as usize].clone()))
+          } else if index < 0 {
+            let positive_index = -index;
+            let positive_index = positive_index as usize;
+            let actual_index = list.len().checked_sub(positive_index);
+
+            match actual_index {
+              Some(index) => Ok(Some(list[index].clone())),
+              None => Err(EvalError {
+                expr: Expr::Call(call.clone()),
+                program: self.clone(),
+                message: format!(
+                  "Index {} out of bounds for: {}",
+                  index,
+                  Expr::List(list)
+                ),
+              }),
+            }
           } else {
             Err(EvalError {
               expr: Expr::Call(call.clone()),
