@@ -25,6 +25,7 @@ enum State {
   Float,
   Symbol,
   Call,
+  Comment,
   NegSign,
 }
 
@@ -77,6 +78,9 @@ pub fn lex(input: String) -> Vec<Token> {
               accumulator.push(c);
               State::Call
             }
+
+            // Match a comment
+            ';' => State::Comment,
 
             // Match a start paren
             '(' => {
@@ -166,6 +170,16 @@ pub fn lex(input: String) -> Vec<Token> {
             State::Integer
           }
           _ => State::Start,
+        },
+        State::Comment => match c {
+          '\n' => {
+            i += 1;
+            State::Start
+          }
+          _ => {
+            i += 1;
+            State::Comment
+          }
         },
       }
     } else {
