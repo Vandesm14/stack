@@ -45,3 +45,39 @@
   ;; Clean up new_list
   (new_list) unset
 ) (list/reverse) set
+
+;; <T>[List<T>, Block(T)] -> ()
+({
+  ;; Set the block and list
+  (block) set
+  (list) set
+
+  ;; Set length to the length of the list
+  list len
+  (length) set
+
+  ;; Set i to 0
+  0 (i) set
+
+  ;; While i < length
+  (
+    ;; Get list and i
+    list
+    i
+
+    ;; Get list[i]
+    nth
+
+    ;; Get the block and call it in a scoped block
+    {
+      block
+      call
+    }
+
+    ;; Increment i
+    i 1 + (i) set
+  ) (
+    i length
+    <
+  ) while
+}) (list/for_each) set
