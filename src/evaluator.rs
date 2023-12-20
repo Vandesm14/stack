@@ -54,7 +54,7 @@ impl Program {
           Err(EvalError {
             program: self.clone(),
             message: format!(
-              "Invalid args for: {} found {:?} {:?}",
+              "Invalid args for: {} found [{:?} {:?}]",
               call, a, b
             ),
           })
@@ -69,7 +69,7 @@ impl Program {
           Err(EvalError {
             program: self.clone(),
             message: format!(
-              "Invalid args for: {} found {:?} {:?}",
+              "Invalid args for: {} found [{:?} {:?}]",
               call, a, b
             ),
           })
@@ -84,7 +84,7 @@ impl Program {
           Err(EvalError {
             program: self.clone(),
             message: format!(
-              "Invalid args for: {} found {:?} {:?}",
+              "Invalid args for: {} found [{:?} {:?}]",
               call, a, b
             ),
           })
@@ -99,7 +99,7 @@ impl Program {
           Err(EvalError {
             program: self.clone(),
             message: format!(
-              "Invalid args for: {} found {:?} {:?}",
+              "Invalid args for: {} found [{:?} {:?}]",
               call, a, b
             ),
           })
@@ -136,7 +136,7 @@ impl Program {
         } else {
           Err(EvalError {
             program: self.clone(),
-            message: format!("Invalid args for: {} found {:?}", call, string),
+            message: format!("Invalid args for: {} found [{:?}]", call, string),
           })
         }
       }
@@ -147,7 +147,7 @@ impl Program {
         } else {
           Err(EvalError {
             program: self.clone(),
-            message: format!("Invalid args for: {} found {:?}", call, list),
+            message: format!("Invalid args for: {} found [{:?}]", call, list),
           })
         }
       }
@@ -170,7 +170,7 @@ impl Program {
           Err(EvalError {
             program: self.clone(),
             message: format!(
-              "Invalid args for: {} found {:?} {:?}",
+              "Invalid args for: {} found [{:?} {:?}]",
               call, list, index
             ),
           })
@@ -194,7 +194,7 @@ impl Program {
           Err(EvalError {
             program: self.clone(),
             message: format!(
-              "Invalid args for: {} found {:?} {:?}",
+              "Invalid args for: {} found [{:?} {:?}]",
               call, list, delimiter
             ),
           })
@@ -211,7 +211,7 @@ impl Program {
         } else {
           Err(EvalError {
             program: self.clone(),
-            message: format!("Invalid args for: {} found {:?}", call, list),
+            message: format!("Invalid args for: {} found [{:?}]", call, list),
           })
         }
       }
@@ -230,7 +230,7 @@ impl Program {
         } else {
           Err(EvalError {
             program: self.clone(),
-            message: format!("Invalid args for: {} found {:?}", call, list),
+            message: format!("Invalid args for: {} found [{:?}]", call, list),
           })
         }
       }
@@ -245,7 +245,7 @@ impl Program {
           Err(EvalError {
             program: self.clone(),
             message: format!(
-              "Invalid args for: {} found {:?} {:?}",
+              "Invalid args for: {} found [{:?} {:?}]",
               call, a, b
             ),
           })
@@ -280,7 +280,7 @@ impl Program {
           Err(EvalError {
             program: self.clone(),
             message: format!(
-              "Invalid args for: {} found {:?} {:?} {:?}",
+              "Invalid args for: {} found [{:?} {:?}] {:?}",
               call, else_block, block, condition
             ),
           })
@@ -308,7 +308,7 @@ impl Program {
           Err(EvalError {
             program: self.clone(),
             message: format!(
-              "Invalid args for: {} found {:?} {:?}",
+              "Invalid args for: {} found [{:?} {:?}]",
               call, block, condition
             ),
           })
@@ -359,7 +359,7 @@ impl Program {
           Err(EvalError {
             program: self.clone(),
             message: format!(
-              "Invalid args for: {} found {:?} {:?}",
+              "Invalid args for: {} found [{:?} {:?}]",
               call, value, symbol
             ),
           })
@@ -373,7 +373,7 @@ impl Program {
         } else {
           Err(EvalError {
             program: self.clone(),
-            message: format!("Invalid args for: {} found {:?}", call, symbol),
+            message: format!("Invalid args for: {} found [{:?}]", call, symbol),
           })
         }
       }
@@ -464,7 +464,7 @@ impl Program {
         } else {
           Err(EvalError {
             program: self.clone(),
-            message: format!("Invalid args for: {} found {:?}", call, a),
+            message: format!("Invalid args for: {} found [{:?}]", call, a),
           })
         }
       }
@@ -478,7 +478,7 @@ impl Program {
         } else {
           Err(EvalError {
             program: self.clone(),
-            message: format!("Invalid args for: {} found {:?}", call, list),
+            message: format!("Invalid args for: {} found [{:?}]", call, list),
           })
         }
       }
