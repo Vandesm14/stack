@@ -31,6 +31,7 @@ enum Commands {
 }
 
 fn eval_string(program: &Program, result: Result<(), EvalError>) {
+  println!();
   if let Err(err) = result {
     eprintln!("{}", err);
   } else {
