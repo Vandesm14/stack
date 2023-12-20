@@ -1108,41 +1108,43 @@ mod tests {
       assert_eq!(program.scope, vec![HashMap::new()]);
     }
 
-    #[test]
-    fn collect() {
-      let mut program = Program::new();
-      program.eval_string("1 2 3 collect").unwrap();
-      assert_eq!(
-        program.stack,
-        vec![Expr::List(vec![
-          Expr::Integer(1),
-          Expr::Integer(2),
-          Expr::Integer(3)
-        ])]
-      );
-    }
+    mod scope {
+      use super::*;
 
-    #[test]
-    fn collect_and_unwrap() {
-      let mut program = Program::new();
-      program
-        .eval_string("1 2 3 collect (a) set a unwrap")
-        .unwrap();
-      assert_eq!(
-        program.stack,
-        vec![Expr::Integer(1), Expr::Integer(2), Expr::Integer(3)]
-      );
-      assert_eq!(
-        program.scope,
-        vec![HashMap::from_iter(vec![(
-          "a".to_string(),
-          Expr::List(vec![
-            Expr::Integer(1),
-            Expr::Integer(2),
-            Expr::Integer(3)
-          ])
-        )])]
-      );
+      #[test]
+      fn scope_pop() {
+        let mut program = Program::new();
+        program.eval_string("{1 (a) set}").unwrap();
+        assert_eq!(program.scope, vec![HashMap::new()]);
+      }
+
+      #[test]
+      fn scope_open() {
+        let mut program = Program::new();
+        program.eval_string("{1 (a) set").unwrap();
+        assert_eq!(
+          program.scope,
+          vec![
+            // Main Scope
+            HashMap::new(),
+            // Block Scope
+            HashMap::from_iter(vec![("a".to_string(), Expr::Integer(1))])
+          ]
+        );
+      }
+
+      #[test]
+      fn no_overwriting() {
+        let mut program = Program::new();
+        program.eval_string("1 (a) set {2 (a) set").unwrap();
+        assert_eq!(
+          program.scope,
+          vec![
+            HashMap::from_iter(vec![("a".to_string(), Expr::Integer(1))]),
+            HashMap::from_iter(vec![("a".to_string(), Expr::Integer(2))])
+          ]
+        );
+      }
     }
   }
 
@@ -1184,6 +1186,43 @@ mod tests {
       assert_eq!(
         program.stack,
         vec![Expr::Integer(3), Expr::Integer(1), Expr::Integer(2)]
+      );
+    }
+
+    #[test]
+    fn collect() {
+      let mut program = Program::new();
+      program.eval_string("1 2 3 collect").unwrap();
+      assert_eq!(
+        program.stack,
+        vec![Expr::List(vec![
+          Expr::Integer(1),
+          Expr::Integer(2),
+          Expr::Integer(3)
+        ])]
+      );
+    }
+
+    #[test]
+    fn collect_and_unwrap() {
+      let mut program = Program::new();
+      program
+        .eval_string("1 2 3 collect (a) set a unwrap")
+        .unwrap();
+      assert_eq!(
+        program.stack,
+        vec![Expr::Integer(1), Expr::Integer(2), Expr::Integer(3)]
+      );
+      assert_eq!(
+        program.scope,
+        vec![HashMap::from_iter(vec![(
+          "a".to_string(),
+          Expr::List(vec![
+            Expr::Integer(1),
+            Expr::Integer(2),
+            Expr::Integer(3)
+          ])
+        )])]
       );
     }
   }
