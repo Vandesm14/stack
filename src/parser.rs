@@ -2,7 +2,7 @@ use core::fmt;
 
 use crate::Token;
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Default)]
 pub enum Expr {
   Integer(i64),
   Float(f64),
@@ -22,13 +22,8 @@ pub enum Expr {
   /// `[1 2 3]` is a list
   List(Vec<Expr>),
 
+  #[default]
   Nil,
-}
-
-impl Default for Expr {
-  fn default() -> Self {
-    Expr::Nil
-  }
 }
 
 impl fmt::Display for Expr {
