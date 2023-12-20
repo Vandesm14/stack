@@ -38,7 +38,7 @@ fn is_symbol(c: char) -> bool {
   is_symbol_start(c) || c.is_ascii_digit()
 }
 
-pub fn lex(input: String) -> Vec<Token> {
+pub fn lex(input: &str) -> Vec<Token> {
   let mut state = State::Start;
   let mut tokens: Vec<Token> = vec![];
 
@@ -243,7 +243,7 @@ mod tests {
 
   #[test]
   fn test_integer() {
-    let input = "123".to_string();
+    let input = "123";
     let expected = vec![Token::Integer(123)];
 
     assert_eq!(lex(input), expected);
@@ -251,7 +251,7 @@ mod tests {
 
   #[test]
   fn test_negative_integer() {
-    let input = "-123".to_string();
+    let input = "-123";
     let expected = vec![Token::Integer(-123)];
 
     assert_eq!(lex(input), expected);
@@ -259,7 +259,7 @@ mod tests {
 
   #[test]
   fn test_float() {
-    let input = "123.456".to_string();
+    let input = "123.456";
     let expected = vec![Token::Float(123.456)];
 
     assert_eq!(lex(input), expected);
@@ -267,7 +267,7 @@ mod tests {
 
   #[test]
   fn test_negative_float() {
-    let input = "-123.456".to_string();
+    let input = "-123.456";
     let expected = vec![Token::Float(-123.456)];
 
     assert_eq!(lex(input), expected);
@@ -275,7 +275,7 @@ mod tests {
 
   #[test]
   fn test_string() {
-    let input = "\"Hello, world!\"".to_string();
+    let input = "\"Hello, world!\"";
     let expected = vec![Token::String("Hello, world!".to_string())];
 
     assert_eq!(lex(input), expected);
@@ -283,7 +283,7 @@ mod tests {
 
   #[test]
   fn test_symbol() {
-    let input = "'h3ll0_worl6".to_string();
+    let input = "'h3ll0_worl6";
     let expected = vec![Token::Symbol("h3ll0_worl6".to_string())];
 
     assert_eq!(lex(input), expected);
@@ -291,7 +291,7 @@ mod tests {
 
   #[test]
   fn test_symbol_simple() {
-    let input = "'myVar".to_string();
+    let input = "'myVar";
     let expected = vec![Token::Symbol("myVar".to_string())];
 
     assert_eq!(lex(input), expected);
@@ -299,7 +299,7 @@ mod tests {
 
   #[test]
   fn test_call_plus() {
-    let input = "+".to_string();
+    let input = "+";
     let expected = vec![Token::Call("+".to_string())];
 
     assert_eq!(lex(input), expected);
@@ -307,7 +307,7 @@ mod tests {
 
   #[test]
   fn test_symbol_var() {
-    let input = "myVar".to_string();
+    let input = "myVar";
     let expected = vec![Token::Call("myVar".to_string())];
 
     assert_eq!(lex(input), expected);
@@ -315,7 +315,7 @@ mod tests {
 
   #[test]
   fn test_nil() {
-    let input = "nil".to_string();
+    let input = "nil";
     let expected = vec![Token::Nil];
 
     assert_eq!(lex(input), expected);
@@ -323,7 +323,7 @@ mod tests {
 
   #[test]
   fn test_multiple() {
-    let input = "123 \"Hello, world!\" 'h3ll0_worl6 nil".to_string();
+    let input = "123 \"Hello, world!\" 'h3ll0_worl6 nil";
     let expected = vec![
       Token::Integer(123),
       Token::String("Hello, world!".to_string()),
@@ -336,7 +336,7 @@ mod tests {
 
   #[test]
   fn test_multiple2() {
-    let inpuit = "1 'a2 3.0 add \"string hello\" var nil".to_string();
+    let inpuit = "1 'a2 3.0 add \"string hello\" var nil";
     let expected = vec![
       Token::Integer(1),
       Token::Symbol("a2".to_string()),
@@ -352,7 +352,7 @@ mod tests {
 
   #[test]
   fn ignore_whitespace() {
-    let input = "1  \n   2    \n 3".to_string();
+    let input = "1  \n   2    \n 3";
     let expected =
       vec![Token::Integer(1), Token::Integer(2), Token::Integer(3)];
 
@@ -361,7 +361,7 @@ mod tests {
 
   #[test]
   fn ignore_comments() {
-    let input = "1; this is a comment\n2; this is another comment".to_string();
+    let input = "1; this is a comment\n2; this is another comment";
     let expected = vec![Token::Integer(1), Token::Integer(2)];
 
     assert_eq!(lex(input), expected);
@@ -369,7 +369,7 @@ mod tests {
 
   #[test]
   fn ignore_curly_brackets() {
-    let input = "1 {2} { 3 }".to_string();
+    let input = "1 {2} { 3 }";
     let expected =
       vec![Token::Integer(1), Token::Integer(2), Token::Integer(3)];
 

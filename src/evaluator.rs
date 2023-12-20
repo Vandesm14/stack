@@ -375,7 +375,7 @@ impl Program {
     }
   }
 
-  pub fn eval_string(&mut self, line: String) -> Result<(), String> {
+  pub fn eval_string(&mut self, line: &str) -> Result<(), String> {
     let tokens = crate::lex(line);
     let exprs = crate::parse(tokens);
 
@@ -411,42 +411,42 @@ mod tests {
     #[test]
     fn implicitly_adds_to_stack() {
       let mut program = Program::new();
-      program.eval_string("1 2".to_string()).unwrap();
+      program.eval_string("1 2").unwrap();
       assert_eq!(program.stack, vec![Expr::Integer(1), Expr::Integer(2)]);
     }
 
     #[test]
     fn symbols_are_pushed() {
       let mut program = Program::new();
-      program.eval_string("'a".to_string()).unwrap();
+      program.eval_string("'a").unwrap();
       assert_eq!(program.stack, vec![Expr::Symbol("a".to_string())]);
     }
 
     #[test]
     fn add_two_numbers() {
       let mut program = Program::new();
-      program.eval_string("1 2 +".to_string()).unwrap();
+      program.eval_string("1 2 +").unwrap();
       assert_eq!(program.stack, vec![Expr::Integer(3)]);
     }
 
     #[test]
     fn complex_operations() {
       let mut program = Program::new();
-      program.eval_string("1 2 + 3 *".to_string()).unwrap();
+      program.eval_string("1 2 + 3 *").unwrap();
       assert_eq!(program.stack, vec![Expr::Integer(9)]);
     }
 
     #[test]
     fn eval_from_stack() {
       let mut program = Program::new();
-      program.eval_string("1 2 '+ call".to_string()).unwrap();
+      program.eval_string("1 2 '+ call").unwrap();
       assert_eq!(program.stack, vec![Expr::Integer(3)]);
     }
 
     #[test]
     fn dont_eval_blocks() {
       let mut program = Program::new();
-      program.eval_string("6 'var set (var)".to_string()).unwrap();
+      program.eval_string("6 'var set (var)").unwrap();
       assert_eq!(
         program.stack,
         vec![Expr::Block(vec![Expr::Call("var".to_string())])]
@@ -456,9 +456,7 @@ mod tests {
     #[test]
     fn dont_eval_blocks_symbols() {
       let mut program = Program::new();
-      program
-        .eval_string("6 'var set ('var)".to_string())
-        .unwrap();
+      program.eval_string("6 'var set ('var)").unwrap();
       assert_eq!(
         program.stack,
         vec![Expr::Block(vec![Expr::Symbol("var".to_string())])]
@@ -468,7 +466,7 @@ mod tests {
     #[test]
     fn eval_lists() {
       let mut program = Program::new();
-      program.eval_string("[1 2 3]".to_string()).unwrap();
+      program.eval_string("[1 2 3]").unwrap();
       assert_eq!(
         program.stack,
         vec![Expr::List(vec![
@@ -482,7 +480,7 @@ mod tests {
     #[test]
     fn eval_lists_eagerly() {
       let mut program = Program::new();
-      program.eval_string("6 'var set [var]".to_string()).unwrap();
+      program.eval_string("6 'var set [var]").unwrap();
       assert_eq!(program.stack, vec![Expr::List(vec![Expr::Integer(6)])]);
     }
   }
@@ -493,7 +491,7 @@ mod tests {
     #[test]
     fn storing_variables() {
       let mut program = Program::new();
-      program.eval_string("1 'a set".to_string()).unwrap();
+      program.eval_string("1 'a set").unwrap();
       assert_eq!(
         program.scope,
         HashMap::from_iter(vec![("a".to_string(), Expr::Integer(1))])
@@ -503,30 +501,28 @@ mod tests {
     #[test]
     fn retrieving_variables() {
       let mut program = Program::new();
-      program.eval_string("1 'a set a".to_string()).unwrap();
+      program.eval_string("1 'a set a").unwrap();
       assert_eq!(program.stack, vec![Expr::Integer(1)]);
     }
 
     #[test]
     fn evaluating_variables() {
       let mut program = Program::new();
-      program.eval_string("1 'a set a 2 +".to_string()).unwrap();
+      program.eval_string("1 'a set a 2 +").unwrap();
       assert_eq!(program.stack, vec![Expr::Integer(3)]);
     }
 
     #[test]
     fn removing_variables() {
       let mut program = Program::new();
-      program
-        .eval_string("1 'a set 'a unset".to_string())
-        .unwrap();
+      program.eval_string("1 'a set 'a unset").unwrap();
       assert_eq!(program.scope, HashMap::new());
     }
 
     #[test]
     fn collect() {
       let mut program = Program::new();
-      program.eval_string("1 2 3 collect".to_string()).unwrap();
+      program.eval_string("1 2 3 collect").unwrap();
       assert_eq!(
         program.stack,
         vec![Expr::List(vec![
@@ -541,7 +537,7 @@ mod tests {
     fn collect_and_unwrap() {
       let mut program = Program::new();
       program
-        .eval_string("1 2 3 collect 'a set a unwrap".to_string())
+        .eval_string("1 2 3 collect 'a set a unwrap")
         .unwrap();
       assert_eq!(
         program.stack,
@@ -567,28 +563,28 @@ mod tests {
     #[test]
     fn clearing_stack() {
       let mut program = Program::new();
-      program.eval_string("1 2 clear".to_string()).unwrap();
+      program.eval_string("1 2 clear").unwrap();
       assert_eq!(program.stack, vec![]);
     }
 
     #[test]
     fn popping_from_stack() {
       let mut program = Program::new();
-      program.eval_string("1 2 pop".to_string()).unwrap();
+      program.eval_string("1 2 pop").unwrap();
       assert_eq!(program.stack, vec![Expr::Integer(1)]);
     }
 
     #[test]
     fn duplicating_stack_item() {
       let mut program = Program::new();
-      program.eval_string("1 dup".to_string()).unwrap();
+      program.eval_string("1 dup").unwrap();
       assert_eq!(program.stack, vec![Expr::Integer(1), Expr::Integer(1)]);
     }
 
     #[test]
     fn swapping_stack_items() {
       let mut program = Program::new();
-      program.eval_string("1 2 swap".to_string()).unwrap();
+      program.eval_string("1 2 swap").unwrap();
       assert_eq!(program.stack, vec![Expr::Integer(2), Expr::Integer(1)]);
     }
   }
@@ -599,7 +595,7 @@ mod tests {
     #[test]
     fn inserting_into_list() {
       let mut program = Program::new();
-      program.eval_string("[1 2] 3 insert".to_string()).unwrap();
+      program.eval_string("[1 2] 3 insert").unwrap();
       assert_eq!(
         program.stack,
         vec![Expr::List(vec![
@@ -613,7 +609,7 @@ mod tests {
     #[test]
     fn popping_from_list() {
       let mut program = Program::new();
-      program.eval_string("[1 2] last".to_string()).unwrap();
+      program.eval_string("[1 2] last").unwrap();
       assert_eq!(
         program.stack,
         vec![Expr::List(vec![Expr::Integer(1)]), Expr::Integer(2)]
@@ -623,9 +619,7 @@ mod tests {
     #[test]
     fn concatenating_lists() {
       let mut program = Program::new();
-      program
-        .eval_string("[1 2] [3 \"4\"] concat".to_string())
-        .unwrap();
+      program.eval_string("[1 2] [3 \"4\"] concat").unwrap();
       assert_eq!(
         program.stack,
         vec![Expr::List(vec![
@@ -640,14 +634,14 @@ mod tests {
     #[test]
     fn getting_length_of_list() {
       let mut program = Program::new();
-      program.eval_string("[1 2 3] len".to_string()).unwrap();
+      program.eval_string("[1 2 3] len").unwrap();
       assert_eq!(program.stack, vec![Expr::Integer(3)]);
     }
 
     #[test]
     fn getting_nth_item_of_list() {
       let mut program = Program::new();
-      program.eval_string("[1 2 3] 1 nth".to_string()).unwrap();
+      program.eval_string("[1 2 3] 1 nth").unwrap();
       assert_eq!(program.stack, vec![Expr::Integer(2)]);
     }
   }
@@ -658,7 +652,7 @@ mod tests {
     #[test]
     fn exploding_string() {
       let mut program = Program::new();
-      program.eval_string("\"abc\" explode".to_string()).unwrap();
+      program.eval_string("\"abc\" explode").unwrap();
       assert_eq!(
         program.stack,
         vec![Expr::List(vec![
@@ -673,7 +667,7 @@ mod tests {
     fn joining_to_string() {
       let mut program = Program::new();
       program
-        .eval_string("[\"a\" 3 \"hello\" 1.2] \"\" join".to_string())
+        .eval_string("[\"a\" 3 \"hello\" 1.2] \"\" join")
         .unwrap();
 
       assert_eq!(program.stack, vec![Expr::String("a3hello1.2".to_string())]);
@@ -686,9 +680,7 @@ mod tests {
     #[test]
     fn if_true() {
       let mut program = Program::new();
-      program
-        .eval_string("1 2 + (\"correct\") (3 =) if".to_string())
-        .unwrap();
+      program.eval_string("1 2 + (\"correct\") (3 =) if").unwrap();
       assert_eq!(program.stack, vec![Expr::String("correct".to_owned())]);
     }
 
@@ -696,7 +688,7 @@ mod tests {
     fn if_empty_condition() {
       let mut program = Program::new();
       program
-        .eval_string("1 2 + 3 = (\"correct\") () if".to_string())
+        .eval_string("1 2 + 3 = (\"correct\") () if")
         .unwrap();
       assert_eq!(program.stack, vec![Expr::String("correct".to_owned())]);
     }
@@ -705,9 +697,7 @@ mod tests {
     fn if_else_true() {
       let mut program = Program::new();
       program
-        .eval_string(
-          "1 2 + 3 = (\"incorrect\") (\"correct\") () ifelse".to_string(),
-        )
+        .eval_string("1 2 + 3 = (\"incorrect\") (\"correct\") () ifelse")
         .unwrap();
       assert_eq!(program.stack, vec![Expr::String("correct".to_owned())]);
     }
@@ -716,9 +706,7 @@ mod tests {
     fn if_else_false() {
       let mut program = Program::new();
       program
-        .eval_string(
-          "1 2 + 2 = (\"incorrect\") (\"correct\") () ifelse".to_string(),
-        )
+        .eval_string("1 2 + 2 = (\"incorrect\") (\"correct\") () ifelse")
         .unwrap();
       assert_eq!(program.stack, vec![Expr::String("incorrect".to_owned())]);
     }
@@ -745,8 +733,7 @@ mod tests {
            ) (
              ;; If i is 0, break
              i 0 !=
-           ) while"
-            .to_owned(),
+           ) while",
         )
         .unwrap();
       assert_eq!(
