@@ -31,6 +31,7 @@ enum Commands {
 }
 
 fn eval_string(program: &Program, result: Result<(), String>) {
+  println!();
   println!("Stack: {:?}", program.stack);
   println!();
   println!("Scope: {:?}", program.scope);
