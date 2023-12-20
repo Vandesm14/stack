@@ -143,21 +143,55 @@ impl Program {
           Err(format!("Invalid args for: {}", call))
         }
       }
-      // "if" => {
-      //   let condition = self.pop_eval()?;
-      //   let block = self.pop_eval()?;
-      //   if let (Expr::Block(condition), Expr::Block(block)) = (condition, block)
-      //   {
-      //     let result = self.eval(block);
-      //     if let Ok(_) = result {
-      //       let bool =
-      //     } else {
-      //       Err(format!("Error in if condition: {}", result.unwrap_err()))
-      //     }
-      //   } else {
-      //     Err(format!("Invalid args for: {}", call))
-      //   }
-      // }
+      "if" => {
+        let condition = self.pop_eval()?;
+        let block = self.pop_eval()?;
+        if let (Expr::Block(condition), Expr::Block(block)) = (condition, block)
+        {
+          let result = self.eval(condition);
+          if result.is_ok() {
+            let bool = self.pop_eval()?;
+
+            if bool.is_truthy() {
+              self.eval(block)?;
+            }
+
+            Ok(None)
+          } else {
+            Err(format!("Error in if condition: {}", result.unwrap_err()))
+          }
+        } else {
+          Err(format!("Invalid args for: {}", call))
+        }
+      }
+      "ifelse" => {
+        let condition = self.pop_eval()?;
+        let block = self.pop_eval()?;
+        let else_block = self.pop_eval()?;
+        if let (
+          Expr::Block(condition),
+          Expr::Block(block),
+          Expr::Block(else_block),
+        ) = (condition, block, else_block)
+        {
+          let result = self.eval(condition);
+          if result.is_ok() {
+            let bool = self.pop_eval()?;
+
+            if bool.is_truthy() {
+              self.eval(block)?;
+            } else {
+              self.eval(else_block)?;
+            }
+
+            Ok(None)
+          } else {
+            Err(format!("Error in if condition: {}", result.unwrap_err()))
+          }
+        } else {
+          Err(format!("Invalid args for: {}", call))
+        }
+      }
       "set" => {
         let a = self.pop_eval()?;
         let b = self.pop_eval()?;
@@ -571,14 +605,47 @@ mod tests {
     }
   }
 
-  // mod control_flow {
-  //   use super::*;
+  mod control_flow {
+    use super::*;
 
-  //   #[test]
-  //   fn if_true() {
-  //     let mut program = Program::new();
-  //     program.eval_string("1 2 true if".to_string()).unwrap();
-  //     assert_eq!(program.stack, vec![Expr::Integer(1)]);
-  //   }
-  // }
+    #[test]
+    fn if_true() {
+      let mut program = Program::new();
+      program
+        .eval_string("1 2 + (\"correct\") (3 =) if".to_string())
+        .unwrap();
+      assert_eq!(program.stack, vec![Expr::String("correct".to_owned())]);
+    }
+
+    #[test]
+    fn if_empty_condition() {
+      let mut program = Program::new();
+      program
+        .eval_string("1 2 + 3 = (\"correct\") () if".to_string())
+        .unwrap();
+      assert_eq!(program.stack, vec![Expr::String("correct".to_owned())]);
+    }
+
+    #[test]
+    fn if_else_true() {
+      let mut program = Program::new();
+      program
+        .eval_string(
+          "1 2 + 3 = (\"incorrect\") (\"correct\") () ifelse".to_string(),
+        )
+        .unwrap();
+      assert_eq!(program.stack, vec![Expr::String("correct".to_owned())]);
+    }
+
+    #[test]
+    fn if_else_false() {
+      let mut program = Program::new();
+      program
+        .eval_string(
+          "1 2 + 2 = (\"incorrect\") (\"correct\") () ifelse".to_string(),
+        )
+        .unwrap();
+      assert_eq!(program.stack, vec![Expr::String("incorrect".to_owned())]);
+    }
+  }
 }
