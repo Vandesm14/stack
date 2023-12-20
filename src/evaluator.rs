@@ -279,6 +279,10 @@ impl Program {
           let mut list = list;
           list.push(item);
           Ok(Some(Expr::List(list)))
+        } else if let Expr::Block(block) = list {
+          let mut block = block;
+          block.push(item);
+          Ok(Some(Expr::Block(block)))
         } else {
           Err(EvalError {
             expr: Expr::Call(call.clone()),
@@ -299,6 +303,15 @@ impl Program {
           } else {
             Ok(None)
           }
+        } else if let Expr::Block(block) = list {
+          let mut block = block;
+          let item = block.pop();
+          if let Some(item) = item {
+            self.stack.push(Expr::Block(block));
+            Ok(Some(item))
+          } else {
+            Ok(None)
+          }
         } else {
           Err(EvalError {
             expr: Expr::Call(call.clone()),
@@ -314,6 +327,11 @@ impl Program {
           let mut a = a;
           a.extend(b);
           Ok(Some(Expr::List(a)))
+        } else if let (Expr::Block(a), Expr::Block(b)) = (a.clone(), b.clone())
+        {
+          let mut a = a;
+          a.extend(b);
+          Ok(Some(Expr::Block(a)))
         } else {
           Err(EvalError {
             expr: Expr::Call(call.clone()),
