@@ -5,7 +5,7 @@ fn main() {
   let mut program = Program::new();
 
   match program.eval_string(string) {
-    Ok(_) => println!("Result: {:?}", program.stack),
+    Ok(_) => println!("Result: {}", program),
     Err(error) => println!("Error: {}", error),
   }
 }
