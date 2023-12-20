@@ -346,6 +346,17 @@ impl Program {
         self.stack.push(b);
         Ok(None)
       }
+      "rot" => {
+        if self.stack.len() < 3 {
+          return Err("Not enough items on stack".to_string());
+        }
+
+        let len = self.stack.len();
+        self.stack.swap(len - 1, len - 3);
+        self.eval(vec![Expr::Call("swap".to_string())])?;
+
+        Ok(None)
+      }
       "call" => {
         let a = self.stack.pop();
 
@@ -730,17 +741,27 @@ mod tests {
     }
 
     #[test]
-    fn duplicating_stack_item() {
+    fn duplicating() {
       let mut program = Program::new();
       program.eval_string("1 dup").unwrap();
       assert_eq!(program.stack, vec![Expr::Integer(1), Expr::Integer(1)]);
     }
 
     #[test]
-    fn swapping_stack_items() {
+    fn swapping() {
       let mut program = Program::new();
       program.eval_string("1 2 swap").unwrap();
       assert_eq!(program.stack, vec![Expr::Integer(2), Expr::Integer(1)]);
+    }
+
+    #[test]
+    fn rotating() {
+      let mut program = Program::new();
+      program.eval_string("1 2 3 rot").unwrap();
+      assert_eq!(
+        program.stack,
+        vec![Expr::Integer(3), Expr::Integer(1), Expr::Integer(2)]
+      );
     }
   }
 
