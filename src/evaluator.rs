@@ -132,20 +132,21 @@ impl Program {
           Err(format!("Invalid args for: {}", call))
         }
       }
-      "if" => {
-        let a = self.pop_eval()?;
-        let b = self.pop_eval()?;
-        let c = self.pop_eval()?;
-        if let (Expr::Boolean(a), b, c) = (a, b, c) {
-          if a {
-            Ok(Some(b))
-          } else {
-            Ok(Some(c))
-          }
-        } else {
-          Err(format!("Invalid args for: {}", call))
-        }
-      }
+      // "if" => {
+      //   let condition = self.pop_eval()?;
+      //   let block = self.pop_eval()?;
+      //   if let (Expr::Block(condition), Expr::Block(block)) = (condition, block)
+      //   {
+      //     let result = self.eval(block);
+      //     if let Ok(_) = result {
+      //       let bool =
+      //     } else {
+      //       Err(format!("Error in if condition: {}", result.unwrap_err()))
+      //     }
+      //   } else {
+      //     Err(format!("Invalid args for: {}", call))
+      //   }
+      // }
       "set" => {
         let a = self.pop_eval()?;
         let b = self.pop_eval()?;
@@ -541,4 +542,15 @@ mod tests {
       assert_eq!(program.stack, vec![Expr::String("a3hello1.2".to_string())]);
     }
   }
+
+  // mod control_flow {
+  //   use super::*;
+
+  //   #[test]
+  //   fn if_true() {
+  //     let mut program = Program::new();
+  //     program.eval_string("1 2 true if".to_string()).unwrap();
+  //     assert_eq!(program.stack, vec![Expr::Integer(1)]);
+  //   }
+  // }
 }
