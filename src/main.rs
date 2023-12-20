@@ -34,10 +34,7 @@ fn eval_string(program: &Program, result: Result<(), EvalError>) {
   if let Err(err) = result {
     eprintln!("{}", err);
   } else {
-    println!();
-    println!("Stack: {:?}", program.stack);
-    println!();
-    println!("Scope: {:?}", program.scope);
+    println!("{}", program);
   }
 }
 

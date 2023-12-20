@@ -8,6 +8,35 @@ pub struct Program {
   pub scope: HashMap<String, Expr>,
 }
 
+impl fmt::Display for Program {
+  fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+    write!(f, "Stack: [")?;
+
+    self.stack.iter().enumerate().try_for_each(|(i, expr)| {
+      if i == self.stack.len() - 1 {
+        write!(f, "{}", expr)
+      } else {
+        write!(f, "{}, ", expr)
+      }
+    })?;
+    write!(f, "]")?;
+
+    writeln!(f,)?;
+    writeln!(f, "Scope:")?;
+
+    let len = self.scope.len();
+    for (i, (key, value)) in self.scope.iter().enumerate() {
+      if i == len - 1 {
+        write!(f, "   {}: {}", key, value)?;
+      } else {
+        writeln!(f, "   {}: {}", key, value)?;
+      }
+    }
+
+    Ok(())
+  }
+}
+
 #[derive(Debug, Clone)]
 pub struct EvalError {
   program: Program,
@@ -18,9 +47,17 @@ pub struct EvalError {
 impl fmt::Display for EvalError {
   fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
     writeln!(f, "Error: {}", self.message)?;
-    writeln!(f, "Expr: {:?}", self.expr)?;
+    writeln!(f, "Expr: {}", self.expr)?;
     writeln!(f,)?;
-    writeln!(f, "Stack: {:?}", self.program.stack)?;
+    write!(f, "{}", self.program)?;
+
+    self
+      .program
+      .stack
+      .iter()
+      .try_for_each(|expr| write!(f, "{}, ", expr))?;
+    write!(f, "]")?;
+
     writeln!(f,)?;
     write!(f, "Scope: {:?}", self.program.scope)
   }

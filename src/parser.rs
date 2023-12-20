@@ -1,3 +1,5 @@
+use core::fmt;
+
 use crate::Token;
 
 #[derive(Debug, Clone)]
@@ -21,6 +23,40 @@ pub enum Expr {
   List(Vec<Expr>),
 
   Nil,
+}
+
+impl fmt::Display for Expr {
+  fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+    match self {
+      Expr::Integer(i) => write!(f, "{}", i),
+      Expr::Float(float) => write!(f, "{}", float),
+
+      Expr::String(s) => write!(f, "\"{}\"", s),
+      Expr::Boolean(b) => write!(f, "{}", b),
+
+      Expr::Symbol(s) => write!(f, "{}", s),
+      Expr::Call(s) => write!(f, "{}", s),
+
+      Expr::Block(b) => write!(
+        f,
+        "({})",
+        b.iter()
+          .map(|e| e.to_string())
+          .collect::<Vec<String>>()
+          .join(" ")
+      ),
+      Expr::List(l) => write!(
+        f,
+        "[{}]",
+        l.iter()
+          .map(|e| e.to_string())
+          .collect::<Vec<String>>()
+          .join(" ")
+      ),
+
+      Expr::Nil => write!(f, "nil"),
+    }
+  }
 }
 
 impl From<Option<Expr>> for Expr {
@@ -102,38 +138,6 @@ impl PartialOrd for Expr {
       }
 
       _ => None,
-    }
-  }
-}
-
-impl ToString for Expr {
-  fn to_string(&self) -> String {
-    match self {
-      Expr::Integer(i) => i.to_string(),
-      Expr::Float(f) => f.to_string(),
-
-      Expr::String(s) => s.to_string(),
-      Expr::Boolean(b) => b.to_string(),
-
-      Expr::Symbol(s) => s.to_string(),
-      Expr::Call(s) => s.to_string(),
-
-      Expr::Block(b) => format!(
-        "({})",
-        b.iter()
-          .map(|e| e.to_string())
-          .collect::<Vec<String>>()
-          .join(" ")
-      ),
-      Expr::List(l) => format!(
-        "[{}]",
-        l.iter()
-          .map(|e| e.to_string())
-          .collect::<Vec<String>>()
-          .join(" ")
-      ),
-
-      Expr::Nil => "nil".to_owned(),
     }
   }
 }
