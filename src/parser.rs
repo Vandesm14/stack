@@ -119,6 +119,24 @@ impl Expr {
   pub fn is_nil(&self) -> bool {
     matches!(self, Expr::Nil)
   }
+
+  pub fn type_of(&self) -> String {
+    match self {
+      Expr::Integer(_) => "integer".to_owned(),
+      Expr::Float(_) => "float".to_owned(),
+
+      Expr::String(_) => "string".to_owned(),
+      Expr::Boolean(_) => "boolean".to_owned(),
+
+      Expr::Symbol(_) => "symbol".to_owned(),
+      Expr::Call(_) => "call".to_owned(),
+
+      Expr::Block(_) => "block".to_owned(),
+      Expr::List(_) => "list".to_owned(),
+
+      Expr::Nil => "nil".to_owned(),
+    }
+  }
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]

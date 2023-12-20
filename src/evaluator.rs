@@ -292,6 +292,21 @@ impl Program {
         let a = self.pop_eval()?;
         Ok(Some(Expr::String(a.to_string())))
       }
+      "tosymbol" => {
+        let a = self.pop_eval()?;
+        Ok(Some(Expr::Symbol(a.to_string())))
+      }
+      "tointeger" => {
+        let a = self.pop_eval()?;
+        match a.to_string().parse() {
+          Ok(a) => Ok(Some(Expr::Integer(a))),
+          Err(err) => Err(format!("Error parsing integer: {}", err)),
+        }
+      }
+      "typeof" => {
+        let a = self.pop_eval()?;
+        Ok(Some(Expr::String(a.type_of())))
+      }
       "clear" => {
         self.stack.clear();
         Ok(None)
@@ -740,6 +755,38 @@ mod tests {
         program.stack,
         vec![Expr::Integer(2), Expr::Integer(1), Expr::Integer(0)]
       );
+    }
+  }
+
+  mod type_ops {
+    use super::*;
+
+    #[test]
+    fn to_string() {
+      let mut program = Program::new();
+      program.eval_string("1 tostring").unwrap();
+      assert_eq!(program.stack, vec![Expr::String("1".to_string())]);
+    }
+
+    #[test]
+    fn to_symbol() {
+      let mut program = Program::new();
+      program.eval_string("\"a\" tosymbol").unwrap();
+      assert_eq!(program.stack, vec![Expr::Symbol("a".to_string())]);
+    }
+
+    #[test]
+    fn to_integer() {
+      let mut program = Program::new();
+      program.eval_string("\"1\" tointeger").unwrap();
+      assert_eq!(program.stack, vec![Expr::Integer(1)]);
+    }
+
+    #[test]
+    fn type_of() {
+      let mut program = Program::new();
+      program.eval_string("1 typeof").unwrap();
+      assert_eq!(program.stack, vec![Expr::String("integer".to_string())]);
     }
   }
 }
