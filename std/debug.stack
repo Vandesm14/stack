@@ -1,0 +1,14 @@
+(
+  collect
+
+  dup
+  tostring explode
+  "Debug: " explode
+  swap
+
+  concat
+  "" join
+  print
+
+  unwrap
+) 'debug set

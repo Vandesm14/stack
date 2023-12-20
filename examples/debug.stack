@@ -1,17 +1,4 @@
-(
-  collect
-
-  dup
-  tostring explode
-  "Debug: " explode
-  swap
-
-  concat
-  "" join
-  print
-
-  unwrap
-) 'debug set
+"std/debug.stack" import
 
 1 2 3 4
 
