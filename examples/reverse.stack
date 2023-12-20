@@ -1,0 +1,54 @@
+;; Add the string as a list
+"Hello, World!"
+explode
+
+;; Define a reverse function
+(
+  ;; Duplicate the list before eating it with the len function
+  dup
+  len 'i set
+
+  [] 'new_list set
+
+  ;; Define a function that decrements i
+  (i 1 - 'i set) 'decrement_i set
+
+  (
+    ;; Decrement i
+    decrement_i call
+
+    ;; Dupe the list
+    dup
+
+    ;; Get the nth element (i)
+    i nth
+
+    ;; Push the new list to the stack
+    new_list
+
+    ;; Swap it with the nth element (list, nth)
+    swap
+
+    ;; Insert the nth element into the new list
+    insert
+
+    ;; Update the new list
+    'new_list set
+  ) (i 0 !=) while
+
+  ;; Clean up i and decrement_i
+  'i unset
+  'decrement_i unset
+
+  ;; Remove the original list
+  pop
+
+  ;; Push the new list
+  new_list
+
+  ;; Clean up new_list
+  'new_list unset
+) 'reverse set
+
+reverse call
+"" join
