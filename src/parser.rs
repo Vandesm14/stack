@@ -191,7 +191,7 @@ mod tests {
 
     #[test]
     fn implicit_block() {
-      let tokens = crate::lex("(1 2 3)".to_owned());
+      let tokens = crate::lex("(1 2 3)");
       let expected = vec![Expr::Block(vec![
         Expr::Integer(1),
         Expr::Integer(2),
@@ -203,7 +203,7 @@ mod tests {
 
     #[test]
     fn block_at_beginning() {
-      let tokens = crate::lex("(1 2 3) 4 5 6".to_owned());
+      let tokens = crate::lex("(1 2 3) 4 5 6");
       let expected = vec![
         Expr::Block(vec![Expr::Integer(1), Expr::Integer(2), Expr::Integer(3)]),
         Expr::Integer(4),
@@ -216,7 +216,7 @@ mod tests {
 
     #[test]
     fn nested_blocks() {
-      let tokens = crate::lex("(1 (2 3) 4)".to_owned());
+      let tokens = crate::lex("(1 (2 3) 4)");
       let expected = vec![Expr::Block(vec![
         Expr::Integer(1),
         Expr::Block(vec![Expr::Integer(2), Expr::Integer(3)]),
@@ -228,7 +228,7 @@ mod tests {
 
     #[test]
     fn blocks_and_lists() {
-      let tokens = crate::lex("(1 [2 3] 4)".to_owned());
+      let tokens = crate::lex("(1 [2 3] 4)");
       let expected = vec![Expr::Block(vec![
         Expr::Integer(1),
         Expr::List(vec![Expr::Integer(2), Expr::Integer(3)]),
@@ -240,28 +240,28 @@ mod tests {
 
     #[test]
     fn fail_for_only_start_paren() {
-      let tokens = crate::lex("(".to_owned());
+      let tokens = crate::lex("(");
       let exprs = parse(tokens);
       assert_eq!(exprs, vec![]);
     }
 
     #[test]
     fn fail_for_only_end_paren() {
-      let tokens = crate::lex(")".to_owned());
+      let tokens = crate::lex(")");
       let exprs = parse(tokens);
       assert_eq!(exprs, vec![]);
     }
 
     #[test]
     fn fail_for_mismatched_parens() {
-      let tokens = crate::lex("(1 2 3]".to_owned());
+      let tokens = crate::lex("(1 2 3]");
       let exprs = parse(tokens);
       assert_eq!(exprs, vec![]);
     }
 
     #[test]
     fn booleans() {
-      let tokens = crate::lex("true false".to_owned());
+      let tokens = crate::lex("true false");
       let expected = vec![Expr::Boolean(true), Expr::Boolean(false)];
 
       assert_eq!(parse(tokens), expected);

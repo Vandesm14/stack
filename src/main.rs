@@ -51,7 +51,7 @@ fn repl() -> rustyline::Result<()> {
       Ok(line) => {
         rl.add_history_entry(line.as_str()).unwrap();
 
-        let result = program.eval_string(line);
+        let result = program.eval_string(line.as_str());
         eval_string(&program, result);
       }
       Err(ReadlineError::Interrupted) => {
@@ -85,7 +85,7 @@ fn eval_file(path: PathBuf, is_watching: bool) {
         execute!(stdout, cursor::MoveTo(0, 0)).unwrap();
       }
 
-      let result = program.eval_string(contents);
+      let result = program.eval_string(contents.as_str());
       eval_string(&program, result);
 
       if is_watching {
