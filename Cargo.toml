@@ -10,3 +10,8 @@ clap = { version = "4.4.11", features = ["derive"] }
 crossterm = "0.27.0"
 notify = "6.1.1"
 rustyline = "13.0.0"
+
+
+[[bin]]
+name = "stack"
+path = "src/main.rs"
