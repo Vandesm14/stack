@@ -179,19 +179,30 @@ impl Program {
           })
         }
       }
-      "import" => {
+      "parse" => {
+        let string = self.pop_eval()?;
+        if let Expr::String(string) = string {
+          let tokens = crate::lex(string.as_str());
+          let exprs = crate::parse(tokens);
+          Ok(Some(Expr::List(exprs)))
+        } else {
+          Err(EvalError {
+            expr: Expr::Call(call.clone()),
+            program: self.clone(),
+            message: format!("Invalid args: [{:?}]", string),
+          })
+        }
+      }
+      "read-file" => {
         let path = self.pop_eval()?;
         if let Expr::String(path) = path {
           let contents = std::fs::read_to_string(path.clone());
           match contents {
-            Ok(contents) => {
-              self.eval_string(contents.as_str())?;
-              Ok(None)
-            }
+            Ok(contents) => Ok(Some(Expr::String(contents))),
             Err(err) => Err(EvalError {
               expr: Expr::Call(call.clone()),
               program: self.clone(),
-              message: format!("Error importing [{}]: {}", path, err),
+              message: format!("Error reading [{}]: {}", path, err),
             }),
           }
         } else {
@@ -201,6 +212,14 @@ impl Program {
             message: format!("Invalid args: [{:?}]", path),
           })
         }
+      }
+      "import" => {
+        self.eval(vec![
+          Expr::Call("read-file".to_string()),
+          Expr::Call("parse".to_string()),
+          Expr::Call("call".to_string()),
+        ])?;
+        Ok(None)
       }
       "nth" => {
         let index = self.pop_eval()?;
