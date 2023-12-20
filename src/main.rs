@@ -10,7 +10,7 @@ use notify::{Config, EventKind, RecommendedWatcher, RecursiveMode, Watcher};
 
 use rustyline::error::ReadlineError;
 use rustyline::DefaultEditor;
-use stack::Program;
+use stack::{EvalError, Program};
 
 #[derive(Parser)]
 #[command(author, version, about, long_about = None)]
@@ -30,14 +30,14 @@ enum Commands {
   },
 }
 
-fn eval_string(program: &Program, result: Result<(), String>) {
-  println!();
-  println!("Stack: {:?}", program.stack);
-  println!();
-  println!("Scope: {:?}", program.scope);
-
+fn eval_string(program: &Program, result: Result<(), EvalError>) {
   if let Err(err) = result {
-    eprintln!("Error: {}", err);
+    eprintln!("{}", err);
+  } else {
+    println!();
+    println!("Stack: {:?}", program.stack);
+    println!();
+    println!("Scope: {:?}", program.scope);
   }
 }
 
