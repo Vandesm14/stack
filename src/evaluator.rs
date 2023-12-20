@@ -31,8 +31,8 @@ impl Program {
   fn eval_call(&mut self, call: String) -> Result<Option<Expr>, String> {
     match call.as_str() {
       "+" => {
-        let a = self.pop_eval()?;
         let b = self.pop_eval()?;
+        let a = self.pop_eval()?;
         if let (Expr::Integer(a), Expr::Integer(b)) = (a, b) {
           Ok(Some(Expr::Integer(a + b)))
         } else {
@@ -40,8 +40,8 @@ impl Program {
         }
       }
       "-" => {
-        let a = self.pop_eval()?;
         let b = self.pop_eval()?;
+        let a = self.pop_eval()?;
         if let (Expr::Integer(a), Expr::Integer(b)) = (a, b) {
           Ok(Some(Expr::Integer(a - b)))
         } else {
@@ -49,8 +49,8 @@ impl Program {
         }
       }
       "*" => {
-        let a = self.pop_eval()?;
         let b = self.pop_eval()?;
+        let a = self.pop_eval()?;
         if let (Expr::Integer(a), Expr::Integer(b)) = (a, b) {
           Ok(Some(Expr::Integer(a * b)))
         } else {
@@ -58,8 +58,8 @@ impl Program {
         }
       }
       "/" => {
-        let a = self.pop_eval()?;
         let b = self.pop_eval()?;
+        let a = self.pop_eval()?;
         if let (Expr::Integer(a), Expr::Integer(b)) = (a, b) {
           Ok(Some(Expr::Integer(a / b)))
         } else {
@@ -67,13 +67,13 @@ impl Program {
         }
       }
       "=" => {
-        let a = self.pop_eval()?;
         let b = self.pop_eval()?;
+        let a = self.pop_eval()?;
         Ok(Some(Expr::Boolean(a.eq(&b))))
       }
       "!=" => {
-        let a = self.pop_eval()?;
         let b = self.pop_eval()?;
+        let a = self.pop_eval()?;
         Ok(Some(Expr::Boolean(!a.eq(&b))))
       }
       "explode" => {
