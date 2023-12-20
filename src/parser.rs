@@ -91,6 +91,9 @@ impl PartialEq for Expr {
       (Expr::Block(a), Expr::Block(b)) => a == b,
       (Expr::List(a), Expr::List(b)) => a == b,
 
+      (Expr::ScopePush, Expr::ScopePush) => true,
+      (Expr::ScopePop, Expr::ScopePop) => true,
+
       (Expr::Nil, Expr::Nil) => true,
 
       // Different types
@@ -331,6 +334,20 @@ mod tests {
     fn booleans() {
       let tokens = crate::lex("true false");
       let expected = vec![Expr::Boolean(true), Expr::Boolean(false)];
+
+      assert_eq!(parse(tokens), expected);
+    }
+
+    #[test]
+    fn scope() {
+      let tokens = crate::lex("{1 (var) set}");
+      let expected = vec![
+        Expr::ScopePush,
+        Expr::Integer(1),
+        Expr::Block(vec![Expr::Call("var".to_owned())]),
+        Expr::Call("set".to_owned()),
+        Expr::ScopePop,
+      ];
 
       assert_eq!(parse(tokens), expected);
     }

@@ -357,4 +357,20 @@ mod tests {
 
     assert_eq!(lex(input), expected);
   }
+
+  #[test]
+  fn curly_brackets_outside() {
+    let input = "{2 (a) set}";
+    let expected = vec![
+      Token::CurlyStart,
+      Token::Integer(2),
+      Token::ParenStart,
+      Token::Call("a".to_string()),
+      Token::ParenEnd,
+      Token::Call("set".to_string()),
+      Token::CurlyEnd,
+    ];
+
+    assert_eq!(lex(input), expected);
+  }
 }

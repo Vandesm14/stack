@@ -5,7 +5,7 @@ use std::collections::HashMap;
 #[derive(Debug, Clone, Default)]
 pub struct Program {
   pub stack: Vec<Expr>,
-  pub scope: HashMap<String, Expr>,
+  pub scope: Vec<HashMap<String, Expr>>,
 }
 
 impl fmt::Display for Program {
@@ -26,12 +26,16 @@ impl fmt::Display for Program {
     if !self.scope.is_empty() {
       writeln!(f, "Scope:")?;
 
-      let len = self.scope.len();
-      for (i, (key, value)) in self.scope.iter().enumerate() {
-        if i == len - 1 {
-          write!(f, "   {}: {}", key, value)?;
-        } else {
-          writeln!(f, "   {}: {}", key, value)?;
+      let layers = self.scope.len();
+      for (layer_i, layer) in self.scope.iter().enumerate() {
+        let items = layer.len();
+        writeln!(f, "Layer {}:", layer_i)?;
+        for (item_i, (key, value)) in layer.iter().enumerate() {
+          if item_i == items - 1 && layer_i == layers - 1 {
+            write!(f, "   {}: {}", key, value)?;
+          } else {
+            writeln!(f, "   {}: {}", key, value)?;
+          }
         }
       }
     }
@@ -60,7 +64,7 @@ impl Program {
   pub fn new() -> Self {
     Self {
       stack: vec![],
-      scope: HashMap::new(),
+      scope: vec![HashMap::new()],
     }
   }
 
@@ -75,6 +79,56 @@ impl Program {
     } else {
       Ok(Expr::Nil)
     }
+  }
+
+  fn scope_item(&self, symbol: &str) -> Option<Expr> {
+    for layer in self.scope.iter().rev() {
+      if let Some(item) = layer.get(symbol) {
+        return Some(item.clone());
+      }
+    }
+
+    None
+  }
+
+  fn scope_item_layer(&self, symbol: &str) -> Option<usize> {
+    for (layer_i, layer) in self.scope.iter().rev().enumerate() {
+      if layer.contains_key(symbol) {
+        return Some(layer_i);
+      }
+    }
+
+    None
+  }
+
+  fn set_scope_item(&mut self, symbol: &str, value: Expr) {
+    let layer = self.scope_item_layer(symbol);
+
+    if let Some(layer) = layer {
+      self.scope[layer].insert(symbol.to_string(), value);
+    } else if let Some(scope) = self.scope.last_mut() {
+      scope.insert(symbol.to_string(), value);
+    } else {
+      self
+        .scope
+        .push(HashMap::from_iter(vec![(symbol.to_string(), value)]));
+    }
+  }
+
+  fn remove_scope_item(&mut self, symbol: &str) {
+    let layer = self.scope_item_layer(symbol);
+
+    if let Some(layer) = layer {
+      self.scope[layer].remove(symbol);
+    }
+  }
+
+  fn push_scope(&mut self) {
+    self.scope.push(HashMap::new());
+  }
+
+  fn pop_scope(&mut self) {
+    self.scope.pop();
   }
 
   fn eval_call(&mut self, call: String) -> Result<Option<Expr>, EvalError> {
@@ -468,7 +522,7 @@ impl Program {
           let symbol = list.first();
 
           if let Some(Expr::Call(symbol)) = symbol {
-            self.scope.insert(symbol.clone(), value);
+            self.set_scope_item(symbol, value);
             Ok(None)
           } else {
             Err(EvalError {
@@ -490,7 +544,7 @@ impl Program {
         if let Expr::Block(list) = list {
           list.iter().for_each(|expr| {
             if let Expr::Call(symbol) = expr {
-              self.scope.remove(symbol);
+              self.remove_scope_item(symbol);
             }
           });
 
@@ -669,7 +723,7 @@ impl Program {
         }
       }
       _ => {
-        if let Some(value) = self.scope.get(&call) {
+        if let Some(value) = self.scope_item(&call) {
           self.eval_expr(value.clone())
         } else {
           Err(EvalError {
@@ -699,13 +753,24 @@ impl Program {
           Ok(exprs) => Ok(Some(Expr::List(exprs))),
         }
       }
+      Expr::ScopePush => {
+        self.push_scope();
+        Ok(None)
+      }
+      Expr::ScopePop => {
+        self.pop_scope();
+        Ok(None)
+      }
       _ => Ok(Some(expr)),
     }
   }
 
   pub fn eval_string(&mut self, line: &str) -> Result<(), EvalError> {
     let tokens = crate::lex(line);
-    let exprs = crate::parse(tokens);
+    let exprs = crate::parse(tokens.clone());
+
+    println!("Tokens: {:?}", tokens);
+    println!("Exprs: {:?}", exprs);
 
     self.eval(exprs)
   }
@@ -1015,7 +1080,10 @@ mod tests {
       program.eval_string("1 (a) set").unwrap();
       assert_eq!(
         program.scope,
-        HashMap::from_iter(vec![("a".to_string(), Expr::Integer(1))])
+        vec![HashMap::from_iter(vec![(
+          "a".to_string(),
+          Expr::Integer(1)
+        )])]
       );
     }
 
@@ -1037,7 +1105,7 @@ mod tests {
     fn removing_variables() {
       let mut program = Program::new();
       program.eval_string("1 (a) set (a) unset").unwrap();
-      assert_eq!(program.scope, HashMap::new());
+      assert_eq!(program.scope, vec![HashMap::new()]);
     }
 
     #[test]
@@ -1066,14 +1134,14 @@ mod tests {
       );
       assert_eq!(
         program.scope,
-        HashMap::from_iter(vec![(
+        vec![HashMap::from_iter(vec![(
           "a".to_string(),
           Expr::List(vec![
             Expr::Integer(1),
             Expr::Integer(2),
             Expr::Integer(3)
           ])
-        )])
+        )])]
       );
     }
   }
