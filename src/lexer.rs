@@ -12,6 +12,9 @@ pub enum Token {
   BracketStart,
   BracketEnd,
 
+  CurlyStart,
+  CurlyEnd,
+
   Nil,
 }
 
@@ -101,8 +104,17 @@ pub fn lex(input: &str) -> Vec<Token> {
             // Ignore whitespace
             c if c.is_whitespace() => State::Start,
 
-            // Ignore Curly Brackets
-            '{' | '}' => State::Start,
+            // Match a start curly bracket
+            '{' => {
+              tokens.push(Token::CurlyStart);
+              State::Start
+            }
+
+            // Match an end curly bracket
+            '}' => {
+              tokens.push(Token::CurlyEnd);
+              State::Start
+            }
 
             // Error on everything else
             _ => {
@@ -331,10 +343,17 @@ mod tests {
   }
 
   #[test]
-  fn ignore_curly_brackets() {
+  fn curly_brackets() {
     let input = "1 {2} { 3 }";
-    let expected =
-      vec![Token::Integer(1), Token::Integer(2), Token::Integer(3)];
+    let expected = vec![
+      Token::Integer(1),
+      Token::CurlyStart,
+      Token::Integer(2),
+      Token::CurlyEnd,
+      Token::CurlyStart,
+      Token::Integer(3),
+      Token::CurlyEnd,
+    ];
 
     assert_eq!(lex(input), expected);
   }

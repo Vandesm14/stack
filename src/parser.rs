@@ -21,6 +21,12 @@ pub enum Expr {
   /// `[1 2 3]` is a list
   List(Vec<Expr>),
 
+  /// Creates a new scope
+  ScopePush,
+
+  /// Pops the current scope
+  ScopePop,
+
   #[default]
   Nil,
 }
@@ -52,6 +58,9 @@ impl fmt::Display for Expr {
           .collect::<Vec<String>>()
           .join(" ")
       ),
+
+      Expr::ScopePush => write!(f, "scope_push"),
+      Expr::ScopePop => write!(f, "scope_pop"),
 
       Expr::Nil => write!(f, "nil"),
     }
@@ -167,6 +176,9 @@ impl Expr {
       Expr::Block(_) => "block".to_owned(),
       Expr::List(_) => "list".to_owned(),
 
+      Expr::ScopePush => "scope_push".to_owned(),
+      Expr::ScopePop => "scope_pop".to_owned(),
+
       Expr::Nil => "nil".to_owned(),
     }
   }
@@ -220,6 +232,12 @@ pub fn parse(tokens: Vec<Token>) -> Vec<Expr> {
           eprintln!("Mismatched brackets");
           return vec![];
         }
+      }
+      Token::CurlyStart => {
+        blocks.last_mut().unwrap().push(Expr::ScopePush);
+      }
+      Token::CurlyEnd => {
+        blocks.last_mut().unwrap().push(Expr::ScopePop);
       }
     };
   }
