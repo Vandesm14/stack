@@ -22,7 +22,7 @@ impl fmt::Display for Program {
     write!(f, "]")?;
 
     writeln!(f,)?;
-    writeln!(f, "Scope:")?;
+    write!(f, "Scope:")?;
 
     let len = self.scope.len();
     for (i, (key, value)) in self.scope.iter().enumerate() {
@@ -49,17 +49,7 @@ impl fmt::Display for EvalError {
     writeln!(f, "Error: {}", self.message)?;
     writeln!(f, "Expr: {}", self.expr)?;
     writeln!(f,)?;
-    write!(f, "{}", self.program)?;
-
-    self
-      .program
-      .stack
-      .iter()
-      .try_for_each(|expr| write!(f, "{}, ", expr))?;
-    write!(f, "]")?;
-
-    writeln!(f,)?;
-    write!(f, "Scope: {:?}", self.program.scope)
+    write!(f, "{}", self.program)
   }
 }
 
