@@ -107,6 +107,9 @@ pub fn lex(input: String) -> Vec<Token> {
             // Ignore whitespace
             c if c.is_whitespace() => State::Start,
 
+            // Ignore Curly Brackets
+            '{' | '}' => State::Start,
+
             // Error on everything else
             _ => {
               eprintln!("Error: Unexpected character: {}", c);
@@ -345,5 +348,31 @@ mod tests {
     ];
 
     assert_eq!(lex(inpuit), expected);
+  }
+
+  #[test]
+  fn ignore_whitespace() {
+    let input = "1  \n   2    \n 3".to_string();
+    let expected =
+      vec![Token::Integer(1), Token::Integer(2), Token::Integer(3)];
+
+    assert_eq!(lex(input), expected);
+  }
+
+  #[test]
+  fn ignore_comments() {
+    let input = "1; this is a comment\n2; this is another comment".to_string();
+    let expected = vec![Token::Integer(1), Token::Integer(2)];
+
+    assert_eq!(lex(input), expected);
+  }
+
+  #[test]
+  fn ignore_curly_brackets() {
+    let input = "1 {2} { 3 }".to_string();
+    let expected =
+      vec![Token::Integer(1), Token::Integer(2), Token::Integer(3)];
+
+    assert_eq!(lex(input), expected);
   }
 }
