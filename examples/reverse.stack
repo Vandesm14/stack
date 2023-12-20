@@ -48,7 +48,7 @@ explode
 
   ;; Clean up new_list
   'new_list unset
-) 'reverse set
+) 'list/reverse set
 
-reverse call
+list/reverse call
 "" join
