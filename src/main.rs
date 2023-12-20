@@ -32,6 +32,7 @@ enum Commands {
 
 fn eval_string(program: &Program, result: Result<(), String>) {
   println!("Stack: {:?}", program.stack);
+  println!();
   println!("Scope: {:?}", program.scope);
 
   if let Err(err) = result {
@@ -87,6 +88,7 @@ fn eval_file(path: PathBuf, is_watching: bool) {
       eval_string(&program, result);
 
       if is_watching {
+        println!();
         println!("Watching file for changes...");
       }
     }
