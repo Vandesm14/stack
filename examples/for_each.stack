@@ -1,0 +1,12 @@
+"std/list.stack" import
+
+[1 2 3 4] (
+  "Item: "
+  explode
+  swap
+
+  insert
+
+  "" join
+  print
+) list/for_each call

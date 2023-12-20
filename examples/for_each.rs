@@ -1,7 +1,7 @@
 use stack::Program;
 
 fn run() -> Result<Program, stack::EvalError> {
-  let string = include_str!("debug.stack");
+  let string = include_str!("for_each.stack");
   let mut program = Program::new();
 
   match program.eval_string(string) {
