@@ -76,6 +76,76 @@ impl Program {
         let b = self.pop_eval()?;
         Ok(Some(Expr::Boolean(!a.eq(&b))))
       }
+      "explode" => {
+        let a = self.pop_eval()?;
+        if let Expr::String(a) = a {
+          let mut chars = vec![];
+          for c in a.chars() {
+            chars.push(Expr::String(c.to_string()));
+          }
+          Ok(Some(Expr::List(chars)))
+        } else {
+          Err(format!("Invalid args for: {}", call))
+        }
+      }
+      "join" => {
+        let delimiter = self.pop_eval()?;
+        let list = self.pop_eval()?;
+        if let (Expr::String(delimiter), Expr::List(list)) = (delimiter, list) {
+          let mut string = String::new();
+          for (i, item) in list.iter().enumerate() {
+            if i > 0 {
+              string.push_str(&delimiter);
+            }
+            string.push_str(item.to_string().as_str());
+          }
+          Ok(Some(Expr::String(string)))
+        } else {
+          Err(format!("Invalid args for: {}", call))
+        }
+      }
+      // Pushes the last value in the stack into the list
+      "insert" => {
+        let item = self.pop_eval()?;
+        let list = self.pop_eval()?;
+        if let Expr::List(list) = list {
+          let mut list = list;
+          list.push(item);
+          Ok(Some(Expr::List(list)))
+        } else {
+          Err(format!("Invalid args for: {}", call))
+        }
+      }
+      // Pops the last value of a list onto the stack
+      "last" => {
+        let list = self.pop_eval()?;
+        if let Expr::List(list) = list {
+          let mut list = list;
+          let item = list.pop();
+          if let Some(item) = item {
+            self.stack.push(Expr::List(list));
+            Ok(Some(item))
+          } else {
+            Ok(None)
+          }
+        } else {
+          Err(format!("Invalid args for: {}", call))
+        }
+      }
+      "if" => {
+        let a = self.pop_eval()?;
+        let b = self.pop_eval()?;
+        let c = self.pop_eval()?;
+        if let (Expr::Boolean(a), b, c) = (a, b, c) {
+          if a {
+            Ok(Some(b))
+          } else {
+            Ok(Some(c))
+          }
+        } else {
+          Err(format!("Invalid args for: {}", call))
+        }
+      }
       "set" => {
         let a = self.pop_eval()?;
         let b = self.pop_eval()?;
@@ -413,6 +483,62 @@ mod tests {
       let mut program = Program::new();
       program.eval_string("1 2 swap".to_string()).unwrap();
       assert_eq!(program.stack, vec![Expr::Integer(2), Expr::Integer(1)]);
+    }
+  }
+
+  mod list_ops {
+    use super::*;
+
+    #[test]
+    fn inserting_into_list() {
+      let mut program = Program::new();
+      program.eval_string("[1 2] 3 insert".to_string()).unwrap();
+      assert_eq!(
+        program.stack,
+        vec![Expr::List(vec![
+          Expr::Integer(1),
+          Expr::Integer(2),
+          Expr::Integer(3)
+        ])]
+      );
+    }
+
+    #[test]
+    fn popping_from_list() {
+      let mut program = Program::new();
+      program.eval_string("[1 2] last".to_string()).unwrap();
+      assert_eq!(
+        program.stack,
+        vec![Expr::List(vec![Expr::Integer(1)]), Expr::Integer(2)]
+      );
+    }
+  }
+
+  mod string_ops {
+    use super::*;
+
+    #[test]
+    fn exploding_string() {
+      let mut program = Program::new();
+      program.eval_string("\"abc\" explode".to_string()).unwrap();
+      assert_eq!(
+        program.stack,
+        vec![Expr::List(vec![
+          Expr::String("a".to_string()),
+          Expr::String("b".to_string()),
+          Expr::String("c".to_string())
+        ])]
+      );
+    }
+
+    #[test]
+    fn joining_to_string() {
+      let mut program = Program::new();
+      program
+        .eval_string("[\"a\" 3 \"hello\" 1.2] \"\" join".to_string())
+        .unwrap();
+
+      assert_eq!(program.stack, vec![Expr::String("a3hello1.2".to_string())]);
     }
   }
 }
