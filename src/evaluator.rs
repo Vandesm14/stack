@@ -151,6 +151,16 @@ impl Program {
         let a = self.pop_eval()?;
         Ok(Some(Expr::Boolean(a.lt(&b))))
       }
+      "or" => {
+        let b = self.pop_eval()?;
+        let a = self.pop_eval()?;
+        Ok(Some(Expr::Boolean(a.is_truthy() || b.is_truthy())))
+      }
+      "and" => {
+        let b = self.pop_eval()?;
+        let a = self.pop_eval()?;
+        Ok(Some(Expr::Boolean(a.is_truthy() && b.is_truthy())))
+      }
       "explode" => {
         let string = self.pop_eval()?;
         if let Expr::String(string) = string.clone() {
@@ -445,7 +455,7 @@ impl Program {
 
         match a {
           Expr::String(string) => println!("{}", string),
-          _ => print!("{}", a),
+          _ => println!("{}", a),
         }
 
         Ok(None)
@@ -911,6 +921,86 @@ mod tests {
 
         let mut program = Program::new();
         program.eval_string("1.1 1 <").unwrap();
+        assert_eq!(program.stack, vec![Expr::Boolean(false)]);
+      }
+    }
+
+    mod bitwise {
+      use super::*;
+
+      #[test]
+      fn and_int() {
+        let mut program = Program::new();
+        program.eval_string("1 1 and").unwrap();
+        assert_eq!(program.stack, vec![Expr::Boolean(true)]);
+
+        let mut program = Program::new();
+        program.eval_string("1 0 and").unwrap();
+        assert_eq!(program.stack, vec![Expr::Boolean(false)]);
+
+        let mut program = Program::new();
+        program.eval_string("0 1 and").unwrap();
+        assert_eq!(program.stack, vec![Expr::Boolean(false)]);
+
+        let mut program = Program::new();
+        program.eval_string("0 0 and").unwrap();
+        assert_eq!(program.stack, vec![Expr::Boolean(false)]);
+      }
+
+      #[test]
+      fn and_bool() {
+        let mut program = Program::new();
+        program.eval_string("true true and").unwrap();
+        assert_eq!(program.stack, vec![Expr::Boolean(true)]);
+
+        let mut program = Program::new();
+        program.eval_string("true false and").unwrap();
+        assert_eq!(program.stack, vec![Expr::Boolean(false)]);
+
+        let mut program = Program::new();
+        program.eval_string("false true and").unwrap();
+        assert_eq!(program.stack, vec![Expr::Boolean(false)]);
+
+        let mut program = Program::new();
+        program.eval_string("false false and").unwrap();
+        assert_eq!(program.stack, vec![Expr::Boolean(false)]);
+      }
+
+      #[test]
+      fn or_int() {
+        let mut program = Program::new();
+        program.eval_string("1 1 or").unwrap();
+        assert_eq!(program.stack, vec![Expr::Boolean(true)]);
+
+        let mut program = Program::new();
+        program.eval_string("1 0 or").unwrap();
+        assert_eq!(program.stack, vec![Expr::Boolean(true)]);
+
+        let mut program = Program::new();
+        program.eval_string("0 1 or").unwrap();
+        assert_eq!(program.stack, vec![Expr::Boolean(true)]);
+
+        let mut program = Program::new();
+        program.eval_string("0 0 or").unwrap();
+        assert_eq!(program.stack, vec![Expr::Boolean(false)]);
+      }
+
+      #[test]
+      fn or_bool() {
+        let mut program = Program::new();
+        program.eval_string("true true or").unwrap();
+        assert_eq!(program.stack, vec![Expr::Boolean(true)]);
+
+        let mut program = Program::new();
+        program.eval_string("true false or").unwrap();
+        assert_eq!(program.stack, vec![Expr::Boolean(true)]);
+
+        let mut program = Program::new();
+        program.eval_string("false true or").unwrap();
+        assert_eq!(program.stack, vec![Expr::Boolean(true)]);
+
+        let mut program = Program::new();
+        program.eval_string("false false or").unwrap();
         assert_eq!(program.stack, vec![Expr::Boolean(false)]);
       }
     }
