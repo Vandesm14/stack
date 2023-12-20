@@ -21,6 +21,7 @@ impl fmt::Display for EvalError {
     writeln!(f, "Expr: {:?}", self.expr)?;
     writeln!(f,)?;
     writeln!(f, "Stack: {:?}", self.program.stack)?;
+    writeln!(f,)?;
     write!(f, "Scope: {:?}", self.program.scope)
   }
 }
@@ -296,8 +297,8 @@ impl Program {
             Ok(_) => Ok(None),
             Err(err) => Err(EvalError {
               expr: Expr::Call(call.clone()),
-              program: self.clone(),
-              message: format!("Error in if condition: {}", err),
+              program: err.clone().program,
+              message: format!("Error in if condition: {}", err.message),
             }),
           }
         } else {
@@ -334,8 +335,8 @@ impl Program {
               Err(err) => {
                 return Err(EvalError {
                   expr: Expr::Call(call.clone()),
-                  program: self.clone(),
-                  message: format!("Error in while condition: {}", err),
+                  program: err.clone().program,
+                  message: format!("Error in while condition: {}", err.message),
                 })
               }
             }
