@@ -769,9 +769,6 @@ impl Program {
     let tokens = crate::lex(line);
     let exprs = crate::parse(tokens.clone());
 
-    println!("Tokens: {:?}", tokens);
-    println!("Exprs: {:?}", exprs);
-
     self.eval(exprs)
   }
 
