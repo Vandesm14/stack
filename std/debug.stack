@@ -22,4 +22,4 @@
 
   ;; Unwrap the stack list back into the stack
   unwrap
-) 'debug set
+) (debug) set

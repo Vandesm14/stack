@@ -10,7 +10,6 @@ pub enum Expr {
   String(String),
   Boolean(bool),
 
-  Symbol(String),
   Call(String),
 
   /// A block is lazy. It only gets evaluated when it's called.
@@ -35,7 +34,6 @@ impl fmt::Display for Expr {
       Expr::String(s) => write!(f, "\"{}\"", s),
       Expr::Boolean(b) => write!(f, "{}", b),
 
-      Expr::Symbol(s) => write!(f, "'{}", s),
       Expr::Call(s) => write!(f, "{}", s),
 
       Expr::Block(b) => write!(
@@ -79,7 +77,6 @@ impl PartialEq for Expr {
       (Expr::String(a), Expr::String(b)) => a == b,
       (Expr::Boolean(a), Expr::Boolean(b)) => a == b,
 
-      (Expr::Symbol(a), Expr::Symbol(b)) => a == b,
       (Expr::Call(a), Expr::Call(b)) => a == b,
 
       (Expr::Block(a), Expr::Block(b)) => a == b,
@@ -120,7 +117,6 @@ impl PartialOrd for Expr {
       (Expr::String(a), Expr::String(b)) => a.partial_cmp(b),
       (Expr::Boolean(a), Expr::Boolean(b)) => a.partial_cmp(b),
 
-      (Expr::Symbol(a), Expr::Symbol(b)) => a.partial_cmp(b),
       (Expr::Call(a), Expr::Call(b)) => a.partial_cmp(b),
 
       (Expr::Block(a), Expr::Block(b)) => a.partial_cmp(b),
@@ -166,7 +162,6 @@ impl Expr {
       Expr::String(_) => "string".to_owned(),
       Expr::Boolean(_) => "boolean".to_owned(),
 
-      Expr::Symbol(_) => "symbol".to_owned(),
       Expr::Call(_) => "call".to_owned(),
 
       Expr::Block(_) => "block".to_owned(),
@@ -192,7 +187,6 @@ pub fn parse(tokens: Vec<Token>) -> Vec<Expr> {
       Token::Integer(i) => blocks.last_mut().unwrap().push(Expr::Integer(i)),
       Token::Float(f) => blocks.last_mut().unwrap().push(Expr::Float(f)),
       Token::String(s) => blocks.last_mut().unwrap().push(Expr::String(s)),
-      Token::Symbol(s) => blocks.last_mut().unwrap().push(Expr::Symbol(s)),
       Token::Call(s) => match s.as_str() {
         "true" => blocks.last_mut().unwrap().push(Expr::Boolean(true)),
         "false" => blocks.last_mut().unwrap().push(Expr::Boolean(false)),
@@ -371,17 +365,6 @@ mod tests {
 
         let a = Expr::Boolean(true);
         let b = Expr::Boolean(false);
-        assert_ne!(a, b);
-      }
-
-      #[test]
-      fn symbol_to_symbol() {
-        let a = Expr::Symbol("hello".to_owned());
-        let b = Expr::Symbol("hello".to_owned());
-        assert_eq!(a, b);
-
-        let a = Expr::Symbol("hello".to_owned());
-        let b = Expr::Symbol("world".to_owned());
         assert_ne!(a, b);
       }
 

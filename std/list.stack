@@ -2,12 +2,12 @@
 (
   ;; Duplicate the list before eating it with the len function
   dup
-  len 'i set
+  len (i) set
 
-  [] 'new_list set
+  [] (new_list) set
 
   ;; Define a function that decrements i
-  (i 1 - 'i set) 'decrement_i set
+  (i 1 - (i) set) (decrement_i) set
 
   (
     ;; Decrement i
@@ -29,12 +29,12 @@
     insert
 
     ;; Update the new list
-    'new_list set
+    (new_list) set
   ) (i 0 !=) while
 
   ;; Clean up i and decrement_i
-  'i unset
-  'decrement_i unset
+  (i) unset
+  (decrement_i) unset
 
   ;; Remove the original list
   pop
@@ -43,5 +43,5 @@
   new_list
 
   ;; Clean up new_list
-  'new_list unset
-) 'list/reverse set
+  (new_list) unset
+) (list/reverse) set

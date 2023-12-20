@@ -217,6 +217,7 @@ impl Program {
         self.eval(vec![
           Expr::Call("read-file".to_string()),
           Expr::Call("parse".to_string()),
+          Expr::Call("unwrap".to_string()),
           Expr::Call("call".to_string()),
         ])?;
         Ok(None)
@@ -450,29 +451,45 @@ impl Program {
         Ok(None)
       }
       "set" => {
-        let symbol = self.pop_eval()?;
+        let list = self.pop_eval()?;
         let value = self.pop_eval()?;
-        if let (Expr::Symbol(symbol), value) = (symbol.clone(), value.clone()) {
-          self.scope.insert(symbol, value);
-          Ok(None)
+
+        if let (Expr::Block(list), value) = (list.clone(), value.clone()) {
+          let symbol = list.first();
+
+          if let Some(Expr::Call(symbol)) = symbol {
+            self.scope.insert(symbol.clone(), value);
+            Ok(None)
+          } else {
+            Err(EvalError {
+              expr: Expr::Call(call.clone()),
+              program: self.clone(),
+              message: format!("Invalid args: [{:?} {:?}]", value, list),
+            })
+          }
         } else {
           Err(EvalError {
             expr: Expr::Call(call.clone()),
             program: self.clone(),
-            message: format!("Invalid args: [{:?} {:?}]", value, symbol),
+            message: format!("Invalid args: [{:?} {:?}]", value, list),
           })
         }
       }
       "unset" => {
-        let symbol = self.pop_eval()?;
-        if let Expr::Symbol(symbol) = symbol {
-          self.scope.remove(&symbol);
+        let list = self.pop_eval()?;
+        if let Expr::Block(list) = list {
+          list.iter().for_each(|expr| {
+            if let Expr::Call(symbol) = expr {
+              self.scope.remove(symbol);
+            }
+          });
+
           Ok(None)
         } else {
           Err(EvalError {
             expr: Expr::Call(call.clone()),
             program: self.clone(),
-            message: format!("Invalid args: [{:?}]", symbol),
+            message: format!("Invalid args: [{:?}]", list),
           })
         }
       }
@@ -486,15 +503,13 @@ impl Program {
         let a = self.stack.pop().unwrap_or_default();
 
         let string = match a {
-          Expr::String(string) | Expr::Symbol(string) | Expr::Call(string) => {
-            string
-          }
+          Expr::String(string) | Expr::Call(string) => string,
           _ => a.to_string(),
         };
 
         Ok(Some(Expr::String(string)))
       }
-      "tosymbol" => {
+      "tocall" => {
         let a = self.stack.pop().unwrap_or_default();
 
         let string = match a {
@@ -502,7 +517,7 @@ impl Program {
           _ => a.to_string(),
         };
 
-        Ok(Some(Expr::Symbol(string)))
+        Ok(Some(Expr::Call(string)))
       }
       "tointeger" => {
         let a = self.stack.pop().unwrap_or_default();
@@ -609,7 +624,7 @@ impl Program {
       "call" => {
         let a = self.stack.pop();
 
-        if let Some(Expr::Symbol(a)) | Some(Expr::Call(a)) = a {
+        if let Some(Expr::Call(a)) = a {
           self.eval_expr(Expr::Call(a))
         } else if let Some(Expr::Block(a)) = a {
           self.eval(a)?;
@@ -623,8 +638,8 @@ impl Program {
         }
       }
       "unwrap" => {
-        let list = self.pop_eval()?;
-        if let Expr::List(list) | Expr::Block(list) = list {
+        let list = self.stack.pop();
+        if let Some(Expr::List(list)) | Some(Expr::Block(list)) = list {
           for expr in list {
             self.stack.push(expr);
           }
@@ -713,13 +728,6 @@ mod tests {
     }
 
     #[test]
-    fn symbols_are_pushed() {
-      let mut program = Program::new();
-      program.eval_string("'a").unwrap();
-      assert_eq!(program.stack, vec![Expr::Symbol("a".to_string())]);
-    }
-
-    #[test]
     fn add_two_numbers() {
       let mut program = Program::new();
       program.eval_string("1 2 +").unwrap();
@@ -736,27 +744,17 @@ mod tests {
     #[test]
     fn eval_from_stack() {
       let mut program = Program::new();
-      program.eval_string("1 2 '+ call").unwrap();
+      program.eval_string("(1 2 +) unwrap call").unwrap();
       assert_eq!(program.stack, vec![Expr::Integer(3)]);
     }
 
     #[test]
     fn dont_eval_blocks() {
       let mut program = Program::new();
-      program.eval_string("6 'var set (var)").unwrap();
+      program.eval_string("6 (var) set (var)").unwrap();
       assert_eq!(
         program.stack,
         vec![Expr::Block(vec![Expr::Call("var".to_string())])]
-      );
-    }
-
-    #[test]
-    fn dont_eval_blocks_symbols() {
-      let mut program = Program::new();
-      program.eval_string("6 'var set ('var)").unwrap();
-      assert_eq!(
-        program.stack,
-        vec![Expr::Block(vec![Expr::Symbol("var".to_string())])]
       );
     }
 
@@ -777,7 +775,7 @@ mod tests {
     #[test]
     fn eval_lists_eagerly() {
       let mut program = Program::new();
-      program.eval_string("6 'var set [var]").unwrap();
+      program.eval_string("6 (var) set [var]").unwrap();
       assert_eq!(program.stack, vec![Expr::List(vec![Expr::Integer(6)])]);
     }
   }
@@ -918,7 +916,7 @@ mod tests {
     #[test]
     fn storing_variables() {
       let mut program = Program::new();
-      program.eval_string("1 'a set").unwrap();
+      program.eval_string("1 (a) set").unwrap();
       assert_eq!(
         program.scope,
         HashMap::from_iter(vec![("a".to_string(), Expr::Integer(1))])
@@ -928,21 +926,21 @@ mod tests {
     #[test]
     fn retrieving_variables() {
       let mut program = Program::new();
-      program.eval_string("1 'a set a").unwrap();
+      program.eval_string("1 (a) set a").unwrap();
       assert_eq!(program.stack, vec![Expr::Integer(1)]);
     }
 
     #[test]
     fn evaluating_variables() {
       let mut program = Program::new();
-      program.eval_string("1 'a set a 2 +").unwrap();
+      program.eval_string("1 (a) set a 2 +").unwrap();
       assert_eq!(program.stack, vec![Expr::Integer(3)]);
     }
 
     #[test]
     fn removing_variables() {
       let mut program = Program::new();
-      program.eval_string("1 'a set 'a unset").unwrap();
+      program.eval_string("1 (a) set (a) unset").unwrap();
       assert_eq!(program.scope, HashMap::new());
     }
 
@@ -964,7 +962,7 @@ mod tests {
     fn collect_and_unwrap() {
       let mut program = Program::new();
       program
-        .eval_string("1 2 3 collect 'a set a unwrap")
+        .eval_string("1 2 3 collect (a) set a unwrap")
         .unwrap();
       assert_eq!(
         program.stack,
@@ -1158,13 +1156,13 @@ mod tests {
       program
         .eval_string(
           ";; Set i to 3
-           3 'i set
+           3 (i) set
 
            (
              ;; Decrement i by 1
              i 1 -
              ;; Set i
-             'i set
+             (i) set
 
              i
            ) (
@@ -1191,10 +1189,10 @@ mod tests {
     }
 
     #[test]
-    fn to_symbol() {
+    fn to_call() {
       let mut program = Program::new();
-      program.eval_string("\"a\" tosymbol").unwrap();
-      assert_eq!(program.stack, vec![Expr::Symbol("a".to_string())]);
+      program.eval_string("\"a\" tocall").unwrap();
+      assert_eq!(program.stack, vec![Expr::Call("a".to_string())]);
     }
 
     #[test]
