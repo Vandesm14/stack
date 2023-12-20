@@ -220,12 +220,7 @@ impl Program {
 
         if let (Expr::Block(condition), Expr::Block(block)) = (condition, block)
         {
-          let mut i = 0;
           loop {
-            if i > 10 {
-              break;
-            }
-
             let result = self.eval(condition.clone());
             if result.is_ok() {
               let bool = self.pop_eval()?;
@@ -236,8 +231,6 @@ impl Program {
                 break;
               }
             }
-
-            i += 1;
           }
         }
 
