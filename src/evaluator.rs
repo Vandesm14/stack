@@ -499,18 +499,14 @@ mod tests {
     #[test]
     fn collect() {
       let mut program = Program::new();
-      program.eval_string("1 2 3 'a collect".to_string()).unwrap();
-      assert_eq!(program.stack, vec![]);
+      program.eval_string("1 2 3 collect".to_string()).unwrap();
       assert_eq!(
-        program.scope,
-        HashMap::from_iter(vec![(
-          "a".to_string(),
-          Expr::List(vec![
-            Expr::Integer(1),
-            Expr::Integer(2),
-            Expr::Integer(3)
-          ])
-        )])
+        program.stack,
+        vec![Expr::List(vec![
+          Expr::Integer(1),
+          Expr::Integer(2),
+          Expr::Integer(3)
+        ])]
       );
     }
 
@@ -518,7 +514,7 @@ mod tests {
     fn collect_and_unwrap() {
       let mut program = Program::new();
       program
-        .eval_string("1 2 3 'a collect a unwrap".to_string())
+        .eval_string("1 2 3 collect 'a set a unwrap".to_string())
         .unwrap();
       assert_eq!(
         program.stack,
