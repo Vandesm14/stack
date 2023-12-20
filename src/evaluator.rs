@@ -512,6 +512,26 @@ impl Program {
           }),
         }
       }
+      "tolist" => {
+        let a = self.stack.pop().unwrap_or_default();
+
+        match a {
+          Expr::Block(block) => Ok(Some(Expr::List(block))),
+          Expr::List(list) => Ok(Some(Expr::List(list))),
+          Expr::String(string) => {
+            self.eval(vec![
+              Expr::String(string),
+              Expr::Call("explode".to_string()),
+            ])?;
+            Ok(None)
+          }
+          _ => Err(EvalError {
+            expr: Expr::Call(call.clone()),
+            program: self.clone(),
+            message: format!("[{}] cannot be cast to list", a),
+          }),
+        }
+      }
       "typeof" => {
         let a = self.stack.pop().unwrap_or_default();
         Ok(Some(Expr::String(a.type_of())))
