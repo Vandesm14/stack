@@ -33,37 +33,37 @@ impl Program {
       "+" => {
         let b = self.pop_eval()?;
         let a = self.pop_eval()?;
-        if let (Expr::Integer(a), Expr::Integer(b)) = (a, b) {
+        if let (Expr::Integer(a), Expr::Integer(b)) = (a.clone(), b.clone()) {
           Ok(Some(Expr::Integer(a + b)))
         } else {
-          Err(format!("Invalid args for: {}", call))
+          Err(format!("Invalid args for: {} found {:?} {:?}", call, a, b))
         }
       }
       "-" => {
         let b = self.pop_eval()?;
         let a = self.pop_eval()?;
-        if let (Expr::Integer(a), Expr::Integer(b)) = (a, b) {
+        if let (Expr::Integer(a), Expr::Integer(b)) = (a.clone(), b.clone()) {
           Ok(Some(Expr::Integer(a - b)))
         } else {
-          Err(format!("Invalid args for: {}", call))
+          Err(format!("Invalid args for: {} found {:?} {:?}", call, a, b))
         }
       }
       "*" => {
         let b = self.pop_eval()?;
         let a = self.pop_eval()?;
-        if let (Expr::Integer(a), Expr::Integer(b)) = (a, b) {
+        if let (Expr::Integer(a), Expr::Integer(b)) = (a.clone(), b.clone()) {
           Ok(Some(Expr::Integer(a * b)))
         } else {
-          Err(format!("Invalid args for: {}", call))
+          Err(format!("Invalid args for: {} found {:?} {:?}", call, a, b))
         }
       }
       "/" => {
         let b = self.pop_eval()?;
         let a = self.pop_eval()?;
-        if let (Expr::Integer(a), Expr::Integer(b)) = (a, b) {
+        if let (Expr::Integer(a), Expr::Integer(b)) = (a.clone(), b.clone()) {
           Ok(Some(Expr::Integer(a / b)))
         } else {
-          Err(format!("Invalid args for: {}", call))
+          Err(format!("Invalid args for: {} found {:?} {:?}", call, a, b))
         }
       }
       "=" => {
@@ -77,29 +77,31 @@ impl Program {
         Ok(Some(Expr::Boolean(!a.eq(&b))))
       }
       "explode" => {
-        let a = self.pop_eval()?;
-        if let Expr::String(a) = a {
+        let string = self.pop_eval()?;
+        if let Expr::String(string) = string.clone() {
           let mut chars = vec![];
-          for c in a.chars() {
+          for c in string.chars() {
             chars.push(Expr::String(c.to_string()));
           }
           Ok(Some(Expr::List(chars)))
         } else {
-          Err(format!("Invalid args for: {}", call))
+          Err(format!("Invalid args for: {} found {:?}", call, string))
         }
       }
       "len" => {
-        let a = self.pop_eval()?;
-        if let Expr::List(a) = a {
-          Ok(Some(Expr::Integer(a.len() as i64)))
+        let list = self.pop_eval()?;
+        if let Expr::List(list) = list {
+          Ok(Some(Expr::Integer(list.len() as i64)))
         } else {
-          Err(format!("Invalid args for: {}", call))
+          Err(format!("Invalid args for: {} found {:?}", call, list))
         }
       }
       "nth" => {
         let index = self.pop_eval()?;
         let list = self.pop_eval()?;
-        if let (Expr::Integer(index), Expr::List(list)) = (index, list) {
+        if let (Expr::Integer(index), Expr::List(list)) =
+          (index.clone(), list.clone())
+        {
           let index = index as usize;
           if index < list.len() {
             Ok(Some(list[index].clone()))
@@ -107,13 +109,18 @@ impl Program {
             Err(format!("Index out of bounds: {}", index))
           }
         } else {
-          Err(format!("Invalid args for: {}", call))
+          Err(format!(
+            "Invalid args for: {} found {:?} {:?}",
+            call, list, index
+          ))
         }
       }
       "join" => {
         let delimiter = self.pop_eval()?;
         let list = self.pop_eval()?;
-        if let (Expr::String(delimiter), Expr::List(list)) = (delimiter, list) {
+        if let (Expr::String(delimiter), Expr::List(list)) =
+          (delimiter.clone(), list.clone())
+        {
           let mut string = String::new();
           for (i, item) in list.iter().enumerate() {
             if i > 0 {
@@ -123,7 +130,10 @@ impl Program {
           }
           Ok(Some(Expr::String(string)))
         } else {
-          Err(format!("Invalid args for: {}", call))
+          Err(format!(
+            "Invalid args for: {} found {:?} {:?}",
+            call, list, delimiter
+          ))
         }
       }
       // Pushes the last value in the stack into the list
@@ -135,7 +145,7 @@ impl Program {
           list.push(item);
           Ok(Some(Expr::List(list)))
         } else {
-          Err(format!("Invalid args for: {}", call))
+          Err(format!("Invalid args for: {} found {:?}", call, list))
         }
       }
       // Pops the last value of a list onto the stack
@@ -151,24 +161,25 @@ impl Program {
             Ok(None)
           }
         } else {
-          Err(format!("Invalid args for: {}", call))
+          Err(format!("Invalid args for: {} found {:?}", call, list))
         }
       }
       "concat" => {
-        let a = self.pop_eval()?;
         let b = self.pop_eval()?;
-        if let (Expr::List(a), Expr::List(b)) = (a, b) {
-          let mut b = b;
-          b.extend(a);
-          Ok(Some(Expr::List(b)))
+        let a = self.pop_eval()?;
+        if let (Expr::List(a), Expr::List(b)) = (a.clone(), b.clone()) {
+          let mut a = a;
+          a.extend(b);
+          Ok(Some(Expr::List(a)))
         } else {
-          Err(format!("Invalid args for: {}", call))
+          Err(format!("Invalid args for: {} found {:?} {:?}", call, a, b))
         }
       }
       "if" => {
         let condition = self.pop_eval()?;
         let block = self.pop_eval()?;
-        if let (Expr::Block(condition), Expr::Block(block)) = (condition, block)
+        if let (Expr::Block(condition), Expr::Block(block)) =
+          (condition.clone(), block.clone())
         {
           let result = self.eval(condition);
           if result.is_ok() {
@@ -183,7 +194,10 @@ impl Program {
             Err(format!("Error in if condition: {}", result.unwrap_err()))
           }
         } else {
-          Err(format!("Invalid args for: {}", call))
+          Err(format!(
+            "Invalid args for: {} found {:?} {:?}",
+            call, block, condition
+          ))
         }
       }
       "ifelse" => {
@@ -194,7 +208,7 @@ impl Program {
           Expr::Block(condition),
           Expr::Block(block),
           Expr::Block(else_block),
-        ) = (condition, block, else_block)
+        ) = (condition.clone(), block.clone(), else_block.clone())
         {
           let result = self.eval(condition);
           if result.is_ok() {
@@ -211,7 +225,10 @@ impl Program {
             Err(format!("Error in if condition: {}", result.unwrap_err()))
           }
         } else {
-          Err(format!("Invalid args for: {}", call))
+          Err(format!(
+            "Invalid args for: {} found {:?} {:?} {:?}",
+            call, else_block, block, condition
+          ))
         }
       }
       "while" => {
@@ -242,22 +259,25 @@ impl Program {
         Ok(None)
       }
       "set" => {
-        let a = self.pop_eval()?;
-        let b = self.pop_eval()?;
-        if let (Expr::Symbol(a), b) = (a, b) {
-          self.scope.insert(a, b);
+        let symbol = self.pop_eval()?;
+        let value = self.pop_eval()?;
+        if let (Expr::Symbol(symbol), value) = (symbol.clone(), value.clone()) {
+          self.scope.insert(symbol, value);
           Ok(None)
         } else {
-          Err(format!("Invalid args for: {}", call))
+          Err(format!(
+            "Invalid args for: {} found {:?} {:?}",
+            call, value, symbol
+          ))
         }
       }
       "unset" => {
-        let a = self.pop_eval()?;
-        if let Expr::Symbol(a) = a {
-          self.scope.remove(&a);
+        let symbol = self.pop_eval()?;
+        if let Expr::Symbol(symbol) = symbol {
+          self.scope.remove(&symbol);
           Ok(None)
         } else {
-          Err(format!("Invalid args for: {}", call))
+          Err(format!("Invalid args for: {} found {:?}", call, symbol))
         }
       }
       "collect" => Ok(Some(Expr::List(core::mem::take(&mut self.stack)))),
@@ -303,18 +323,18 @@ impl Program {
           self.eval(a)?;
           Ok(None)
         } else {
-          Err(format!("Invalid args for: {}", call))
+          Err(format!("Invalid args for: {} found {:?}", call, a))
         }
       }
       "unwrap" => {
-        let a = self.pop_eval()?;
-        if let Expr::List(a) | Expr::Block(a) = a {
-          for expr in a {
+        let list = self.pop_eval()?;
+        if let Expr::List(list) | Expr::Block(list) = list {
+          for expr in list {
             self.stack.push(expr);
           }
           Ok(None)
         } else {
-          Err(format!("Invalid args for: {}", call))
+          Err(format!("Invalid args for: {} found {:?}", call, list))
         }
       }
       _ => {
