@@ -102,16 +102,13 @@ impl Program {
   }
 
   fn set_scope_item(&mut self, symbol: &str, value: Expr) {
-    let layer = self.scope_item_layer(symbol);
-
-    if let Some(layer) = layer {
-      self.scope[layer].insert(symbol.to_string(), value);
-    } else if let Some(scope) = self.scope.last_mut() {
-      scope.insert(symbol.to_string(), value);
+    if let Some(layer) = self.scope.last_mut() {
+      layer.insert(symbol.to_string(), value);
     } else {
-      self
-        .scope
-        .push(HashMap::from_iter(vec![(symbol.to_string(), value)]));
+      self.scope.push(HashMap::from_iter(vec![(
+        symbol.to_string(),
+        value.clone(),
+      )]));
     }
   }
 
@@ -1131,13 +1128,26 @@ mod tests {
       }
 
       #[test]
-      fn no_overwriting() {
+      fn no_overwriting_outside() {
         let mut program = Program::new();
         program.eval_string("1 (a) set {2 (a) set").unwrap();
         assert_eq!(
           program.scope,
           vec![
             HashMap::from_iter(vec![("a".to_string(), Expr::Integer(1))]),
+            HashMap::from_iter(vec![("a".to_string(), Expr::Integer(2))])
+          ]
+        );
+      }
+
+      #[test]
+      fn overwriting_inside() {
+        let mut program = Program::new();
+        program.eval_string("{1 (a) set 2 (a) set").unwrap();
+        assert_eq!(
+          program.scope,
+          vec![
+            HashMap::new(),
             HashMap::from_iter(vec![("a".to_string(), Expr::Integer(2))])
           ]
         );
