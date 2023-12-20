@@ -316,6 +316,9 @@ impl Program {
 
         if let Some(Expr::Symbol(a)) | Some(Expr::Call(a)) = a {
           self.eval_expr(Expr::Call(a))
+        } else if let Some(Expr::Block(a)) = a {
+          self.eval(a)?;
+          Ok(None)
         } else {
           Err(format!("Invalid args for: {}", call))
         }
