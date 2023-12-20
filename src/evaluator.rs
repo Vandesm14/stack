@@ -691,23 +691,21 @@ mod tests {
       let mut program = Program::new();
       program
         .eval_string(
-          "
-      ;; Set i to 3
-      3 'i set
+          ";; Set i to 3
+           3 'i set
 
-      (
-        ;; Decrement i by 1
-        i 1 -
-        ;; Set i
-        'i set
+           (
+             ;; Decrement i by 1
+             i 1 -
+             ;; Set i
+             'i set
 
-        i
-      ) (
-        ;; If i is 0, break
-        i 0 !=
-      ) while
-      "
-          .to_owned(),
+             i
+           ) (
+             ;; If i is 0, break
+             i 0 !=
+           ) while"
+            .to_owned(),
         )
         .unwrap();
       assert_eq!(
