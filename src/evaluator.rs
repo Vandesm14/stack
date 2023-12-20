@@ -22,14 +22,17 @@ impl fmt::Display for Program {
     write!(f, "]")?;
 
     writeln!(f,)?;
-    write!(f, "Scope:")?;
 
-    let len = self.scope.len();
-    for (i, (key, value)) in self.scope.iter().enumerate() {
-      if i == len - 1 {
-        write!(f, "   {}: {}", key, value)?;
-      } else {
-        writeln!(f, "   {}: {}", key, value)?;
+    if !self.scope.is_empty() {
+      writeln!(f, "Scope:")?;
+
+      let len = self.scope.len();
+      for (i, (key, value)) in self.scope.iter().enumerate() {
+        if i == len - 1 {
+          write!(f, "   {}: {}", key, value)?;
+        } else {
+          writeln!(f, "   {}: {}", key, value)?;
+        }
       }
     }
 
