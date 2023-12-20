@@ -425,17 +425,19 @@ impl Program {
       }),
       "collect" => Ok(Some(Expr::List(core::mem::take(&mut self.stack)))),
       "tostring" => {
-        let a = self.pop_eval()?;
+        let a = self.stack.pop().unwrap_or_default();
 
         let string = match a {
-          Expr::String(string) => string,
+          Expr::String(string) | Expr::Symbol(string) | Expr::Call(string) => {
+            string
+          }
           _ => a.to_string(),
         };
 
         Ok(Some(Expr::String(string)))
       }
       "tosymbol" => {
-        let a = self.pop_eval()?;
+        let a = self.stack.pop().unwrap_or_default();
 
         let string = match a {
           Expr::String(string) => string,
@@ -445,7 +447,7 @@ impl Program {
         Ok(Some(Expr::Symbol(string)))
       }
       "tointeger" => {
-        let a = self.pop_eval()?;
+        let a = self.stack.pop().unwrap_or_default();
 
         match a {
           Expr::String(string) => match string.parse() {
@@ -471,7 +473,7 @@ impl Program {
         }
       }
       "typeof" => {
-        let a = self.pop_eval()?;
+        let a = self.stack.pop().unwrap_or_default();
         Ok(Some(Expr::String(a.type_of())))
       }
       "clear" => {

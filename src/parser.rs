@@ -25,6 +25,12 @@ pub enum Expr {
   Nil,
 }
 
+impl Default for Expr {
+  fn default() -> Self {
+    Expr::Nil
+  }
+}
+
 impl fmt::Display for Expr {
   fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
     match self {
@@ -34,7 +40,7 @@ impl fmt::Display for Expr {
       Expr::String(s) => write!(f, "\"{}\"", s),
       Expr::Boolean(b) => write!(f, "{}", b),
 
-      Expr::Symbol(s) => write!(f, "{}", s),
+      Expr::Symbol(s) => write!(f, "'{}", s),
       Expr::Call(s) => write!(f, "{}", s),
 
       Expr::Block(b) => write!(
