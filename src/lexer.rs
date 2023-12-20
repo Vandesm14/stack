@@ -202,7 +202,7 @@ pub fn lex(input: String) -> Vec<Token> {
         accumulator.clear();
       }
       (State::NegSign, State::Start) => {
-        tokens.push(Token::Symbol('-'.into()));
+        tokens.push(Token::Call('-'.into()));
         accumulator.clear();
       }
       (State::Symbol, State::Start) => {
