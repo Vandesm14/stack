@@ -76,6 +76,16 @@ impl Program {
         let a = self.pop_eval()?;
         Ok(Some(Expr::Boolean(!a.eq(&b))))
       }
+      ">" => {
+        let b = self.pop_eval()?;
+        let a = self.pop_eval()?;
+        Ok(Some(Expr::Boolean(a.gt(&b))))
+      }
+      "<" => {
+        let b = self.pop_eval()?;
+        let a = self.pop_eval()?;
+        Ok(Some(Expr::Boolean(a.lt(&b))))
+      }
       "explode" => {
         let string = self.pop_eval()?;
         if let Expr::String(string) = string.clone() {
@@ -497,6 +507,136 @@ mod tests {
       let mut program = Program::new();
       program.eval_string("6 'var set [var]").unwrap();
       assert_eq!(program.stack, vec![Expr::List(vec![Expr::Integer(6)])]);
+    }
+  }
+
+  mod comparison {
+    use super::*;
+
+    mod greater_than {
+      use super::*;
+
+      #[test]
+      fn greater_than_int() {
+        let mut program = Program::new();
+        program.eval_string("1 1 >").unwrap();
+        assert_eq!(program.stack, vec![Expr::Boolean(false)]);
+
+        let mut program = Program::new();
+        program.eval_string("1 2 >").unwrap();
+        assert_eq!(program.stack, vec![Expr::Boolean(false)]);
+
+        let mut program = Program::new();
+        program.eval_string("2 1 >").unwrap();
+        assert_eq!(program.stack, vec![Expr::Boolean(true)]);
+      }
+
+      #[test]
+      fn greater_than_float() {
+        let mut program = Program::new();
+        program.eval_string("1.0 1.0 >").unwrap();
+        assert_eq!(program.stack, vec![Expr::Boolean(false)]);
+
+        let mut program = Program::new();
+        program.eval_string("1.0 1.1 >").unwrap();
+        assert_eq!(program.stack, vec![Expr::Boolean(false)]);
+
+        let mut program = Program::new();
+        program.eval_string("1.1 1.0 >").unwrap();
+        assert_eq!(program.stack, vec![Expr::Boolean(true)]);
+      }
+
+      #[test]
+      fn greater_than_int_and_float() {
+        // Int first
+        let mut program = Program::new();
+        program.eval_string("1 1.0 >").unwrap();
+        assert_eq!(program.stack, vec![Expr::Boolean(false)]);
+
+        let mut program = Program::new();
+        program.eval_string("1 1.1 >").unwrap();
+        assert_eq!(program.stack, vec![Expr::Boolean(false)]);
+
+        let mut program = Program::new();
+        program.eval_string("2 1.0 >").unwrap();
+        assert_eq!(program.stack, vec![Expr::Boolean(true)]);
+
+        // Float first
+        let mut program = Program::new();
+        program.eval_string("1.0 1 >").unwrap();
+        assert_eq!(program.stack, vec![Expr::Boolean(false)]);
+
+        let mut program = Program::new();
+        program.eval_string("1.0 1 >").unwrap();
+        assert_eq!(program.stack, vec![Expr::Boolean(false)]);
+
+        let mut program = Program::new();
+        program.eval_string("1.1 1 >").unwrap();
+        assert_eq!(program.stack, vec![Expr::Boolean(true)]);
+      }
+    }
+
+    mod less_than {
+      use super::*;
+
+      #[test]
+      fn less_than_int() {
+        let mut program = Program::new();
+        program.eval_string("1 1 <").unwrap();
+        assert_eq!(program.stack, vec![Expr::Boolean(false)]);
+
+        let mut program = Program::new();
+        program.eval_string("1 2 <").unwrap();
+        assert_eq!(program.stack, vec![Expr::Boolean(true)]);
+
+        let mut program = Program::new();
+        program.eval_string("2 1 <").unwrap();
+        assert_eq!(program.stack, vec![Expr::Boolean(false)]);
+      }
+
+      #[test]
+      fn less_than_float() {
+        let mut program = Program::new();
+        program.eval_string("1.0 1.0 <").unwrap();
+        assert_eq!(program.stack, vec![Expr::Boolean(false)]);
+
+        let mut program = Program::new();
+        program.eval_string("1.0 1.1 <").unwrap();
+        assert_eq!(program.stack, vec![Expr::Boolean(true)]);
+
+        let mut program = Program::new();
+        program.eval_string("1.1 1.0 <").unwrap();
+        assert_eq!(program.stack, vec![Expr::Boolean(false)]);
+      }
+
+      #[test]
+      fn less_than_int_and_float() {
+        // Int first
+        let mut program = Program::new();
+        program.eval_string("1 1.0 <").unwrap();
+        assert_eq!(program.stack, vec![Expr::Boolean(false)]);
+
+        let mut program = Program::new();
+        program.eval_string("1 1.1 <").unwrap();
+        assert_eq!(program.stack, vec![Expr::Boolean(true)]);
+
+        let mut program = Program::new();
+        program.eval_string("2 1.0 <").unwrap();
+        assert_eq!(program.stack, vec![Expr::Boolean(false)]);
+
+        // Float first
+        let mut program = Program::new();
+        program.eval_string("1.0 1 <").unwrap();
+        assert_eq!(program.stack, vec![Expr::Boolean(false)]);
+
+        let mut program = Program::new();
+        program.eval_string("0.9 1 <").unwrap();
+        assert_eq!(program.stack, vec![Expr::Boolean(true)]);
+
+        let mut program = Program::new();
+        program.eval_string("1.1 1 <").unwrap();
+        assert_eq!(program.stack, vec![Expr::Boolean(false)]);
+      }
     }
   }
 

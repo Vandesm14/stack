@@ -73,6 +73,39 @@ impl PartialEq for Expr {
   }
 }
 
+impl PartialOrd for Expr {
+  fn partial_cmp(&self, other: &Self) -> Option<std::cmp::Ordering> {
+    match (self, other) {
+      // Same types
+      (Expr::Integer(a), Expr::Integer(b)) => a.partial_cmp(b),
+      (Expr::Float(a), Expr::Float(b)) => a.partial_cmp(b),
+
+      (Expr::String(a), Expr::String(b)) => a.partial_cmp(b),
+      (Expr::Boolean(a), Expr::Boolean(b)) => a.partial_cmp(b),
+
+      (Expr::Symbol(a), Expr::Symbol(b)) => a.partial_cmp(b),
+      (Expr::Call(a), Expr::Call(b)) => a.partial_cmp(b),
+
+      (Expr::Block(a), Expr::Block(b)) => a.partial_cmp(b),
+      (Expr::List(a), Expr::List(b)) => a.partial_cmp(b),
+
+      (Expr::Nil, Expr::Nil) => Some(std::cmp::Ordering::Equal),
+
+      // Different types
+      (Expr::Float(a), Expr::Integer(b)) => {
+        let b = *b as f64;
+        a.partial_cmp(&b)
+      }
+      (Expr::Integer(a), Expr::Float(b)) => {
+        let a = *a as f64;
+        a.partial_cmp(b)
+      }
+
+      _ => None,
+    }
+  }
+}
+
 impl ToString for Expr {
   fn to_string(&self) -> String {
     match self {
@@ -433,6 +466,78 @@ mod tests {
         let a = Expr::Boolean(false);
         let b = Expr::Integer(0);
         assert_eq!(a, b);
+      }
+    }
+  }
+
+  mod ordering {
+    use super::*;
+
+    mod same_types {
+      use super::*;
+
+      #[test]
+      fn integer_to_integer() {
+        let a = Expr::Integer(1);
+        let b = Expr::Integer(1);
+        assert_eq!(a.partial_cmp(&b), Some(std::cmp::Ordering::Equal));
+
+        let a = Expr::Integer(1);
+        let b = Expr::Integer(2);
+        assert_eq!(a.partial_cmp(&b), Some(std::cmp::Ordering::Less));
+
+        let a = Expr::Integer(2);
+        let b = Expr::Integer(1);
+        assert_eq!(a.partial_cmp(&b), Some(std::cmp::Ordering::Greater));
+      }
+
+      #[test]
+      fn float_to_float() {
+        let a = Expr::Float(1.0);
+        let b = Expr::Float(1.0);
+        assert_eq!(a.partial_cmp(&b), Some(std::cmp::Ordering::Equal));
+
+        let a = Expr::Float(1.0);
+        let b = Expr::Float(1.1);
+        assert_eq!(a.partial_cmp(&b), Some(std::cmp::Ordering::Less));
+
+        let a = Expr::Float(1.1);
+        let b = Expr::Float(1.0);
+        assert_eq!(a.partial_cmp(&b), Some(std::cmp::Ordering::Greater));
+      }
+    }
+
+    mod different_types {
+      use super::*;
+
+      #[test]
+      fn integer_to_float() {
+        let a = Expr::Integer(1);
+        let b = Expr::Float(1.0);
+        assert_eq!(a.partial_cmp(&b), Some(std::cmp::Ordering::Equal));
+
+        let a = Expr::Integer(1);
+        let b = Expr::Float(1.1);
+        assert_eq!(a.partial_cmp(&b), Some(std::cmp::Ordering::Less));
+
+        let a = Expr::Integer(2);
+        let b = Expr::Float(1.0);
+        assert_eq!(a.partial_cmp(&b), Some(std::cmp::Ordering::Greater));
+      }
+
+      #[test]
+      fn float_to_integer() {
+        let a = Expr::Float(1.0);
+        let b = Expr::Integer(1);
+        assert_eq!(a.partial_cmp(&b), Some(std::cmp::Ordering::Equal));
+
+        let a = Expr::Float(1.1);
+        let b = Expr::Integer(1);
+        assert_eq!(a.partial_cmp(&b), Some(std::cmp::Ordering::Greater));
+
+        let a = Expr::Float(1.0);
+        let b = Expr::Integer(2);
+        assert_eq!(a.partial_cmp(&b), Some(std::cmp::Ordering::Less));
       }
     }
   }
