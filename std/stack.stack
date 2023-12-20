@@ -1,0 +1,8 @@
+(
+  swap
+  dup
+  rot
+  swap
+  dup
+  rot
+) (dup2) set
