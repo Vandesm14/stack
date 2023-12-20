@@ -245,7 +245,7 @@ impl Program {
         if let Expr::String(string) = string {
           let tokens = crate::lex(string.as_str());
           let exprs = crate::parse(tokens);
-          Ok(Some(Expr::List(exprs)))
+          Ok(Some(Expr::Block(exprs)))
         } else {
           Err(EvalError {
             expr: Expr::Call(call.clone()),
@@ -278,7 +278,6 @@ impl Program {
         self.eval(vec![
           Expr::Call("read-file".to_string()),
           Expr::Call("parse".to_string()),
-          Expr::Call("unwrap".to_string()),
           Expr::Call("call".to_string()),
         ])?;
         Ok(None)
