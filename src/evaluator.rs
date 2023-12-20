@@ -551,17 +551,23 @@ impl Program {
         match a {
           Expr::Block(block) => Ok(Some(Expr::List(block))),
           Expr::List(list) => Ok(Some(Expr::List(list))),
-          Expr::String(string) => {
-            self.eval(vec![
-              Expr::String(string),
-              Expr::Call("explode".to_string()),
-            ])?;
-            Ok(None)
-          }
           _ => Err(EvalError {
             expr: Expr::Call(call.clone()),
             program: self.clone(),
             message: format!("[{}] cannot be cast to list", a),
+          }),
+        }
+      }
+      "toblock" => {
+        let a = self.stack.pop().unwrap_or_default();
+
+        match a {
+          Expr::Block(block) => Ok(Some(Expr::Block(block))),
+          Expr::List(list) => Ok(Some(Expr::Block(list))),
+          _ => Err(EvalError {
+            expr: Expr::Call(call.clone()),
+            program: self.clone(),
+            message: format!("[{}] cannot be cast to block", a),
           }),
         }
       }
@@ -1067,6 +1073,20 @@ mod tests {
     }
 
     #[test]
+    fn concatenating_blocks() {
+      let mut program = Program::new();
+      program.eval_string("(1 2) (+) concat").unwrap();
+      assert_eq!(
+        program.stack,
+        vec![Expr::Block(vec![
+          Expr::Integer(1),
+          Expr::Integer(2),
+          Expr::Call("+".to_owned())
+        ])]
+      );
+    }
+
+    #[test]
     fn getting_length_of_list() {
       let mut program = Program::new();
       program.eval_string("[1 2 3] len").unwrap();
@@ -1207,6 +1227,62 @@ mod tests {
       let mut program = Program::new();
       program.eval_string("1 typeof").unwrap();
       assert_eq!(program.stack, vec![Expr::String("integer".to_string())]);
+    }
+
+    #[test]
+    fn list_to_list() {
+      let mut program = Program::new();
+      program.eval_string("[1 2 3] tolist").unwrap();
+      assert_eq!(
+        program.stack,
+        vec![Expr::List(vec![
+          Expr::Integer(1),
+          Expr::Integer(2),
+          Expr::Integer(3)
+        ])]
+      );
+    }
+
+    #[test]
+    fn list_to_block() {
+      let mut program = Program::new();
+      program.eval_string("[1 2 3] toblock").unwrap();
+      assert_eq!(
+        program.stack,
+        vec![Expr::Block(vec![
+          Expr::Integer(1),
+          Expr::Integer(2),
+          Expr::Integer(3)
+        ])]
+      );
+    }
+
+    #[test]
+    fn block_to_block() {
+      let mut program = Program::new();
+      program.eval_string("(1 2 3) toblock").unwrap();
+      assert_eq!(
+        program.stack,
+        vec![Expr::Block(vec![
+          Expr::Integer(1),
+          Expr::Integer(2),
+          Expr::Integer(3)
+        ])]
+      );
+    }
+
+    #[test]
+    fn block_to_list() {
+      let mut program = Program::new();
+      program.eval_string("(1 2 +) tolist").unwrap();
+      assert_eq!(
+        program.stack,
+        vec![Expr::List(vec![
+          Expr::Integer(1),
+          Expr::Integer(2),
+          Expr::Call("+".to_string())
+        ])]
+      );
     }
   }
 }
