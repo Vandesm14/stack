@@ -88,6 +88,28 @@ impl Program {
           Err(format!("Invalid args for: {}", call))
         }
       }
+      "len" => {
+        let a = self.pop_eval()?;
+        if let Expr::List(a) = a {
+          Ok(Some(Expr::Integer(a.len() as i64)))
+        } else {
+          Err(format!("Invalid args for: {}", call))
+        }
+      }
+      "nth" => {
+        let index = self.pop_eval()?;
+        let list = self.pop_eval()?;
+        if let (Expr::Integer(index), Expr::List(list)) = (index, list) {
+          let index = index as usize;
+          if index < list.len() {
+            Ok(Some(list[index].clone()))
+          } else {
+            Err(format!("Index out of bounds: {}", index))
+          }
+        } else {
+          Err(format!("Invalid args for: {}", call))
+        }
+      }
       "join" => {
         let delimiter = self.pop_eval()?;
         let list = self.pop_eval()?;
@@ -323,10 +345,6 @@ impl Program {
     match expr {
       Expr::Call(call) => self.eval_call(call),
       Expr::List(list) => {
-        // let exprs: Vec<Expr> = list
-        //   .into_iter()
-        //   .filter_map(|expr| self.eval_expr(expr))
-        //   .collect();
         let maybe_exprs = list
           .into_iter()
           .filter_map(|expr| self.eval_expr(expr).transpose())
@@ -608,6 +626,20 @@ mod tests {
           Expr::String("4".to_owned())
         ])]
       );
+    }
+
+    #[test]
+    fn getting_length_of_list() {
+      let mut program = Program::new();
+      program.eval_string("[1 2 3] len".to_string()).unwrap();
+      assert_eq!(program.stack, vec![Expr::Integer(3)]);
+    }
+
+    #[test]
+    fn getting_nth_item_of_list() {
+      let mut program = Program::new();
+      program.eval_string("[1 2 3] 1 nth".to_string()).unwrap();
+      assert_eq!(program.stack, vec![Expr::Integer(2)]);
     }
   }
 
