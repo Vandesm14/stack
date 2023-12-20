@@ -184,7 +184,11 @@ impl Program {
             if i > 0 {
               string.push_str(&delimiter);
             }
-            string.push_str(item.to_string().as_str());
+
+            match item {
+              Expr::String(str) => string.push_str(str),
+              _ => string.push_str(item.to_string().as_str()),
+            }
           }
           Ok(Some(Expr::String(string)))
         } else {
