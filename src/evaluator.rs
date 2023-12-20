@@ -66,6 +66,16 @@ impl Program {
           Err(format!("Invalid args for: {}", call))
         }
       }
+      "=" => {
+        let a = self.pop_eval()?;
+        let b = self.pop_eval()?;
+        Ok(Some(Expr::Boolean(a.eq(&b))))
+      }
+      "!=" => {
+        let a = self.pop_eval()?;
+        let b = self.pop_eval()?;
+        Ok(Some(Expr::Boolean(!a.eq(&b))))
+      }
       "set" => {
         let a = self.pop_eval()?;
         let b = self.pop_eval()?;
@@ -95,6 +105,10 @@ impl Program {
         } else {
           Err(format!("Invalid args for: {}", call))
         }
+      }
+      "tostring" => {
+        let a = self.pop_eval()?;
+        Ok(Some(Expr::String(a.to_string())))
       }
       "clear" => {
         self.stack.clear();
