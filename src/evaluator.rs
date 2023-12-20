@@ -186,6 +186,29 @@ impl Program {
           })
         }
       }
+      "import" => {
+        let path = self.pop_eval()?;
+        if let Expr::String(path) = path {
+          let contents = std::fs::read_to_string(path.clone());
+          match contents {
+            Ok(contents) => {
+              self.eval_string(contents.as_str())?;
+              Ok(None)
+            }
+            Err(err) => Err(EvalError {
+              expr: Expr::Call(call.clone()),
+              program: self.clone(),
+              message: format!("Error importing [{}]: {}", path, err),
+            }),
+          }
+        } else {
+          Err(EvalError {
+            expr: Expr::Call(call.clone()),
+            program: self.clone(),
+            message: format!("Invalid args: [{:?}]", path),
+          })
+        }
+      }
       "nth" => {
         let index = self.pop_eval()?;
         let list = self.pop_eval()?;
