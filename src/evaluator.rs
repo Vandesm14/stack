@@ -426,20 +426,47 @@ impl Program {
       "collect" => Ok(Some(Expr::List(core::mem::take(&mut self.stack)))),
       "tostring" => {
         let a = self.pop_eval()?;
-        Ok(Some(Expr::String(a.to_string())))
+
+        let string = match a {
+          Expr::String(string) => string,
+          _ => a.to_string(),
+        };
+
+        Ok(Some(Expr::String(string)))
       }
       "tosymbol" => {
         let a = self.pop_eval()?;
-        Ok(Some(Expr::Symbol(a.to_string())))
+
+        let string = match a {
+          Expr::String(string) => string,
+          _ => a.to_string(),
+        };
+
+        Ok(Some(Expr::Symbol(string)))
       }
       "tointeger" => {
         let a = self.pop_eval()?;
-        match a.to_string().parse() {
-          Ok(a) => Ok(Some(Expr::Integer(a))),
-          Err(err) => Err(EvalError {
+
+        match a {
+          Expr::String(string) => match string.parse() {
+            Ok(integer) => Ok(Some(Expr::Integer(integer))),
+            Err(err) => Err(EvalError {
+              expr: Expr::Call(call.clone()),
+              program: self.clone(),
+              message: format!(
+                "Error parsing [{}] as integer: {}",
+                string, err
+              ),
+            }),
+          },
+          Expr::Boolean(boolean) => Ok(Some(Expr::Integer(boolean as i64))),
+          Expr::Integer(integer) => Ok(Some(Expr::Integer(integer))),
+          Expr::Float(float) => Ok(Some(Expr::Integer(float as i64))),
+
+          a => Err(EvalError {
             expr: Expr::Call(call.clone()),
             program: self.clone(),
-            message: format!("Error parsing integer: {}", err),
+            message: format!("[{}] cannot be cast to integer", a),
           }),
         }
       }
