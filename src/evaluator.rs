@@ -260,17 +260,7 @@ impl Program {
           Err(format!("Invalid args for: {}", call))
         }
       }
-      "collect" => {
-        let a = self.pop_eval()?;
-        if let Expr::Symbol(a) = a {
-          self
-            .scope
-            .insert(a, Expr::List(core::mem::take(&mut self.stack)));
-          Ok(None)
-        } else {
-          Err(format!("Invalid args for: {}", call))
-        }
-      }
+      "collect" => Ok(Some(Expr::List(core::mem::take(&mut self.stack)))),
       "tostring" => {
         let a = self.pop_eval()?;
         Ok(Some(Expr::String(a.to_string())))
