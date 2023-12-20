@@ -175,31 +175,6 @@ impl Program {
           Err(format!("Invalid args for: {} found {:?} {:?}", call, a, b))
         }
       }
-      "if" => {
-        let condition = self.pop_eval()?;
-        let block = self.pop_eval()?;
-        if let (Expr::Block(condition), Expr::Block(block)) =
-          (condition.clone(), block.clone())
-        {
-          let result = self.eval(condition);
-          if result.is_ok() {
-            let bool = self.pop_eval()?;
-
-            if bool.is_truthy() {
-              self.eval(block)?;
-            }
-
-            Ok(None)
-          } else {
-            Err(format!("Error in if condition: {}", result.unwrap_err()))
-          }
-        } else {
-          Err(format!(
-            "Invalid args for: {} found {:?} {:?}",
-            call, block, condition
-          ))
-        }
-      }
       "ifelse" => {
         let condition = self.pop_eval()?;
         let block = self.pop_eval()?;
@@ -231,6 +206,28 @@ impl Program {
           ))
         }
       }
+      "if" => {
+        let condition = self.pop_eval()?;
+        let block = self.pop_eval()?;
+        if let (Expr::Block(condition), Expr::Block(block)) =
+          (condition.clone(), block.clone())
+        {
+          match self.eval(vec![
+            Expr::Block(vec![]),
+            Expr::Block(block),
+            Expr::Block(condition),
+            Expr::Call("ifelse".to_string()),
+          ]) {
+            Ok(_) => Ok(None),
+            Err(err) => Err(format!("Error in if condition: {}", err)),
+          }
+        } else {
+          Err(format!(
+            "Invalid args for: {} found {:?} {:?}",
+            call, block, condition
+          ))
+        }
+      }
       "while" => {
         let condition = self.pop_eval()?;
         let block = self.pop_eval()?;
@@ -238,14 +235,24 @@ impl Program {
         if let (Expr::Block(condition), Expr::Block(block)) = (condition, block)
         {
           loop {
-            let result = self.eval(condition.clone());
-            if result.is_ok() {
-              let bool = self.pop_eval()?;
+            let mut block = block.clone();
+            block.push(Expr::Boolean(true));
 
-              if bool.is_truthy() {
-                self.eval(block.clone())?;
-              } else {
-                break;
+            match self.eval(vec![
+              Expr::Block(vec![Expr::Boolean(false)]),
+              Expr::Block(block),
+              Expr::Block(condition.clone()),
+              Expr::Call("ifelse".to_string()),
+            ]) {
+              Ok(_) => {
+                let bool = self.pop_eval()?;
+
+                if !bool.is_truthy() {
+                  break;
+                }
+              }
+              Err(err) => {
+                return Err(format!("Error in while condition: {}", err))
               }
             }
           }
