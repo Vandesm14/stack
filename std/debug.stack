@@ -1,14 +1,25 @@
 (
+  ;; Collect the stack into a list
   collect
 
+  ;; Dupe that so we can keep the stack around
   dup
-  tostring explode
-  "Debug: " explode
-  swap
 
-  concat
+  ;; Convert the list to a string then into a list of characters
+  tostring explode
+
+  ;; Explode "Debug" as a list of characters
+  "Debug: " explode
+
+  ;; Swap them so debug is first, then concat them
+  swap concat
+
+  ;; Join the list of characters into a string
   "" join
+
+  ;; Print the string
   print
 
+  ;; Unwrap the stack list back into the stack
   unwrap
 ) 'debug set
