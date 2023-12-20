@@ -388,7 +388,12 @@ impl Program {
       }
       "print" => {
         let a = self.pop_eval()?;
-        println!("{}", a);
+
+        match a {
+          Expr::String(string) => println!("{}", string),
+          _ => print!("{}", a),
+        }
+
         Ok(None)
       }
       "set" => {
