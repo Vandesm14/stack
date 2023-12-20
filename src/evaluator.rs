@@ -85,6 +85,17 @@ impl Program {
           Err(format!("Invalid args for: {}", call))
         }
       }
+      "collect" => {
+        let a = self.pop_eval()?;
+        if let Expr::Symbol(a) = a {
+          self
+            .scope
+            .insert(a, Expr::List(core::mem::take(&mut self.stack)));
+          Ok(None)
+        } else {
+          Err(format!("Invalid args for: {}", call))
+        }
+      }
       "clear" => {
         self.stack.clear();
         Ok(None)
@@ -113,20 +124,6 @@ impl Program {
         self.stack.push(a);
         self.stack.push(b);
         Ok(None)
-      }
-      "iswap" => {
-        if self.stack.len() < 2 {
-          return Err("Not enough items on stack".to_string());
-        }
-
-        let index = self.pop_eval()?;
-        if let Expr::Integer(index) = index {
-          let len = self.stack.len();
-          self.stack.swap(len - 1, index as usize);
-          Ok(None)
-        } else {
-          Err(format!("Invalid args for: {}", call))
-        }
       }
       "call" => {
         let a = self.stack.pop();
@@ -330,6 +327,47 @@ mod tests {
         .unwrap();
       assert_eq!(program.scope, HashMap::new());
     }
+
+    #[test]
+    fn collect() {
+      let mut program = Program::new();
+      program.eval_string("1 2 3 'a collect".to_string()).unwrap();
+      assert_eq!(program.stack, vec![]);
+      assert_eq!(
+        program.scope,
+        HashMap::from_iter(vec![(
+          "a".to_string(),
+          Expr::List(vec![
+            Expr::Integer(1),
+            Expr::Integer(2),
+            Expr::Integer(3)
+          ])
+        )])
+      );
+    }
+
+    #[test]
+    fn collect_and_unwrap() {
+      let mut program = Program::new();
+      program
+        .eval_string("1 2 3 'a collect a unwrap".to_string())
+        .unwrap();
+      assert_eq!(
+        program.stack,
+        vec![Expr::Integer(1), Expr::Integer(2), Expr::Integer(3)]
+      );
+      assert_eq!(
+        program.scope,
+        HashMap::from_iter(vec![(
+          "a".to_string(),
+          Expr::List(vec![
+            Expr::Integer(1),
+            Expr::Integer(2),
+            Expr::Integer(3)
+          ])
+        )])
+      );
+    }
   }
 
   mod stack_ops {
@@ -361,36 +399,6 @@ mod tests {
       let mut program = Program::new();
       program.eval_string("1 2 swap".to_string()).unwrap();
       assert_eq!(program.stack, vec![Expr::Integer(2), Expr::Integer(1)]);
-    }
-
-    #[test]
-    fn swapping_with_index() {
-      let mut program = Program::new();
-      program.eval_string("1 2 3 4 0 iswap".to_string()).unwrap();
-      assert_eq!(
-        program.stack,
-        vec![
-          Expr::Integer(4),
-          Expr::Integer(2),
-          Expr::Integer(3),
-          Expr::Integer(1)
-        ]
-      );
-    }
-
-    #[test]
-    fn swapping_with_index2() {
-      let mut program = Program::new();
-      program.eval_string("1 2 3 4 1 iswap".to_string()).unwrap();
-      assert_eq!(
-        program.stack,
-        vec![
-          Expr::Integer(1),
-          Expr::Integer(4),
-          Expr::Integer(3),
-          Expr::Integer(2)
-        ]
-      );
     }
   }
 }
