@@ -192,6 +192,35 @@ impl Program {
           Err(format!("Invalid args for: {}", call))
         }
       }
+      "while" => {
+        let condition = self.pop_eval()?;
+        let block = self.pop_eval()?;
+
+        if let (Expr::Block(condition), Expr::Block(block)) = (condition, block)
+        {
+          let mut i = 0;
+          loop {
+            if i > 10 {
+              break;
+            }
+
+            let result = self.eval(condition.clone());
+            if result.is_ok() {
+              let bool = self.pop_eval()?;
+
+              if bool.is_truthy() {
+                self.eval(block.clone())?;
+              } else {
+                break;
+              }
+            }
+
+            i += 1;
+          }
+        }
+
+        Ok(None)
+      }
       "set" => {
         let a = self.pop_eval()?;
         let b = self.pop_eval()?;
@@ -646,6 +675,40 @@ mod tests {
         )
         .unwrap();
       assert_eq!(program.stack, vec![Expr::String("incorrect".to_owned())]);
+    }
+  }
+
+  mod loops {
+    use super::*;
+
+    #[test]
+    fn while_loop() {
+      let mut program = Program::new();
+      program
+        .eval_string(
+          "
+      ;; Set i to 3
+      3 'i set
+
+      (
+        ;; Decrement i by 1
+        i 1 -
+        ;; Set i
+        'i set
+
+        i
+      ) (
+        ;; If i is 0, break
+        i 0 !=
+      ) while
+      "
+          .to_owned(),
+        )
+        .unwrap();
+      assert_eq!(
+        program.stack,
+        vec![Expr::Integer(2), Expr::Integer(1), Expr::Integer(0)]
+      );
     }
   }
 }
