@@ -73,6 +73,7 @@ impl PartialEq for Expr {
       (Expr::String(a), Expr::String(b)) => a == b,
       (Expr::Boolean(a), Expr::Boolean(b)) => a == b,
 
+      (Expr::NoEval, Expr::NoEval) => true,
       (Expr::Call(a), Expr::Call(b)) => a == b,
       (Expr::List(a), Expr::List(b)) => a == b,
 
@@ -114,6 +115,7 @@ impl PartialOrd for Expr {
       (Expr::String(a), Expr::String(b)) => a.partial_cmp(b),
       (Expr::Boolean(a), Expr::Boolean(b)) => a.partial_cmp(b),
 
+      (Expr::NoEval, Expr::NoEval) => Some(std::cmp::Ordering::Equal),
       (Expr::Call(a), Expr::Call(b)) => a.partial_cmp(b),
       (Expr::List(a), Expr::List(b)) => a.partial_cmp(b),
 
@@ -171,6 +173,7 @@ impl Expr {
 
 pub fn parse(tokens: Vec<Token>) -> Vec<Expr> {
   let mut blocks: Vec<Vec<Expr>> = vec![Vec::new()];
+  let mut paren_count: isize = 0;
 
   for token in tokens {
     match token {
@@ -187,10 +190,15 @@ pub fn parse(tokens: Vec<Token>) -> Vec<Expr> {
 
       Token::ParenStart => {
         blocks.push(Vec::new());
+        paren_count += 1;
       }
       Token::ParenEnd => {
         let block = blocks.pop().unwrap();
-        blocks.last_mut().unwrap().push(Expr::List(block));
+        blocks
+          .last_mut()
+          .unwrap_or(&mut vec![])
+          .push(Expr::List(block));
+        paren_count -= 1;
       }
       Token::CurlyStart => {
         blocks.last_mut().unwrap().push(Expr::ScopePush);
@@ -203,6 +211,11 @@ pub fn parse(tokens: Vec<Token>) -> Vec<Expr> {
 
   if blocks.len() != 1 {
     eprintln!("Unbalanced blocks: {:?}", blocks);
+    return vec![];
+  }
+
+  if paren_count != 0 {
+    eprintln!("Unbalanced parens: {:?}", blocks);
     return vec![];
   }
 
