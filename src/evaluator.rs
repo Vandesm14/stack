@@ -6,6 +6,7 @@ use std::collections::HashMap;
 pub struct Program {
   pub stack: Vec<Expr>,
   pub scope: Vec<HashMap<String, Expr>>,
+  pub skip_eval: bool,
 }
 
 impl fmt::Display for Program {
@@ -65,6 +66,7 @@ impl Program {
     Self {
       stack: vec![],
       scope: vec![HashMap::new()],
+      skip_eval: false,
     }
   }
 
@@ -826,31 +828,40 @@ impl Program {
   }
 
   fn eval_expr(&mut self, expr: Expr) -> Result<Option<Expr>, EvalError> {
-    match expr {
-      Expr::Call(call) => self.eval_call(call),
-      Expr::List(list) => {
-        let maybe_exprs = list
-          .into_iter()
-          .filter_map(|expr| self.eval_expr(expr).transpose())
-          .try_fold(Vec::new(), |mut acc, expr| {
-            acc.push(expr?);
-            Ok(acc)
-          });
-
-        match maybe_exprs {
-          Err(err) => Err(err),
-          Ok(exprs) => Ok(Some(Expr::List(exprs))),
+    if !self.skip_eval {
+      match expr {
+        Expr::Call(call) => self.eval_call(call),
+        Expr::NoEval => {
+          self.skip_eval = true;
+          Ok(None)
         }
+        Expr::List(list) => {
+          let maybe_exprs = list
+            .into_iter()
+            .filter_map(|expr| self.eval_expr(expr).transpose())
+            .try_fold(Vec::new(), |mut acc, expr| {
+              acc.push(expr?);
+              Ok(acc)
+            });
+
+          match maybe_exprs {
+            Err(err) => Err(err),
+            Ok(exprs) => Ok(Some(Expr::List(exprs))),
+          }
+        }
+        Expr::ScopePush => {
+          self.push_scope();
+          Ok(None)
+        }
+        Expr::ScopePop => {
+          self.pop_scope();
+          Ok(None)
+        }
+        _ => Ok(Some(expr)),
       }
-      Expr::ScopePush => {
-        self.push_scope();
-        Ok(None)
-      }
-      Expr::ScopePop => {
-        self.pop_scope();
-        Ok(None)
-      }
-      _ => Ok(Some(expr)),
+    } else {
+      self.skip_eval = false;
+      Ok(Some(expr))
     }
   }
 

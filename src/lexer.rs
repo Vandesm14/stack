@@ -4,6 +4,8 @@ pub enum Token {
   Float(f64),
 
   String(String),
+
+  NoEval,
   Call(String),
 
   ParenStart,
@@ -87,6 +89,12 @@ pub fn lex(input: &str) -> Vec<Token> {
             // Match an end paren
             ')' => {
               tokens.push(Token::ParenEnd);
+              State::Start
+            }
+
+            // Match a noeval symbol
+            '\'' => {
+              tokens.push(Token::NoEval);
               State::Start
             }
 

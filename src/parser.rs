@@ -10,6 +10,7 @@ pub enum Expr {
   String(String),
   Boolean(bool),
 
+  NoEval,
   Call(String),
 
   /// A block is lazy. It only gets evaluated when it's called.
@@ -40,6 +41,7 @@ impl fmt::Display for Expr {
       Expr::String(s) => write!(f, "\"{}\"", s),
       Expr::Boolean(b) => write!(f, "{}", b),
 
+      Expr::NoEval => write!(f, "'"),
       Expr::Call(s) => write!(f, "{}", s),
 
       Expr::Block(b) => write!(
@@ -174,6 +176,7 @@ impl Expr {
       Expr::String(_) => "string".to_owned(),
       Expr::Boolean(_) => "boolean".to_owned(),
 
+      Expr::NoEval => "no_eval".to_owned(),
       Expr::Call(_) => "call".to_owned(),
 
       Expr::Block(_) => "block".to_owned(),
@@ -202,6 +205,7 @@ pub fn parse(tokens: Vec<Token>) -> Vec<Expr> {
       Token::Integer(i) => blocks.last_mut().unwrap().push(Expr::Integer(i)),
       Token::Float(f) => blocks.last_mut().unwrap().push(Expr::Float(f)),
       Token::String(s) => blocks.last_mut().unwrap().push(Expr::String(s)),
+      Token::NoEval => blocks.last_mut().unwrap().push(Expr::NoEval),
       Token::Call(s) => match s.as_str() {
         "true" => blocks.last_mut().unwrap().push(Expr::Boolean(true)),
         "false" => blocks.last_mut().unwrap().push(Expr::Boolean(false)),
