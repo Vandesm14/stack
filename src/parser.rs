@@ -219,7 +219,7 @@ mod tests {
     #[test]
     fn implicit_block() {
       let tokens = crate::lex("(1 2 3)");
-      let expected = vec![Expr::Block(vec![
+      let expected = vec![Expr::List(vec![
         Expr::Integer(1),
         Expr::Integer(2),
         Expr::Integer(3),
@@ -232,7 +232,7 @@ mod tests {
     fn block_at_beginning() {
       let tokens = crate::lex("(1 2 3) 4 5 6");
       let expected = vec![
-        Expr::Block(vec![Expr::Integer(1), Expr::Integer(2), Expr::Integer(3)]),
+        Expr::List(vec![Expr::Integer(1), Expr::Integer(2), Expr::Integer(3)]),
         Expr::Integer(4),
         Expr::Integer(5),
         Expr::Integer(6),
@@ -244,19 +244,7 @@ mod tests {
     #[test]
     fn nested_blocks() {
       let tokens = crate::lex("(1 (2 3) 4)");
-      let expected = vec![Expr::Block(vec![
-        Expr::Integer(1),
-        Expr::Block(vec![Expr::Integer(2), Expr::Integer(3)]),
-        Expr::Integer(4),
-      ])];
-
-      assert_eq!(parse(tokens), expected);
-    }
-
-    #[test]
-    fn blocks_and_lists() {
-      let tokens = crate::lex("(1 [2 3] 4)");
-      let expected = vec![Expr::Block(vec![
+      let expected = vec![Expr::List(vec![
         Expr::Integer(1),
         Expr::List(vec![Expr::Integer(2), Expr::Integer(3)]),
         Expr::Integer(4),
@@ -296,11 +284,12 @@ mod tests {
 
     #[test]
     fn scope() {
-      let tokens = crate::lex("{1 (var) set}");
+      let tokens = crate::lex("{1 'var set}");
       let expected = vec![
         Expr::ScopePush,
         Expr::Integer(1),
-        Expr::Block(vec![Expr::Call("var".to_owned())]),
+        Expr::NoEval,
+        Expr::Call("var".to_owned()),
         Expr::Call("set".to_owned()),
         Expr::ScopePop,
       ];
@@ -367,17 +356,6 @@ mod tests {
 
         let a = Expr::Call("hello".to_owned());
         let b = Expr::Call("world".to_owned());
-        assert_ne!(a, b);
-      }
-
-      #[test]
-      fn block_to_block() {
-        let a = Expr::Block(vec![Expr::Integer(1), Expr::Integer(2)]);
-        let b = Expr::Block(vec![Expr::Integer(1), Expr::Integer(2)]);
-        assert_eq!(a, b);
-
-        let a = Expr::Block(vec![Expr::Integer(1), Expr::Integer(2)]);
-        let b = Expr::Block(vec![Expr::Integer(1), Expr::Integer(3)]);
         assert_ne!(a, b);
       }
 
