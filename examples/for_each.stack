@@ -1,6 +1,6 @@
 "std/list.stack" import
 
-[1 2 3 4] (
+["the" "words" "should" "be" "in" "order"] (
   "Item: "
   explode
   swap
