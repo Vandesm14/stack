@@ -493,7 +493,9 @@ impl Program {
         {
           match self.eval(vec![
             Expr::List(vec![]),
+            Expr::NoEval,
             Expr::List(block),
+            Expr::NoEval,
             Expr::List(condition),
             Expr::Call("ifelse".to_string()),
           ]) {
