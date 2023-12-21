@@ -1,17 +1,17 @@
 "std/stack.stack" import
 
 ;; Define a reverse function
-(
+'(
   ;; Duplicate the list before eating it with the len function
   dup
-  len (i) set
+  len 'i set
 
-  [] (new_list) set
+  () 'new_list set
 
   ;; Define a function that decrements i
-  (i 1 - (i) set) (decrement_i) set
+  '(i 1 - 'i set) decrement_i set
 
-  (
+  '(
     ;; Decrement i
     decrement_i call
 
@@ -31,12 +31,12 @@
     insert
 
     ;; Update the new list
-    (new_list) set
-  ) (i 0 !=) while
+    'new_list set
+  ) '(i 0 !=) while
 
   ;; Clean up i and decrement_i
-  (i) unset
-  (decrement_i) unset
+  'i unset
+  'decrement_i unset
 
   ;; Remove the original list
   pop
@@ -45,27 +45,27 @@
   new_list
 
   ;; Clean up new_list
-  (new_list) unset
-) (list/reverse) set
+  'new_list unset
+) 'list/reverse set
 
 ;; [Block, Integer] -> [Integer]
 ;; Runs a block n times
-(
+'(
     1 + swap
     (1 - dup 0 !=)
     while
     pop
-) (for) set
+) 'for set
 
 ;; <T>[List<T>, Block(T)] -> ()
-({
+'({
   ;; Set the block and list
-  (block) set
-  (list) set
-  list len (length) set
+  'block set
+  'list set
+  list len 'length set
 
   ;; Create a function to get the next item and call the block
-  (
+  '(
     ;; Duplicate the last two items of the stack [list, length]
     dup2 call
 
@@ -77,7 +77,7 @@
 
     ;; Call the block
     block call
-  ) (each) set
+  ) 'each set
 
   ;; Assemble our args
   list each length
@@ -87,4 +87,4 @@
 
   ;; Pop the list from the stack (cleanup)
   pop
-}) (list/for_each) set
+}) 'list/for_each set

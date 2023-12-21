@@ -1,4 +1,4 @@
-(
+'(
   ;; Collect the stack into a list
   collect
 
@@ -22,4 +22,4 @@
 
   ;; Unwrap the stack list back into the stack
   unwrap
-) (debug) set
+) 'debug set
