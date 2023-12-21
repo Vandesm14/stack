@@ -651,6 +651,19 @@ impl Program {
           })
         }
       }
+      "get" => {
+        let name = self.pop();
+
+        if let Some(Expr::Call(name)) = name {
+          Ok(self.scope_item(&name))
+        } else {
+          Err(EvalError {
+            expr: Expr::Call(call),
+            program: self.clone(),
+            message: format!("Invalid args: [{:?}]", name),
+          })
+        }
+      }
       "unset" => {
         let name = self.pop();
         if let Some(Expr::Call(name)) = name {
@@ -818,7 +831,20 @@ impl Program {
       }
       _ => {
         if let Some(value) = self.scope_item(&call) {
-          Ok(Some(value))
+          if let Expr::List(_) = value {
+            match self.eval(vec![
+              Expr::NoEval,
+              Expr::Call(call.clone()),
+              Expr::Call("get".to_string()),
+              // Expr::Call("halt".to_string()),
+              Expr::Call("call".to_string()),
+            ]) {
+              Ok(_) => Ok(None),
+              Err(err) => Err(err),
+            }
+          } else {
+            Ok(Some(value))
+          }
         } else {
           Err(EvalError {
             expr: Expr::Call(call.clone()),
@@ -1364,7 +1390,7 @@ mod tests {
     fn collect_and_unwrap() {
       let mut program = Program::new();
       program
-        .eval_string("1 2 3 collect 'a set a unwrap")
+        .eval_string("1 2 3 collect 'a set 'a get unwrap")
         .unwrap();
       assert_eq!(
         program.stack,
