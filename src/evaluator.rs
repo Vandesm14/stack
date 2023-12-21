@@ -32,9 +32,9 @@ impl fmt::Display for Program {
         writeln!(f, "Layer {}:", layer_i)?;
         for (item_i, (key, value)) in layer.iter().enumerate() {
           if item_i == items - 1 && layer_i == layers - 1 {
-            write!(f, "   {}: {}", key, value)?;
+            write!(f, " + {}: {}", key, value)?;
           } else {
-            writeln!(f, "   {}: {}", key, value)?;
+            writeln!(f, " + {}: {}", key, value)?;
           }
         }
       }
