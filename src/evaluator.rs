@@ -148,6 +148,14 @@ impl Program {
           (a.clone(), b.clone())
         {
           Ok(Some(Expr::Integer(a + b)))
+        } else if let (Some(Expr::String(a)), Some(Expr::String(b))) =
+          (a.clone(), b.clone())
+        {
+          Ok(Some(Expr::String(format!("{}{}", a, b))))
+        } else if let (Some(Expr::Float(a)), Some(Expr::Float(b))) =
+          (a.clone(), b.clone())
+        {
+          Ok(Some(Expr::Float(a + b)))
         } else {
           Err(EvalError {
             expr: Expr::Call(call.clone()),
@@ -163,6 +171,10 @@ impl Program {
           (a.clone(), b.clone())
         {
           Ok(Some(Expr::Integer(a - b)))
+        } else if let (Some(Expr::Float(a)), Some(Expr::Float(b))) =
+          (a.clone(), b.clone())
+        {
+          Ok(Some(Expr::Float(a - b)))
         } else {
           Err(EvalError {
             expr: Expr::Call(call.clone()),
@@ -178,6 +190,10 @@ impl Program {
           (a.clone(), b.clone())
         {
           Ok(Some(Expr::Integer(a * b)))
+        } else if let (Some(Expr::Float(a)), Some(Expr::Float(b))) =
+          (a.clone(), b.clone())
+        {
+          Ok(Some(Expr::Float(a * b)))
         } else {
           Err(EvalError {
             expr: Expr::Call(call.clone()),
@@ -193,6 +209,29 @@ impl Program {
           (a.clone(), b.clone())
         {
           Ok(Some(Expr::Integer(a / b)))
+        } else if let (Some(Expr::Float(a)), Some(Expr::Float(b))) =
+          (a.clone(), b.clone())
+        {
+          Ok(Some(Expr::Float(a / b)))
+        } else {
+          Err(EvalError {
+            expr: Expr::Call(call.clone()),
+            program: self.clone(),
+            message: format!("Invalid args: [{:?} {:?}]", a, b),
+          })
+        }
+      }
+      "%" => {
+        let b = self.pop();
+        let a = self.pop();
+        if let (Some(Expr::Integer(a)), Some(Expr::Integer(b))) =
+          (a.clone(), b.clone())
+        {
+          Ok(Some(Expr::Integer(a % b)))
+        } else if let (Some(Expr::Float(a)), Some(Expr::Float(b))) =
+          (a.clone(), b.clone())
+        {
+          Ok(Some(Expr::Float(a % b)))
         } else {
           Err(EvalError {
             expr: Expr::Call(call.clone()),
@@ -861,6 +900,42 @@ mod tests {
       let mut program = Program::new();
       program.eval_string("1 2 +").unwrap();
       assert_eq!(program.stack, vec![Expr::Integer(3)]);
+    }
+
+    #[test]
+    fn subtract_two_numbers() {
+      let mut program = Program::new();
+      program.eval_string("1 2 -").unwrap();
+      assert_eq!(program.stack, vec![Expr::Integer(-1)]);
+    }
+
+    #[test]
+    fn multiply_two_numbers() {
+      let mut program = Program::new();
+      program.eval_string("1 2 *").unwrap();
+      assert_eq!(program.stack, vec![Expr::Integer(2)]);
+    }
+
+    #[test]
+    fn divide_two_numbers() {
+      let mut program = Program::new();
+      program.eval_string("1 2 /").unwrap();
+      assert_eq!(program.stack, vec![Expr::Integer(0)]);
+
+      let mut program = Program::new();
+      program.eval_string("1.0 2.0 /").unwrap();
+      assert_eq!(program.stack, vec![Expr::Float(0.5)]);
+    }
+
+    #[test]
+    fn modulo_two_numbers() {
+      let mut program = Program::new();
+      program.eval_string("10 5 %").unwrap();
+      assert_eq!(program.stack, vec![Expr::Integer(0)]);
+
+      let mut program = Program::new();
+      program.eval_string("11 5 %").unwrap();
+      assert_eq!(program.stack, vec![Expr::Integer(1)]);
     }
 
     #[test]
