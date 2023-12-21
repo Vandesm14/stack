@@ -1,6 +1,7 @@
 "std/list.stack" import
 
-("the" "words" "should" "be" "in" "order") '(
+("the" "words" "should" "be" "in" "order")
+'(
   "Item: "
   explode
   swap
@@ -9,4 +10,5 @@
 
   "" join
   print
-) list/for_each
+)
+list/for_each
