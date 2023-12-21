@@ -71,10 +71,15 @@ impl Program {
   fn pop_eval(&mut self) -> Result<Expr, EvalError> {
     let expr = self.stack.pop();
     if let Some(expr) = expr {
-      if let Some(result) = self.eval_expr(expr)? {
-        Ok(result)
-      } else {
-        Ok(Expr::Nil)
+      match expr {
+        Expr::Call(call) => {
+          let result = self.eval_call(call)?;
+          match result {
+            Some(result) => Ok(result),
+            None => Ok(Expr::Nil),
+          }
+        }
+        expr => Ok(expr),
       }
     } else {
       Ok(Expr::Nil)
