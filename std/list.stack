@@ -13,7 +13,7 @@
 
   '(
     ;; Decrement i
-    decrement_i call
+    decrement_i
 
     ;; Dupe the list
     dup
@@ -22,7 +22,7 @@
     i nth
 
     ;; Push the new list to the stack
-    new_list
+    'new_list get
 
     ;; Swap it with the nth element (list, nth)
     swap
@@ -42,7 +42,7 @@
   pop
 
   ;; Push the new list
-  new_list
+  'new_list get
 
   ;; Clean up new_list
   'new_list unset
@@ -51,10 +51,10 @@
 ;; [Block, Integer] -> [Integer]
 ;; Runs a block n times
 '(
-    1 + swap
-    (1 - dup 0 !=)
-    while
-    pop
+  1 + swap
+  '(1 - dup 0 !=)
+  while
+  pop
 ) 'for set
 
 ;; <T>[List<T>, Block(T)] -> ()
@@ -62,12 +62,15 @@
   ;; Set the block and list
   'block set
   'list set
-  list len 'length set
+
+  'list get
+  len 'length set
+
 
   ;; Create a function to get the next item and call the block
   '(
     ;; Duplicate the last two items of the stack [list, length]
-    dup2 call
+    dup2
 
     ;; Negate the length of the list
     -1 *
@@ -76,14 +79,16 @@
     nth
 
     ;; Call the block
-    block call
+    block
   ) 'each set
 
   ;; Assemble our args
-  list each length
+  'list get
+  'each get
+  'length get
 
   ;; Call the for loop
-  for call
+  for
 
   ;; Pop the list from the stack (cleanup)
   pop
