@@ -1,3 +1,5 @@
+"std/stack.stack" import
+
 ;; Define a reverse function
 (
   ;; Duplicate the list before eating it with the len function
@@ -46,38 +48,43 @@
   (new_list) unset
 ) (list/reverse) set
 
+;; [Block, Integer] -> [Integer]
+;; Runs a block n times
+(
+    1 + swap
+    (1 - dup 0 !=)
+    while
+    pop
+) (for) set
+
 ;; <T>[List<T>, Block(T)] -> ()
 ({
   ;; Set the block and list
   (block) set
   (list) set
+  list len (length) set
 
-  ;; Set length to the length of the list
-  list len
-  (length) set
-
-  ;; Set i to 0
-  0 (i) set
-
-  ;; While i < length
+  ;; Create a function to get the next item and call the block
   (
-    ;; Get list and i
-    list
-    i
+    ;; Duplicate the last two items of the stack [list, length]
+    dup2 call
 
-    ;; Get list[i]
+    ;; Negate the length of the list
+    -1 *
+
+    ;; Get the nth item of the list
     nth
 
-    ;; Get the block and call it in a scoped block
-    {
-      block
-      call
-    }
+    ;; Call the block
+    block call
+  ) (each) set
 
-    ;; Increment i
-    i 1 + (i) set
-  ) (
-    i length
-    <
-  ) while
+  ;; Assemble our args
+  list each length
+
+  ;; Call the for loop
+  for call
+
+  ;; Pop the list from the stack (cleanup)
+  pop
 }) (list/for_each) set
