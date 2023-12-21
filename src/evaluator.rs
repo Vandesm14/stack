@@ -93,8 +93,16 @@ impl Program {
   }
 
   fn scope_item(&self, symbol: &str) -> Option<Expr> {
+    let len = self.scope.len();
+    let is_scoped = symbol.starts_with('@');
+    let symbol = if is_scoped {
+      symbol.replace('@', format!("__{}@", len - 1).as_str())
+    } else {
+      symbol.to_owned()
+    };
+
     for layer in self.scope.iter().rev() {
-      if let Some(item) = layer.get(symbol) {
+      if let Some(item) = layer.get(&symbol) {
         return Some(item.clone());
       }
     }
@@ -113,13 +121,18 @@ impl Program {
   }
 
   fn set_scope_item(&mut self, symbol: &str, value: Expr) {
+    let len = self.scope.len();
     if let Some(layer) = self.scope.last_mut() {
+      let is_scoped = symbol.starts_with('@');
+      let symbol = if is_scoped {
+        symbol.replace('@', format!("__{}@", len - 1).as_str())
+      } else {
+        symbol.to_owned()
+      };
+
       layer.insert(symbol.to_string(), value);
     } else {
-      self.scope.push(HashMap::from_iter(vec![(
-        symbol.to_string(),
-        value.clone(),
-      )]));
+      panic!("No scope to set item in. Maybe there's an extra \"}}\"?");
     }
   }
 
