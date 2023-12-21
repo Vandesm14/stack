@@ -1291,6 +1291,17 @@ mod tests {
           ]
         );
       }
+
+      #[test]
+      fn scoped_variables() {
+        let mut program = Program::new();
+        program.eval_string("1 '@a set @a").unwrap();
+        assert_eq!(program.stack, vec![Expr::Integer(1)]);
+
+        let mut program = Program::new();
+        program.eval_string("{1 '@a set @a}").unwrap();
+        assert_eq!(program.stack, vec![Expr::Integer(1)]);
+      }
     }
   }
 
