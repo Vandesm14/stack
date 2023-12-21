@@ -11,9 +11,6 @@ pub enum Token {
   ParenStart,
   ParenEnd,
 
-  BracketStart,
-  BracketEnd,
-
   CurlyStart,
   CurlyEnd,
 
@@ -95,17 +92,6 @@ pub fn lex(input: &str) -> Vec<Token> {
             // Match a noeval symbol
             '\'' => {
               tokens.push(Token::NoEval);
-              State::Start
-            }
-
-            // Match a start bracket
-            '[' => {
-              tokens.push(Token::BracketStart);
-              State::Start
-            }
-            // Match an end bracket
-            ']' => {
-              tokens.push(Token::BracketEnd);
               State::Start
             }
 

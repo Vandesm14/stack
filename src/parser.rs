@@ -13,13 +13,7 @@ pub enum Expr {
   NoEval,
   Call(String),
 
-  /// A block is lazy. It only gets evaluated when it's called.
-  /// This is useful for things like if statements.
-  /// `(1 2 3)` is a block
-  Block(Vec<Expr>),
-
-  /// Lists are eager. They get evaluated before being pushed to the stack.
-  /// `[1 2 3]` is a list
+  /// `(1 2 3)` is a list
   List(Vec<Expr>),
 
   /// Creates a new scope
@@ -43,18 +37,9 @@ impl fmt::Display for Expr {
 
       Expr::NoEval => write!(f, "'"),
       Expr::Call(s) => write!(f, "{}", s),
-
-      Expr::Block(b) => write!(
-        f,
-        "({})",
-        b.iter()
-          .map(|e| e.to_string())
-          .collect::<Vec<String>>()
-          .join(" ")
-      ),
       Expr::List(l) => write!(
         f,
-        "[{}]",
+        "({})",
         l.iter()
           .map(|e| e.to_string())
           .collect::<Vec<String>>()
@@ -89,8 +74,6 @@ impl PartialEq for Expr {
       (Expr::Boolean(a), Expr::Boolean(b)) => a == b,
 
       (Expr::Call(a), Expr::Call(b)) => a == b,
-
-      (Expr::Block(a), Expr::Block(b)) => a == b,
       (Expr::List(a), Expr::List(b)) => a == b,
 
       (Expr::ScopePush, Expr::ScopePush) => true,
@@ -132,8 +115,6 @@ impl PartialOrd for Expr {
       (Expr::Boolean(a), Expr::Boolean(b)) => a.partial_cmp(b),
 
       (Expr::Call(a), Expr::Call(b)) => a.partial_cmp(b),
-
-      (Expr::Block(a), Expr::Block(b)) => a.partial_cmp(b),
       (Expr::List(a), Expr::List(b)) => a.partial_cmp(b),
 
       (Expr::Nil, Expr::Nil) => Some(std::cmp::Ordering::Equal),
@@ -178,8 +159,6 @@ impl Expr {
 
       Expr::NoEval => "no_eval".to_owned(),
       Expr::Call(_) => "call".to_owned(),
-
-      Expr::Block(_) => "block".to_owned(),
       Expr::List(_) => "list".to_owned(),
 
       Expr::ScopePush => "scope_push".to_owned(),
@@ -190,15 +169,8 @@ impl Expr {
   }
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-enum ListMode {
-  Paren,
-  Bracket,
-}
-
 pub fn parse(tokens: Vec<Token>) -> Vec<Expr> {
   let mut blocks: Vec<Vec<Expr>> = vec![Vec::new()];
-  let mut list_mode: Vec<ListMode> = Vec::new();
 
   for token in tokens {
     match token {
@@ -213,32 +185,12 @@ pub fn parse(tokens: Vec<Token>) -> Vec<Expr> {
       },
       Token::Nil => blocks.last_mut().unwrap().push(Expr::Nil),
 
-      Token::ParenStart | Token::BracketStart => {
+      Token::ParenStart => {
         blocks.push(Vec::new());
-
-        match token {
-          Token::ParenStart => list_mode.push(ListMode::Paren),
-          Token::BracketStart => list_mode.push(ListMode::Bracket),
-          _ => {}
-        }
       }
       Token::ParenEnd => {
-        if let Some(ListMode::Paren) = list_mode.pop() {
-          let block = blocks.pop().unwrap();
-          blocks.last_mut().unwrap().push(Expr::Block(block));
-        } else {
-          eprintln!("Mismatched brackets");
-          return vec![];
-        }
-      }
-      Token::BracketEnd => {
-        if let Some(ListMode::Bracket) = list_mode.pop() {
-          let block = blocks.pop().unwrap();
-          blocks.last_mut().unwrap().push(Expr::List(block));
-        } else {
-          eprintln!("Mismatched brackets");
-          return vec![];
-        }
+        let block = blocks.pop().unwrap();
+        blocks.last_mut().unwrap().push(Expr::List(block));
       }
       Token::CurlyStart => {
         blocks.last_mut().unwrap().push(Expr::ScopePush);

@@ -280,7 +280,7 @@ impl Program {
         if let Some(Expr::String(string)) = string {
           let tokens = crate::lex(string.as_str());
           let exprs = crate::parse(tokens);
-          Ok(Some(Expr::Block(exprs)))
+          Ok(Some(Expr::List(exprs)))
         } else {
           Err(EvalError {
             expr: Expr::Call(call.clone()),
@@ -393,12 +393,6 @@ impl Program {
           let mut list = list;
           list.push(item);
           Ok(Some(Expr::List(list)))
-        } else if let (Some(Expr::Block(block)), Some(item)) =
-          (list.clone(), item)
-        {
-          let mut block = block;
-          block.push(item);
-          Ok(Some(Expr::Block(block)))
         } else {
           Err(EvalError {
             expr: Expr::Call(call.clone()),
@@ -415,15 +409,6 @@ impl Program {
           let item = list.pop();
           if let Some(item) = item {
             self.stack.push(Expr::List(list));
-            Ok(Some(item))
-          } else {
-            Ok(None)
-          }
-        } else if let Some(Expr::Block(block)) = list {
-          let mut block = block;
-          let item = block.pop();
-          if let Some(item) = item {
-            self.stack.push(Expr::Block(block));
             Ok(Some(item))
           } else {
             Ok(None)
@@ -445,12 +430,6 @@ impl Program {
           let mut a = a;
           a.extend(b);
           Ok(Some(Expr::List(a)))
-        } else if let (Some(Expr::Block(a)), Some(Expr::Block(b))) =
-          (a.clone(), b.clone())
-        {
-          let mut a = a;
-          a.extend(b);
-          Ok(Some(Expr::Block(a)))
         } else {
           Err(EvalError {
             expr: Expr::Call(call.clone()),
@@ -464,9 +443,9 @@ impl Program {
         let block = self.pop();
         let else_block = self.pop();
         if let (
-          Some(Expr::Block(condition)),
-          Some(Expr::Block(block)),
-          Some(Expr::Block(else_block)),
+          Some(Expr::List(condition)),
+          Some(Expr::List(block)),
+          Some(Expr::List(else_block)),
         ) = (condition.clone(), block.clone(), else_block.clone())
         {
           let result = self.eval(condition.clone());
@@ -509,13 +488,13 @@ impl Program {
       "if" => {
         let condition = self.pop();
         let block = self.pop();
-        if let (Some(Expr::Block(condition)), Some(Expr::Block(block))) =
+        if let (Some(Expr::List(condition)), Some(Expr::List(block))) =
           (condition.clone(), block.clone())
         {
           match self.eval(vec![
-            Expr::Block(vec![]),
-            Expr::Block(block),
-            Expr::Block(condition),
+            Expr::List(vec![]),
+            Expr::List(block),
+            Expr::List(condition),
             Expr::Call("ifelse".to_string()),
           ]) {
             Ok(_) => Ok(None),
@@ -537,7 +516,7 @@ impl Program {
         let condition = self.pop();
         let block = self.pop();
 
-        if let (Some(Expr::Block(condition)), Some(Expr::Block(block))) =
+        if let (Some(Expr::List(condition)), Some(Expr::List(block))) =
           (condition, block)
         {
           loop {
@@ -545,9 +524,9 @@ impl Program {
             block.push(Expr::Boolean(true));
 
             match self.eval(vec![
-              Expr::Block(vec![Expr::Boolean(false)]),
-              Expr::Block(block.clone()),
-              Expr::Block(condition.clone()),
+              Expr::List(vec![Expr::Boolean(false)]),
+              Expr::List(block.clone()),
+              Expr::List(condition.clone()),
               Expr::Call("ifelse".to_string()),
             ]) {
               Ok(_) => {
@@ -600,47 +579,33 @@ impl Program {
         }
       }
       "set" => {
-        let list = self.pop();
+        let name = self.pop();
         let value = self.pop();
 
-        if let (Some(Expr::Block(list)), Some(value)) =
-          (list.clone(), value.clone())
+        if let (Some(Expr::Call(name)), Some(value)) =
+          (name.clone(), value.clone())
         {
-          let symbol = list.first();
-
-          if let Some(Expr::Call(symbol)) = symbol {
-            self.set_scope_item(symbol, value);
-            Ok(None)
-          } else {
-            Err(EvalError {
-              expr: Expr::Call(call.clone()),
-              program: self.clone(),
-              message: format!("Invalid args: [{:?} {:?}]", value, list),
-            })
-          }
+          self.set_scope_item(&name, value);
+          Ok(None)
         } else {
           Err(EvalError {
-            expr: Expr::Call(call.clone()),
+            expr: Expr::Call(call),
             program: self.clone(),
-            message: format!("Invalid args: [{:?} {:?}]", value, list),
+            message: format!("Invalid args: [{:?} {:?}]", value, name),
           })
         }
       }
       "unset" => {
-        let list = self.pop();
-        if let Some(Expr::Block(list)) = list {
-          list.iter().for_each(|expr| {
-            if let Expr::Call(symbol) = expr {
-              self.remove_scope_item(symbol);
-            }
-          });
+        let name = self.pop();
+        if let Some(Expr::Call(name)) = name {
+          self.remove_scope_item(&name);
 
           Ok(None)
         } else {
           Err(EvalError {
             expr: Expr::Call(call.clone()),
             program: self.clone(),
-            message: format!("Invalid args: [{:?}]", list),
+            message: format!("Invalid args: [{:?}]", name),
           })
         }
       }
@@ -700,26 +665,8 @@ impl Program {
         let a = self.stack.pop().unwrap_or_default();
 
         match a {
-          Expr::Block(block) => Ok(Some(Expr::List(block))),
           Expr::List(list) => Ok(Some(Expr::List(list))),
-          _ => Err(EvalError {
-            expr: Expr::Call(call.clone()),
-            program: self.clone(),
-            message: format!("[{}] cannot be cast to list", a),
-          }),
-        }
-      }
-      "toblock" => {
-        let a = self.stack.pop().unwrap_or_default();
-
-        match a {
-          Expr::Block(block) => Ok(Some(Expr::Block(block))),
-          Expr::List(list) => Ok(Some(Expr::Block(list))),
-          _ => Err(EvalError {
-            expr: Expr::Call(call.clone()),
-            program: self.clone(),
-            message: format!("[{}] cannot be cast to block", a),
-          }),
+          _ => Ok(Some(Expr::List(vec![a]))),
         }
       }
       "typeof" => {
@@ -787,7 +734,7 @@ impl Program {
 
         if let Some(Expr::Call(a)) = a {
           self.eval_expr(Expr::Call(a))
-        } else if let Some(Expr::Block(a)) = a {
+        } else if let Some(Expr::List(a)) = a {
           self.eval(a)?;
           Ok(None)
         } else {
@@ -800,7 +747,7 @@ impl Program {
       }
       "unwrap" => {
         let list = self.stack.pop();
-        if let Some(Expr::List(list)) | Some(Expr::Block(list)) = list {
+        if let Some(Expr::List(list)) = list {
           for expr in list {
             self.stack.push(expr);
           }
