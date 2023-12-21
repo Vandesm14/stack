@@ -766,7 +766,7 @@ impl Program {
       }
       _ => {
         if let Some(value) = self.scope_item(&call) {
-          self.eval_expr(value.clone())
+          Ok(Some(value))
         } else {
           Err(EvalError {
             expr: Expr::Call(call.clone()),
