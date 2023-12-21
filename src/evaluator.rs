@@ -6,7 +6,6 @@ use std::collections::HashMap;
 pub struct Program {
   pub stack: Vec<Expr>,
   pub scope: Vec<HashMap<String, Expr>>,
-  pub skip_eval: bool,
 }
 
 impl fmt::Display for Program {
@@ -66,27 +65,8 @@ impl Program {
     Self {
       stack: vec![],
       scope: vec![HashMap::new()],
-      skip_eval: false,
     }
   }
-
-  // fn eval_push(&mut self) -> Result<Expr, EvalError> {
-  //   let expr = self.stack.pop();
-  //   if let Some(expr) = expr {
-  //     match expr {
-  //       Expr::Call(call) => {
-  //         let result = self.eval_call(call)?;
-  //         match result {
-  //           Some(result) => Ok(result),
-  //           None => Ok(Expr::Nil),
-  //         }
-  //       }
-  //       expr => Ok(expr),
-  //     }
-  //   } else {
-  //     Ok(Expr::Nil)
-  //   }
-  // }
 
   fn pop(&mut self) -> Option<Expr> {
     self.stack.pop()
@@ -545,10 +525,8 @@ impl Program {
         {
           match self.eval(vec![
             Expr::List(vec![]),
-            Expr::NoEval,
-            Expr::List(block),
-            Expr::NoEval,
-            Expr::List(condition),
+            Expr::Lazy(Expr::List(block).into()),
+            Expr::Lazy(Expr::List(condition).into()),
             Expr::Call("ifelse".to_string()),
           ]) {
             Ok(_) => Ok(None),
@@ -579,10 +557,8 @@ impl Program {
 
             match self.eval(vec![
               Expr::List(vec![Expr::Boolean(false)]),
-              Expr::NoEval,
-              Expr::List(block.clone()),
-              Expr::NoEval,
-              Expr::List(condition.clone()),
+              Expr::Lazy(Expr::List(block.clone()).into()),
+              Expr::Lazy(Expr::List(condition.clone()).into()),
               Expr::Call("ifelse".to_string()),
             ]) {
               Ok(_) => {
@@ -833,8 +809,7 @@ impl Program {
         if let Some(value) = self.scope_item(&call) {
           if let Expr::List(_) = value {
             match self.eval(vec![
-              Expr::NoEval,
-              Expr::Call(call.clone()),
+              Expr::Lazy(Expr::Call(call.clone()).into()),
               Expr::Call("get".to_string()),
               // Expr::Call("halt".to_string()),
               Expr::Call("call".to_string()),
@@ -857,40 +832,32 @@ impl Program {
   }
 
   fn eval_expr(&mut self, expr: Expr) -> Result<Option<Expr>, EvalError> {
-    if !self.skip_eval {
-      match expr {
-        Expr::Call(call) => self.eval_call(call),
-        Expr::NoEval => {
-          self.skip_eval = true;
-          Ok(None)
-        }
-        Expr::List(list) => {
-          let maybe_exprs = list
-            .into_iter()
-            .filter_map(|expr| self.eval_expr(expr).transpose())
-            .try_fold(Vec::new(), |mut acc, expr| {
-              acc.push(expr?);
-              Ok(acc)
-            });
+    match expr {
+      Expr::Call(call) => self.eval_call(call),
+      Expr::Lazy(block) => Ok(Some(*block)),
+      Expr::List(list) => {
+        let maybe_exprs = list
+          .into_iter()
+          .filter_map(|expr| self.eval_expr(expr).transpose())
+          .try_fold(Vec::new(), |mut acc, expr| {
+            acc.push(expr?);
+            Ok(acc)
+          });
 
-          match maybe_exprs {
-            Err(err) => Err(err),
-            Ok(exprs) => Ok(Some(Expr::List(exprs))),
-          }
+        match maybe_exprs {
+          Err(err) => Err(err),
+          Ok(exprs) => Ok(Some(Expr::List(exprs))),
         }
-        Expr::ScopePush => {
-          self.push_scope();
-          Ok(None)
-        }
-        Expr::ScopePop => {
-          self.pop_scope();
-          Ok(None)
-        }
-        _ => Ok(Some(expr)),
       }
-    } else {
-      self.skip_eval = false;
-      Ok(Some(expr))
+      Expr::ScopePush => {
+        self.push_scope();
+        Ok(None)
+      }
+      Expr::ScopePop => {
+        self.pop_scope();
+        Ok(None)
+      }
+      _ => Ok(Some(expr)),
     }
   }
 
@@ -903,6 +870,8 @@ impl Program {
 
   pub fn eval(&mut self, exprs: Vec<Expr>) -> Result<(), EvalError> {
     let mut clone = self.clone();
+
+    dbg!(exprs.clone());
 
     for expr in exprs {
       let result = clone.eval_expr(expr)?;
