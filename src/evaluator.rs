@@ -817,17 +817,20 @@ impl Program {
           })
         }
       }
+      "fn" | "noop" => Ok(None),
       _ => {
         if let Some(value) = self.scope_item(&call) {
           if let Expr::List(list) = value.clone() {
-            if let Some(Expr::FunctionTag) = list.first() {
-              match self.eval(vec![
-                Expr::Lazy(Expr::Call(call.clone()).into()),
-                Expr::Call("get".to_string()),
-                Expr::Call("call".to_string()),
-              ]) {
-                Ok(_) => return Ok(None),
-                Err(err) => return Err(err),
+            if let Some(Expr::Call(string)) = list.first() {
+              if string == "fn" {
+                match self.eval(vec![
+                  Expr::Lazy(Expr::Call(call.clone()).into()),
+                  Expr::Call("get".to_string()),
+                  Expr::Call("call".to_string()),
+                ]) {
+                  Ok(_) => return Ok(None),
+                  Err(err) => return Err(err),
+                }
               }
             }
           }
@@ -868,10 +871,6 @@ impl Program {
       }
       Expr::ScopePop => {
         self.pop_scope();
-        Ok(None)
-      }
-      Expr::FunctionTag => {
-        // Do nothing
         Ok(None)
       }
       _ => Ok(Some(expr)),
@@ -1285,7 +1284,7 @@ mod tests {
       assert_eq!(
         program.stack,
         vec![Expr::List(vec![
-          Expr::FunctionTag,
+          Expr::Call("fn".to_string()),
           Expr::Integer(1),
           Expr::Integer(2),
           Expr::Call("+".to_string())
@@ -1303,7 +1302,7 @@ mod tests {
         program.stack,
         vec![
           Expr::List(vec![
-            Expr::FunctionTag,
+            Expr::Call("fn".to_string()),
             Expr::Integer(1),
             Expr::Integer(2),
             Expr::Call("+".to_string())

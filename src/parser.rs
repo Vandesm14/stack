@@ -12,7 +12,6 @@ pub enum Expr {
 
   Lazy(Box<Expr>),
   Call(String),
-  FunctionTag,
 
   /// `(1 2 3)` is a list
   List(Vec<Expr>),
@@ -38,7 +37,6 @@ impl fmt::Display for Expr {
 
       Expr::Lazy(expr) => write!(f, "lazy({})", expr),
       Expr::Call(s) => write!(f, "{}", s),
-      Expr::FunctionTag => write!(f, "fn"),
 
       Expr::List(l) => write!(
         f,
@@ -78,7 +76,6 @@ impl PartialEq for Expr {
 
       (Expr::Lazy(a), Expr::Lazy(b)) => a == b,
       (Expr::Call(a), Expr::Call(b)) => a == b,
-      (Expr::FunctionTag, Expr::FunctionTag) => true,
 
       (Expr::List(a), Expr::List(b)) => a == b,
 
@@ -122,7 +119,6 @@ impl PartialOrd for Expr {
 
       (Expr::Lazy(a), Expr::Lazy(b)) => a.partial_cmp(b),
       (Expr::Call(a), Expr::Call(b)) => a.partial_cmp(b),
-      (Expr::FunctionTag, Expr::FunctionTag) => Some(std::cmp::Ordering::Equal),
 
       (Expr::List(a), Expr::List(b)) => a.partial_cmp(b),
 
@@ -168,7 +164,6 @@ impl Expr {
 
       Expr::Lazy(expr) => expr.type_of(),
       Expr::Call(_) => "call".to_owned(),
-      Expr::FunctionTag => self.to_string(),
 
       Expr::List(_) => "list".to_owned(),
 
@@ -198,7 +193,6 @@ pub fn parse(tokens: Vec<Token>) -> Vec<Expr> {
       Token::Call(s) => match s.as_str() {
         "true" => Some(Expr::Boolean(true)),
         "false" => Some(Expr::Boolean(false)),
-        "fn" => Some(Expr::FunctionTag),
         _ => Some(Expr::Call(s)),
       },
       Token::Nil => Some(Expr::Nil),
