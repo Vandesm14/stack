@@ -35,7 +35,7 @@ impl fmt::Display for Expr {
       Expr::String(s) => write!(f, "\"{}\"", s),
       Expr::Boolean(b) => write!(f, "{}", b),
 
-      Expr::Lazy(expr) => write!(f, "lazy({})", expr.to_string()),
+      Expr::Lazy(expr) => write!(f, "lazy({})", expr),
       Expr::Call(s) => write!(f, "{}", s),
       Expr::List(l) => write!(
         f,

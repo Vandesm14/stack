@@ -871,8 +871,6 @@ impl Program {
   pub fn eval(&mut self, exprs: Vec<Expr>) -> Result<(), EvalError> {
     let mut clone = self.clone();
 
-    dbg!(exprs.clone());
-
     for expr in exprs {
       let result = clone.eval_expr(expr)?;
 
