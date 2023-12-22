@@ -200,27 +200,35 @@ pub fn parse(tokens: Vec<Token>) -> Vec<Expr> {
       }
       // We can run this both when we see an ending paren and at the end of the code
       Token::ParenEnd => {
-        let mut is_lazy = false;
         let block = lists.pop().unwrap();
-        lists.last_mut().unwrap_or(&mut vec![]).push(Expr::List(
-          block
-            .into_iter()
-            .filter_map(|expr| match expr {
-              Expr::Lazy(_) => {
-                is_lazy = true;
-                None
+        let mut new_block = Vec::new();
+        let mut temp_expr: Option<Expr> = None;
+
+        for expr in block.into_iter().rev() {
+          match expr {
+            Expr::Lazy(_) => {
+              temp_expr =
+                Some(Expr::Lazy(temp_expr.take().unwrap_or(Expr::Nil).into()));
+            }
+            _ => {
+              if let Some(temp) = temp_expr.take() {
+                new_block.push(temp);
               }
-              expr => {
-                if is_lazy {
-                  is_lazy = false;
-                  Some(Expr::Lazy(expr.into()))
-                } else {
-                  Some(expr.clone())
-                }
-              }
-            })
-            .collect(),
-        ));
+              temp_expr = Some(expr);
+            }
+          }
+        }
+
+        if let Some(temp) = temp_expr.take() {
+          new_block.push(temp);
+        }
+
+        new_block.reverse();
+
+        lists
+          .last_mut()
+          .unwrap_or(&mut vec![])
+          .push(Expr::List(new_block));
         paren_count -= 1;
         None
       }
@@ -334,6 +342,48 @@ mod tests {
         Expr::Call("set".to_owned()),
         Expr::ScopePop,
       ];
+
+      assert_eq!(parse(tokens), expected);
+    }
+
+    #[test]
+    fn lazy_calls() {
+      let tokens = crate::lex("'set");
+      let expected = vec![Expr::Lazy(Box::new(Expr::Call("set".to_owned())))];
+
+      assert_eq!(parse(tokens), expected);
+    }
+
+    #[test]
+    fn lazy_lists() {
+      let tokens = crate::lex("'(1 2 3)");
+      let expected = vec![Expr::Lazy(Box::new(Expr::List(vec![
+        Expr::Integer(1),
+        Expr::Integer(2),
+        Expr::Integer(3),
+      ])))];
+
+      assert_eq!(parse(tokens), expected);
+    }
+
+    #[test]
+    fn lazy_nested_lists() {
+      let tokens = crate::lex("'(1 (2 3) 4)");
+      let expected = vec![Expr::Lazy(Box::new(Expr::List(vec![
+        Expr::Integer(1),
+        Expr::List(vec![Expr::Integer(2), Expr::Integer(3)]),
+        Expr::Integer(4),
+      ])))];
+
+      assert_eq!(parse(tokens), expected);
+    }
+
+    #[test]
+    fn double_lazy() {
+      let tokens = crate::lex("''set");
+      let expected = vec![Expr::Lazy(Box::new(Expr::Lazy(Box::new(
+        Expr::Call("set".to_owned()),
+      ))))];
 
       assert_eq!(parse(tokens), expected);
     }
