@@ -1,0 +1,50 @@
+;; Pulls items off the stack and assigns them names
+;;
+;; [List(code), List(args)] -> []
+;;
+;; Usage:
+;; '(
+;;   '({
+;;     a b +
+;;   }) '(a b) let
+;; ) 'add-two-nums set
+'({
+  'list set
+  'block set
+  'list get len 'length set
+
+  0 'i set
+  '(i 1 + 'i set) 'inc-i set
+  '('list get length i - 1 - nth) 'get-nth set
+
+  '(
+    get-nth
+    set
+
+    inc-i
+  ) '(i length <) while
+
+  block
+}) 'let set
+
+;; Easier creation of functions with let
+;;
+;; [List(body), List(args), Call(name)] -> [List(code), List(name)]
+;;
+;; Usage:
+;; '({
+;;   a b +
+;; }) '(a b)
+;; 'add-two-nums let-fn set
+'({
+  'name set
+  'args set
+  'body set
+
+  '()
+  'body get lazy insert
+  'args get lazy insert
+  'let insert
+
+  name
+}) 'let-fn set
