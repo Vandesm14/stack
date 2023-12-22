@@ -175,7 +175,12 @@ pub fn parse(tokens: Vec<Token>) -> Vec<Expr> {
   let mut lists: Vec<Vec<Expr>> = vec![Vec::new()];
   let mut paren_count: isize = 0;
 
-  for token in tokens {
+  // Wrap tokens in parens for easier parsing
+  let mut wrapped_tokens = vec![Token::ParenStart];
+  wrapped_tokens.extend(tokens);
+  wrapped_tokens.push(Token::ParenEnd);
+
+  for token in wrapped_tokens {
     let expr = match token {
       Token::Integer(i) => Some(Expr::Integer(i)),
       Token::Float(f) => Some(Expr::Float(f)),
@@ -193,6 +198,7 @@ pub fn parse(tokens: Vec<Token>) -> Vec<Expr> {
         paren_count += 1;
         None
       }
+      // We can run this both when we see an ending paren and at the end of the code
       Token::ParenEnd => {
         let mut is_lazy = false;
         let block = lists.pop().unwrap();
@@ -237,26 +243,12 @@ pub fn parse(tokens: Vec<Token>) -> Vec<Expr> {
     return vec![];
   }
 
-  // TODO: Don't repeat the same code... somehow
-  let code = lists.last().unwrap().clone();
-  let mut is_lazy = false;
-  code
-    .into_iter()
-    .filter_map(|expr| match expr {
-      Expr::Lazy(_) => {
-        is_lazy = true;
-        None
-      }
-      expr => {
-        if is_lazy {
-          is_lazy = false;
-          Some(Expr::Lazy(expr.into()))
-        } else {
-          Some(expr.clone())
-        }
-      }
-    })
-    .collect()
+  // Unwrap the exprs from the list we wrapped them in at the beginning
+  if let Some(Expr::List(exprs)) = lists.last().unwrap().clone().first() {
+    exprs.clone()
+  } else {
+    vec![]
+  }
 }
 
 #[cfg(test)]
