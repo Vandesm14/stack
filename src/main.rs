@@ -41,7 +41,7 @@ fn eval_string(program: &Program, result: Result<(), EvalError>) {
 
 fn repl() -> rustyline::Result<()> {
   let mut rl = DefaultEditor::new()?;
-  let mut program = Program::new();
+  let mut program = Program::new().with_core().unwrap();
 
   loop {
     let readline = rl.readline(">> ");
@@ -76,7 +76,7 @@ fn eval_file(path: PathBuf, is_watching: bool) {
   match fs::read(path) {
     Ok(contents) => {
       let contents = String::from_utf8(contents).unwrap();
-      let mut program = Program::new();
+      let mut program = Program::new().with_core().unwrap();
 
       if is_watching {
         execute!(stdout, Clear(ClearType::All)).unwrap();

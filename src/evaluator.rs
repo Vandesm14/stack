@@ -60,12 +60,229 @@ impl fmt::Display for EvalError {
   }
 }
 
+#[derive(Debug, Copy, Clone, PartialEq)]
+pub enum Intrinsic {
+  // Arithmetic
+  Add,
+  Subtract,
+  Multiply,
+  Divide,
+  Remainder,
+
+  // Comparison
+  Equal,
+  NotEqual,
+  GreaterThan,
+  LessThan,
+  Or,
+  And,
+
+  // Code/IO
+  Parse,
+  ReadFile,
+  Print,
+
+  // List
+  Explode,
+  Length,
+  Nth,
+  Join,
+  Insert,
+  Last,
+  Concat,
+  Unwrap,
+
+  // Control Flow
+  IfElse,
+  If,
+  While,
+  Halt,
+
+  // Scope
+  Set,
+  Get,
+  Unset,
+
+  // Stack
+  Collect,
+  Clear,
+  Pop,
+  Dup,
+  Swap,
+  Rot,
+
+  // Functions/Data
+  Call,
+  Lazy,
+  Fn,
+  Noop,
+
+  // Type
+  ToString,
+  ToCall,
+  ToInteger,
+  ToList,
+  TypeOf,
+}
+
+impl TryFrom<&str> for Intrinsic {
+  type Error = ();
+
+  fn try_from(value: &str) -> Result<Self, Self::Error> {
+    match value {
+      // Arithmetic
+      "+" => Ok(Self::Add),
+      "-" => Ok(Self::Subtract),
+      "*" => Ok(Self::Multiply),
+      "/" => Ok(Self::Divide),
+      "%" => Ok(Self::Remainder),
+
+      // Comparison
+      "=" => Ok(Self::Equal),
+      "!=" => Ok(Self::NotEqual),
+      ">" => Ok(Self::GreaterThan),
+      "<" => Ok(Self::LessThan),
+      "or" => Ok(Self::Or),
+      "and" => Ok(Self::And),
+
+      // Code/IO
+      "parse" => Ok(Self::Parse),
+      "read-file" => Ok(Self::ReadFile),
+      "print" => Ok(Self::Print),
+
+      // List
+      "explode" => Ok(Self::Explode),
+      "len" => Ok(Self::Length),
+      "nth" => Ok(Self::Nth),
+      "join" => Ok(Self::Join),
+      "insert" => Ok(Self::Insert),
+      "last" => Ok(Self::Last),
+      "concat" => Ok(Self::Concat),
+      "unwrap" => Ok(Self::Unwrap),
+
+      // Control Flow
+      "ifelse" => Ok(Self::IfElse),
+      "if" => Ok(Self::If),
+      "while" => Ok(Self::While),
+      "halt" => Ok(Self::Halt),
+
+      // Scope
+      "set" => Ok(Self::Set),
+      "get" => Ok(Self::Get),
+      "unset" => Ok(Self::Unset),
+
+      // Stack
+      "collect" => Ok(Self::Collect),
+      "clear" => Ok(Self::Clear),
+      "pop" => Ok(Self::Pop),
+      "dup" => Ok(Self::Dup),
+      "swap" => Ok(Self::Swap),
+      "rot" => Ok(Self::Rot),
+
+      // Functions/Data
+      "call" => Ok(Self::Call),
+      "lazy" => Ok(Self::Lazy),
+      "fn" => Ok(Self::Fn),
+
+      // Type
+      "tostring" => Ok(Self::ToString),
+      "tocall" => Ok(Self::ToCall),
+      "tointeger" => Ok(Self::ToInteger),
+      "tolist" => Ok(Self::ToList),
+      "typeof" => Ok(Self::TypeOf),
+
+      _ => Err(()),
+    }
+  }
+}
+
+impl fmt::Display for Intrinsic {
+  fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+    write!(f, "{}", self.as_str())
+  }
+}
+
+impl Intrinsic {
+  fn as_str(self) -> &'static str {
+    match self {
+      // Arithmetic
+      Self::Add => "+",
+      Self::Subtract => "-",
+      Self::Multiply => "*",
+      Self::Divide => "/",
+      Self::Remainder => "%",
+
+      // Comparison
+      Self::Equal => "=",
+      Self::NotEqual => "!=",
+      Self::GreaterThan => ">",
+      Self::LessThan => "<",
+      Self::Or => "or",
+      Self::And => "and",
+
+      // Code/IO
+      Self::Parse => "parse",
+      Self::ReadFile => "read-file",
+      Self::Print => "print",
+
+      // List
+      Self::Explode => "explode",
+      Self::Length => "len",
+      Self::Nth => "nth",
+      Self::Join => "join",
+      Self::Insert => "insert",
+      Self::Last => "last",
+      Self::Concat => "concat",
+      Self::Unwrap => "unwrap",
+
+      // Control Flow
+      Self::IfElse => "ifelse",
+      Self::If => "if",
+      Self::While => "while",
+      Self::Halt => "halt",
+
+      // Scope
+      Self::Set => "set",
+      Self::Get => "get",
+      Self::Unset => "unset",
+
+      // Stack
+      Self::Collect => "collect",
+      Self::Clear => "clear",
+      Self::Pop => "pop",
+      Self::Dup => "dup",
+      Self::Swap => "swap",
+      Self::Rot => "rot",
+
+      // Functions/Data
+      Self::Call => "call",
+      Self::Lazy => "lazy",
+      Self::Fn => "fn",
+      Self::Noop => "noop",
+
+      // Type
+      Self::ToString => "tostring",
+      Self::ToCall => "tocall",
+      Self::ToInteger => "tointeger",
+      Self::ToList => "tolist",
+      Self::TypeOf => "typeof",
+    }
+  }
+}
+
 impl Program {
   pub fn new() -> Self {
     Self {
       stack: vec![],
       scope: vec![HashMap::new()],
     }
+  }
+
+  pub fn with_core(mut self) -> Result<Self, EvalError> {
+    let core_lib = include_str!("./core.stack");
+    self.eval_string(core_lib)?;
+
+    Ok(self)
   }
 
   fn pop(&mut self) -> Option<Expr> {
@@ -132,9 +349,13 @@ impl Program {
     self.scope.pop();
   }
 
-  fn eval_call(&mut self, call: String) -> Result<Option<Expr>, EvalError> {
-    match call.as_str() {
-      "+" => {
+  fn eval_intrinsic(
+    &mut self,
+    intrinsic: Intrinsic,
+  ) -> Result<Option<Expr>, EvalError> {
+    let call = intrinsic.as_str().to_string();
+    match intrinsic {
+      Intrinsic::Add => {
         let b = self.pop();
         let a = self.pop();
         if let (Some(Expr::Integer(a)), Some(Expr::Integer(b))) =
@@ -151,13 +372,13 @@ impl Program {
           Ok(Some(Expr::Float(a + b)))
         } else {
           Err(EvalError {
-            expr: Expr::Call(call.clone()),
+            expr: Expr::Call(call),
             program: self.clone(),
             message: format!("Invalid args: [{:?} {:?}]", a, b),
           })
         }
       }
-      "-" => {
+      Intrinsic::Subtract => {
         let b = self.pop();
         let a = self.pop();
         if let (Some(Expr::Integer(a)), Some(Expr::Integer(b))) =
@@ -176,7 +397,7 @@ impl Program {
           })
         }
       }
-      "*" => {
+      Intrinsic::Multiply => {
         let b = self.pop();
         let a = self.pop();
         if let (Some(Expr::Integer(a)), Some(Expr::Integer(b))) =
@@ -195,7 +416,7 @@ impl Program {
           })
         }
       }
-      "/" => {
+      Intrinsic::Divide => {
         let b = self.pop();
         let a = self.pop();
         if let (Some(Expr::Integer(a)), Some(Expr::Integer(b))) =
@@ -214,7 +435,7 @@ impl Program {
           })
         }
       }
-      "%" => {
+      Intrinsic::Remainder => {
         let b = self.pop();
         let a = self.pop();
         if let (Some(Expr::Integer(a)), Some(Expr::Integer(b))) =
@@ -233,27 +454,27 @@ impl Program {
           })
         }
       }
-      "=" => {
+      Intrinsic::Equal => {
         let b = self.pop();
         let a = self.pop();
         Ok(Some(Expr::Boolean(a.eq(&b))))
       }
-      "!=" => {
+      Intrinsic::NotEqual => {
         let b = self.pop();
         let a = self.pop();
         Ok(Some(Expr::Boolean(!a.eq(&b))))
       }
-      ">" => {
+      Intrinsic::GreaterThan => {
         let b = self.pop();
         let a = self.pop();
         Ok(Some(Expr::Boolean(a.gt(&b))))
       }
-      "<" => {
+      Intrinsic::LessThan => {
         let b = self.pop();
         let a = self.pop();
         Ok(Some(Expr::Boolean(a.lt(&b))))
       }
-      "or" => {
+      Intrinsic::Or => {
         let b = self.pop();
         let a = self.pop();
         if let (Some(a), Some(b)) = (a.clone(), b.clone()) {
@@ -266,7 +487,7 @@ impl Program {
           })
         }
       }
-      "and" => {
+      Intrinsic::And => {
         let b = self.pop();
         let a = self.pop();
         if let (Some(a), Some(b)) = (a.clone(), b.clone()) {
@@ -279,7 +500,8 @@ impl Program {
           })
         }
       }
-      "explode" => {
+      Intrinsic::Explode => {
+        // TODO: Deprecate in favor of `"hello" tolist`
         let string = self.pop();
         if let Some(Expr::String(string)) = string.clone() {
           let mut chars = vec![];
@@ -295,7 +517,7 @@ impl Program {
           })
         }
       }
-      "len" => {
+      Intrinsic::Length => {
         let list = self.pop();
         if let Some(Expr::List(list)) = list {
           Ok(Some(Expr::Integer(list.len() as i64)))
@@ -307,7 +529,7 @@ impl Program {
           })
         }
       }
-      "parse" => {
+      Intrinsic::Parse => {
         let string = self.pop();
         if let Some(Expr::String(string)) = string {
           let tokens = crate::lex(string.as_str());
@@ -321,7 +543,7 @@ impl Program {
           })
         }
       }
-      "read-file" => {
+      Intrinsic::ReadFile => {
         let path = self.pop();
         if let Some(Expr::String(path)) = path {
           let contents = std::fs::read_to_string(path.clone());
@@ -341,15 +563,7 @@ impl Program {
           })
         }
       }
-      "import" => {
-        self.eval(vec![
-          Expr::Call("read-file".to_string()),
-          Expr::Call("parse".to_string()),
-          Expr::Call("call".to_string()),
-        ])?;
-        Ok(None)
-      }
-      "nth" => {
+      Intrinsic::Nth => {
         let index = self.pop();
         let list = self.pop();
         if let (Some(Expr::Integer(index)), Some(Expr::List(list))) =
@@ -389,7 +603,7 @@ impl Program {
           })
         }
       }
-      "join" => {
+      Intrinsic::Join => {
         let delimiter = self.pop();
         let list = self.pop();
         if let (Some(Expr::String(delimiter)), Some(Expr::List(list))) =
@@ -416,7 +630,7 @@ impl Program {
         }
       }
       // Pushes the last value in the stack into the list
-      "insert" => {
+      Intrinsic::Insert => {
         let item = self.pop();
         let list = self.pop();
         if let (Some(Expr::List(list)), Some(item)) =
@@ -434,7 +648,7 @@ impl Program {
         }
       }
       // Pops the last value of a list onto the stack
-      "last" => {
+      Intrinsic::Last => {
         let list = self.pop();
         if let Some(Expr::List(list)) = list {
           let mut list = list;
@@ -453,7 +667,7 @@ impl Program {
           })
         }
       }
-      "concat" => {
+      Intrinsic::Concat => {
         let b = self.pop();
         let a = self.pop();
         if let (Some(Expr::List(a)), Some(Expr::List(b))) =
@@ -470,7 +684,7 @@ impl Program {
           })
         }
       }
-      "ifelse" => {
+      Intrinsic::IfElse => {
         let condition = self.pop();
         let block = self.pop();
         let else_block = self.pop();
@@ -517,7 +731,7 @@ impl Program {
           })
         }
       }
-      "if" => {
+      Intrinsic::If => {
         let condition = self.pop();
         let block = self.pop();
         if let (Some(Expr::List(condition)), Some(Expr::List(block))) =
@@ -544,7 +758,7 @@ impl Program {
           })
         }
       }
-      "while" => {
+      Intrinsic::While => {
         let condition = self.pop();
         let block = self.pop();
 
@@ -592,7 +806,7 @@ impl Program {
 
         Ok(None)
       }
-      "print" => {
+      Intrinsic::Print => {
         let a = self.pop();
 
         if let Some(a) = a {
@@ -610,7 +824,7 @@ impl Program {
           })
         }
       }
-      "set" => {
+      Intrinsic::Set => {
         let name = self.pop();
         let value = self.pop();
 
@@ -627,7 +841,7 @@ impl Program {
           })
         }
       }
-      "get" => {
+      Intrinsic::Get => {
         let name = self.pop();
 
         if let Some(Expr::Call(name)) = name {
@@ -640,7 +854,7 @@ impl Program {
           })
         }
       }
-      "unset" => {
+      Intrinsic::Unset => {
         let name = self.pop();
         if let Some(Expr::Call(name)) = name {
           self.remove_scope_item(&name);
@@ -654,13 +868,15 @@ impl Program {
           })
         }
       }
-      "halt" => Err(EvalError {
+      Intrinsic::Halt => Err(EvalError {
         expr: Expr::Call(call.clone()),
         program: self.clone(),
         message: "Halted.".to_string(),
       }),
-      "collect" => Ok(Some(Expr::List(core::mem::take(&mut self.stack)))),
-      "tostring" => {
+      Intrinsic::Collect => {
+        Ok(Some(Expr::List(core::mem::take(&mut self.stack))))
+      }
+      Intrinsic::ToString => {
         let a = self.stack.pop().unwrap_or_default();
 
         let string = match a {
@@ -670,7 +886,7 @@ impl Program {
 
         Ok(Some(Expr::String(string)))
       }
-      "tocall" => {
+      Intrinsic::ToCall => {
         let a = self.stack.pop().unwrap_or_default();
 
         let string = match a {
@@ -680,7 +896,7 @@ impl Program {
 
         Ok(Some(Expr::Call(string)))
       }
-      "tointeger" => {
+      Intrinsic::ToInteger => {
         let a = self.stack.pop().unwrap_or_default();
 
         match a {
@@ -706,7 +922,7 @@ impl Program {
           }),
         }
       }
-      "tolist" => {
+      Intrinsic::ToList => {
         let a = self.stack.pop().unwrap_or_default();
 
         match a {
@@ -714,19 +930,19 @@ impl Program {
           _ => Ok(Some(Expr::List(vec![a]))),
         }
       }
-      "typeof" => {
+      Intrinsic::TypeOf => {
         let a = self.stack.pop().unwrap_or_default();
         Ok(Some(Expr::String(a.type_of())))
       }
-      "clear" => {
+      Intrinsic::Clear => {
         self.stack.clear();
         Ok(None)
       }
-      "pop" => {
+      Intrinsic::Pop => {
         self.stack.pop();
         Ok(None)
       }
-      "dup" => {
+      Intrinsic::Dup => {
         let a = self.pop();
 
         if let Some(a) = a {
@@ -742,7 +958,7 @@ impl Program {
           })
         }
       }
-      "swap" => {
+      Intrinsic::Swap => {
         let a = self.pop();
         let b = self.pop();
 
@@ -759,7 +975,7 @@ impl Program {
           })
         }
       }
-      "rot" => {
+      Intrinsic::Rot => {
         if self.stack.len() < 3 {
           return Err(EvalError {
             expr: Expr::Call(call.clone()),
@@ -774,7 +990,7 @@ impl Program {
 
         Ok(None)
       }
-      "call" => {
+      Intrinsic::Call => {
         let a = self.stack.pop();
 
         if let Some(Expr::Call(a)) = a {
@@ -790,7 +1006,7 @@ impl Program {
           })
         }
       }
-      "unwrap" => {
+      Intrinsic::Unwrap => {
         let list = self.stack.pop();
         if let Some(Expr::List(list)) = list {
           for expr in list {
@@ -805,7 +1021,7 @@ impl Program {
           })
         }
       }
-      "lazy" => {
+      Intrinsic::Lazy => {
         let a = self.stack.pop();
         if let Some(a) = a {
           Ok(Some(Expr::Lazy(a.into())))
@@ -817,33 +1033,38 @@ impl Program {
           })
         }
       }
-      "fn" | "noop" => Ok(None),
-      _ => {
-        if let Some(value) = self.scope_item(&call) {
-          if let Expr::List(list) = value.clone() {
-            if let Some(Expr::Call(string)) = list.first() {
-              if string == "fn" {
-                match self.eval(vec![
-                  Expr::Lazy(Expr::Call(call.clone()).into()),
-                  Expr::Call("get".to_string()),
-                  Expr::Call("call".to_string()),
-                ]) {
-                  Ok(_) => return Ok(None),
-                  Err(err) => return Err(err),
-                }
-              }
+      Intrinsic::Fn | Intrinsic::Noop => Ok(None),
+    }
+  }
+
+  fn eval_call(&mut self, call: String) -> Result<Option<Expr>, EvalError> {
+    if let Ok(intrinsic) = Intrinsic::try_from(call.as_str()) {
+      return self.eval_intrinsic(intrinsic);
+    }
+
+    if let Some(value) = self.scope_item(&call) {
+      if let Expr::List(list) = value.clone() {
+        if let Some(Expr::Call(string)) = list.first() {
+          if string == "fn" {
+            match self.eval(vec![
+              Expr::Lazy(Expr::Call(call.clone()).into()),
+              Expr::Call("get".to_string()),
+              Expr::Call("call".to_string()),
+            ]) {
+              Ok(_) => return Ok(None),
+              Err(err) => return Err(err),
             }
           }
-
-          Ok(Some(value))
-        } else {
-          Err(EvalError {
-            expr: Expr::Call(call.clone()),
-            program: self.clone(),
-            message: format!("Unknown call: {}", call),
-          })
         }
       }
+
+      Ok(Some(value))
+    } else {
+      Err(EvalError {
+        expr: Expr::Call(call.clone()),
+        program: self.clone(),
+        message: format!("Unknown call: {}", call),
+      })
     }
   }
 
