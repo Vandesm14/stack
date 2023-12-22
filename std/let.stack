@@ -8,16 +8,16 @@
 ;;     a b +
 ;;   }) '(a b) let
 ;; ) 'add-two-nums set
-'({
+'(fn {
   'list set
   'block set
   'list get len 'length set
 
   0 'i set
-  '(i 1 + 'i set) 'inc-i set
-  '('list get length i - 1 - nth) 'get-nth set
+  '(fn i 1 + 'i set) 'inc-i set
+  '(fn 'list get length i - 1 - nth) 'get-nth set
 
-  '(
+  '(fn
     get-nth
     set
 
@@ -36,12 +36,12 @@
 ;;   a b +
 ;; }) '(a b)
 ;; 'add-two-nums let-fn set
-'({
+'(fn {
   'name set
   'args set
   'body set
 
-  '()
+  '(fn)
   'body get lazy insert
   'args get lazy insert
   'let insert

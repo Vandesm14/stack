@@ -1,7 +1,7 @@
 "std/list.stack" import
 
 ("the" "words" "should" "be" "in" "order")
-'(
+'(fn
   "Item: "
   explode
   swap

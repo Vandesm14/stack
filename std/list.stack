@@ -9,9 +9,9 @@
   () 'new_list set
 
   ;; Define a function that decrements i
-  '(i 1 - 'i set) 'decrement_i set
+  '(fn i 1 - 'i set) 'decrement_i set
 
-  '(
+  '(fn
     ;; Decrement i
     decrement_i
 
@@ -50,7 +50,7 @@
 
 ;; [Block, Integer] -> [Integer]
 ;; Runs a block n times
-'(
+'(fn
   1 + swap
   '(1 - dup 0 !=)
   while
@@ -58,7 +58,7 @@
 ) 'for set
 
 ;; <T>[List<T>, Block(T)] -> ()
-'({
+'(fn {
   ;; Set the block and list
   'block set
   'list set

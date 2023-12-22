@@ -819,19 +819,20 @@ impl Program {
       }
       _ => {
         if let Some(value) = self.scope_item(&call) {
-          if let Expr::List(_) = value {
-            match self.eval(vec![
-              Expr::Lazy(Expr::Call(call.clone()).into()),
-              Expr::Call("get".to_string()),
-              // Expr::Call("halt".to_string()),
-              Expr::Call("call".to_string()),
-            ]) {
-              Ok(_) => Ok(None),
-              Err(err) => Err(err),
+          if let Expr::List(list) = value.clone() {
+            if let Some(Expr::FunctionTag) = list.first() {
+              match self.eval(vec![
+                Expr::Lazy(Expr::Call(call.clone()).into()),
+                Expr::Call("get".to_string()),
+                Expr::Call("call".to_string()),
+              ]) {
+                Ok(_) => return Ok(None),
+                Err(err) => return Err(err),
+              }
             }
-          } else {
-            Ok(Some(value))
           }
+
+          Ok(Some(value))
         } else {
           Err(EvalError {
             expr: Expr::Call(call.clone()),
@@ -867,6 +868,10 @@ impl Program {
       }
       Expr::ScopePop => {
         self.pop_scope();
+        Ok(None)
+      }
+      Expr::FunctionTag => {
+        // Do nothing
         Ok(None)
       }
       _ => Ok(Some(expr)),
@@ -1244,6 +1249,68 @@ mod tests {
       let mut program = Program::new();
       program.eval_string("1 'a set 'a unset").unwrap();
       assert_eq!(program.scope, vec![HashMap::new()]);
+    }
+
+    #[test]
+    fn auto_calling_functions() {
+      let mut program = Program::new();
+      program
+        .eval_string("'(fn 1 2 +) 'is-three set is-three")
+        .unwrap();
+      assert_eq!(program.stack, vec![Expr::Integer(3)]);
+    }
+
+    #[test]
+    fn only_auto_call_functions() {
+      let mut program = Program::new();
+      program
+        .eval_string("'(1 2 +) 'is-three set is-three")
+        .unwrap();
+      assert_eq!(
+        program.stack,
+        vec![Expr::List(vec![
+          Expr::Integer(1),
+          Expr::Integer(2),
+          Expr::Call("+".to_string())
+        ])]
+      );
+    }
+
+    #[test]
+    fn getting_function_body() {
+      let mut program = Program::new();
+      program
+        .eval_string("'(fn 1 2 +) 'is-three set 'is-three get")
+        .unwrap();
+      assert_eq!(
+        program.stack,
+        vec![Expr::List(vec![
+          Expr::FunctionTag,
+          Expr::Integer(1),
+          Expr::Integer(2),
+          Expr::Call("+".to_string())
+        ])]
+      );
+    }
+
+    #[test]
+    fn assembling_functions_in_code() {
+      let mut program = Program::new();
+      program
+        .eval_string("'() 'fn insert 1 insert 2 insert '+ insert dup call")
+        .unwrap();
+      assert_eq!(
+        program.stack,
+        vec![
+          Expr::List(vec![
+            Expr::FunctionTag,
+            Expr::Integer(1),
+            Expr::Integer(2),
+            Expr::Call("+".to_string())
+          ]),
+          Expr::Integer(3)
+        ]
+      );
     }
 
     mod scope {

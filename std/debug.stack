@@ -1,4 +1,5 @@
-'(
+'(fn
+
   ;; Collect the stack into a list
   collect
 
