@@ -2,7 +2,7 @@ use stack::Program;
 
 fn run() -> Result<Program, stack::EvalError> {
   let string = include_str!("reverse.stack");
-  let mut program = Program::new();
+  let mut program = Program::new().with_core().unwrap();
 
   match program.eval_string(string) {
     Ok(_) => Ok(program),
