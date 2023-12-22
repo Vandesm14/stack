@@ -89,6 +89,9 @@ pub fn lex(input: &str) -> Vec<Token> {
               State::Start
             }
 
+            // Ignore square brackets
+            '[' | ']' => State::Start,
+
             // Match a noeval symbol
             '\'' => {
               tokens.push(Token::NoEval);
