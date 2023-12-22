@@ -805,6 +805,18 @@ impl Program {
           })
         }
       }
+      "lazy" => {
+        let a = self.stack.pop();
+        if let Some(a) = a {
+          Ok(Some(Expr::Lazy(a.into())))
+        } else {
+          Err(EvalError {
+            expr: Expr::Call(call.clone()),
+            program: self.clone(),
+            message: format!("Invalid args: [{:?}]", a),
+          })
+        }
+      }
       _ => {
         if let Some(value) = self.scope_item(&call) {
           if let Expr::List(_) = value {
@@ -1589,6 +1601,33 @@ mod tests {
           Expr::Integer(2),
           Expr::Integer(3)
         ])]
+      );
+    }
+
+    #[test]
+    fn list_into_lazy() {
+      let mut program = Program::new();
+      program.eval_string("(1 2 3) lazy").unwrap();
+      assert_eq!(
+        program.stack,
+        vec![Expr::Lazy(
+          Expr::List(vec![
+            Expr::Integer(1),
+            Expr::Integer(2),
+            Expr::Integer(3)
+          ])
+          .into()
+        )]
+      );
+    }
+
+    #[test]
+    fn call_into_lazy() {
+      let mut program = Program::new();
+      program.eval_string("'set lazy").unwrap();
+      assert_eq!(
+        program.stack,
+        vec![Expr::Lazy(Expr::Call("set".to_owned()).into())]
       );
     }
   }
