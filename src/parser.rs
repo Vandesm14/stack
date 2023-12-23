@@ -120,33 +120,43 @@ impl PartialEq for Expr {
 
 impl PartialOrd for Expr {
   fn partial_cmp(&self, other: &Self) -> Option<std::cmp::Ordering> {
+    Some(self.cmp(other))
+  }
+}
+
+impl Eq for Expr {
+  fn assert_receiver_is_total_eq(&self) {}
+}
+
+impl Ord for Expr {
+  fn cmp(&self, other: &Self) -> std::cmp::Ordering {
     match (self, other) {
       // Same types
-      (Expr::Integer(a), Expr::Integer(b)) => a.partial_cmp(b),
-      (Expr::Float(a), Expr::Float(b)) => a.partial_cmp(b),
+      (Expr::Integer(a), Expr::Integer(b)) => a.cmp(b),
+      (Expr::Float(a), Expr::Float(b)) => a.partial_cmp(b).unwrap(),
 
-      (Expr::String(a), Expr::String(b)) => a.partial_cmp(b),
-      (Expr::Boolean(a), Expr::Boolean(b)) => a.partial_cmp(b),
+      (Expr::String(a), Expr::String(b)) => a.cmp(b),
+      (Expr::Boolean(a), Expr::Boolean(b)) => a.cmp(b),
 
-      (Expr::Lazy(a), Expr::Lazy(b)) => a.partial_cmp(b),
-      (Expr::Call(a), Expr::Call(b)) => a.partial_cmp(b),
-      (Expr::FnScope(a), Expr::FnScope(b)) => a.partial_cmp(b),
+      (Expr::Lazy(a), Expr::Lazy(b)) => a.cmp(b),
+      (Expr::Call(a), Expr::Call(b)) => a.cmp(b),
+      (Expr::FnScope(a), Expr::FnScope(b)) => a.cmp(b),
 
-      (Expr::List(a), Expr::List(b)) => a.partial_cmp(b),
+      (Expr::List(a), Expr::List(b)) => a.cmp(b),
 
-      (Expr::Nil, Expr::Nil) => Some(std::cmp::Ordering::Equal),
+      (Expr::Nil, Expr::Nil) => std::cmp::Ordering::Equal,
 
       // Different types
       (Expr::Float(a), Expr::Integer(b)) => {
         let b = *b as f64;
-        a.partial_cmp(&b)
+        a.partial_cmp(&b).unwrap()
       }
       (Expr::Integer(a), Expr::Float(b)) => {
         let a = *a as f64;
-        a.partial_cmp(b)
+        a.partial_cmp(b).unwrap()
       }
 
-      _ => None,
+      _ => std::cmp::Ordering::Equal,
     }
   }
 }

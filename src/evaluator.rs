@@ -1,3 +1,5 @@
+use itertools::Itertools;
+
 use crate::{Expr, Intrinsic};
 use core::fmt;
 use std::collections::{HashMap, HashSet};
@@ -32,7 +34,7 @@ impl fmt::Display for Program {
       for (layer_i, layer) in self.scopes.iter().enumerate() {
         let items = layer.len();
         writeln!(f, "Layer {}:", layer_i)?;
-        for (item_i, (key, value)) in layer.iter().enumerate() {
+        for (item_i, (key, value)) in layer.iter().sorted().enumerate() {
           if item_i == items - 1 && layer_i == layers - 1 {
             write!(f, " + {}: {}", key, value)?;
           } else {
