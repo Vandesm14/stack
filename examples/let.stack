@@ -1,0 +1,8 @@
+"std/let.stack" import
+
+'(fn {
+  a b -
+}) '(a b)
+'subtract-two-nums let-fn set
+
+10 2 subtract-two-nums

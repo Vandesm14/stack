@@ -1,50 +1,49 @@
-;; Pulls items off the stack and assigns them names
-;;
-;; [List(code), List(args)] -> []
-;;
-;; Usage:
-;; '(
-;;   '({
-;;     a b +
-;;   }) '(a b) let
-;; ) 'add-two-nums set
-'(fn {
-  'list set
-  'block set
-  'list get len 'length set
-
-  0 'i set
-  '(fn i 1 + 'i set) 'inc-i set
-  '(fn 'list get length i - 1 - nth) 'get-nth set
-
-  '(fn
-    get-nth
-    set
-
-    inc-i
-  ) '(i length <) while
-
-  block
-}) 'let set
-
 ;; Easier creation of functions with let
 ;;
 ;; [List(body), List(args), Call(name)] -> [List(code), List(name)]
 ;;
 ;; Usage:
-;; '({
-;;   a b +
+;; '(fn {
+;;   a b -
 ;; }) '(a b)
-;; 'add-two-nums let-fn set
+;; 'subtract-two-nums let-fn set
 '(fn {
   'name set
   'args set
   'body set
 
-  '(fn)
-  'body get lazy insert
-  'args get lazy insert
-  'let insert
+  'args get len 'length set
+  '() 'args-code set
 
-  name
+  0 'i set
+  '(fn i 1 + 'i set) 'inc-i set
+  '(fn 'args get length i - 1 - nth) 'get-nth set
+
+  '(
+    get-nth
+    args-code swap
+
+    lazy insert 'args-code set
+    args-code 'set insert 'args-code set
+
+    inc-i
+  ) '(i length <) while
+
+  '() 'new-fn set
+
+  '(fn
+    ['new-fn get]
+    ['body get list-shift]
+    [swap 'body set]
+    [insert 'new-fn set]) 'shift-body-into-new set
+
+  ;; Pusn `fn scope_push` boilerplate if it exists
+  '(shift-body-into-new) '(['body get 0 nth] [typeof "fn" =]) if
+  '(shift-body-into-new) '(['body get 0] [nth typeof "scope_push" =]) if
+
+  ['new-fn get] ['args-code get] [concat 'new-fn set]
+  ['new-fn get] ['body get] [concat 'new-fn set]
+
+  'new-fn get
+  'name get
 }) 'let-fn set
