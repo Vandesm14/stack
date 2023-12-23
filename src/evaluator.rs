@@ -1606,10 +1606,26 @@ mod tests {
     #[test]
     fn popping_from_list() {
       let mut program = Program::new();
-      program.eval_string("(1 2) list-pop").unwrap();
+      program.eval_string("(1 2 3) list-pop").unwrap();
       assert_eq!(
         program.stack,
-        vec![Expr::List(vec![Expr::Integer(1)]), Expr::Integer(2)]
+        vec![
+          Expr::List(vec![Expr::Integer(1), Expr::Integer(2)]),
+          Expr::Integer(3)
+        ]
+      );
+    }
+
+    #[test]
+    fn shifting_from_list() {
+      let mut program = Program::new();
+      program.eval_string("(1 2 3) list-shift").unwrap();
+      assert_eq!(
+        program.stack,
+        vec![
+          Expr::List(vec![Expr::Integer(2), Expr::Integer(3)]),
+          Expr::Integer(1)
+        ]
       );
     }
 
