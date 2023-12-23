@@ -8,7 +8,7 @@ use std::collections::{HashMap, HashSet};
 pub struct Program {
   pub stack: Vec<Expr>,
   pub scopes: Vec<HashMap<String, Expr>>,
-  pub scope_trunc: Option<usize>,
+  pub scope_layer: Option<usize>,
   pub loaded_files: HashSet<String>,
 }
 
@@ -69,7 +69,7 @@ impl Program {
     Self {
       stack: vec![],
       scopes: vec![HashMap::new()],
-      scope_trunc: None,
+      scope_layer: None,
       loaded_files: HashSet::new(),
     }
   }
@@ -126,7 +126,7 @@ impl Program {
 
   fn scope_item(&self, symbol: &str) -> Option<Expr> {
     let len = self.scopes.len();
-    let take = self.scope_trunc.unwrap_or(len - 1) + 1;
+    let take = self.scope_layer.unwrap_or(len - 1) + 1;
     for layer in self.scopes.iter().take(take).rev() {
       if let Some(item) = layer.get(symbol) {
         return Some(item.clone());
@@ -137,7 +137,8 @@ impl Program {
   }
 
   fn scope_item_layer(&self, symbol: &str) -> Option<usize> {
-    let take = self.scope_trunc.unwrap_or(self.scopes.len() - 1) + 1;
+    let len = self.scopes.len();
+    let take = self.scope_layer.unwrap_or(len - 1) + 1;
     for (layer_i, layer) in self.scopes.iter().take(take).rev().enumerate() {
       if layer.contains_key(symbol) {
         return Some(layer_i);
@@ -149,8 +150,8 @@ impl Program {
 
   fn set_scope_item(&mut self, symbol: &str, value: Expr) {
     let len = self.scopes.len();
-    let last = self.scope_trunc.unwrap_or(self.scopes.len()).min(len);
-    if let Some(layer) = self.scopes.get_mut(last - 1) {
+    let last = self.scope_layer.unwrap_or(len - 1).min(len - 1);
+    if let Some(layer) = self.scopes.get_mut(last) {
       layer.insert(symbol.to_string(), value);
     } else {
       panic!("No scope to set item in. Maybe there's an extra \"}}\"?");
@@ -820,11 +821,11 @@ impl Program {
             return self.eval_expr(Expr::Call(a));
           } else if let Expr::List(list) = a.clone() {
             if let Some(scope_layer) = a.function_scope() {
-              let prev_layer = self.scope_trunc;
-              self.scope_trunc = Some(scope_layer + 1);
+              let prev_layer = self.scope_layer;
+              self.scope_layer = Some(scope_layer);
               match self.eval(list) {
                 Ok(_) => {
-                  self.scope_trunc = prev_layer;
+                  self.scope_layer = prev_layer;
                   return Ok(None);
                 }
                 Err(err) => return Err(err),
@@ -1018,7 +1019,7 @@ impl Program {
     // TODO: Store each scope & stack op as a transaction and just rollback atomically if something happens instead of cloning
     self.stack = clone.stack;
     self.scopes = clone.scopes;
-    self.scope_trunc = clone.scope_trunc;
+    self.scope_layer = clone.scope_layer;
     self.loaded_files = clone.loaded_files;
 
     Ok(())
