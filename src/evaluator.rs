@@ -124,16 +124,9 @@ impl Program {
 
   fn scope_item(&self, symbol: &str) -> Option<Expr> {
     let len = self.scopes.len();
-    let is_scoped = symbol.starts_with('@');
-    let symbol = if is_scoped {
-      symbol.replace('@', format!("__{}@", len - 1).as_str())
-    } else {
-      symbol.to_owned()
-    };
-
-    let take = self.scope_trunc.unwrap_or(self.scopes.len() - 1) + 1;
+    let take = self.scope_trunc.unwrap_or(len - 1) + 1;
     for layer in self.scopes.iter().take(take).rev() {
-      if let Some(item) = layer.get(&symbol) {
+      if let Some(item) = layer.get(symbol) {
         return Some(item.clone());
       }
     }
@@ -156,13 +149,6 @@ impl Program {
     let len = self.scopes.len();
     let last = self.scope_trunc.unwrap_or(self.scopes.len()).min(len);
     if let Some(layer) = self.scopes.get_mut(last - 1) {
-      let is_scoped = symbol.starts_with('@');
-      let symbol = if is_scoped {
-        symbol.replace('@', format!("__{}@", len - 1).as_str())
-      } else {
-        symbol.to_owned()
-      };
-
       layer.insert(symbol.to_string(), value);
     } else {
       panic!("No scope to set item in. Maybe there's an extra \"}}\"?");
@@ -1480,17 +1466,6 @@ mod tests {
             HashMap::from_iter(vec![("a".to_string(), Expr::Integer(2))])
           ]
         );
-      }
-
-      #[test]
-      fn scoped_variables() {
-        let mut program = Program::new();
-        program.eval_string("1 '@a set @a").unwrap();
-        assert_eq!(program.stack, vec![Expr::Integer(1)]);
-
-        let mut program = Program::new();
-        program.eval_string("{1 '@a set @a}").unwrap();
-        assert_eq!(program.stack, vec![Expr::Integer(1)]);
       }
 
       #[test]
