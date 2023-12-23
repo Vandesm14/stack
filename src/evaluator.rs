@@ -1486,6 +1486,26 @@ mod tests {
         program.eval_string("{1 '@a set @a}").unwrap();
         assert_eq!(program.stack, vec![Expr::Integer(1)]);
       }
+
+      #[test]
+      fn closures_can_access_higher_scopes() {
+        let mut program = Program::new();
+        program
+          .eval_string(
+            "0 'a set
+             '(fn a print 5 'a set)
+
+             '(fn {1' a set call}) call",
+          )
+          .unwrap();
+        assert_eq!(
+          program.scopes,
+          vec![HashMap::from_iter(vec![(
+            "a".to_string(),
+            Expr::Integer(5)
+          )]),]
+        )
+      }
     }
   }
 
