@@ -869,7 +869,7 @@ impl Program {
             return Err(EvalError {
               expr: Expr::Call(call.clone()),
               program: self.clone(),
-              message: format!("Cannot set native function: {}", name),
+              message: format!("Cannot overwrite native function: {}", name),
             });
           }
 
