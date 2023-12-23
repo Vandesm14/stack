@@ -519,6 +519,21 @@ impl Program {
           })
         }
       }
+      Intrinsic::ListShift => {
+        let list = self.pop();
+        if let Some(Expr::List(list)) = list {
+          let mut list = list;
+          let item = list.remove(0);
+          self.push(Expr::List(list));
+          Ok(Some(item))
+        } else {
+          Err(EvalError {
+            expr: Expr::Call(call.clone()),
+            program: self.clone(),
+            message: format!("Invalid args: [{:?}]", list),
+          })
+        }
+      }
       Intrinsic::Concat => {
         let b = self.pop();
         let a = self.pop();
