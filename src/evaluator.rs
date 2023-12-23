@@ -113,6 +113,7 @@ pub enum Intrinsic {
 
   // Functions/Data
   Call,
+  CallNative,
   Lazy,
   Fn,
   Noop,
@@ -181,6 +182,7 @@ impl TryFrom<&str> for Intrinsic {
 
       // Functions/Data
       "call" => Ok(Self::Call),
+      "call_native" => Ok(Self::CallNative),
       "lazy" => Ok(Self::Lazy),
       "fn" => Ok(Self::Fn),
 
@@ -256,6 +258,7 @@ impl Intrinsic {
 
       // Functions/Data
       Self::Call => "call",
+      Self::CallNative => "call_native",
       Self::Lazy => "lazy",
       Self::Fn => "fn",
       Self::Noop => "noop",
@@ -355,6 +358,7 @@ impl Program {
   ) -> Result<Option<Expr>, EvalError> {
     let call = intrinsic.as_str().to_string();
     match intrinsic {
+      // Arithmetic
       Intrinsic::Add => {
         let b = self.pop();
         let a = self.pop();
@@ -454,6 +458,8 @@ impl Program {
           })
         }
       }
+
+      // Comparison
       Intrinsic::Equal => {
         let b = self.pop();
         let a = self.pop();
@@ -500,35 +506,8 @@ impl Program {
           })
         }
       }
-      Intrinsic::Explode => {
-        // TODO: Deprecate in favor of `"hello" tolist`
-        let string = self.pop();
-        if let Some(Expr::String(string)) = string.clone() {
-          let mut chars = vec![];
-          for c in string.chars() {
-            chars.push(Expr::String(c.to_string()));
-          }
-          Ok(Some(Expr::List(chars)))
-        } else {
-          Err(EvalError {
-            expr: Expr::Call(call.clone()),
-            program: self.clone(),
-            message: format!("Invalid args: [{:?}]", string),
-          })
-        }
-      }
-      Intrinsic::Length => {
-        let list = self.pop();
-        if let Some(Expr::List(list)) = list {
-          Ok(Some(Expr::Integer(list.len() as i64)))
-        } else {
-          Err(EvalError {
-            expr: Expr::Call(call.clone()),
-            program: self.clone(),
-            message: format!("Invalid args: [{:?}]", list),
-          })
-        }
-      }
+
+      // Code/IO
       Intrinsic::Parse => {
         let string = self.pop();
         if let Some(Expr::String(string)) = string {
@@ -560,6 +539,55 @@ impl Program {
             expr: Expr::Call(call.clone()),
             program: self.clone(),
             message: format!("Invalid args: [{:?}]", path),
+          })
+        }
+      }
+      Intrinsic::Print => {
+        let a = self.pop();
+
+        if let Some(a) = a {
+          match a {
+            Expr::String(string) => println!("{}", string),
+            _ => println!("{}", a),
+          }
+
+          Ok(None)
+        } else {
+          Err(EvalError {
+            expr: Expr::Call(call.clone()),
+            program: self.clone(),
+            message: "Invalid args: []".to_string(),
+          })
+        }
+      }
+
+      // List
+      Intrinsic::Explode => {
+        // TODO: Deprecate in favor of `"hello" tolist`
+        let string = self.pop();
+        if let Some(Expr::String(string)) = string.clone() {
+          let mut chars = vec![];
+          for c in string.chars() {
+            chars.push(Expr::String(c.to_string()));
+          }
+          Ok(Some(Expr::List(chars)))
+        } else {
+          Err(EvalError {
+            expr: Expr::Call(call.clone()),
+            program: self.clone(),
+            message: format!("Invalid args: [{:?}]", string),
+          })
+        }
+      }
+      Intrinsic::Length => {
+        let list = self.pop();
+        if let Some(Expr::List(list)) = list {
+          Ok(Some(Expr::Integer(list.len() as i64)))
+        } else {
+          Err(EvalError {
+            expr: Expr::Call(call.clone()),
+            program: self.clone(),
+            message: format!("Invalid args: [{:?}]", list),
           })
         }
       }
@@ -684,6 +712,23 @@ impl Program {
           })
         }
       }
+      Intrinsic::Unwrap => {
+        let list = self.stack.pop();
+        if let Some(Expr::List(list)) = list {
+          for expr in list {
+            self.stack.push(expr);
+          }
+          Ok(None)
+        } else {
+          Err(EvalError {
+            expr: Expr::Call(call.clone()),
+            program: self.clone(),
+            message: format!("Invalid args: [{:?}]", list),
+          })
+        }
+      }
+
+      // Control Flow
       Intrinsic::IfElse => {
         let condition = self.pop();
         let block = self.pop();
@@ -806,24 +851,13 @@ impl Program {
 
         Ok(None)
       }
-      Intrinsic::Print => {
-        let a = self.pop();
+      Intrinsic::Halt => Err(EvalError {
+        expr: Expr::Call(call.clone()),
+        program: self.clone(),
+        message: "Halted.".to_string(),
+      }),
 
-        if let Some(a) = a {
-          match a {
-            Expr::String(string) => println!("{}", string),
-            _ => println!("{}", a),
-          }
-
-          Ok(None)
-        } else {
-          Err(EvalError {
-            expr: Expr::Call(call.clone()),
-            program: self.clone(),
-            message: "Invalid args: []".to_string(),
-          })
-        }
-      }
+      // Scope
       Intrinsic::Set => {
         let name = self.pop();
         let value = self.pop();
@@ -831,6 +865,14 @@ impl Program {
         if let (Some(Expr::Call(name)), Some(value)) =
           (name.clone(), value.clone())
         {
+          if Intrinsic::try_from(name.as_str()).is_ok() {
+            return Err(EvalError {
+              expr: Expr::Call(call.clone()),
+              program: self.clone(),
+              message: format!("Cannot set native function: {}", name),
+            });
+          }
+
           self.set_scope_item(&name, value);
           Ok(None)
         } else {
@@ -868,14 +910,121 @@ impl Program {
           })
         }
       }
-      Intrinsic::Halt => Err(EvalError {
-        expr: Expr::Call(call.clone()),
-        program: self.clone(),
-        message: "Halted.".to_string(),
-      }),
+
+      // Stack
       Intrinsic::Collect => {
         Ok(Some(Expr::List(core::mem::take(&mut self.stack))))
       }
+      Intrinsic::Clear => {
+        self.stack.clear();
+        Ok(None)
+      }
+      Intrinsic::Pop => {
+        self.stack.pop();
+        Ok(None)
+      }
+      Intrinsic::Dup => {
+        let a = self.pop();
+
+        if let Some(a) = a {
+          self.stack.push(a.clone());
+          self.stack.push(a);
+
+          Ok(None)
+        } else {
+          Err(EvalError {
+            expr: Expr::Call(call.clone()),
+            program: self.clone(),
+            message: "Not enough items on stack".to_string(),
+          })
+        }
+      }
+      Intrinsic::Swap => {
+        let a = self.pop();
+        let b = self.pop();
+
+        if let (Some(a), Some(b)) = (a, b) {
+          self.stack.push(a);
+          self.stack.push(b);
+
+          Ok(None)
+        } else {
+          Err(EvalError {
+            expr: Expr::Call(call.clone()),
+            program: self.clone(),
+            message: "Not enough items on stack".to_string(),
+          })
+        }
+      }
+      Intrinsic::Rot => {
+        if self.stack.len() < 3 {
+          return Err(EvalError {
+            expr: Expr::Call(call.clone()),
+            program: self.clone(),
+            message: "Not enough items on stack".to_string(),
+          });
+        }
+
+        let len = self.stack.len();
+        self.stack.swap(len - 1, len - 3);
+        self.eval(vec![Expr::Call("swap".to_string())])?;
+
+        Ok(None)
+      }
+
+      // Functions/Data
+      Intrinsic::Call => {
+        let a = self.stack.pop();
+
+        if let Some(Expr::Call(a)) = a {
+          self.eval_expr(Expr::Call(a))
+        } else if let Some(Expr::List(a)) = a {
+          self.eval(a)?;
+          Ok(None)
+        } else {
+          Err(EvalError {
+            expr: Expr::Call(call.clone()),
+            program: self.clone(),
+            message: format!("Invalid args: [{:?}]", a),
+          })
+        }
+      }
+      Intrinsic::CallNative => {
+        let a = self.stack.pop();
+
+        if let Some(Expr::String(a)) = a {
+          if let Ok(intrinsic) = Intrinsic::try_from(a.as_str()) {
+            return self.eval_intrinsic(intrinsic);
+          } else {
+            return Err(EvalError {
+              expr: Expr::Call(call.clone()),
+              program: self.clone(),
+              message: format!("Not a native function: {}", a),
+            });
+          }
+        }
+
+        Err(EvalError {
+          expr: Expr::Call(call.clone()),
+          program: self.clone(),
+          message: format!("Invalid args: [{:?}]", a),
+        })
+      }
+      Intrinsic::Lazy => {
+        let a = self.stack.pop();
+        if let Some(a) = a {
+          Ok(Some(Expr::Lazy(a.into())))
+        } else {
+          Err(EvalError {
+            expr: Expr::Call(call.clone()),
+            program: self.clone(),
+            message: format!("Invalid args: [{:?}]", a),
+          })
+        }
+      }
+      Intrinsic::Fn | Intrinsic::Noop => Ok(None),
+
+      // Type
       Intrinsic::ToString => {
         let a = self.stack.pop().unwrap_or_default();
 
@@ -934,106 +1083,6 @@ impl Program {
         let a = self.stack.pop().unwrap_or_default();
         Ok(Some(Expr::String(a.type_of())))
       }
-      Intrinsic::Clear => {
-        self.stack.clear();
-        Ok(None)
-      }
-      Intrinsic::Pop => {
-        self.stack.pop();
-        Ok(None)
-      }
-      Intrinsic::Dup => {
-        let a = self.pop();
-
-        if let Some(a) = a {
-          self.stack.push(a.clone());
-          self.stack.push(a);
-
-          Ok(None)
-        } else {
-          Err(EvalError {
-            expr: Expr::Call(call.clone()),
-            program: self.clone(),
-            message: "Not enough items on stack".to_string(),
-          })
-        }
-      }
-      Intrinsic::Swap => {
-        let a = self.pop();
-        let b = self.pop();
-
-        if let (Some(a), Some(b)) = (a, b) {
-          self.stack.push(a);
-          self.stack.push(b);
-
-          Ok(None)
-        } else {
-          Err(EvalError {
-            expr: Expr::Call(call.clone()),
-            program: self.clone(),
-            message: "Not enough items on stack".to_string(),
-          })
-        }
-      }
-      Intrinsic::Rot => {
-        if self.stack.len() < 3 {
-          return Err(EvalError {
-            expr: Expr::Call(call.clone()),
-            program: self.clone(),
-            message: "Not enough items on stack".to_string(),
-          });
-        }
-
-        let len = self.stack.len();
-        self.stack.swap(len - 1, len - 3);
-        self.eval(vec![Expr::Call("swap".to_string())])?;
-
-        Ok(None)
-      }
-      Intrinsic::Call => {
-        let a = self.stack.pop();
-
-        if let Some(Expr::Call(a)) = a {
-          self.eval_expr(Expr::Call(a))
-        } else if let Some(Expr::List(a)) = a {
-          self.eval(a)?;
-          Ok(None)
-        } else {
-          Err(EvalError {
-            expr: Expr::Call(call.clone()),
-            program: self.clone(),
-            message: format!("Invalid args: [{:?}]", a),
-          })
-        }
-      }
-      Intrinsic::Unwrap => {
-        let list = self.stack.pop();
-        if let Some(Expr::List(list)) = list {
-          for expr in list {
-            self.stack.push(expr);
-          }
-          Ok(None)
-        } else {
-          Err(EvalError {
-            expr: Expr::Call(call.clone()),
-            program: self.clone(),
-            message: format!("Invalid args: [{:?}]", list),
-          })
-        }
-      }
-      Intrinsic::Lazy => {
-        let a = self.stack.pop();
-        if let Some(a) = a {
-          Ok(Some(Expr::Lazy(a.into())))
-        } else {
-          Err(EvalError {
-            expr: Expr::Call(call.clone()),
-            program: self.clone(),
-            message: format!("Invalid args: [{:?}]", a),
-          })
-        }
-      }
-      Intrinsic::Fn | Intrinsic::Noop => Ok(None),
     }
   }
 
