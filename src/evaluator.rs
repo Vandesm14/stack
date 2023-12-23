@@ -1,12 +1,13 @@
 use crate::{Expr, Intrinsic};
 use core::fmt;
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 
 #[derive(Debug, Clone, Default)]
 pub struct Program {
   pub stack: Vec<Expr>,
   pub scopes: Vec<HashMap<String, Expr>>,
   pub scope_trunc: Option<usize>,
+  pub loaded_files: HashSet<String>,
 }
 
 impl fmt::Display for Program {
@@ -25,7 +26,6 @@ impl fmt::Display for Program {
     writeln!(f,)?;
 
     if !self.scopes.is_empty() {
-      writeln!(f, "Scope soft-truncate: {:?} items", self.scope_trunc)?;
       writeln!(f, "Scope:")?;
 
       let layers = self.scopes.len();
@@ -68,6 +68,7 @@ impl Program {
       stack: vec![],
       scopes: vec![HashMap::new()],
       scope_trunc: None,
+      loaded_files: HashSet::new(),
     }
   }
 
@@ -359,7 +360,10 @@ impl Program {
         if let Some(Expr::String(path)) = path {
           let contents = std::fs::read_to_string(path.clone());
           match contents {
-            Ok(contents) => Ok(Some(Expr::String(contents))),
+            Ok(contents) => {
+              self.loaded_files.insert(path);
+              Ok(Some(Expr::String(contents)))
+            }
             Err(err) => Err(EvalError {
               expr: Expr::Call(call.clone()),
               program: self.clone(),
@@ -1011,6 +1015,8 @@ impl Program {
     // TODO: Store each scope & stack op as a transaction and just rollback atomically if something happens instead of cloning
     self.stack = clone.stack;
     self.scopes = clone.scopes;
+    self.scope_trunc = clone.scope_trunc;
+    self.loaded_files = clone.loaded_files;
 
     Ok(())
   }

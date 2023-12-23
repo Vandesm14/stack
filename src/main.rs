@@ -1,12 +1,14 @@
 use std::fs;
 use std::io::stdout;
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 
 use clap::{Parser, Subcommand};
 use crossterm::terminal::{Clear, ClearType};
 use crossterm::{cursor, execute};
 use notify::event::AccessKind;
-use notify::{Config, EventKind, RecommendedWatcher, RecursiveMode, Watcher};
+use notify::{
+  Config, EventKind, INotifyWatcher, RecommendedWatcher, RecursiveMode, Watcher,
+};
 
 use rustyline::error::ReadlineError;
 use rustyline::DefaultEditor;
@@ -70,15 +72,15 @@ fn repl() -> rustyline::Result<()> {
   Ok(())
 }
 
-fn eval_file(path: PathBuf, is_watching: bool) {
+fn eval_file(path: PathBuf, watcher: Option<&mut INotifyWatcher>) {
   let mut stdout = stdout();
 
-  match fs::read(path) {
+  match fs::read(path.clone()) {
     Ok(contents) => {
       let contents = String::from_utf8(contents).unwrap();
       let mut program = Program::new().with_core().unwrap();
 
-      if is_watching {
+      if watcher.is_some() {
         execute!(stdout, Clear(ClearType::All)).unwrap();
         execute!(stdout, cursor::MoveTo(0, 0)).unwrap();
       }
@@ -86,9 +88,21 @@ fn eval_file(path: PathBuf, is_watching: bool) {
       let result = program.eval_string(contents.as_str());
       eval_string(&program, result);
 
-      if is_watching {
+      if let Some(watcher) = watcher {
         println!();
-        println!("Watching file for changes...");
+        println!("Watching files for changes...");
+
+        println!(" - {}", path.display());
+        for path in program
+          .loaded_files
+          .iter()
+          .filter(|p| p.ends_with(".stack"))
+        {
+          println!(" - {}", path);
+          watcher
+            .watch(Path::new(path), RecursiveMode::NonRecursive)
+            .unwrap();
+        }
       }
     }
     Err(err) => {
@@ -109,19 +123,19 @@ fn main() {
           RecommendedWatcher::new(tx, Config::default()).unwrap();
         watcher.watch(&path, RecursiveMode::NonRecursive).unwrap();
 
-        eval_file(path.clone(), true);
+        eval_file(path.clone(), Some(&mut watcher));
         for res in rx {
           match res {
             Ok(event) => {
               if let EventKind::Access(AccessKind::Close(_)) = event.kind {
-                eval_file(path.clone(), true);
+                eval_file(path.clone(), Some(&mut watcher));
               }
             }
             Err(error) => eprintln!("Error: {error:?}"),
           }
         }
       }
-      false => eval_file(path, false),
+      false => eval_file(path, None),
     },
     None => {
       println!("Running REPL");
