@@ -498,7 +498,7 @@ impl Program {
         }
       }
       // Pops the last value of a list onto the stack
-      Intrinsic::Last => {
+      Intrinsic::ListPop => {
         let list = self.pop();
         if let Some(Expr::List(list)) = list {
           let mut list = list;
@@ -1589,7 +1589,7 @@ mod tests {
     #[test]
     fn popping_from_list() {
       let mut program = Program::new();
-      program.eval_string("(1 2) last").unwrap();
+      program.eval_string("(1 2) list-pop").unwrap();
       assert_eq!(
         program.stack,
         vec![Expr::List(vec![Expr::Integer(1)]), Expr::Integer(2)]

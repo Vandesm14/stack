@@ -28,7 +28,7 @@ pub enum Intrinsic {
   Nth,
   Join,
   Insert,
-  Last,
+  ListPop,
   Concat,
   Unwrap,
 
@@ -96,7 +96,7 @@ impl TryFrom<&str> for Intrinsic {
       "nth" => Ok(Self::Nth),
       "join" => Ok(Self::Join),
       "insert" => Ok(Self::Insert),
-      "last" => Ok(Self::Last),
+      "list-pop" => Ok(Self::ListPop),
       "concat" => Ok(Self::Concat),
       "unwrap" => Ok(Self::Unwrap),
 
@@ -171,7 +171,7 @@ impl Intrinsic {
       Self::Nth => "nth",
       Self::Join => "join",
       Self::Insert => "insert",
-      Self::Last => "last",
+      Self::ListPop => "list-pop",
       Self::Concat => "concat",
       Self::Unwrap => "unwrap",
 
