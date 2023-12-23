@@ -5,7 +5,8 @@ use std::collections::HashMap;
 #[derive(Debug, Clone, Default)]
 pub struct Program {
   pub stack: Vec<Expr>,
-  pub scope: Vec<HashMap<String, Expr>>,
+  pub scopes: Vec<HashMap<String, Expr>>,
+  pub scope_trunc: Option<usize>,
 }
 
 impl fmt::Display for Program {
@@ -23,11 +24,12 @@ impl fmt::Display for Program {
 
     writeln!(f,)?;
 
-    if !self.scope.is_empty() {
+    if !self.scopes.is_empty() {
+      writeln!(f, "Scope soft-truncate: {:?} items", self.scope_trunc)?;
       writeln!(f, "Scope:")?;
 
-      let layers = self.scope.len();
-      for (layer_i, layer) in self.scope.iter().enumerate() {
+      let layers = self.scopes.len();
+      for (layer_i, layer) in self.scopes.iter().enumerate() {
         let items = layer.len();
         writeln!(f, "Layer {}:", layer_i)?;
         for (item_i, (key, value)) in layer.iter().enumerate() {
@@ -64,7 +66,8 @@ impl Program {
   pub fn new() -> Self {
     Self {
       stack: vec![],
-      scope: vec![HashMap::new()],
+      scopes: vec![HashMap::new()],
+      scope_trunc: None,
     }
   }
 
@@ -79,8 +82,47 @@ impl Program {
     self.stack.pop()
   }
 
+  fn push(&mut self, expr: Expr) {
+    let expr = match expr.clone() {
+      Expr::List(list) => Expr::List(
+        list
+          .into_iter()
+          .enumerate()
+          .map(|(i, item)| {
+            if i == 0 {
+              if let Expr::FnScope(scope) = item {
+                if scope.is_none() {
+                  let scope_index = self.scopes.len() - 1;
+                  let scope_index = if expr.contains_block() {
+                    scope_index + 1
+                  } else {
+                    scope_index
+                  };
+                  return Expr::FnScope(Some(scope_index));
+                }
+              }
+            }
+
+            item
+          })
+          .collect(),
+      ),
+      Expr::FnScope(scope) => {
+        if scope.is_none() {
+          let scope_index = self.scopes.len() - 1;
+          Expr::FnScope(Some(scope_index))
+        } else {
+          Expr::FnScope(scope)
+        }
+      }
+      _ => expr,
+    };
+
+    self.stack.push(expr);
+  }
+
   fn scope_item(&self, symbol: &str) -> Option<Expr> {
-    let len = self.scope.len();
+    let len = self.scopes.len();
     let is_scoped = symbol.starts_with('@');
     let symbol = if is_scoped {
       symbol.replace('@', format!("__{}@", len - 1).as_str())
@@ -88,7 +130,8 @@ impl Program {
       symbol.to_owned()
     };
 
-    for layer in self.scope.iter().rev() {
+    let take = self.scope_trunc.unwrap_or(self.scopes.len() - 1) + 1;
+    for layer in self.scopes.iter().take(take).rev() {
       if let Some(item) = layer.get(&symbol) {
         return Some(item.clone());
       }
@@ -98,7 +141,8 @@ impl Program {
   }
 
   fn scope_item_layer(&self, symbol: &str) -> Option<usize> {
-    for (layer_i, layer) in self.scope.iter().rev().enumerate() {
+    let take = self.scope_trunc.unwrap_or(self.scopes.len() - 1) + 1;
+    for (layer_i, layer) in self.scopes.iter().take(take).rev().enumerate() {
       if layer.contains_key(symbol) {
         return Some(layer_i);
       }
@@ -108,8 +152,9 @@ impl Program {
   }
 
   fn set_scope_item(&mut self, symbol: &str, value: Expr) {
-    let len = self.scope.len();
-    if let Some(layer) = self.scope.last_mut() {
+    let len = self.scopes.len();
+    let last = self.scope_trunc.unwrap_or(self.scopes.len()).min(len);
+    if let Some(layer) = self.scopes.get_mut(last - 1) {
       let is_scoped = symbol.starts_with('@');
       let symbol = if is_scoped {
         symbol.replace('@', format!("__{}@", len - 1).as_str())
@@ -127,16 +172,16 @@ impl Program {
     let layer = self.scope_item_layer(symbol);
 
     if let Some(layer) = layer {
-      self.scope[layer].remove(symbol);
+      self.scopes[layer].remove(symbol);
     }
   }
 
   fn push_scope(&mut self) {
-    self.scope.push(HashMap::new());
+    self.scopes.push(HashMap::new());
   }
 
   fn pop_scope(&mut self) {
-    self.scope.pop();
+    self.scopes.pop();
   }
 
   fn eval_intrinsic(
@@ -469,7 +514,7 @@ impl Program {
           let mut list = list;
           let item = list.pop();
           if let Some(item) = item {
-            self.stack.push(Expr::List(list));
+            self.push(Expr::List(list));
             Ok(Some(item))
           } else {
             Ok(None)
@@ -503,7 +548,7 @@ impl Program {
         let list = self.stack.pop();
         if let Some(Expr::List(list)) = list {
           for expr in list {
-            self.stack.push(expr);
+            self.push(expr);
           }
           Ok(None)
         } else {
@@ -714,8 +759,8 @@ impl Program {
         let a = self.pop();
 
         if let Some(a) = a {
-          self.stack.push(a.clone());
-          self.stack.push(a);
+          self.push(a.clone());
+          self.push(a);
 
           Ok(None)
         } else {
@@ -731,8 +776,8 @@ impl Program {
         let b = self.pop();
 
         if let (Some(a), Some(b)) = (a, b) {
-          self.stack.push(a);
-          self.stack.push(b);
+          self.push(a);
+          self.push(b);
 
           Ok(None)
         } else {
@@ -763,18 +808,32 @@ impl Program {
       Intrinsic::Call => {
         let a = self.stack.pop();
 
-        if let Some(Expr::Call(a)) = a {
-          self.eval_expr(Expr::Call(a))
-        } else if let Some(Expr::List(a)) = a {
-          self.eval(a)?;
-          Ok(None)
-        } else {
-          Err(EvalError {
-            expr: Expr::Call(call.clone()),
-            program: self.clone(),
-            message: format!("Invalid args: [{:?}]", a),
-          })
+        if let Some(a) = a.clone() {
+          if let Expr::Call(a) = a {
+            return self.eval_expr(Expr::Call(a));
+          } else if let Expr::List(list) = a.clone() {
+            if let Some(scope_layer) = a.function_scope() {
+              let prev_layer = self.scope_trunc;
+              self.scope_trunc = Some(scope_layer + 1);
+              match self.eval(list) {
+                Ok(_) => {
+                  self.scope_trunc = prev_layer;
+                  return Ok(None);
+                }
+                Err(err) => return Err(err),
+              }
+            } else {
+              self.eval(list)?;
+              return Ok(None);
+            }
+          }
         }
+
+        Err(EvalError {
+          expr: Expr::Call(call.clone()),
+          program: self.clone(),
+          message: format!("Invalid args: [{:?}]", a),
+        })
       }
       Intrinsic::CallNative => {
         let a = self.stack.pop();
@@ -809,7 +868,7 @@ impl Program {
           })
         }
       }
-      Intrinsic::Fn | Intrinsic::Noop => Ok(None),
+      Intrinsic::Noop => Ok(None),
 
       // Type
       Intrinsic::ToString => {
@@ -879,18 +938,14 @@ impl Program {
     }
 
     if let Some(value) = self.scope_item(&call) {
-      if let Expr::List(list) = value.clone() {
-        if let Some(Expr::Call(string)) = list.first() {
-          if string == "fn" {
-            match self.eval(vec![
-              Expr::Lazy(Expr::Call(call.clone()).into()),
-              Expr::Call("get".to_string()),
-              Expr::Call("call".to_string()),
-            ]) {
-              Ok(_) => return Ok(None),
-              Err(err) => return Err(err),
-            }
-          }
+      if value.is_function() {
+        match self.eval(vec![
+          Expr::Lazy(Expr::Call(call.clone()).into()),
+          Expr::Call("get".to_string()),
+          Expr::Call("call".to_string()),
+        ]) {
+          Ok(_) => return Ok(None),
+          Err(err) => return Err(err),
         }
       }
 
@@ -930,6 +985,7 @@ impl Program {
         self.pop_scope();
         Ok(None)
       }
+      Expr::FnScope(_) => Ok(None),
       _ => Ok(Some(expr)),
     }
   }
@@ -948,13 +1004,13 @@ impl Program {
       let result = clone.eval_expr(expr)?;
 
       if let Some(expr) = result {
-        clone.stack.push(expr);
+        clone.push(expr);
       }
     }
 
     // TODO: Store each scope & stack op as a transaction and just rollback atomically if something happens instead of cloning
     self.stack = clone.stack;
-    self.scope = clone.scope;
+    self.scopes = clone.scopes;
 
     Ok(())
   }
@@ -1278,7 +1334,7 @@ mod tests {
       let mut program = Program::new();
       program.eval_string("1 'a set").unwrap();
       assert_eq!(
-        program.scope,
+        program.scopes,
         vec![HashMap::from_iter(vec![(
           "a".to_string(),
           Expr::Integer(1)
@@ -1304,7 +1360,7 @@ mod tests {
     fn removing_variables() {
       let mut program = Program::new();
       program.eval_string("1 'a set 'a unset").unwrap();
-      assert_eq!(program.scope, vec![HashMap::new()]);
+      assert_eq!(program.scopes, vec![HashMap::new()]);
     }
 
     #[test]
@@ -1341,7 +1397,7 @@ mod tests {
       assert_eq!(
         program.stack,
         vec![Expr::List(vec![
-          Expr::Call("fn".to_string()),
+          Expr::FnScope(Some(0)),
           Expr::Integer(1),
           Expr::Integer(2),
           Expr::Call("+".to_string())
@@ -1359,7 +1415,7 @@ mod tests {
         program.stack,
         vec![
           Expr::List(vec![
-            Expr::Call("fn".to_string()),
+            Expr::FnScope(Some(0)),
             Expr::Integer(1),
             Expr::Integer(2),
             Expr::Call("+".to_string())
@@ -1376,7 +1432,7 @@ mod tests {
       fn scope_pop() {
         let mut program = Program::new();
         program.eval_string("{1 'a set}").unwrap();
-        assert_eq!(program.scope, vec![HashMap::new()]);
+        assert_eq!(program.scopes, vec![HashMap::new()]);
       }
 
       #[test]
@@ -1384,7 +1440,7 @@ mod tests {
         let mut program = Program::new();
         program.eval_string("{1 'a set").unwrap();
         assert_eq!(
-          program.scope,
+          program.scopes,
           vec![
             // Main Scope
             HashMap::new(),
@@ -1399,7 +1455,7 @@ mod tests {
         let mut program = Program::new();
         program.eval_string("1 'a set {2 'a set").unwrap();
         assert_eq!(
-          program.scope,
+          program.scopes,
           vec![
             HashMap::from_iter(vec![("a".to_string(), Expr::Integer(1))]),
             HashMap::from_iter(vec![("a".to_string(), Expr::Integer(2))])
@@ -1412,7 +1468,7 @@ mod tests {
         let mut program = Program::new();
         program.eval_string("{1 'a set 2 'a set").unwrap();
         assert_eq!(
-          program.scope,
+          program.scopes,
           vec![
             HashMap::new(),
             HashMap::from_iter(vec![("a".to_string(), Expr::Integer(2))])
@@ -1499,7 +1555,7 @@ mod tests {
         vec![Expr::Integer(1), Expr::Integer(2), Expr::Integer(3)]
       );
       assert_eq!(
-        program.scope,
+        program.scopes,
         vec![HashMap::from_iter(vec![(
           "a".to_string(),
           Expr::List(vec![

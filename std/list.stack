@@ -66,9 +66,8 @@
   'list get
   len 'length set
 
-
   ;; Create a function to get the next item and call the block
-  '(
+  '(fn
     ;; Duplicate the last two items of the stack [list, length]
     dup2
 

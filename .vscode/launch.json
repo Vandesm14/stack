@@ -9,7 +9,7 @@
       "request": "launch",
       "name": "Debug",
       "program": "${workspaceFolder}/target/debug/stack",
-      "args": [],
+      "args": ["run", "test.stack"],
       "cwd": "${workspaceFolder}"
     }
   ]

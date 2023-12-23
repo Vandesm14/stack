@@ -12,6 +12,7 @@ pub enum Expr {
 
   Lazy(Box<Expr>),
   Call(String),
+  FnScope(Option<usize>),
 
   /// `(1 2 3)` is a list
   List(Vec<Expr>),
@@ -37,6 +38,7 @@ impl fmt::Display for Expr {
 
       Expr::Lazy(expr) => write!(f, "lazy({})", expr),
       Expr::Call(s) => write!(f, "{}", s),
+      Expr::FnScope(i) => write!(f, "fn({:?})", i),
 
       Expr::List(l) => write!(
         f,
@@ -76,6 +78,7 @@ impl PartialEq for Expr {
 
       (Expr::Lazy(a), Expr::Lazy(b)) => a == b,
       (Expr::Call(a), Expr::Call(b)) => a == b,
+      (Expr::FnScope(a), Expr::FnScope(b)) => a == b,
 
       (Expr::List(a), Expr::List(b)) => a == b,
 
@@ -119,6 +122,7 @@ impl PartialOrd for Expr {
 
       (Expr::Lazy(a), Expr::Lazy(b)) => a.partial_cmp(b),
       (Expr::Call(a), Expr::Call(b)) => a.partial_cmp(b),
+      (Expr::FnScope(a), Expr::FnScope(b)) => a.partial_cmp(b),
 
       (Expr::List(a), Expr::List(b)) => a.partial_cmp(b),
 
@@ -164,6 +168,7 @@ impl Expr {
 
       Expr::Lazy(expr) => expr.type_of(),
       Expr::Call(_) => "call".to_owned(),
+      Expr::FnScope(_) => "fn".to_owned(),
 
       Expr::List(_) => "list".to_owned(),
 
@@ -172,6 +177,36 @@ impl Expr {
 
       Expr::Nil => self.to_string(),
     }
+  }
+
+  pub fn is_function(&self) -> bool {
+    if let Expr::List(list) = self {
+      if let Expr::FnScope(_) = list.first().unwrap_or(&Expr::Nil) {
+        return true;
+      }
+    }
+
+    false
+  }
+
+  pub fn function_scope(&self) -> Option<usize> {
+    if let Expr::List(list) = self {
+      if let Expr::FnScope(scope) = list.first().unwrap_or(&Expr::Nil) {
+        return *scope;
+      }
+    }
+
+    None
+  }
+
+  pub fn contains_block(&self) -> bool {
+    if let Expr::List(list) = self {
+      if let Expr::ScopePush = list.get(1).unwrap_or(&Expr::Nil) {
+        return true;
+      }
+    }
+
+    false
   }
 }
 
@@ -193,6 +228,7 @@ pub fn parse(tokens: Vec<Token>) -> Vec<Expr> {
       Token::Call(s) => match s.as_str() {
         "true" => Some(Expr::Boolean(true)),
         "false" => Some(Expr::Boolean(false)),
+        "fn" => Some(Expr::FnScope(None)),
         _ => Some(Expr::Call(s)),
       },
       Token::Nil => Some(Expr::Nil),

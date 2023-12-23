@@ -55,7 +55,6 @@ pub enum Intrinsic {
   Call,
   CallNative,
   Lazy,
-  Fn,
   Noop,
 
   // Type
@@ -124,7 +123,6 @@ impl TryFrom<&str> for Intrinsic {
       "call" => Ok(Self::Call),
       "call_native" => Ok(Self::CallNative),
       "lazy" => Ok(Self::Lazy),
-      "fn" => Ok(Self::Fn),
 
       // Type
       "tostring" => Ok(Self::ToString),
@@ -200,7 +198,6 @@ impl Intrinsic {
       Self::Call => "call",
       Self::CallNative => "call_native",
       Self::Lazy => "lazy",
-      Self::Fn => "fn",
       Self::Noop => "noop",
 
       // Type
