@@ -36,9 +36,17 @@ impl fmt::Display for Expr {
       Expr::String(s) => write!(f, "\"{}\"", s),
       Expr::Boolean(b) => write!(f, "{}", b),
 
-      Expr::Lazy(expr) => write!(f, "lazy({})", expr),
+      Expr::Lazy(expr) => write!(f, "'{}", expr),
       Expr::Call(s) => write!(f, "{}", s),
-      Expr::FnScope(i) => write!(f, "fn({:?})", i),
+      Expr::FnScope(i) => write!(
+        f,
+        "fn{}",
+        if i.is_some() {
+          format!("({})", i.unwrap())
+        } else {
+          "".to_owned()
+        }
+      ),
 
       Expr::List(l) => write!(
         f,
