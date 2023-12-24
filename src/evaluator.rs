@@ -34,7 +34,9 @@ impl fmt::Display for Program {
       for (layer_i, layer) in self.scopes.iter().enumerate() {
         let items = layer.len();
         writeln!(f, "Layer {}:", layer_i)?;
-        for (item_i, (key, value)) in layer.iter().sorted().enumerate() {
+        for (item_i, (key, value)) in
+          layer.iter().sorted_by_key(|(s, _)| *s).enumerate()
+        {
           if item_i == items - 1 && layer_i == layers - 1 {
             write!(f, " + {}: {}", key, value)?;
           } else {
@@ -935,7 +937,7 @@ impl Program {
       }
       Intrinsic::TypeOf => {
         let a = self.stack.pop().unwrap_or_default();
-        Ok(Some(Expr::String(a.type_of())))
+        Ok(Some(Expr::String(a.type_of().as_str().to_string())))
       }
     }
   }
