@@ -539,29 +539,6 @@ impl fmt::Display for Type {
   }
 }
 
-pub trait Wrap {
-  fn wrap(self, min: Self, max: Self) -> Self;
-}
-
-impl Wrap for i64 {
-  #[inline]
-  fn wrap(self, min: Self, max: Self) -> Self {
-    if self < min {
-      max - (min - self) % (max - min)
-    } else {
-      min + (self - min) % (max - min)
-    }
-  }
-}
-
-impl Wrap for f64 {
-  #[inline]
-  fn wrap(self, min: Self, max: Self) -> Self {
-    if self < min {
-      max - (min - self) % (max - min)
-    } else {
-      min + (self - min) % (max - min)
-    }
 #[cfg(test)]
 mod test {
   use super::*;
