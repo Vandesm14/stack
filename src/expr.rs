@@ -149,6 +149,8 @@ impl Expr {
         }
       }
 
+      Self::String(x) => x.parse().ok().map(Self::Integer),
+
       _ => None,
     }
   }
@@ -157,6 +159,8 @@ impl Expr {
     match self {
       Self::Integer(x) => Some(Self::Float(*x as f64)),
       x @ Self::Float(_) => Some(x.clone()),
+
+      Self::String(x) => x.parse().ok().map(Self::Integer),
 
       _ => None,
     }
@@ -462,6 +466,102 @@ impl fmt::Display for Display<'_> {
   }
 }
 
+#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
+pub enum Type {
+  Nil,
+
+  Boolean,
+  Integer,
+  Float,
+
+  Pointer,
+
+  List(Vec<Self>),
+  String,
+
+  Call,
+
+  FnScope,
+  ScopePush,
+  ScopePop,
+
+  Any,
+  Set(Vec<Self>),
+}
+
+impl fmt::Display for Type {
+  fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+    match self {
+      Self::Nil => f.write_str("nil"),
+
+      Self::Boolean => f.write_str("boolean"),
+      Self::Integer => f.write_str("integer"),
+      Self::Float => f.write_str("float"),
+
+      Self::Pointer => f.write_str("pointer"),
+
+      Self::List(list) => {
+        f.write_str("(")?;
+
+        iter::once("")
+          .chain(iter::repeat(" "))
+          .zip(list.iter())
+          .try_for_each(|(sep, ty)| {
+            f.write_str(sep)?;
+            fmt::Display::fmt(ty, f)
+          })?;
+
+        f.write_str(")")
+      }
+      Self::String => f.write_str("string"),
+
+      Self::Call => f.write_str("call"),
+
+      Self::FnScope => f.write_str("fn"),
+      Self::ScopePush => f.write_str("scope_push"),
+      Self::ScopePop => f.write_str("scope_pop"),
+
+      Self::Any => f.write_str("any"),
+      Self::Set(set) => {
+        f.write_str("[")?;
+
+        iter::once("")
+          .chain(iter::repeat(" "))
+          .zip(set.iter())
+          .try_for_each(|(sep, ty)| {
+            f.write_str(sep)?;
+            fmt::Display::fmt(ty, f)
+          })?;
+
+        f.write_str("]")
+      }
+    }
+  }
+}
+
+pub trait Wrap {
+  fn wrap(self, min: Self, max: Self) -> Self;
+}
+
+impl Wrap for i64 {
+  #[inline]
+  fn wrap(self, min: Self, max: Self) -> Self {
+    if self < min {
+      max - (min - self) % (max - min)
+    } else {
+      min + (self - min) % (max - min)
+    }
+  }
+}
+
+impl Wrap for f64 {
+  #[inline]
+  fn wrap(self, min: Self, max: Self) -> Self {
+    if self < min {
+      max - (min - self) % (max - min)
+    } else {
+      min + (self - min) % (max - min)
+    }
 #[cfg(test)]
 mod test {
   use super::*;
