@@ -154,7 +154,7 @@ impl Expr {
       Self::Integer(x) => Some(Self::Float(*x as f64)),
       x @ Self::Float(_) => Some(x.clone()),
 
-      Self::String(x) => x.parse().ok().map(Self::Integer),
+      Self::String(x) => x.parse().ok().map(Self::Float),
 
       _ => None,
     }
@@ -452,17 +452,6 @@ pub trait Wrap {
 }
 
 impl Wrap for i64 {
-  #[inline]
-  fn wrap(self, min: Self, max: Self) -> Self {
-    if self < min {
-      max - (min - self) % (max - min)
-    } else {
-      min + (self - min) % (max - min)
-    }
-  }
-}
-
-impl Wrap for f64 {
   #[inline]
   fn wrap(self, min: Self, max: Self) -> Self {
     if self < min {
