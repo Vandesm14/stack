@@ -23,6 +23,6 @@ mod tests {
 
   #[test]
   fn test() {
-    assert!(run().is_ok());
+    run().unwrap();
   }
 }
