@@ -368,8 +368,8 @@ impl fmt::Display for Expr {
           None => Ok(()),
         }
       }
-      Self::ScopePush => f.write_str("scope_push"),
-      Self::ScopePop => f.write_str("scope_pop"),
+      Self::ScopePush => f.write_str("{"),
+      Self::ScopePop => f.write_str("}"),
     }
   }
 }
