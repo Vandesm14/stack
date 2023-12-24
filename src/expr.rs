@@ -1,5 +1,7 @@
 use core::{cmp::Ordering, fmt, iter, num::FpCategory};
 
+use itertools::Itertools;
+
 #[derive(Debug, Clone, Default)]
 pub enum Expr {
   #[default]
@@ -68,7 +70,9 @@ impl Expr {
 
       Self::Pointer(_) => Type::Pointer,
 
-      Self::List(_) => Type::List,
+      Self::List(list) => {
+        Type::List(list.iter().map(|expr| expr.type_of()).collect_vec())
+      }
       Self::String(_) => Type::String,
 
       Self::Lazy(x) => x.type_of(),
@@ -89,6 +93,14 @@ impl Expr {
       x @ Self::Pointer(_) => Some(x.clone()).zip(other.to_pointer()),
 
       _ => None,
+    }
+  }
+
+  pub fn coerce_same_float(&self, other: &Self) -> Option<(Self, Self)> {
+    match (self, other) {
+      (lhs @ Self::Float(_), rhs) => Some(lhs.clone()).zip(rhs.to_float()),
+      (lhs, rhs @ Self::Float(_)) => lhs.to_float().zip(Some(rhs.clone())),
+      _ => self.coerce_same(other),
     }
   }
 
@@ -131,6 +143,8 @@ impl Expr {
         }
       }
 
+      Self::String(x) => x.parse().ok().map(Self::Integer),
+
       _ => None,
     }
   }
@@ -139,6 +153,8 @@ impl Expr {
     match self {
       Self::Integer(x) => Some(Self::Float(*x as f64)),
       x @ Self::Float(_) => Some(x.clone()),
+
+      Self::String(x) => x.parse().ok().map(Self::Integer),
 
       _ => None,
     }
@@ -358,7 +374,7 @@ impl fmt::Display for Expr {
   }
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
+#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub enum Type {
   Nil,
 
@@ -368,7 +384,7 @@ pub enum Type {
 
   Pointer,
 
-  List,
+  List(Vec<Self>),
   String,
 
   Call,
@@ -376,34 +392,83 @@ pub enum Type {
   FnScope,
   ScopePush,
   ScopePop,
+
+  Any,
+  Set(Vec<Self>),
 }
 
-impl Type {
-  pub const fn as_str(&self) -> &'static str {
+impl fmt::Display for Type {
+  fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
     match self {
-      Self::Nil => "nil",
+      Self::Nil => f.write_str("nil"),
 
-      Self::Boolean => "boolean",
-      Self::Integer => "integer",
-      Self::Float => "float",
+      Self::Boolean => f.write_str("boolean"),
+      Self::Integer => f.write_str("integer"),
+      Self::Float => f.write_str("float"),
 
-      Self::Pointer => "pointer",
+      Self::Pointer => f.write_str("pointer"),
 
-      Self::List => "list",
-      Self::String => "string",
+      Self::List(list) => {
+        f.write_str("(")?;
 
-      Self::Call => "call",
+        iter::once("")
+          .chain(iter::repeat(" "))
+          .zip(list.iter())
+          .try_for_each(|(sep, ty)| {
+            f.write_str(sep)?;
+            fmt::Display::fmt(ty, f)
+          })?;
 
-      Self::FnScope => "fn",
-      Self::ScopePush => "scope_push",
-      Self::ScopePop => "scope_pop",
+        f.write_str(")")
+      }
+      Self::String => f.write_str("string"),
+
+      Self::Call => f.write_str("call"),
+
+      Self::FnScope => f.write_str("fn"),
+      Self::ScopePush => f.write_str("scope_push"),
+      Self::ScopePop => f.write_str("scope_pop"),
+
+      Self::Any => f.write_str("any"),
+      Self::Set(set) => {
+        f.write_str("[")?;
+
+        iter::once("")
+          .chain(iter::repeat(" "))
+          .zip(set.iter())
+          .try_for_each(|(sep, ty)| {
+            f.write_str(sep)?;
+            fmt::Display::fmt(ty, f)
+          })?;
+
+        f.write_str("]")
+      }
     }
   }
 }
 
-impl fmt::Display for Type {
+pub trait Wrap {
+  fn wrap(self, min: Self, max: Self) -> Self;
+}
+
+impl Wrap for i64 {
   #[inline]
-  fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-    f.write_str(self.as_str())
+  fn wrap(self, min: Self, max: Self) -> Self {
+    if self < min {
+      max - (min - self) % (max - min)
+    } else {
+      min + (self - min) % (max - min)
+    }
+  }
+}
+
+impl Wrap for f64 {
+  #[inline]
+  fn wrap(self, min: Self, max: Self) -> Self {
+    if self < min {
+      max - (min - self) % (max - min)
+    } else {
+      min + (self - min) % (max - min)
+    }
   }
 }
