@@ -533,8 +533,6 @@ impl Program {
           },
         )?;
 
-        dbg!(&args);
-
         let result = match arity {
           0 => unsafe { syscalls::raw::syscall0(sysno) },
           1 => unsafe { syscalls::raw::syscall1(sysno, args[0]) },
