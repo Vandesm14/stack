@@ -2,3 +2,5 @@
 
 "Hello, World!" eprintln
 1 println
+
+;; 0 exit
