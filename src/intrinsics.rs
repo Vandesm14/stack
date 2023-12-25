@@ -1,6 +1,8 @@
 use std::fmt;
 
-#[derive(Debug, Copy, Clone, PartialEq)]
+use enum_iterator::Sequence;
+
+#[derive(Debug, Copy, Clone, PartialEq, Sequence)]
 pub enum Intrinsic {
   // Arithmetic
   Add,
@@ -134,6 +136,7 @@ impl TryFrom<&str> for Intrinsic {
       "call" => Ok(Self::Call),
       "call_native" => Ok(Self::CallNative),
       "lazy" => Ok(Self::Lazy),
+      "noop" => Ok(Self::Noop),
 
       // Type
       "toboolean" => Ok(Self::ToBoolean),
@@ -233,6 +236,27 @@ impl Intrinsic {
       Self::ToString => "tostring",
       Self::ToCall => "tocall",
       Self::TypeOf => "typeof",
+    }
+  }
+}
+
+#[cfg(test)]
+mod test {
+  use super::*;
+
+  #[test]
+  fn try_from_matches_as_str() {
+    for intrinsic in enum_iterator::all::<Intrinsic>() {
+      if let Intrinsic::Syscall { arity } = intrinsic {
+        if arity > 6 {
+          continue;
+        }
+      }
+
+      assert_eq!(
+        Ok(intrinsic.as_str()),
+        Intrinsic::try_from(intrinsic.as_str()).map(|i| i.as_str()),
+      );
     }
   }
 }
