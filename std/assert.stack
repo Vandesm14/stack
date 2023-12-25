@@ -1,0 +1,7 @@
+'(fn
+  swap
+  '(pop)
+  '([explode] ["assertion failed: " explode] [swap] [concat "" join] panic)
+  '(true !=)
+  ifelse
+) 'assert set
