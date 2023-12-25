@@ -519,7 +519,7 @@ mod test {
   #[test_case(Expr::Float(f64::MAX) => Some(Expr::Float(f64::MAX)))]
   #[test_case(Expr::Float(f64::NEG_INFINITY) => Some(Expr::Float(f64::NEG_INFINITY)))]
   #[test_case(Expr::Float(f64::INFINITY) => Some(Expr::Float(f64::INFINITY)))]
-  // NOTE: NaN are never equal, see `to_float_nan`.
+  // NOTE: NaN cannot be equality checked.
   // #[test_case(Expr::Float(f64::NAN) => Some(Expr::Float(f64::NAN)))]
   #[test_case(Expr::Float(0.0) => Some(Expr::Float(0.0)))]
   #[test_case(Expr::Float(1.0) => Some(Expr::Float(1.0)))]
