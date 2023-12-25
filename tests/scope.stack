@@ -1,0 +1,22 @@
+"std/linux-x86_64.stack" import
+"std/assert.stack" import
+
+0 'a set
+
+'(fn
+  'a get
+  1 +
+  'a set
+) 'add-one-to-a set
+
+'(fn {
+  2 'a set
+
+  add-one-to-a
+
+  ;; ("hello:" a) " " join print
+}) 'hello set
+
+hello
+
+a 1 = "a is not 1" assert
