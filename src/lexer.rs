@@ -25,6 +25,7 @@ pub enum Token {
 enum State {
   Start,
   String,
+  StringEscape,
   Integer,
   Float,
   Call,
@@ -129,10 +130,35 @@ pub fn lex(context: &mut Context, input: &str) -> Vec<Token> {
             i += 1;
             State::Start
           }
+          '\\' => {
+            i += 1;
+            State::StringEscape
+          }
           _ => {
             accumulator.push(c);
             i += 1;
             State::String
+          }
+        },
+        State::StringEscape => match c {
+          'n' => {
+            i += 1;
+            accumulator.push('\n');
+            State::String
+          }
+          'r' => {
+            i += 1;
+            accumulator.push('\r');
+            State::String
+          }
+          't' => {
+            i += 1;
+            accumulator.push('\t');
+            State::String
+          }
+          _ => {
+            eprintln!("Error: Unexpected character: {}", c);
+            break;
           }
         },
         State::Integer => match c {
