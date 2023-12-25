@@ -519,14 +519,13 @@ impl Program {
 
         match (index, indexable) {
           (Expr::Integer(index), Expr::List(list)) => {
-            let item = (index >= 0 && index < list.len() as i64)
-              .then_some(index as usize)
-              .or(
-                (index < 0 && -index < list.len() as i64)
-                  .then_some(-index as usize),
-              )
-              .and_then(|index| list.get(index))
-              .cloned();
+            let item = if index >= 0 && index < list.len() as i64 {
+              list.get(index as usize).cloned()
+            } else if index < 0 && -index <= list.len() as i64 {
+              list.get(list.len() - -index as usize).cloned()
+            } else {
+              None
+            };
 
             match item {
               Some(item) => {
