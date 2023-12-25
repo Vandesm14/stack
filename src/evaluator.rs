@@ -1,6 +1,6 @@
 use itertools::Itertools;
 
-use crate::{Expr, Intrinsic, Type, Wrap as _};
+use crate::{Expr, Intrinsic, Type};
 use core::{fmt, iter};
 use std::collections::{HashMap, HashSet};
 
@@ -518,15 +518,15 @@ impl Program {
         let indexable = self.pop(trace_expr)?;
 
         match (index, indexable) {
-          (Expr::Integer(mut index), Expr::List(list)) => {
-            index = index.wrap(0, list.len().saturating_sub(1) as i64);
-
-            // let item = (index >= 0)
-            //   .then(|| list.get(index as usize))
-            //   .flatten()
-            //   .cloned();
-
-            let item = list.get(index as usize).cloned();
+          (Expr::Integer(index), Expr::List(list)) => {
+            let item = (index >= 0 && index < list.len() as i64)
+              .then_some(index as usize)
+              .or(
+                (index < 0 && -index < list.len() as i64)
+                  .then_some(-index as usize),
+              )
+              .and_then(|index| list.get(index))
+              .cloned();
 
             match item {
               Some(item) => {
