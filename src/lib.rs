@@ -21,76 +21,77 @@ impl Context {
   pub fn new() -> Self {
     let mut interner = Rodeo::new();
 
-      // Arithmetic
-    interner.get_or_intern_static("+");
-    interner.get_or_intern_static("-");
-    interner.get_or_intern_static("*");
-    interner.get_or_intern_static("/");
-    interner.get_or_intern_static("%");
+    // Arithmetic
+    interner.get_or_intern_static(Intrinsic::Add.as_str());
+    interner.get_or_intern_static(Intrinsic::Subtract.as_str());
+    interner.get_or_intern_static(Intrinsic::Multiply.as_str());
+    interner.get_or_intern_static(Intrinsic::Divide.as_str());
+    interner.get_or_intern_static(Intrinsic::Remainder.as_str());
 
     // Comparison
-    interner.get_or_intern_static("=");
-    interner.get_or_intern_static("!=");
-    interner.get_or_intern_static(">");
-    interner.get_or_intern_static("<");
-    interner.get_or_intern_static("or");
-    interner.get_or_intern_static("and");
+    interner.get_or_intern_static(Intrinsic::Equal.as_str());
+    interner.get_or_intern_static(Intrinsic::NotEqual.as_str());
+    interner.get_or_intern_static(Intrinsic::GreaterThan.as_str());
+    interner.get_or_intern_static(Intrinsic::LessThan.as_str());
+    interner.get_or_intern_static(Intrinsic::Or.as_str());
+    interner.get_or_intern_static(Intrinsic::And.as_str());
 
     // Code/IO
-    interner.get_or_intern_static("parse");
-    interner.get_or_intern_static("read-file");
-    interner.get_or_intern_static("syscall0");
-    interner.get_or_intern_static("syscall1");
-    interner.get_or_intern_static("syscall2");
-    interner.get_or_intern_static("syscall3");
-    interner.get_or_intern_static("syscall4");
-    interner.get_or_intern_static("syscall5");
-    interner.get_or_intern_static("syscall6");
+    interner.get_or_intern_static(Intrinsic::Parse.as_str());
+    interner.get_or_intern_static(Intrinsic::ReadFile.as_str());
+    interner.get_or_intern_static(Intrinsic::Syscall { arity: 0 }.as_str());
+    interner.get_or_intern_static(Intrinsic::Syscall { arity: 1 }.as_str());
+    interner.get_or_intern_static(Intrinsic::Syscall { arity: 2 }.as_str());
+    interner.get_or_intern_static(Intrinsic::Syscall { arity: 3 }.as_str());
+    interner.get_or_intern_static(Intrinsic::Syscall { arity: 4 }.as_str());
+    interner.get_or_intern_static(Intrinsic::Syscall { arity: 5 }.as_str());
+    interner.get_or_intern_static(Intrinsic::Syscall { arity: 6 }.as_str());
 
     // List
-    interner.get_or_intern_static("explode");
-    interner.get_or_intern_static("len");
-    interner.get_or_intern_static("nth");
-    interner.get_or_intern_static("join");
-    interner.get_or_intern_static("insert");
-    interner.get_or_intern_static("list-pop");
-    interner.get_or_intern_static("list-shift");
-    interner.get_or_intern_static("concat");
-    interner.get_or_intern_static("unwrap");
+    interner.get_or_intern_static(Intrinsic::Explode.as_str());
+    interner.get_or_intern_static(Intrinsic::Length.as_str());
+    interner.get_or_intern_static(Intrinsic::Nth.as_str());
+    interner.get_or_intern_static(Intrinsic::Join.as_str());
+    interner.get_or_intern_static(Intrinsic::Insert.as_str());
+    interner.get_or_intern_static(Intrinsic::ListPop.as_str());
+    interner.get_or_intern_static(Intrinsic::ListShift.as_str());
+    interner.get_or_intern_static(Intrinsic::Concat.as_str());
+    interner.get_or_intern_static(Intrinsic::Unwrap.as_str());
 
     // Control Flow
-    interner.get_or_intern_static("ifelse");
-    interner.get_or_intern_static("if");
-    interner.get_or_intern_static("while");
-    interner.get_or_intern_static("halt");
+    interner.get_or_intern_static(Intrinsic::IfElse.as_str());
+    interner.get_or_intern_static(Intrinsic::If.as_str());
+    interner.get_or_intern_static(Intrinsic::While.as_str());
+    interner.get_or_intern_static(Intrinsic::Halt.as_str());
 
     // Scope
-    interner.get_or_intern_static("set");
-    interner.get_or_intern_static("get");
-    interner.get_or_intern_static("unset");
+    interner.get_or_intern_static(Intrinsic::Set.as_str());
+    interner.get_or_intern_static(Intrinsic::Get.as_str());
+    interner.get_or_intern_static(Intrinsic::Unset.as_str());
 
     // Stack
-    interner.get_or_intern_static("collect");
-    interner.get_or_intern_static("clear");
-    interner.get_or_intern_static("pop");
-    interner.get_or_intern_static("dup");
-    interner.get_or_intern_static("swap");
-    interner.get_or_intern_static("rot");
+    interner.get_or_intern_static(Intrinsic::Collect.as_str());
+    interner.get_or_intern_static(Intrinsic::Clear.as_str());
+    interner.get_or_intern_static(Intrinsic::Pop.as_str());
+    interner.get_or_intern_static(Intrinsic::Dup.as_str());
+    interner.get_or_intern_static(Intrinsic::Swap.as_str());
+    interner.get_or_intern_static(Intrinsic::Rot.as_str());
 
     // Functions/Data
-    interner.get_or_intern_static("call");
-    interner.get_or_intern_static("call_native");
-    interner.get_or_intern_static("lazy");
+    interner.get_or_intern_static(Intrinsic::Call.as_str());
+    interner.get_or_intern_static(Intrinsic::CallNative.as_str());
+    interner.get_or_intern_static(Intrinsic::Lazy.as_str());
+    interner.get_or_intern_static(Intrinsic::Noop.as_str());
 
     // Type
-    interner.get_or_intern_static("toboolean");
-    interner.get_or_intern_static("tointeger");
-    interner.get_or_intern_static("tofloat");
-    interner.get_or_intern_static("topointer");
-    interner.get_or_intern_static("tolist");
-    interner.get_or_intern_static("tostring");
-    interner.get_or_intern_static("tocall");
-    interner.get_or_intern_static("typeof");
+    interner.get_or_intern_static(Intrinsic::ToBoolean.as_str());
+    interner.get_or_intern_static(Intrinsic::ToInteger.as_str());
+    interner.get_or_intern_static(Intrinsic::ToFloat.as_str());
+    interner.get_or_intern_static(Intrinsic::ToPointer.as_str());
+    interner.get_or_intern_static(Intrinsic::ToList.as_str());
+    interner.get_or_intern_static(Intrinsic::ToString.as_str());
+    interner.get_or_intern_static(Intrinsic::ToCall.as_str());
+    interner.get_or_intern_static(Intrinsic::TypeOf.as_str());
 
     Self { interner }
   }
