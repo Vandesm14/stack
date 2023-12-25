@@ -1,5 +1,6 @@
-'(fn
+"std/linux-x86_64.stack" import
 
+'(fn
   ;; Collect the stack into a list
   collect
 
@@ -19,7 +20,7 @@
   "" join
 
   ;; Print the string
-  print
+  println
 
   ;; Unwrap the stack list back into the stack
   unwrap
