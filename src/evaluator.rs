@@ -1859,6 +1859,13 @@ mod tests {
       program.eval_string("(1 2 3) 1 nth").unwrap();
       assert_eq!(program.stack, vec![Expr::Integer(2)]);
     }
+
+    #[test]
+    fn getting_nth_item_of_list_negative_index() {
+      let mut program = Program::new();
+      program.eval_string("(1 2 3) -1 nth").unwrap();
+      assert_eq!(program.stack, vec![Expr::Integer(3)]);
+    }
   }
 
   mod string_ops {
