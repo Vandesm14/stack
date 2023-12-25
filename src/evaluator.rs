@@ -1808,9 +1808,9 @@ mod tests {
         program
           .eval_string(
             "0 'a set
-             '(fn a print 5 'a set)
+            '(fn 5 'a set)
 
-             '(fn {1' a set call}) call",
+            '(fn {1' a set call}) call",
           )
           .unwrap();
         assert_eq!(
