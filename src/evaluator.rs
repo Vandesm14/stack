@@ -1331,6 +1331,8 @@ impl Program {
     let mut clone = self.clone();
     let result = exprs.into_iter().try_for_each(|expr| clone.eval_expr(expr));
 
+    self.loaded_files = clone.loaded_files;
+
     match result {
       Ok(x) => {
         // TODO: Store each operation in an append-only operations list, and
@@ -1338,7 +1340,6 @@ impl Program {
         self.stack = clone.stack;
         self.scopes = clone.scopes;
         self.scope_layer = clone.scope_layer;
-        self.loaded_files = clone.loaded_files;
         self.context = clone.context;
 
         Ok(x)
