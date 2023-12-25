@@ -578,7 +578,12 @@ impl Program {
 
             let string = list
               .into_iter()
-              .map(|expr| expr.display(&self.context).to_string())
+              .map(|expr| match expr {
+                Expr::String(string) => {
+                  self.context.resolve(&string).to_string()
+                }
+                _ => expr.display(&self.context).to_string(),
+              })
               .join(delimiter_str);
             let string = Expr::String(self.context.intern(string));
             self.push(string);

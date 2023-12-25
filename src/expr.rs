@@ -438,7 +438,7 @@ impl fmt::Display for Display<'_> {
 
         f.write_str(")")
       }
-      Expr::String(x) => f.write_str(self.context.resolve(x)),
+      Expr::String(x) => write!(f, "\"{}\"", self.context.resolve(x)),
 
       Expr::Lazy(x) => {
         f.write_str("'")?;
