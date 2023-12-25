@@ -22,7 +22,7 @@ mod tests {
   use super::*;
 
   #[test]
-  fn test() {
+  fn for_each() {
     run().unwrap();
   }
 }
