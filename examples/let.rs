@@ -24,7 +24,8 @@ mod tests {
 
   #[test]
   fn r#let() {
-    let result = run();
-    assert_eq!(result.unwrap().stack, vec![Expr::Integer(8)]);
+    let result = run().unwrap();
+
+    assert_eq!(result.stack, vec![Expr::Integer(8)]);
   }
 }
