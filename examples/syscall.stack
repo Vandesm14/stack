@@ -1,8 +1,5 @@
-"Hello, World!\n" dup
-topointer swap
-explode len swap
-0
-1
-syscall3
+"std/linux-x86_64.stack" import
 
-;; 0 60 syscall1
+
+"Hello, World!" eprintln
+1 println
