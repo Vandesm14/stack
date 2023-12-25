@@ -1,7 +1,7 @@
 "std/stack.stack" import
 
 ;; Define a reverse function
-'(
+'(fn
   ;; Duplicate the list before eating it with the len function
   dup
   len 'i set
