@@ -19,10 +19,15 @@ fn main() {
 
 #[cfg(test)]
 mod tests {
+  use stack::Expr;
+
   use super::*;
 
   #[test]
   fn for_each() {
-    run().unwrap();
+    let mut result = run().unwrap();
+    let expected = result.context.intern("the words should be in order");
+
+    assert_eq!(result.stack, vec![Expr::String(expected)]);
   }
 }

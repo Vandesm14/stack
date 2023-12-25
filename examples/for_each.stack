@@ -1,14 +1,24 @@
 "std/list.stack" import
 
 ("the" "words" "should" "be" "in" "order")
-'(fn {
-  "Item: "
-  explode
-  swap
+'() 'new-list set
 
+'(fn
+  ;; "Item: "
+  ;; explode
+  ;; swap
+
+  ;; insert
+
+  ;; "" join
+  ;; print
+
+  new-list
+  swap
   insert
 
-  "" join
-  print
-})
+  'new-list set
+)
 list/for_each
+
+new-list " " join
