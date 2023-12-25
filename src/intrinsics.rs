@@ -1,6 +1,8 @@
 use std::fmt;
 
-#[derive(Debug, Copy, Clone, PartialEq)]
+use enum_iterator::Sequence;
+
+#[derive(Debug, Copy, Clone, PartialEq, Sequence)]
 pub enum Intrinsic {
   // Arithmetic
   Add,
@@ -20,7 +22,7 @@ pub enum Intrinsic {
   // Code/IO
   Parse,
   ReadFile,
-  Print,
+  Syscall { arity: u8 },
 
   // List
   Explode,
@@ -59,10 +61,13 @@ pub enum Intrinsic {
   Noop,
 
   // Type
+  ToBoolean,
+  ToInteger,
+  ToFloat,
+  ToPointer,
+  ToList,
   ToString,
   ToCall,
-  ToInteger,
-  ToList,
   TypeOf,
 }
 
@@ -89,7 +94,13 @@ impl TryFrom<&str> for Intrinsic {
       // Code/IO
       "parse" => Ok(Self::Parse),
       "read-file" => Ok(Self::ReadFile),
-      "print" => Ok(Self::Print),
+      "syscall0" => Ok(Self::Syscall { arity: 0 }),
+      "syscall1" => Ok(Self::Syscall { arity: 1 }),
+      "syscall2" => Ok(Self::Syscall { arity: 2 }),
+      "syscall3" => Ok(Self::Syscall { arity: 3 }),
+      "syscall4" => Ok(Self::Syscall { arity: 4 }),
+      "syscall5" => Ok(Self::Syscall { arity: 5 }),
+      "syscall6" => Ok(Self::Syscall { arity: 6 }),
 
       // List
       "explode" => Ok(Self::Explode),
@@ -125,12 +136,16 @@ impl TryFrom<&str> for Intrinsic {
       "call" => Ok(Self::Call),
       "call_native" => Ok(Self::CallNative),
       "lazy" => Ok(Self::Lazy),
+      "noop" => Ok(Self::Noop),
 
       // Type
+      "toboolean" => Ok(Self::ToBoolean),
+      "tointeger" => Ok(Self::ToInteger),
+      "tofloat" => Ok(Self::ToFloat),
+      "topointer" => Ok(Self::ToPointer),
+      "tolist" => Ok(Self::ToList),
       "tostring" => Ok(Self::ToString),
       "tocall" => Ok(Self::ToCall),
-      "tointeger" => Ok(Self::ToInteger),
-      "tolist" => Ok(Self::ToList),
       "typeof" => Ok(Self::TypeOf),
 
       _ => Err(()),
@@ -165,7 +180,16 @@ impl Intrinsic {
       // Code/IO
       Self::Parse => "parse",
       Self::ReadFile => "read-file",
-      Self::Print => "print",
+      Self::Syscall { arity } => match arity {
+        0 => "syscall0",
+        1 => "syscall1",
+        2 => "syscall2",
+        3 => "syscall3",
+        4 => "syscall4",
+        5 => "syscall5",
+        6 => "syscall6",
+        arity => unimplemented!("invalid syscall arity: {arity}"),
+      },
 
       // List
       Self::Explode => "explode",
@@ -204,11 +228,35 @@ impl Intrinsic {
       Self::Noop => "noop",
 
       // Type
+      Self::ToBoolean => "toboolean",
+      Self::ToInteger => "tointeger",
+      Self::ToFloat => "tofloat",
+      Self::ToPointer => "topointer",
+      Self::ToList => "tolist",
       Self::ToString => "tostring",
       Self::ToCall => "tocall",
-      Self::ToInteger => "tointeger",
-      Self::ToList => "tolist",
       Self::TypeOf => "typeof",
+    }
+  }
+}
+
+#[cfg(test)]
+mod test {
+  use super::*;
+
+  #[test]
+  fn try_from_matches_as_str() {
+    for intrinsic in enum_iterator::all::<Intrinsic>() {
+      if let Intrinsic::Syscall { arity } = intrinsic {
+        if arity > 6 {
+          continue;
+        }
+      }
+
+      assert_eq!(
+        Ok(intrinsic.as_str()),
+        Intrinsic::try_from(intrinsic.as_str()).map(|i| i.as_str()),
+      );
     }
   }
 }

@@ -1,4 +1,5 @@
 "std/list.stack" import
+"std/linux-x86_64.stack" import
 
 ("the" "words" "should" "be" "in" "order")
 '() 'new-list set
