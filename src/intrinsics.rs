@@ -20,7 +20,6 @@ pub enum Intrinsic {
   // Code/IO
   Parse,
   ReadFile,
-  Print,
   Syscall { arity: u8 },
 
   // List
@@ -93,7 +92,6 @@ impl TryFrom<&str> for Intrinsic {
       // Code/IO
       "parse" => Ok(Self::Parse),
       "read-file" => Ok(Self::ReadFile),
-      "print" => Ok(Self::Print),
       "syscall0" => Ok(Self::Syscall { arity: 0 }),
       "syscall1" => Ok(Self::Syscall { arity: 1 }),
       "syscall2" => Ok(Self::Syscall { arity: 2 }),
@@ -179,7 +177,6 @@ impl Intrinsic {
       // Code/IO
       Self::Parse => "parse",
       Self::ReadFile => "read-file",
-      Self::Print => "print",
       Self::Syscall { arity } => match arity {
         0 => "syscall0",
         1 => "syscall1",

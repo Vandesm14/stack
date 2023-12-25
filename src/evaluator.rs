@@ -476,11 +476,6 @@ impl Program {
           }),
         }
       }
-      Intrinsic::Print => {
-        let item = self.pop(trace_expr)?;
-        println!("{}", item.display(&self.context));
-        Ok(())
-      }
       Intrinsic::Syscall { arity } => {
         let sysno = self.pop(trace_expr).and_then(|sysno| match sysno {
           Expr::Integer(sysno) => (sysno >= 0)
