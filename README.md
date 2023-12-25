@@ -7,6 +7,9 @@ An RPN stack machine built with Rust
 ```bash
 # After cloning the repo
 cargo install --path .
+
+# Now Stack should be installed
+stack --version
 ```
 
 ## Usage
