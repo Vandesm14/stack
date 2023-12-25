@@ -555,6 +555,15 @@ impl Program {
 
         Ok(())
       }
+      Intrinsic::Panic => {
+        let string = self.pop(trace_expr)?;
+
+        Err(EvalError {
+          expr: trace_expr.clone(),
+          program: self.clone(),
+          message: format!("panic: {}", string.display(&self.context)),
+        })
+      }
 
       // List
       // TODO: Deprecate in favor of `"hello" tolist`

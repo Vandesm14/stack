@@ -23,6 +23,7 @@ pub enum Intrinsic {
   Parse,
   ReadFile,
   Syscall { arity: u8 },
+  Panic,
 
   // List
   Explode,
@@ -101,6 +102,7 @@ impl TryFrom<&str> for Intrinsic {
       "syscall4" => Ok(Self::Syscall { arity: 4 }),
       "syscall5" => Ok(Self::Syscall { arity: 5 }),
       "syscall6" => Ok(Self::Syscall { arity: 6 }),
+      "panic" => Ok(Self::Panic),
 
       // List
       "explode" => Ok(Self::Explode),
@@ -190,6 +192,7 @@ impl Intrinsic {
         6 => "syscall6",
         arity => unimplemented!("invalid syscall arity: {arity}"),
       },
+      Self::Panic => "panic",
 
       // List
       Self::Explode => "explode",
