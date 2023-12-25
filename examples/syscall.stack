@@ -5,5 +5,4 @@ explode len swap
 1
 syscall3
 
-;; Exit nicely.
 ;; 0 60 syscall1
