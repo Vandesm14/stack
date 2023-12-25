@@ -1,0 +1,9 @@
+"Hello, World!\n" dup
+topointer swap
+explode len swap
+0
+1
+syscall3
+
+;; Exit nicely.
+;; 0 60 syscall1

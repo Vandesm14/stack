@@ -21,6 +21,7 @@ pub enum Intrinsic {
   Parse,
   ReadFile,
   Print,
+  Syscall { arity: u8 },
 
   // List
   Explode,
@@ -93,6 +94,13 @@ impl TryFrom<&str> for Intrinsic {
       "parse" => Ok(Self::Parse),
       "read-file" => Ok(Self::ReadFile),
       "print" => Ok(Self::Print),
+      "syscall0" => Ok(Self::Syscall { arity: 0 }),
+      "syscall1" => Ok(Self::Syscall { arity: 1 }),
+      "syscall2" => Ok(Self::Syscall { arity: 2 }),
+      "syscall3" => Ok(Self::Syscall { arity: 3 }),
+      "syscall4" => Ok(Self::Syscall { arity: 4 }),
+      "syscall5" => Ok(Self::Syscall { arity: 5 }),
+      "syscall6" => Ok(Self::Syscall { arity: 6 }),
 
       // List
       "explode" => Ok(Self::Explode),
@@ -172,6 +180,16 @@ impl Intrinsic {
       Self::Parse => "parse",
       Self::ReadFile => "read-file",
       Self::Print => "print",
+      Self::Syscall { arity } => match arity {
+        0 => "syscall0",
+        1 => "syscall1",
+        2 => "syscall2",
+        3 => "syscall3",
+        4 => "syscall4",
+        5 => "syscall5",
+        6 => "syscall6",
+        arity => unimplemented!("invalid syscall arity: {arity}"),
+      },
 
       // List
       Self::Explode => "explode",

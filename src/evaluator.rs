@@ -1,5 +1,6 @@
 use itertools::Itertools;
 use lasso::Spur;
+use syscalls::Sysno;
 
 use crate::{Context, Expr, Intrinsic, Type};
 use core::{fmt, iter};
@@ -478,6 +479,87 @@ impl Program {
       Intrinsic::Print => {
         let item = self.pop(trace_expr)?;
         println!("{}", item.display(&self.context));
+        Ok(())
+      }
+      Intrinsic::Syscall { arity } => {
+        let sysno = self.pop(trace_expr).and_then(|sysno| match sysno {
+          Expr::Integer(sysno) => (sysno >= 0)
+            .then(|| sysno as usize)
+            .and_then(|sysno| Sysno::new(sysno))
+            .ok_or_else(|| EvalError {
+              expr: trace_expr.clone(),
+              program: self.clone(),
+              message: format!("invalid syscall: {sysno}"),
+            }),
+          found => Err(EvalError {
+            expr: trace_expr.clone(),
+            program: self.clone(),
+            message: format!(
+              "expected {}, found {}",
+              Type::Integer,
+              found.type_of()
+            ),
+          }),
+        })?;
+
+        let args = (0..arity).try_fold(
+          Vec::with_capacity(arity as usize),
+          |mut args, _| match self.pop(trace_expr)? {
+            Expr::Pointer(x) => {
+              args.push(x);
+              Ok(args)
+            }
+            Expr::Integer(x) => {
+              if x >= 0 {
+                args.push(x as usize);
+                Ok(args)
+              } else {
+                Err(EvalError {
+                  expr: trace_expr.clone(),
+                  program: self.clone(),
+                  message: format!("integer must be positive"),
+                })
+              }
+            }
+            arg => Err(EvalError {
+              expr: trace_expr.clone(),
+              program: self.clone(),
+              message: format!(
+                "expected {}, found {}",
+                Type::Integer,
+                arg.type_of()
+              ),
+            }),
+          },
+        )?;
+
+        dbg!(&args);
+
+        let result = match arity {
+          0 => unsafe { syscalls::raw::syscall0(sysno) },
+          1 => unsafe { syscalls::raw::syscall1(sysno, args[0]) },
+          2 => unsafe { syscalls::raw::syscall2(sysno, args[0], args[1]) },
+          3 => unsafe {
+            syscalls::raw::syscall3(sysno, args[0], args[1], args[2])
+          },
+          4 => unsafe {
+            syscalls::raw::syscall4(sysno, args[0], args[1], args[2], args[3])
+          },
+          5 => unsafe {
+            syscalls::raw::syscall5(
+              sysno, args[0], args[1], args[2], args[3], args[4],
+            )
+          },
+          6 => unsafe {
+            syscalls::raw::syscall6(
+              sysno, args[0], args[1], args[2], args[3], args[4], args[5],
+            )
+          },
+          _ => unimplemented!("invalid syscall arity: {arity}"),
+        };
+
+        self.push(Expr::Integer(result as i64));
+
         Ok(())
       }
 
@@ -1041,7 +1123,7 @@ impl Program {
         }
 
         Ok(())
-      },
+      }
       Intrinsic::ToInteger => {
         let item = self.pop(trace_expr)?;
 
@@ -1070,11 +1152,7 @@ impl Program {
             let string_str = self.context.resolve(&string);
 
             self.push(
-              string_str
-                .parse()
-                .ok()
-                .map(Expr::Float)
-                .unwrap_or_default(),
+              string_str.parse().ok().map(Expr::Float).unwrap_or_default(),
             );
           }
           found => self.push(found.to_float().unwrap_or_default()),
