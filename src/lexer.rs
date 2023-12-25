@@ -1,12 +1,16 @@
+use lasso::Spur;
+
+use crate::Context;
+
 #[derive(Debug, Clone, PartialEq)]
 pub enum Token {
   Integer(i64),
   Float(f64),
 
-  String(String),
+  String(Spur),
 
   NoEval,
-  Call(String),
+  Call(Spur),
 
   ParenStart,
   ParenEnd,
@@ -37,7 +41,7 @@ fn is_symbol(c: char) -> bool {
   is_symbol_start(c) || c.is_ascii_digit()
 }
 
-pub fn lex(input: &str) -> Vec<Token> {
+pub fn lex(context: &mut Context, input: &str) -> Vec<Token> {
   let mut state = State::Start;
   let mut tokens: Vec<Token> = vec![];
 
@@ -188,7 +192,7 @@ pub fn lex(input: &str) -> Vec<Token> {
 
     match (state, new_state) {
       (State::String, State::Start) => {
-        tokens.push(Token::String(accumulator.clone()));
+        tokens.push(Token::String(context.intern(accumulator.clone())));
         accumulator.clear();
       }
       (State::Integer, State::Start) => {
@@ -200,7 +204,7 @@ pub fn lex(input: &str) -> Vec<Token> {
         accumulator.clear();
       }
       (State::NegSign, State::Start) => {
-        tokens.push(Token::Call('-'.into()));
+        tokens.push(Token::Call(context.intern("-")));
         accumulator.clear();
       }
       (State::Call, State::Start) => {
@@ -208,7 +212,7 @@ pub fn lex(input: &str) -> Vec<Token> {
 
         tokens.push(match call.as_str() {
           "nil" => Token::Nil,
-          _ => Token::Call(call),
+          _ => Token::Call(context.intern(call)),
         });
         accumulator.clear();
       }
@@ -227,120 +231,160 @@ mod tests {
 
   #[test]
   fn test_integer() {
+    let mut context = Context::new();
+
     let input = "123";
     let expected = vec![Token::Integer(123)];
 
-    assert_eq!(lex(input), expected);
+    assert_eq!(lex(&mut context, input), expected);
   }
 
   #[test]
   fn test_negative_integer() {
+    let mut context = Context::new();
+
     let input = "-123";
     let expected = vec![Token::Integer(-123)];
 
-    assert_eq!(lex(input), expected);
+    assert_eq!(lex(&mut context, input), expected);
   }
 
   #[test]
   fn test_float() {
+    let mut context = Context::new();
+
     let input = "123.456";
     let expected = vec![Token::Float(123.456)];
 
-    assert_eq!(lex(input), expected);
+    assert_eq!(lex(&mut context, input), expected);
   }
 
   #[test]
   fn test_negative_float() {
+    let mut context = Context::new();
+
     let input = "-123.456";
     let expected = vec![Token::Float(-123.456)];
 
-    assert_eq!(lex(input), expected);
+    assert_eq!(lex(&mut context, input), expected);
   }
 
   #[test]
   fn test_string() {
-    let input = "\"Hello, world!\"";
-    let expected = vec![Token::String("Hello, world!".to_string())];
+    let mut context = Context::new();
 
-    assert_eq!(lex(input), expected);
+    let hello_world = context.intern("Hello, world!");
+
+    let input = "\"Hello, world!\"";
+    let expected = vec![Token::String(hello_world)];
+
+    assert_eq!(lex(&mut context, input), expected);
   }
 
   #[test]
   fn test_call_plus() {
-    let input = "+";
-    let expected = vec![Token::Call("+".to_string())];
+    let mut context = Context::new();
 
-    assert_eq!(lex(input), expected);
+    let plus = context.intern("+");
+
+    let input = "+";
+    let expected = vec![Token::Call(plus)];
+
+    assert_eq!(lex(&mut context, input), expected);
   }
 
   #[test]
   fn test_symbol_var() {
-    let input = "myVar";
-    let expected = vec![Token::Call("myVar".to_string())];
+    let mut context = Context::new();
 
-    assert_eq!(lex(input), expected);
+    let my_var = context.intern("my_var");
+
+    let input = "my_var";
+    let expected = vec![Token::Call(my_var)];
+
+    assert_eq!(lex(&mut context, input), expected);
   }
 
   #[test]
   fn test_nil() {
+    let mut context = Context::new();
+
     let input = "nil";
     let expected = vec![Token::Nil];
 
-    assert_eq!(lex(input), expected);
+    assert_eq!(lex(&mut context, input), expected);
   }
 
   #[test]
   fn test_multiple() {
+    let mut context = Context::new();
+
+    let hello_world = context.intern("Hello, world!");
+    let h3ll0_worl6 = context.intern("h3ll0_worl6");
+
     let input = "123 \"Hello, world!\" (h3ll0_worl6) nil";
     let expected = vec![
       Token::Integer(123),
-      Token::String("Hello, world!".to_string()),
+      Token::String(hello_world),
       Token::ParenStart,
-      Token::Call("h3ll0_worl6".to_string()),
+      Token::Call(h3ll0_worl6),
       Token::ParenEnd,
       Token::Nil,
     ];
 
-    assert_eq!(lex(input), expected);
+    assert_eq!(lex(&mut context, input), expected);
   }
 
   #[test]
   fn test_multiple2() {
-    let inpuit = "1 (a2) 3.0 add \"string hello\" var nil";
+    let mut context = Context::new();
+
+    let a2 = context.intern("a2");
+    let add = context.intern("add");
+    let string_hello = context.intern("string hello");
+    let var = context.intern("var");
+
+    let input = "1 (a2) 3.0 add \"string hello\" var nil";
     let expected = vec![
       Token::Integer(1),
       Token::ParenStart,
-      Token::Call("a2".to_string()),
+      Token::Call(a2),
       Token::ParenEnd,
       Token::Float(3.0),
-      Token::Call("add".to_string()),
-      Token::String("string hello".to_string()),
-      Token::Call("var".to_string()),
+      Token::Call(add),
+      Token::String(string_hello),
+      Token::Call(var),
       Token::Nil,
     ];
 
-    assert_eq!(lex(inpuit), expected);
+    assert_eq!(lex(&mut context, input), expected);
   }
 
   #[test]
   fn ignore_whitespace() {
+    let mut context = Context::new();
+
     let input = "1  \n   2    \n 3";
     let expected =
       vec![Token::Integer(1), Token::Integer(2), Token::Integer(3)];
 
-    assert_eq!(lex(input), expected);
+    assert_eq!(lex(&mut context, input), expected);
   }
 
   #[test]
   fn ignore_comments() {
+    let mut context = Context::new();
+
     let input = "1; this is a comment\n2; this is another comment";
     let expected = vec![Token::Integer(1), Token::Integer(2)];
 
-    assert_eq!(lex(input), expected);
+    assert_eq!(lex(&mut context, input), expected);
   }
 
   #[test]
   fn curly_brackets() {
+    let mut context = Context::new();
+
     let input = "1 {2} { 3 }";
     let expected = vec![
       Token::Integer(1),
@@ -352,22 +396,27 @@ mod tests {
       Token::CurlyEnd,
     ];
 
-    assert_eq!(lex(input), expected);
+    assert_eq!(lex(&mut context, input), expected);
   }
 
   #[test]
   fn curly_brackets_outside() {
+    let mut context = Context::new();
+
+    let a = context.intern("a");
+    let set = context.intern("set");
+
     let input = "{2 (a) set}";
     let expected = vec![
       Token::CurlyStart,
       Token::Integer(2),
       Token::ParenStart,
-      Token::Call("a".to_string()),
+      Token::Call(a),
       Token::ParenEnd,
-      Token::Call("set".to_string()),
+      Token::Call(set),
       Token::CurlyEnd,
     ];
 
-    assert_eq!(lex(input), expected);
+    assert_eq!(lex(&mut context, input), expected);
   }
 }

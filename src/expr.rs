@@ -1,6 +1,10 @@
 use core::{cmp::Ordering, fmt, iter, num::FpCategory};
 
 use itertools::Itertools;
+use lasso::Spur;
+
+// TODO: Implement a display() function and Display struct that implements the
+//       Display trait for Expr.
 
 #[derive(Debug, Clone, Default)]
 pub enum Expr {
@@ -14,10 +18,10 @@ pub enum Expr {
   Pointer(usize),
 
   List(Vec<Expr>),
-  String(String),
+  String(Spur),
 
   Lazy(Box<Expr>),
-  Call(String),
+  Call(Spur),
 
   FnScope(Option<usize>),
   ScopePush,
@@ -143,8 +147,7 @@ impl Expr {
         }
       }
 
-      Self::String(x) => x.parse().ok().map(Self::Integer),
-
+      // Self::String(x) => x.parse().ok().map(Self::Integer),
       _ => None,
     }
   }
@@ -154,8 +157,7 @@ impl Expr {
       Self::Integer(x) => Some(Self::Float(*x as f64)),
       x @ Self::Float(_) => Some(x.clone()),
 
-      Self::String(x) => x.parse().ok().map(Self::Float),
-
+      // Self::String(x) => x.parse().ok().map(Self::Float),
       _ => None,
     }
   }
@@ -348,13 +350,15 @@ impl fmt::Display for Expr {
 
         f.write_str(")")
       }
-      Self::String(x) => fmt::Display::fmt(x, f),
+      // Self::String(x) => fmt::Display::fmt(x, f),
+      Self::String(x) => write!(f, "<string {}>", x.into_inner()),
 
       Self::Lazy(x) => {
         f.write_str("'")?;
         fmt::Display::fmt(x, f)
       }
-      Self::Call(x) => fmt::Display::fmt(x, f),
+      // Self::Call(x) => fmt::Display::fmt(x, f),
+      Self::Call(x) => write!(f, "<call {}>", x.into_inner()),
 
       Self::FnScope(x) => {
         f.write_str("fn")?;
