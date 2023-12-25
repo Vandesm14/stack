@@ -5,15 +5,6 @@
 '() 'new-list set
 
 '(fn
-  ;; "Item: "
-  ;; explode
-  ;; swap
-
-  ;; insert
-
-  ;; "" join
-  ;; print
-
   new-list
   swap
   insert
