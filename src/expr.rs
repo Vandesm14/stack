@@ -3,6 +3,8 @@ use core::{cmp::Ordering, fmt, iter, num::FpCategory};
 use itertools::Itertools;
 use lasso::Spur;
 
+use crate::Context;
+
 // TODO: Implement a display() function and Display struct that implements the
 //       Display trait for Expr.
 
@@ -180,6 +182,13 @@ impl Expr {
     }
   }
 
+  pub const fn display<'a>(&'a self, context: &'a Context) -> Display<'a> {
+    Display {
+      context,
+      expr: self,
+    }
+  }
+
   // TODO: These might make more sense as intrinsics, since they might be too
   //       complicated for coercions.
 
@@ -323,61 +332,6 @@ impl PartialOrd for Expr {
   }
 }
 
-impl fmt::Display for Expr {
-  fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-    match self {
-      Self::Nil => f.write_str("nil"),
-
-      Self::Boolean(x) => fmt::Display::fmt(x, f),
-      Self::Integer(x) => fmt::Display::fmt(x, f),
-      Self::Float(x) => fmt::Display::fmt(x, f),
-
-      Self::Pointer(x) => {
-        f.write_str("*")?;
-        fmt::Display::fmt(x, f)
-      }
-
-      Self::List(x) => {
-        f.write_str("(")?;
-
-        iter::once("")
-          .chain(iter::repeat(" "))
-          .zip(x.iter())
-          .try_for_each(|(s, x)| {
-            f.write_str(s)?;
-            fmt::Display::fmt(x, f)
-          })?;
-
-        f.write_str(")")
-      }
-      // Self::String(x) => fmt::Display::fmt(x, f),
-      Self::String(x) => write!(f, "<string {}>", x.into_inner()),
-
-      Self::Lazy(x) => {
-        f.write_str("'")?;
-        fmt::Display::fmt(x, f)
-      }
-      // Self::Call(x) => fmt::Display::fmt(x, f),
-      Self::Call(x) => write!(f, "<call {}>", x.into_inner()),
-
-      Self::FnScope(x) => {
-        f.write_str("fn")?;
-
-        match x {
-          Some(x) => {
-            f.write_str("(")?;
-            fmt::Display::fmt(x, f)?;
-            f.write_str(")")
-          }
-          None => Ok(()),
-        }
-      }
-      Self::ScopePush => f.write_str("{"),
-      Self::ScopePop => f.write_str("}"),
-    }
-  }
-}
-
 #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub enum Type {
   Nil,
@@ -447,6 +401,65 @@ impl fmt::Display for Type {
 
         f.write_str("]")
       }
+    }
+  }
+}
+
+#[doc(hidden)]
+pub struct Display<'a> {
+  context: &'a Context,
+  expr: &'a Expr,
+}
+
+impl fmt::Display for Display<'_> {
+  fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+    match self.expr {
+      Expr::Nil => f.write_str("nil"),
+
+      Expr::Boolean(x) => fmt::Display::fmt(x, f),
+      Expr::Integer(x) => fmt::Display::fmt(x, f),
+      Expr::Float(x) => fmt::Display::fmt(x, f),
+
+      Expr::Pointer(x) => {
+        f.write_str("*")?;
+        fmt::Display::fmt(x, f)
+      }
+
+      Expr::List(x) => {
+        f.write_str("(")?;
+
+        iter::once("")
+          .chain(iter::repeat(" "))
+          .zip(x.iter())
+          .try_for_each(|(s, x)| {
+            f.write_str(s)?;
+            fmt::Display::fmt(&x.display(&self.context), f)
+          })?;
+
+        f.write_str(")")
+      }
+      Expr::String(x) => f.write_str(self.context.resolve(x)),
+
+      Expr::Lazy(x) => {
+        f.write_str("'")?;
+        fmt::Display::fmt(&x.display(&self.context), f)
+      }
+      Expr::Call(x) => f.write_str(self.context.resolve(x)),
+
+      Expr::FnScope(x) => {
+        f.write_str("fn")?;
+
+        match x {
+          Some(x) => {
+            f.write_str("(")?;
+            fmt::Display::fmt(x, f)?;
+            f.write_str(")")
+          }
+          None => Ok(()),
+        }
+      }
+      Expr::ScopePush => f.write_str("{"),
+      Expr::ScopePop => f.write_str("}"),
     }
   }
 }

@@ -19,10 +19,12 @@ impl fmt::Display for Program {
     write!(f, "Stack: [")?;
 
     self.stack.iter().enumerate().try_for_each(|(i, expr)| {
+      let expr = expr.display(&self.context);
+
       if i == self.stack.len() - 1 {
-        write!(f, "{}", expr)
+        write!(f, "{expr}")
       } else {
-        write!(f, "{}, ", expr)
+        write!(f, "{expr}, ")
       }
     })?;
     write!(f, "]")?;
@@ -39,6 +41,8 @@ impl fmt::Display for Program {
         for (item_i, (key, value)) in
           layer.iter().sorted_by_key(|(s, _)| *s).enumerate()
         {
+          let value = value.display(&self.context);
+
           if item_i == items - 1 && layer_i == layers - 1 {
             write!(f, " + {}: {}", key, value)?;
           } else {
@@ -62,7 +66,7 @@ pub struct EvalError {
 impl fmt::Display for EvalError {
   fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
     writeln!(f, "Error: {}", self.message)?;
-    writeln!(f, "Expr: {}", self.expr)?;
+    writeln!(f, "Expr: {}", self.expr.display(&self.program.context))?;
     writeln!(f,)?;
     write!(f, "{}", self.program)
   }
@@ -473,7 +477,7 @@ impl Program {
       }
       Intrinsic::Print => {
         let item = self.pop(trace_expr)?;
-        println!("{item}");
+        println!("{}", item.display(&self.context));
         Ok(())
       }
 
@@ -566,14 +570,10 @@ impl Program {
           (Expr::String(delimiter), Expr::List(list)) => {
             let delimiter_str = self.context.resolve(&delimiter);
 
-            let string = dbg!(list
+            let string = list
               .into_iter()
-              .map(|expr| match expr {
-                Expr::String(string) =>
-                  self.context.resolve(&string).to_owned(),
-                found => found.to_string(),
-              })
-              .join(delimiter_str));
+              .map(|expr| expr.display(&self.context).to_string())
+              .join(delimiter_str);
             let string = Expr::String(self.context.intern(string));
             self.push(string);
 
@@ -1026,7 +1026,11 @@ impl Program {
             Ok(())
           }
           found => {
-            let string = Expr::String(self.context.intern(found.to_string()));
+            let string = Expr::String(
+              self
+                .context
+                .intern(found.display(&self.context).to_string()),
+            );
             self.push(string);
 
             Ok(())
@@ -1046,7 +1050,11 @@ impl Program {
             Ok(())
           }
           found => {
-            let call = Expr::Call(self.context.intern(found.to_string()));
+            let call = Expr::Call(
+              self
+                .context
+                .intern(found.display(&self.context).to_string()),
+            );
             self.push(call);
 
             Ok(())
