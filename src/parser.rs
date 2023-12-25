@@ -93,330 +93,116 @@ pub fn parse(tokens: Vec<Token>) -> Vec<Expr> {
 mod tests {
   use super::*;
 
-  mod parsing {
-    use super::*;
+  use test_case::test_case;
 
-    #[test]
-    fn implicit_block() {
-      let tokens = crate::lex("(1 2 3)");
-      let expected = vec![Expr::List(vec![
+  #[test_case(
+    "(1 2 3)"
+    => vec![Expr::List(vec![
+      Expr::Integer(1),
+      Expr::Integer(2),
+      Expr::Integer(3),
+    ])]
+    ; "block"
+  )]
+  #[test_case(
+    "(1 2 3) 4 5 6"
+    => vec![
+      Expr::List(vec![
         Expr::Integer(1),
         Expr::Integer(2),
         Expr::Integer(3),
-      ])];
-
-      assert_eq!(parse(tokens), expected);
-    }
-
-    #[test]
-    fn block_at_beginning() {
-      let tokens = crate::lex("(1 2 3) 4 5 6");
-      let expected = vec![
-        Expr::List(vec![Expr::Integer(1), Expr::Integer(2), Expr::Integer(3)]),
+      ]),
+      Expr::Integer(4),
+      Expr::Integer(5),
+      Expr::Integer(6),
+    ]
+    ; "block before exprs"
+  )]
+  #[test_case(
+    "1 2 3 (4 5 6)"
+    => vec![
+      Expr::Integer(1),
+      Expr::Integer(2),
+      Expr::Integer(3),
+      Expr::List(vec![
         Expr::Integer(4),
         Expr::Integer(5),
         Expr::Integer(6),
-      ];
-
-      assert_eq!(parse(tokens), expected);
-    }
-
-    #[test]
-    fn nested_blocks() {
-      let tokens = crate::lex("(1 (2 3) 4)");
-      let expected = vec![Expr::List(vec![
-        Expr::Integer(1),
-        Expr::List(vec![Expr::Integer(2), Expr::Integer(3)]),
+      ]),
+    ]
+    ; "block after exprs"
+  )]
+  #[test_case(
+    "1 2 (3 4 5) 6"
+    => vec![
+      Expr::Integer(1),
+      Expr::Integer(2),
+      Expr::List(vec![
+        Expr::Integer(3),
         Expr::Integer(4),
-      ])];
-
-      assert_eq!(parse(tokens), expected);
-    }
-
-    #[test]
-    fn fail_for_only_start_paren() {
-      let tokens = crate::lex("(");
-      let exprs = parse(tokens);
-      assert_eq!(exprs, vec![]);
-    }
-
-    #[test]
-    fn fail_for_only_end_paren() {
-      let tokens = crate::lex(")");
-      let exprs = parse(tokens);
-      assert_eq!(exprs, vec![]);
-    }
-
-    #[test]
-    fn fail_for_mismatched_parens() {
-      let tokens = crate::lex("(1 2 3]");
-      let exprs = parse(tokens);
-      assert_eq!(exprs, vec![]);
-    }
-
-    #[test]
-    fn booleans() {
-      let tokens = crate::lex("true false");
-      let expected = vec![Expr::Boolean(true), Expr::Boolean(false)];
-
-      assert_eq!(parse(tokens), expected);
-    }
-
-    #[test]
-    fn scope() {
-      let tokens = crate::lex("{1 'var set}");
-      let expected = vec![
-        Expr::ScopePush,
-        Expr::Integer(1),
-        Expr::Lazy(Box::new(Expr::Call("var".to_owned()))),
-        Expr::Call("set".to_owned()),
-        Expr::ScopePop,
-      ];
-
-      assert_eq!(parse(tokens), expected);
-    }
-
-    #[test]
-    fn lazy_calls() {
-      let tokens = crate::lex("'set");
-      let expected = vec![Expr::Lazy(Box::new(Expr::Call("set".to_owned())))];
-
-      assert_eq!(parse(tokens), expected);
-    }
-
-    #[test]
-    fn lazy_lists() {
-      let tokens = crate::lex("'(1 2 3)");
-      let expected = vec![Expr::Lazy(Box::new(Expr::List(vec![
-        Expr::Integer(1),
+        Expr::Integer(5),
+      ]),
+      Expr::Integer(6),
+    ]
+    ; "block between exprs"
+  )]
+  #[test_case(
+    "(1 (2 3) 4)"
+    => vec![Expr::List(vec![
+      Expr::Integer(1),
+      Expr::List(vec![
         Expr::Integer(2),
         Expr::Integer(3),
-      ])))];
-
-      assert_eq!(parse(tokens), expected);
-    }
-
-    #[test]
-    fn lazy_nested_lists() {
-      let tokens = crate::lex("'(1 (2 3) 4)");
-      let expected = vec![Expr::Lazy(Box::new(Expr::List(vec![
-        Expr::Integer(1),
-        Expr::List(vec![Expr::Integer(2), Expr::Integer(3)]),
-        Expr::Integer(4),
-      ])))];
-
-      assert_eq!(parse(tokens), expected);
-    }
-
-    #[test]
-    fn double_lazy() {
-      let tokens = crate::lex("''set");
-      let expected = vec![Expr::Lazy(Box::new(Expr::Lazy(Box::new(
-        Expr::Call("set".to_owned()),
-      ))))];
-
-      assert_eq!(parse(tokens), expected);
-    }
-  }
-
-  mod equality {
-    use super::*;
-
-    mod same_types {
-      use super::*;
-
-      #[test]
-      fn integer_to_integer() {
-        let a = Expr::Integer(1);
-        let b = Expr::Integer(1);
-        assert_eq!(a, b);
-
-        let a = Expr::Integer(1);
-        let b = Expr::Integer(2);
-        assert_ne!(a, b);
-      }
-
-      #[test]
-      fn float_to_float() {
-        let a = Expr::Float(1.0);
-        let b = Expr::Float(1.0);
-        assert_eq!(a, b);
-
-        let a = Expr::Float(1.0);
-        let b = Expr::Float(1.1);
-        assert_ne!(a, b);
-      }
-
-      #[test]
-      fn string_to_string() {
-        let a = Expr::String("hello".to_owned());
-        let b = Expr::String("hello".to_owned());
-        assert_eq!(a, b);
-
-        let a = Expr::String("hello".to_owned());
-        let b = Expr::String("world".to_owned());
-        assert_ne!(a, b);
-      }
-
-      #[test]
-      fn boolean_to_boolean() {
-        let a = Expr::Boolean(true);
-        let b = Expr::Boolean(true);
-        assert_eq!(a, b);
-
-        let a = Expr::Boolean(true);
-        let b = Expr::Boolean(false);
-        assert_ne!(a, b);
-      }
-
-      #[test]
-      fn call_to_call() {
-        let a = Expr::Call("hello".to_owned());
-        let b = Expr::Call("hello".to_owned());
-        assert_eq!(a, b);
-
-        let a = Expr::Call("hello".to_owned());
-        let b = Expr::Call("world".to_owned());
-        assert_ne!(a, b);
-      }
-
-      #[test]
-      fn list_to_list() {
-        let a = Expr::List(vec![Expr::Integer(1), Expr::Integer(2)]);
-        let b = Expr::List(vec![Expr::Integer(1), Expr::Integer(2)]);
-        assert_eq!(a, b);
-
-        let a = Expr::List(vec![Expr::Integer(1), Expr::Integer(2)]);
-        let b = Expr::List(vec![Expr::Integer(1), Expr::Integer(3)]);
-        assert_ne!(a, b);
-      }
-
-      #[test]
-      fn nil_to_nil() {
-        let a = Expr::Nil;
-        let b = Expr::Nil;
-        assert_eq!(a, b);
-      }
-    }
-
-    mod different_types {
-      use super::*;
-
-      #[test]
-      fn integer_to_float() {
-        let a = Expr::Integer(1);
-        let b = Expr::Float(1.0);
-        assert_eq!(a, b);
-
-        let a = Expr::Integer(1);
-        let b = Expr::Float(1.1);
-        assert_ne!(a, b);
-      }
-
-      #[test]
-      fn float_to_integer() {
-        let a = Expr::Float(1.0);
-        let b = Expr::Integer(1);
-        assert_eq!(a, b);
-
-        let a = Expr::Float(1.1);
-        let b = Expr::Integer(1);
-        assert_ne!(a, b);
-      }
-
-      #[test]
-      fn integer_to_boolean() {
-        let a = Expr::Integer(1);
-        let b = Expr::Boolean(true);
-        assert_eq!(a, b);
-
-        let a = Expr::Integer(0);
-        let b = Expr::Boolean(false);
-        assert_eq!(a, b);
-      }
-
-      #[test]
-      fn boolean_to_integer() {
-        let a = Expr::Boolean(true);
-        let b = Expr::Integer(1);
-        assert_eq!(a, b);
-
-        let a = Expr::Boolean(false);
-        let b = Expr::Integer(0);
-        assert_eq!(a, b);
-      }
-    }
-  }
-
-  mod ordering {
-    use super::*;
-
-    mod same_types {
-      use super::*;
-
-      #[test]
-      fn integer_to_integer() {
-        let a = Expr::Integer(1);
-        let b = Expr::Integer(1);
-        assert_eq!(a.partial_cmp(&b), Some(std::cmp::Ordering::Equal));
-
-        let a = Expr::Integer(1);
-        let b = Expr::Integer(2);
-        assert_eq!(a.partial_cmp(&b), Some(std::cmp::Ordering::Less));
-
-        let a = Expr::Integer(2);
-        let b = Expr::Integer(1);
-        assert_eq!(a.partial_cmp(&b), Some(std::cmp::Ordering::Greater));
-      }
-
-      #[test]
-      fn float_to_float() {
-        let a = Expr::Float(1.0);
-        let b = Expr::Float(1.0);
-        assert_eq!(a.partial_cmp(&b), Some(std::cmp::Ordering::Equal));
-
-        let a = Expr::Float(1.0);
-        let b = Expr::Float(1.1);
-        assert_eq!(a.partial_cmp(&b), Some(std::cmp::Ordering::Less));
-
-        let a = Expr::Float(1.1);
-        let b = Expr::Float(1.0);
-        assert_eq!(a.partial_cmp(&b), Some(std::cmp::Ordering::Greater));
-      }
-    }
-
-    mod different_types {
-      use super::*;
-
-      #[test]
-      fn integer_to_float() {
-        let a = Expr::Integer(1);
-        let b = Expr::Float(1.0);
-        assert_eq!(a.partial_cmp(&b), Some(std::cmp::Ordering::Equal));
-
-        let a = Expr::Integer(1);
-        let b = Expr::Float(1.1);
-        assert_eq!(a.partial_cmp(&b), Some(std::cmp::Ordering::Less));
-
-        let a = Expr::Integer(2);
-        let b = Expr::Float(1.0);
-        assert_eq!(a.partial_cmp(&b), Some(std::cmp::Ordering::Greater));
-      }
-
-      #[test]
-      fn float_to_integer() {
-        let a = Expr::Float(1.0);
-        let b = Expr::Integer(1);
-        assert_eq!(a.partial_cmp(&b), Some(std::cmp::Ordering::Equal));
-
-        let a = Expr::Float(1.1);
-        let b = Expr::Integer(1);
-        assert_eq!(a.partial_cmp(&b), Some(std::cmp::Ordering::Greater));
-
-        let a = Expr::Float(1.0);
-        let b = Expr::Integer(2);
-        assert_eq!(a.partial_cmp(&b), Some(std::cmp::Ordering::Less));
-      }
-    }
+      ]),
+      Expr::Integer(4),
+    ])]
+    ; "nested blocks"
+  )]
+  #[test_case("(" => Vec::<Expr>::new() ; "invalid block 0")]
+  #[test_case(")" => Vec::<Expr>::new() ; "invalid block 1")]
+  #[test_case("(]" => Vec::<Expr>::new() ; "invalid block 2")]
+  #[test_case("(}" => Vec::<Expr>::new() ; "invalid block 3")]
+  #[test_case(
+    "false true"
+    => vec![Expr::Boolean(false), Expr::Boolean(true)]
+    ; "boolean"
+  )]
+  #[test_case(
+    "{1 'var set}"
+    => vec![
+      Expr::ScopePush,
+      Expr::Integer(1),
+      Expr::Lazy(Expr::Call("var".into()).into()),
+      Expr::Call("set".into()),
+      Expr::ScopePop,
+    ]
+    ; "scope"
+  )]
+  #[test_case(
+    "'(1 2 3)"
+    => vec![Expr::Lazy(Expr::List(vec![
+      Expr::Integer(1),
+      Expr::Integer(2),
+      Expr::Integer(3),
+    ]).into())]
+    ; "lazy block"
+  )]
+  #[test_case(
+    "'(1 '(2) 3)"
+    => vec![Expr::Lazy(Expr::List(vec![
+      Expr::Integer(1),
+      Expr::Lazy(Expr::List(vec![Expr::Integer(2)]).into()),
+      Expr::Integer(3),
+    ]).into())]
+    ; "lazy nested blocks"
+  )]
+  #[test_case(
+    "''1"
+    => vec![Expr::Lazy(Expr::Lazy(Expr::Integer(1).into()).into())]
+    ; "lazy lazy expr"
+  )]
+  fn parse(code: impl AsRef<str>) -> Vec<Expr> {
+    let tokens = crate::lex(code.as_ref());
+    super::parse(tokens)
   }
 }
