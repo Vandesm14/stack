@@ -18,14 +18,14 @@
 '(fn str explode len str topointer fd raw/write) '(str fd) 'raw/write-str let-fn set
 
 ;; Print anything to stderr.
-'(fn any tostring stderr raw/write-str) '(any) 'eprint let-fn set
+'(fn any tostring stderr raw/write-str pop) '(any) 'eprint let-fn set
 ;; Print anything to stdout.
-'(fn any tostring stdout raw/write-str) '(any) 'print let-fn set
+'(fn any tostring stdout raw/write-str pop) '(any) 'print let-fn set
 
 ;; Print anything to stderr with a newline.
-'(fn (any tostring "\n") "" join stderr raw/write-str) '(any) 'eprintln let-fn set
+'(fn (any tostring "\n") "" join stderr raw/write-str pop) '(any) 'eprintln let-fn set
 ;; Print anything to stdout with a newline.
-'(fn (any tostring "\n") "" join stdout raw/write-str) '(any) 'println let-fn set
+'(fn (any tostring "\n") "" join stdout raw/write-str pop) '(any) 'println let-fn set
 
 ;; Exit the process with a code.
 '(fn code sys-exit syscall1) '(code) 'exit let-fn set
