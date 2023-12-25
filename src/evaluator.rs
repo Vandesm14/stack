@@ -537,19 +537,25 @@ impl Program {
 
         match (index, indexable) {
           (Expr::Integer(index), Expr::List(list)) => {
-            let item = (index >= 0 && index < list.len() as i64)
-              .then_some(index as usize)
-              .or(
-                (index < 0 && -index < list.len() as i64)
-                  .then_some(-index as usize),
-              )
-              .and_then(|index| list.get(index))
-              .cloned()
-              .unwrap_or_default();
+            let item = if index >= 0 && index < list.len() as i64 {
+              list.get(index as usize).cloned()
+            } else if index < 0 && -index <= list.len() as i64 {
+              list.get(list.len() - -index as usize).cloned()
+            } else {
+              None
+            };
 
-            self.push(item);
-
-            Ok(())
+            match item {
+              Some(item) => {
+                self.push(item);
+                Ok(())
+              }
+              None => Err(EvalError {
+                expr: trace_expr.clone(),
+                program: self.clone(),
+                message: format!("index {index} is out of bounds"),
+              }),
+            }
           }
           (index, indexable) => Err(EvalError {
             expr: trace_expr.clone(),
