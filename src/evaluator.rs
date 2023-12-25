@@ -1,7 +1,7 @@
 use itertools::Itertools;
 
-use crate::{Expr, Intrinsic};
-use core::fmt;
+use crate::{Expr, Intrinsic, Type};
+use core::{fmt, iter};
 use std::collections::{HashMap, HashSet};
 
 #[derive(Debug, Clone, Default)]
@@ -34,7 +34,9 @@ impl fmt::Display for Program {
       for (layer_i, layer) in self.scopes.iter().enumerate() {
         let items = layer.len();
         writeln!(f, "Layer {}:", layer_i)?;
-        for (item_i, (key, value)) in layer.iter().sorted().enumerate() {
+        for (item_i, (key, value)) in
+          layer.iter().sorted_by_key(|(s, _)| *s).enumerate()
+        {
           if item_i == items - 1 && layer_i == layers - 1 {
             write!(f, " + {}: {}", key, value)?;
           } else {
@@ -81,8 +83,12 @@ impl Program {
     Ok(self)
   }
 
-  fn pop(&mut self) -> Option<Expr> {
-    self.stack.pop()
+  fn pop(&mut self, trace_expr: &Expr) -> Result<Expr, EvalError> {
+    self.stack.pop().ok_or_else(|| EvalError {
+      expr: trace_expr.clone(),
+      program: self.clone(),
+      message: "Stack underflow".into(),
+    })
   }
 
   fn push(&mut self, expr: Expr) {
@@ -139,6 +145,7 @@ impl Program {
   fn scope_item_layer(&self, symbol: &str) -> Option<usize> {
     let len = self.scopes.len();
     let take = self.scope_layer.unwrap_or(len - 1) + 1;
+
     for (layer_i, layer) in self.scopes.iter().take(take).rev().enumerate() {
       if layer.contains_key(symbol) {
         return Some(layer_i);
@@ -148,13 +155,26 @@ impl Program {
     None
   }
 
-  fn set_scope_item(&mut self, symbol: &str, value: Expr) {
+  fn set_scope_item(
+    &mut self,
+    trace_expr: &Expr,
+    symbol: &str,
+    value: Expr,
+  ) -> Result<(), EvalError> {
     let len = self.scopes.len();
     let last = self.scope_layer.unwrap_or(len - 1).min(len - 1);
+
     if let Some(layer) = self.scopes.get_mut(last) {
       layer.insert(symbol.to_string(), value);
+      Ok(())
     } else {
-      panic!("No scope to set item in. Maybe there's an extra \"}}\"?");
+      Err(EvalError {
+        expr: trace_expr.clone(),
+        program: self.clone(),
+        message: format!(
+          "no scope to set {symbol}, there may be too many \"}}\""
+        ),
+      })
     }
   }
 
@@ -176,825 +196,922 @@ impl Program {
 
   fn eval_intrinsic(
     &mut self,
+    trace_expr: &Expr,
     intrinsic: Intrinsic,
-  ) -> Result<Option<Expr>, EvalError> {
-    let call = intrinsic.as_str().to_string();
+  ) -> Result<(), EvalError> {
     match intrinsic {
       // Arithmetic
       Intrinsic::Add => {
-        let b = self.pop();
-        let a = self.pop();
-        if let (Some(Expr::Integer(a)), Some(Expr::Integer(b))) =
-          (a.clone(), b.clone())
-        {
-          Ok(Some(Expr::Integer(a + b)))
-        } else if let (Some(Expr::String(a)), Some(Expr::String(b))) =
-          (a.clone(), b.clone())
-        {
-          Ok(Some(Expr::String(format!("{}{}", a, b))))
-        } else if let (Some(Expr::Float(a)), Some(Expr::Float(b))) =
-          (a.clone(), b.clone())
-        {
-          Ok(Some(Expr::Float(a + b)))
-        } else {
-          Err(EvalError {
-            expr: Expr::Call(call),
+        let rhs = self.pop(trace_expr)?;
+        let lhs = self.pop(trace_expr)?;
+
+        match lhs.coerce_same_float(&rhs) {
+          Some((Expr::Integer(lhs), Expr::Integer(rhs))) => {
+            self.push(Expr::Integer(lhs + rhs));
+            Ok(())
+          }
+          Some((Expr::Float(lhs), Expr::Float(rhs))) => {
+            self.push(Expr::Float(lhs + rhs));
+            Ok(())
+          }
+          Some((Expr::Pointer(lhs), Expr::Pointer(rhs))) => {
+            self.push(Expr::Pointer(lhs + rhs));
+            Ok(())
+          }
+          _ => Err(EvalError {
+            expr: trace_expr.clone(),
             program: self.clone(),
-            message: format!("Invalid args: [{:?} {:?}]", a, b),
-          })
+            message: format!(
+              "expected {}, found {}",
+              Type::List(vec![
+                Type::Set(vec![Type::Integer, Type::Float, Type::Pointer]),
+                Type::Set(vec![Type::Integer, Type::Float, Type::Pointer]),
+              ]),
+              Type::List(vec![lhs.type_of(), rhs.type_of()]),
+            ),
+          }),
         }
       }
       Intrinsic::Subtract => {
-        let b = self.pop();
-        let a = self.pop();
-        if let (Some(Expr::Integer(a)), Some(Expr::Integer(b))) =
-          (a.clone(), b.clone())
-        {
-          Ok(Some(Expr::Integer(a - b)))
-        } else if let (Some(Expr::Float(a)), Some(Expr::Float(b))) =
-          (a.clone(), b.clone())
-        {
-          Ok(Some(Expr::Float(a - b)))
-        } else {
-          Err(EvalError {
-            expr: Expr::Call(call.clone()),
+        let rhs = self.pop(trace_expr)?;
+        let lhs = self.pop(trace_expr)?;
+
+        match lhs.coerce_same_float(&rhs) {
+          Some((Expr::Integer(lhs), Expr::Integer(rhs))) => {
+            self.push(Expr::Integer(lhs - rhs));
+            Ok(())
+          }
+          Some((Expr::Float(lhs), Expr::Float(rhs))) => {
+            self.push(Expr::Float(lhs - rhs));
+            Ok(())
+          }
+          Some((Expr::Pointer(lhs), Expr::Pointer(rhs))) => {
+            self.push(Expr::Pointer(lhs - rhs));
+            Ok(())
+          }
+          _ => Err(EvalError {
+            expr: trace_expr.clone(),
             program: self.clone(),
-            message: format!("Invalid args: [{:?} {:?}]", a, b),
-          })
+            message: format!(
+              "expected {}, found {}",
+              Type::List(vec![
+                Type::Set(vec![Type::Integer, Type::Float, Type::Pointer]),
+                Type::Set(vec![Type::Integer, Type::Float, Type::Pointer]),
+              ]),
+              Type::List(vec![lhs.type_of(), rhs.type_of()]),
+            ),
+          }),
         }
       }
       Intrinsic::Multiply => {
-        let b = self.pop();
-        let a = self.pop();
-        if let (Some(Expr::Integer(a)), Some(Expr::Integer(b))) =
-          (a.clone(), b.clone())
-        {
-          Ok(Some(Expr::Integer(a * b)))
-        } else if let (Some(Expr::Float(a)), Some(Expr::Float(b))) =
-          (a.clone(), b.clone())
-        {
-          Ok(Some(Expr::Float(a * b)))
-        } else {
-          Err(EvalError {
-            expr: Expr::Call(call.clone()),
+        let rhs = self.pop(trace_expr)?;
+        let lhs = self.pop(trace_expr)?;
+
+        match lhs.coerce_same_float(&rhs) {
+          Some((Expr::Integer(lhs), Expr::Integer(rhs))) => {
+            self.push(Expr::Integer(lhs * rhs));
+            Ok(())
+          }
+          Some((Expr::Float(lhs), Expr::Float(rhs))) => {
+            self.push(Expr::Float(lhs * rhs));
+            Ok(())
+          }
+          Some((Expr::Pointer(lhs), Expr::Pointer(rhs))) => {
+            self.push(Expr::Pointer(lhs * rhs));
+            Ok(())
+          }
+          _ => Err(EvalError {
+            expr: trace_expr.clone(),
             program: self.clone(),
-            message: format!("Invalid args:[{:?} {:?}]", a, b),
-          })
+            message: format!(
+              "expected {}, found {}",
+              Type::List(vec![
+                Type::Set(vec![Type::Integer, Type::Float, Type::Pointer]),
+                Type::Set(vec![Type::Integer, Type::Float, Type::Pointer]),
+              ]),
+              Type::List(vec![lhs.type_of(), rhs.type_of()]),
+            ),
+          }),
         }
       }
       Intrinsic::Divide => {
-        let b = self.pop();
-        let a = self.pop();
-        if let (Some(Expr::Integer(a)), Some(Expr::Integer(b))) =
-          (a.clone(), b.clone())
-        {
-          Ok(Some(Expr::Integer(a / b)))
-        } else if let (Some(Expr::Float(a)), Some(Expr::Float(b))) =
-          (a.clone(), b.clone())
-        {
-          Ok(Some(Expr::Float(a / b)))
-        } else {
-          Err(EvalError {
-            expr: Expr::Call(call.clone()),
+        let rhs = self.pop(trace_expr)?;
+        let lhs = self.pop(trace_expr)?;
+
+        match lhs.coerce_same_float(&rhs) {
+          Some((Expr::Integer(lhs), Expr::Integer(rhs))) => {
+            self.push(Expr::Integer(lhs / rhs));
+            Ok(())
+          }
+          Some((Expr::Float(lhs), Expr::Float(rhs))) => {
+            self.push(Expr::Float(lhs / rhs));
+            Ok(())
+          }
+          Some((Expr::Pointer(lhs), Expr::Pointer(rhs))) => {
+            self.push(Expr::Pointer(lhs / rhs));
+            Ok(())
+          }
+          _ => Err(EvalError {
+            expr: trace_expr.clone(),
             program: self.clone(),
-            message: format!("Invalid args: [{:?} {:?}]", a, b),
-          })
+            message: format!(
+              "expected {}, found {}",
+              Type::List(vec![
+                Type::Set(vec![Type::Integer, Type::Float, Type::Pointer]),
+                Type::Set(vec![Type::Integer, Type::Float, Type::Pointer]),
+              ]),
+              Type::List(vec![lhs.type_of(), rhs.type_of()]),
+            ),
+          }),
         }
       }
       Intrinsic::Remainder => {
-        let b = self.pop();
-        let a = self.pop();
-        if let (Some(Expr::Integer(a)), Some(Expr::Integer(b))) =
-          (a.clone(), b.clone())
-        {
-          Ok(Some(Expr::Integer(a % b)))
-        } else if let (Some(Expr::Float(a)), Some(Expr::Float(b))) =
-          (a.clone(), b.clone())
-        {
-          Ok(Some(Expr::Float(a % b)))
-        } else {
-          Err(EvalError {
-            expr: Expr::Call(call.clone()),
+        let rhs = self.pop(trace_expr)?;
+        let lhs = self.pop(trace_expr)?;
+
+        match lhs.coerce_same_float(&rhs) {
+          Some((Expr::Integer(lhs), Expr::Integer(rhs))) => {
+            self.push(Expr::Integer(lhs % rhs));
+            Ok(())
+          }
+          Some((Expr::Float(lhs), Expr::Float(rhs))) => {
+            self.push(Expr::Float(lhs % rhs));
+            Ok(())
+          }
+          Some((Expr::Pointer(lhs), Expr::Pointer(rhs))) => {
+            self.push(Expr::Pointer(lhs % rhs));
+            Ok(())
+          }
+          _ => Err(EvalError {
+            expr: trace_expr.clone(),
             program: self.clone(),
-            message: format!("Invalid args: [{:?} {:?}]", a, b),
-          })
+            message: format!(
+              "expected {}, found {}",
+              Type::List(vec![
+                Type::Set(vec![Type::Integer, Type::Float, Type::Pointer]),
+                Type::Set(vec![Type::Integer, Type::Float, Type::Pointer]),
+              ]),
+              Type::List(vec![lhs.type_of(), rhs.type_of()]),
+            ),
+          }),
         }
       }
 
       // Comparison
       Intrinsic::Equal => {
-        let b = self.pop();
-        let a = self.pop();
-        Ok(Some(Expr::Boolean(a.eq(&b))))
+        let rhs = self.pop(trace_expr)?;
+        let lhs = self.pop(trace_expr)?;
+
+        self.push(Expr::Boolean(lhs == rhs));
+
+        Ok(())
       }
       Intrinsic::NotEqual => {
-        let b = self.pop();
-        let a = self.pop();
-        Ok(Some(Expr::Boolean(!a.eq(&b))))
+        let rhs = self.pop(trace_expr)?;
+        let lhs = self.pop(trace_expr)?;
+
+        self.push(Expr::Boolean(lhs != rhs));
+
+        Ok(())
       }
       Intrinsic::GreaterThan => {
-        let b = self.pop();
-        let a = self.pop();
-        Ok(Some(Expr::Boolean(a.gt(&b))))
+        let rhs = self.pop(trace_expr)?;
+        let lhs = self.pop(trace_expr)?;
+
+        self.push(Expr::Boolean(lhs > rhs));
+
+        Ok(())
       }
       Intrinsic::LessThan => {
-        let b = self.pop();
-        let a = self.pop();
-        Ok(Some(Expr::Boolean(a.lt(&b))))
+        let rhs = self.pop(trace_expr)?;
+        let lhs = self.pop(trace_expr)?;
+
+        self.push(Expr::Boolean(lhs < rhs));
+
+        Ok(())
       }
       Intrinsic::Or => {
-        let b = self.pop();
-        let a = self.pop();
-        if let (Some(a), Some(b)) = (a.clone(), b.clone()) {
-          Ok(Some(Expr::Boolean(a.is_truthy() || b.is_truthy())))
-        } else {
-          Err(EvalError {
-            expr: Expr::Call(call.clone()),
-            program: self.clone(),
-            message: format!("Invalid args: [{:?} {:?}]", a, b),
-          })
-        }
+        let rhs = self.pop(trace_expr)?;
+        let lhs = self.pop(trace_expr)?;
+
+        self.push(Expr::Boolean(lhs.is_truthy() || rhs.is_truthy()));
+
+        Ok(())
       }
       Intrinsic::And => {
-        let b = self.pop();
-        let a = self.pop();
-        if let (Some(a), Some(b)) = (a.clone(), b.clone()) {
-          Ok(Some(Expr::Boolean(a.is_truthy() && b.is_truthy())))
-        } else {
-          Err(EvalError {
-            expr: Expr::Call(call.clone()),
-            program: self.clone(),
-            message: format!("Invalid args: [{:?} {:?}]", a, b),
-          })
-        }
+        let rhs = self.pop(trace_expr)?;
+        let lhs = self.pop(trace_expr)?;
+
+        self.push(Expr::Boolean(lhs.is_truthy() && rhs.is_truthy()));
+
+        Ok(())
       }
 
       // Code/IO
       Intrinsic::Parse => {
-        let string = self.pop();
-        if let Some(Expr::String(string)) = string {
-          let tokens = crate::lex(string.as_str());
-          let exprs = crate::parse(tokens);
-          Ok(Some(Expr::List(exprs)))
-        } else {
-          Err(EvalError {
-            expr: Expr::Call(call.clone()),
+        let item = self.pop(trace_expr)?;
+
+        match item {
+          Expr::String(string) => {
+            let tokens = crate::lex(string.as_str());
+            let exprs = crate::parse(tokens);
+
+            self.push(Expr::List(exprs));
+
+            Ok(())
+          }
+          _ => Err(EvalError {
+            expr: trace_expr.clone(),
             program: self.clone(),
-            message: format!("Invalid args: [{:?}]", string),
-          })
+            message: format!(
+              "expected {}, found {}",
+              Type::String,
+              item.type_of(),
+            ),
+          }),
         }
       }
+      // TODO: Re-implement using syscalls.
       Intrinsic::ReadFile => {
-        let path = self.pop();
-        if let Some(Expr::String(path)) = path {
-          let contents = std::fs::read_to_string(path.clone());
-          match contents {
+        let item = self.pop(trace_expr)?;
+
+        match item {
+          Expr::String(path) => match std::fs::read_to_string(path.clone()) {
             Ok(contents) => {
               self.loaded_files.insert(path);
-              Ok(Some(Expr::String(contents)))
+              self.push(Expr::String(contents));
+
+              Ok(())
             }
-            Err(err) => Err(EvalError {
-              expr: Expr::Call(call.clone()),
+            Err(e) => Err(EvalError {
+              expr: trace_expr.clone(),
               program: self.clone(),
-              message: format!("Error reading [{}]: {}", path, err),
+              message: format!("unable to read {path}: {e}"),
             }),
-          }
-        } else {
-          Err(EvalError {
-            expr: Expr::Call(call.clone()),
+          },
+          _ => Err(EvalError {
+            expr: trace_expr.clone(),
             program: self.clone(),
-            message: format!("Invalid args: [{:?}]", path),
-          })
+            message: format!(
+              "expected {}, found {}",
+              Type::String,
+              item.type_of(),
+            ),
+          }),
         }
       }
       Intrinsic::Print => {
-        let a = self.pop();
-
-        if let Some(a) = a {
-          match a {
-            Expr::String(string) => println!("{}", string),
-            _ => println!("{}", a),
-          }
-
-          Ok(None)
-        } else {
-          Err(EvalError {
-            expr: Expr::Call(call.clone()),
-            program: self.clone(),
-            message: "Invalid args: []".to_string(),
-          })
-        }
+        let item = self.pop(trace_expr)?;
+        println!("{item}");
+        Ok(())
       }
 
       // List
+      // TODO: Deprecate in favor of `"hello" tolist`
       Intrinsic::Explode => {
-        // TODO: Deprecate in favor of `"hello" tolist`
-        let string = self.pop();
-        if let Some(Expr::String(string)) = string.clone() {
-          let mut chars = vec![];
-          for c in string.chars() {
-            chars.push(Expr::String(c.to_string()));
+        let item = self.pop(trace_expr)?;
+
+        match item {
+          Expr::String(string) => {
+            self.push(Expr::List(
+              string
+                .chars()
+                .map(|c| Expr::String(c.to_string()))
+                .collect_vec(),
+            ));
+
+            Ok(())
           }
-          Ok(Some(Expr::List(chars)))
-        } else {
-          Err(EvalError {
-            expr: Expr::Call(call.clone()),
+          _ => Err(EvalError {
+            expr: trace_expr.clone(),
             program: self.clone(),
-            message: format!("Invalid args: [{:?}]", string),
-          })
+            message: format!(
+              "expected {}, found {}",
+              Type::String,
+              item.type_of(),
+            ),
+          }),
         }
       }
       Intrinsic::Length => {
-        let list = self.pop();
-        if let Some(Expr::List(list)) = list {
-          Ok(Some(Expr::Integer(list.len() as i64)))
-        } else {
-          Err(EvalError {
-            expr: Expr::Call(call.clone()),
+        let item = self.pop(trace_expr)?;
+
+        match item {
+          Expr::List(list) => {
+            // TODO: Check that the length fits in an i64.
+            self.push(Expr::Integer(list.len() as i64));
+            Ok(())
+          }
+          _ => Err(EvalError {
+            expr: trace_expr.clone(),
             program: self.clone(),
-            message: format!("Invalid args: [{:?}]", list),
-          })
+            message: format!(
+              "expected {}, found {}",
+              Type::List(vec![]),
+              item.type_of(),
+            ),
+          }),
         }
       }
       Intrinsic::Nth => {
-        let index = self.pop();
-        let list = self.pop();
-        if let (Some(Expr::Integer(index)), Some(Expr::List(list))) =
-          (index.clone(), list.clone())
-        {
-          if index >= 0 && index < list.len() as i64 {
-            Ok(Some(list[index as usize].clone()))
-          } else if index < 0 {
-            let positive_index = -index;
-            let positive_index = positive_index as usize;
-            let actual_index = list.len().checked_sub(positive_index);
+        let index = self.pop(trace_expr)?;
+        let indexable = self.pop(trace_expr)?;
 
-            match actual_index {
-              Some(index) => Ok(Some(list[index].clone())),
+        match (index, indexable) {
+          (Expr::Integer(index), Expr::List(list)) => {
+            let item = if index >= 0 && index < list.len() as i64 {
+              list.get(index as usize).cloned()
+            } else if index < 0 && -index <= list.len() as i64 {
+              list.get(list.len() - -index as usize).cloned()
+            } else {
+              None
+            };
+
+            match item {
+              Some(item) => {
+                self.push(item);
+                Ok(())
+              }
               None => Err(EvalError {
-                expr: Expr::Call(call.clone()),
+                expr: trace_expr.clone(),
                 program: self.clone(),
-                message: format!(
-                  "Index {} out of bounds for: {}",
-                  index,
-                  Expr::List(list)
-                ),
+                message: format!("index {index} is out of bounds"),
               }),
             }
-          } else {
-            Err(EvalError {
-              expr: Expr::Call(call.clone()),
-              program: self.clone(),
-              message: format!("Index out of bounds: {}", index),
-            })
           }
-        } else {
-          Err(EvalError {
-            expr: Expr::Call(call.clone()),
+          (index, indexable) => Err(EvalError {
+            expr: trace_expr.clone(),
             program: self.clone(),
-            message: format!("Invalid args: [{:?} {:?}]", list, index),
-          })
+            message: format!(
+              "expected {}, found {}",
+              Type::List(vec![Type::List(vec![]), Type::Integer]),
+              Type::List(vec![indexable.type_of(), index.type_of()]),
+            ),
+          }),
         }
       }
       Intrinsic::Join => {
-        let delimiter = self.pop();
-        let list = self.pop();
-        if let (Some(Expr::String(delimiter)), Some(Expr::List(list))) =
-          (delimiter.clone(), list.clone())
-        {
-          let mut string = String::new();
-          for (i, item) in list.iter().enumerate() {
-            if i > 0 {
-              string.push_str(&delimiter);
-            }
+        let delimiter = self.pop(trace_expr)?;
+        let list = self.pop(trace_expr)?;
 
-            match item {
-              Expr::String(str) => string.push_str(str),
-              _ => string.push_str(item.to_string().as_str()),
-            }
+        match (delimiter, list) {
+          (Expr::String(delimiter), Expr::List(list)) => {
+            self.push(Expr::String(
+              list.into_iter().join(&delimiter.to_string()),
+            ));
+
+            Ok(())
           }
-          Ok(Some(Expr::String(string)))
-        } else {
-          Err(EvalError {
-            expr: Expr::Call(call.clone()),
+          (delimiter, list) => Err(EvalError {
+            expr: trace_expr.clone(),
             program: self.clone(),
-            message: format!("Invalid args: [{:?} {:?}]", list, delimiter),
-          })
+            message: format!(
+              "expected {}, found {}",
+              Type::List(vec![Type::List(vec![]), Type::String]),
+              Type::List(vec![list.type_of(), delimiter.type_of()]),
+            ),
+          }),
         }
       }
       // Pushes the last value in the stack into the list
       Intrinsic::Insert => {
-        let item = self.pop();
-        let list = self.pop();
-        if let (Some(Expr::List(list)), Some(item)) =
-          (list.clone(), item.clone())
-        {
-          let mut list = list;
-          list.push(item);
-          Ok(Some(Expr::List(list)))
-        } else {
-          Err(EvalError {
-            expr: Expr::Call(call.clone()),
+        let item = self.pop(trace_expr)?;
+        let list = self.pop(trace_expr)?;
+
+        match (item, list) {
+          (item, Expr::List(mut list)) => {
+            list.push(item);
+            self.push(Expr::List(list));
+
+            Ok(())
+          }
+          (item, list) => Err(EvalError {
+            expr: trace_expr.clone(),
             program: self.clone(),
-            message: format!("Invalid args: [{:?}]", list),
-          })
+            message: format!(
+              "expected {}, found {}",
+              Type::List(vec![Type::List(vec![]), Type::Any,]),
+              Type::List(vec![list.type_of(), item.type_of()]),
+            ),
+          }),
         }
       }
       // Pops the last value of a list onto the stack
       Intrinsic::ListPop => {
-        let list = self.pop();
-        if let Some(Expr::List(list)) = list {
-          let mut list = list;
-          let item = list.pop();
-          if let Some(item) = item {
+        let item = self.pop(trace_expr)?;
+
+        match item {
+          Expr::List(mut list) => {
+            let item = list.pop().unwrap_or_default();
+
             self.push(Expr::List(list));
-            Ok(Some(item))
-          } else {
-            Ok(None)
+            self.push(item);
+
+            Ok(())
           }
-        } else {
-          Err(EvalError {
-            expr: Expr::Call(call.clone()),
+          item => Err(EvalError {
+            expr: trace_expr.clone(),
             program: self.clone(),
-            message: format!("Invalid args: [{:?}]", list),
-          })
+            message: format!(
+              "expected {}, found {}",
+              Type::List(vec![]),
+              item.type_of(),
+            ),
+          }),
         }
       }
       Intrinsic::ListShift => {
-        let list = self.pop();
-        if let Some(Expr::List(list)) = list {
-          let mut list = list;
-          let item = list.remove(0);
-          self.push(Expr::List(list));
-          Ok(Some(item))
-        } else {
-          Err(EvalError {
-            expr: Expr::Call(call.clone()),
+        let item = self.pop(trace_expr)?;
+
+        match item {
+          Expr::List(mut list) => {
+            let item = (!list.is_empty())
+              .then(|| list.remove(0))
+              .unwrap_or_default();
+
+            self.push(Expr::List(list));
+            self.push(item);
+
+            Ok(())
+          }
+          item => Err(EvalError {
+            expr: trace_expr.clone(),
             program: self.clone(),
-            message: format!("Invalid args: [{:?}]", list),
-          })
+            message: format!(
+              "expected {}, found {}",
+              Type::List(vec![]),
+              item.type_of(),
+            ),
+          }),
         }
       }
       Intrinsic::Concat => {
-        let b = self.pop();
-        let a = self.pop();
-        if let (Some(Expr::List(a)), Some(Expr::List(b))) =
-          (a.clone(), b.clone())
-        {
-          let mut a = a;
-          a.extend(b);
-          Ok(Some(Expr::List(a)))
-        } else {
-          Err(EvalError {
-            expr: Expr::Call(call.clone()),
+        let rhs = self.pop(trace_expr)?;
+        let lhs = self.pop(trace_expr)?;
+
+        match (lhs, rhs) {
+          (Expr::List(mut lhs), Expr::List(rhs)) => {
+            lhs.extend(rhs);
+            self.push(Expr::List(lhs));
+
+            Ok(())
+          }
+          (lhs, rhs) => Err(EvalError {
+            expr: trace_expr.clone(),
             program: self.clone(),
-            message: format!("Invalid args: [{:?} {:?}]", a, b),
-          })
+            message: format!(
+              "expected {}, found {}",
+              Type::List(vec![Type::List(vec![]), Type::List(vec![])]),
+              Type::List(vec![lhs.type_of(), rhs.type_of()]),
+            ),
+          }),
         }
       }
       Intrinsic::Unwrap => {
-        let list = self.stack.pop();
-        if let Some(Expr::List(list)) = list {
-          for expr in list {
-            self.push(expr);
+        let item = self.pop(trace_expr)?;
+
+        match item {
+          Expr::List(list) => {
+            self.stack.extend(list);
+            Ok(())
           }
-          Ok(None)
-        } else {
-          Err(EvalError {
-            expr: Expr::Call(call.clone()),
+          item => Err(EvalError {
+            expr: trace_expr.clone(),
             program: self.clone(),
-            message: format!("Invalid args: [{:?}]", list),
-          })
+            message: format!(
+              "expected {}, found {}",
+              Type::List(vec![]),
+              item.type_of(),
+            ),
+          }),
         }
       }
 
       // Control Flow
       Intrinsic::IfElse => {
-        let condition = self.pop();
-        let block = self.pop();
-        let else_block = self.pop();
-        if let (
-          Some(Expr::List(condition)),
-          Some(Expr::List(block)),
-          Some(Expr::List(else_block)),
-        ) = (condition.clone(), block.clone(), else_block.clone())
-        {
-          let result = self.eval(condition.clone());
-          match result {
-            Ok(_) => {
-              let bool = self.pop();
+        let cond = self.pop(trace_expr)?;
+        let then = self.pop(trace_expr)?;
+        let r#else = self.pop(trace_expr)?;
 
-              if let Some(bool) = bool {
-                if bool.is_truthy() {
-                  self.eval(block)?;
-                } else {
-                  self.eval(else_block)?;
-                }
+        match (cond, then, r#else) {
+          (Expr::List(cond), Expr::List(then), Expr::List(r#else)) => {
+            self.eval(cond)?;
+            let cond = self.pop(trace_expr)?;
 
-                Ok(None)
-              } else {
-                Err(EvalError {
-                  expr: Expr::Call(call.clone()),
-                  program: self.clone(),
-                  message: format!(
-                    "Invalid args: [{:?} {:?} {:?}]",
-                    else_block, block, condition
-                  ),
-                })
-              }
+            if cond.is_truthy() {
+              self.eval(then)
+            } else {
+              self.eval(r#else)
             }
-            Err(err) => Err(err),
           }
-        } else {
-          Err(EvalError {
-            expr: Expr::Call(call.clone()),
+          (cond, then, r#else) => Err(EvalError {
+            expr: trace_expr.clone(),
             program: self.clone(),
             message: format!(
-              "Invalid args: [{:?} {:?} {:?}]",
-              else_block, block, condition
+              "expected {}, found {}",
+              Type::List(vec![
+                // TODO: A type to represent functions.
+                Type::List(vec![Type::Boolean]),
+                Type::List(vec![]),
+                Type::List(vec![]),
+              ]),
+              Type::List(vec![
+                cond.type_of(),
+                then.type_of(),
+                r#else.type_of(),
+              ]),
             ),
-          })
+          }),
         }
       }
       Intrinsic::If => {
-        let condition = self.pop();
-        let block = self.pop();
-        if let (Some(Expr::List(condition)), Some(Expr::List(block))) =
-          (condition.clone(), block.clone())
-        {
-          match self.eval(vec![
-            Expr::List(vec![]),
-            Expr::Lazy(Expr::List(block).into()),
-            Expr::Lazy(Expr::List(condition).into()),
-            Expr::Call("ifelse".to_string()),
-          ]) {
-            Ok(_) => Ok(None),
-            Err(err) => Err(EvalError {
-              expr: Expr::Call(call.clone()),
-              program: err.clone().program,
-              message: format!("Error in if condition: {}", err.message),
-            }),
-          }
-        } else {
-          Err(EvalError {
-            expr: Expr::Call(call.clone()),
-            program: self.clone(),
-            message: format!("Invalid args: [{:?} {:?}]", block, condition),
-          })
-        }
-      }
-      Intrinsic::While => {
-        let condition = self.pop();
-        let block = self.pop();
+        let cond = self.pop(trace_expr)?;
+        let then = self.pop(trace_expr)?;
 
-        if let (Some(Expr::List(condition)), Some(Expr::List(block))) =
-          (condition, block)
-        {
-          loop {
-            let mut block = block.clone();
-            block.push(Expr::Boolean(true));
+        match (cond, then) {
+          (Expr::List(cond), Expr::List(then)) => {
+            self.eval(cond)?;
+            let cond = self.pop(trace_expr)?;
 
-            match self.eval(vec![
-              Expr::List(vec![Expr::Boolean(false)]),
-              Expr::Lazy(Expr::List(block.clone()).into()),
-              Expr::Lazy(Expr::List(condition.clone()).into()),
-              Expr::Call("ifelse".to_string()),
-            ]) {
-              Ok(_) => {
-                let bool = self.pop();
-
-                if let Some(bool) = bool {
-                  if !bool.is_truthy() {
-                    break;
-                  }
-                } else {
-                  return Err(EvalError {
-                    expr: Expr::Call(call.clone()),
-                    program: self.clone(),
-                    message: format!(
-                      "Invalid args: [{:?} {:?}]",
-                      block, condition
-                    ),
-                  });
-                }
-              }
-              Err(err) => {
-                return Err(EvalError {
-                  expr: Expr::Call(call.clone()),
-                  program: err.clone().program,
-                  message: format!("Error in while condition: {}", err.message),
-                })
-              }
+            if cond.is_truthy() {
+              self.eval(then)
+            } else {
+              Ok(())
             }
           }
+          (cond, then) => Err(EvalError {
+            expr: trace_expr.clone(),
+            program: self.clone(),
+            message: format!(
+              "expected {}, found {}",
+              Type::List(vec![
+                // TODO: A type to represent functions.
+                Type::List(vec![Type::Boolean]),
+                Type::List(vec![]),
+              ]),
+              Type::List(vec![cond.type_of(), then.type_of(),]),
+            ),
+          }),
         }
 
-        Ok(None)
+        // self.push(Expr::List(vec![]));
+        // self.eval_intrinsic(trace_expr, Intrinsic::IfElse)
+      }
+      Intrinsic::While => {
+        let cond = self.pop(trace_expr)?;
+        let block = self.pop(trace_expr)?;
+
+        match (cond, block) {
+          (Expr::List(cond), Expr::List(block)) => loop {
+            self.eval(cond.clone())?;
+            let cond = self.pop(trace_expr)?;
+
+            if cond.is_truthy() {
+              self.eval(block.clone())?;
+            } else {
+              break Ok(());
+            }
+          },
+          (cond, block) => Err(EvalError {
+            expr: trace_expr.clone(),
+            program: self.clone(),
+            message: format!(
+              "expected {}, found {}",
+              Type::List(vec![
+                // TODO: A type to represent functions.
+                Type::List(vec![Type::Boolean]),
+                Type::List(vec![]),
+              ]),
+              Type::List(vec![cond.type_of(), block.type_of(),]),
+            ),
+          }),
+        }
       }
       Intrinsic::Halt => Err(EvalError {
-        expr: Expr::Call(call.clone()),
+        expr: trace_expr.clone(),
         program: self.clone(),
-        message: "Halted.".to_string(),
+        message: "halt".to_string(),
       }),
 
       // Scope
       Intrinsic::Set => {
-        let name = self.pop();
-        let value = self.pop();
+        let key = self.pop(trace_expr)?;
+        let val = self.pop(trace_expr)?;
 
-        if let (Some(Expr::Call(name)), Some(value)) =
-          (name.clone(), value.clone())
-        {
-          if Intrinsic::try_from(name.as_str()).is_ok() {
-            return Err(EvalError {
-              expr: Expr::Call(call.clone()),
+        match key {
+          Expr::Call(key) => match Intrinsic::try_from(key.as_str()) {
+            Ok(intrinsic) => Err(EvalError {
+              expr: trace_expr.clone(),
               program: self.clone(),
-              message: format!("Cannot overwrite native function: {}", name),
-            });
-          }
-
-          self.set_scope_item(&name, value);
-          Ok(None)
-        } else {
-          Err(EvalError {
-            expr: Expr::Call(call),
+              message: format!(
+                "cannot shadow an intrinsic {}",
+                intrinsic.as_str()
+              ),
+            }),
+            Err(_) => self.set_scope_item(trace_expr, key.as_str(), val),
+          },
+          key => Err(EvalError {
+            expr: trace_expr.clone(),
             program: self.clone(),
-            message: format!("Invalid args: [{:?} {:?}]", value, name),
-          })
+            message: format!(
+              "expected {}, found {}",
+              Type::List(vec![
+                // TODO: A type to represent functions.
+                Type::Any,
+                Type::Call,
+              ]),
+              Type::List(vec![val.type_of(), key.type_of(),]),
+            ),
+          }),
         }
       }
       Intrinsic::Get => {
-        let name = self.pop();
+        let item = self.pop(trace_expr)?;
 
-        if let Some(Expr::Call(name)) = name {
-          Ok(self.scope_item(&name))
-        } else {
-          Err(EvalError {
-            expr: Expr::Call(call),
+        match item {
+          Expr::Call(key) => {
+            // NOTE: Always push something, otherwise it can get tricky to
+            //       manage the stack in-langauge.
+            self.push(self.scope_item(key.as_str()).unwrap_or_default());
+            Ok(())
+          }
+          item => Err(EvalError {
+            expr: trace_expr.clone(),
             program: self.clone(),
-            message: format!("Invalid args: [{:?}]", name),
-          })
+            message: format!(
+              "expected {}, found {}",
+              Type::Call,
+              item.type_of(),
+            ),
+          }),
         }
       }
       Intrinsic::Unset => {
-        let name = self.pop();
-        if let Some(Expr::Call(name)) = name {
-          self.remove_scope_item(&name);
+        let item = self.pop(trace_expr)?;
 
-          Ok(None)
-        } else {
-          Err(EvalError {
-            expr: Expr::Call(call.clone()),
+        match item {
+          Expr::Call(key) => {
+            self.remove_scope_item(key.as_str());
+            Ok(())
+          }
+          item => Err(EvalError {
+            expr: trace_expr.clone(),
             program: self.clone(),
-            message: format!("Invalid args: [{:?}]", name),
-          })
+            message: format!(
+              "expected {}, found {}",
+              Type::Call,
+              item.type_of(),
+            ),
+          }),
         }
       }
 
       // Stack
       Intrinsic::Collect => {
-        Ok(Some(Expr::List(core::mem::take(&mut self.stack))))
+        let list = core::mem::take(&mut self.stack);
+        self.push(Expr::List(list));
+
+        Ok(())
       }
       Intrinsic::Clear => {
         self.stack.clear();
-        Ok(None)
+        Ok(())
       }
       Intrinsic::Pop => {
         self.stack.pop();
-        Ok(None)
+        Ok(())
       }
       Intrinsic::Dup => {
-        let a = self.pop();
+        let item = self.pop(trace_expr)?;
 
-        if let Some(a) = a {
-          self.push(a.clone());
-          self.push(a);
+        self.push(item.clone());
+        self.push(item);
 
-          Ok(None)
-        } else {
-          Err(EvalError {
-            expr: Expr::Call(call.clone()),
-            program: self.clone(),
-            message: "Not enough items on stack".to_string(),
-          })
-        }
+        Ok(())
       }
       Intrinsic::Swap => {
-        let a = self.pop();
-        let b = self.pop();
+        let rhs = self.pop(trace_expr)?;
+        let lhs = self.pop(trace_expr)?;
 
-        if let (Some(a), Some(b)) = (a, b) {
-          self.push(a);
-          self.push(b);
+        self.push(rhs);
+        self.push(lhs);
 
-          Ok(None)
-        } else {
-          Err(EvalError {
-            expr: Expr::Call(call.clone()),
-            program: self.clone(),
-            message: "Not enough items on stack".to_string(),
-          })
-        }
+        Ok(())
       }
       Intrinsic::Rot => {
-        if self.stack.len() < 3 {
-          return Err(EvalError {
-            expr: Expr::Call(call.clone()),
-            program: self.clone(),
-            message: "Not enough items on stack".to_string(),
-          });
-        }
+        let rhs = self.pop(trace_expr)?;
+        let mid = self.pop(trace_expr)?;
+        let lhs = self.pop(trace_expr)?;
 
-        let len = self.stack.len();
-        self.stack.swap(len - 1, len - 3);
-        self.eval(vec![Expr::Call("swap".to_string())])?;
+        self.push(rhs);
+        self.push(lhs);
+        self.push(mid);
 
-        Ok(None)
+        Ok(())
       }
 
       // Functions/Data
       Intrinsic::Call => {
-        let a = self.stack.pop();
+        let item = self.pop(trace_expr)?;
 
-        if let Some(a) = a.clone() {
-          if let Expr::Call(a) = a {
-            return self.eval_expr(Expr::Call(a));
-          } else if let Expr::List(list) = a.clone() {
-            if let Some(scope_layer) = a.function_scope() {
+        match item {
+          call @ Expr::Call(_) => self.eval_expr(call),
+          item @ Expr::List(_) => match item.function_scope() {
+            Some(scope_layer) => {
+              let Expr::List(list) = item else {
+                unreachable!()
+              };
+
               let prev_layer = self.scope_layer;
               self.scope_layer = Some(scope_layer);
+
               match self.eval(list) {
                 Ok(_) => {
                   self.scope_layer = prev_layer;
-                  return Ok(None);
+                  Ok(())
                 }
-                Err(err) => return Err(err),
+                Err(err) => Err(err),
               }
-            } else {
-              self.eval(list)?;
-              return Ok(None);
             }
-          }
-        }
-
-        Err(EvalError {
-          expr: Expr::Call(call.clone()),
-          program: self.clone(),
-          message: format!("Invalid args: [{:?}]", a),
-        })
-      }
-      Intrinsic::CallNative => {
-        let a = self.stack.pop();
-
-        if let Some(Expr::String(a)) = a {
-          if let Ok(intrinsic) = Intrinsic::try_from(a.as_str()) {
-            return self.eval_intrinsic(intrinsic);
-          } else {
-            return Err(EvalError {
-              expr: Expr::Call(call.clone()),
-              program: self.clone(),
-              message: format!("Not a native function: {}", a),
-            });
-          }
-        }
-
-        Err(EvalError {
-          expr: Expr::Call(call.clone()),
-          program: self.clone(),
-          message: format!("Invalid args: [{:?}]", a),
-        })
-      }
-      Intrinsic::Lazy => {
-        let a = self.stack.pop();
-        if let Some(a) = a {
-          Ok(Some(Expr::Lazy(a.into())))
-        } else {
-          Err(EvalError {
-            expr: Expr::Call(call.clone()),
-            program: self.clone(),
-            message: format!("Invalid args: [{:?}]", a),
-          })
-        }
-      }
-      Intrinsic::Noop => Ok(None),
-
-      // Type
-      Intrinsic::ToString => {
-        let a = self.stack.pop().unwrap_or_default();
-
-        let string = match a {
-          Expr::String(string) | Expr::Call(string) => string,
-          _ => a.to_string(),
-        };
-
-        Ok(Some(Expr::String(string)))
-      }
-      Intrinsic::ToCall => {
-        let a = self.stack.pop().unwrap_or_default();
-
-        let string = match a {
-          Expr::String(string) => string,
-          _ => a.to_string(),
-        };
-
-        Ok(Some(Expr::Call(string)))
-      }
-      Intrinsic::ToInteger => {
-        let a = self.stack.pop().unwrap_or_default();
-
-        match a {
-          Expr::String(string) => match string.parse() {
-            Ok(integer) => Ok(Some(Expr::Integer(integer))),
-            Err(err) => Err(EvalError {
-              expr: Expr::Call(call.clone()),
-              program: self.clone(),
-              message: format!(
-                "Error parsing [{}] as integer: {}",
-                string, err
-              ),
-            }),
+            None => {
+              let Expr::List(list) = item else {
+                unreachable!()
+              };
+              self.eval(list)
+            }
           },
-          Expr::Boolean(boolean) => Ok(Some(Expr::Integer(boolean as i64))),
-          Expr::Integer(integer) => Ok(Some(Expr::Integer(integer))),
-          Expr::Float(float) => Ok(Some(Expr::Integer(float as i64))),
-
-          a => Err(EvalError {
-            expr: Expr::Call(call.clone()),
+          _ => Err(EvalError {
+            expr: trace_expr.clone(),
             program: self.clone(),
-            message: format!("[{}] cannot be cast to integer", a),
+            message: format!(
+              "expected {}, found {}",
+              Type::Set(vec![
+                Type::Call,
+                Type::List(vec![Type::FnScope, Type::Any])
+              ]),
+              item.type_of(),
+            ),
           }),
         }
       }
-      Intrinsic::ToList => {
-        let a = self.stack.pop().unwrap_or_default();
+      Intrinsic::CallNative => {
+        let item = self.pop(trace_expr)?;
 
-        match a {
-          Expr::List(list) => Ok(Some(Expr::List(list))),
-          _ => Ok(Some(Expr::List(vec![a]))),
+        match item {
+          Expr::String(name) => match Intrinsic::try_from(name.as_str()) {
+            Ok(intrinsic) => self.eval_intrinsic(trace_expr, intrinsic),
+            Err(_) => Err(EvalError {
+              expr: trace_expr.clone(),
+              program: self.clone(),
+              message: format!("invalid intrinsic {name}"),
+            }),
+          },
+          _ => Err(EvalError {
+            expr: trace_expr.clone(),
+            program: self.clone(),
+            message: format!(
+              "expected {}, found {}",
+              Type::String,
+              item.type_of(),
+            ),
+          }),
+        }
+      }
+      Intrinsic::Lazy => {
+        let item = self.pop(trace_expr)?;
+        self.push(Expr::Lazy(Box::new(item)));
+
+        Ok(())
+      }
+      Intrinsic::Noop => Ok(()),
+
+      // Type
+      Intrinsic::ToString => {
+        let item = self.pop(trace_expr)?;
+
+        match item {
+          string @ Expr::String(_) => {
+            self.push(string);
+            Ok(())
+          }
+          found => {
+            self.push(Expr::String(found.to_string()));
+            Ok(())
+          }
+        }
+      }
+      Intrinsic::ToCall => {
+        let item = self.pop(trace_expr)?;
+
+        match item {
+          call @ Expr::Call(_) => {
+            self.push(call);
+            Ok(())
+          }
+          Expr::String(string) => {
+            self.push(Expr::Call(string));
+            Ok(())
+          }
+          found => {
+            self.push(Expr::Call(found.to_string()));
+            Ok(())
+          }
+        }
+      }
+      Intrinsic::ToInteger => {
+        let item = self.pop(trace_expr)?;
+        self.push(item.to_integer().unwrap_or_default());
+
+        Ok(())
+      }
+      Intrinsic::ToList => {
+        let item = self.pop(trace_expr)?;
+
+        match item {
+          list @ Expr::List(_) => {
+            self.push(list);
+            Ok(())
+          }
+          found => {
+            self.push(Expr::List(vec![found]));
+            Ok(())
+          }
         }
       }
       Intrinsic::TypeOf => {
-        let a = self.stack.pop().unwrap_or_default();
-        Ok(Some(Expr::String(a.type_of())))
+        let item = self.pop(trace_expr)?;
+        self.push(Expr::String(item.type_of().to_string()));
+
+        Ok(())
       }
     }
   }
 
-  fn eval_call(&mut self, call: String) -> Result<Option<Expr>, EvalError> {
+  fn eval_call(
+    &mut self,
+    trace_expr: &Expr,
+    call: String,
+  ) -> Result<(), EvalError> {
     if let Ok(intrinsic) = Intrinsic::try_from(call.as_str()) {
-      return self.eval_intrinsic(intrinsic);
+      return self.eval_intrinsic(trace_expr, intrinsic);
     }
 
     if let Some(value) = self.scope_item(&call) {
       if value.is_function() {
-        match self.eval(vec![
-          Expr::Lazy(Expr::Call(call.clone()).into()),
-          Expr::Call("get".to_string()),
-          Expr::Call("call".to_string()),
-        ]) {
-          Ok(_) => return Ok(None),
-          Err(err) => return Err(err),
-        }
-      }
+        self.eval_expr(Expr::Lazy(Box::new(Expr::Call(call))))?;
+        self.eval_intrinsic(trace_expr, Intrinsic::Get)?;
+        self.eval_intrinsic(trace_expr, Intrinsic::Call)?;
 
-      Ok(Some(value))
+        Ok(())
+      } else {
+        self.push(self.scope_item(&call).unwrap_or_default());
+        Ok(())
+      }
     } else {
       Err(EvalError {
-        expr: Expr::Call(call.clone()),
+        expr: trace_expr.clone(),
         program: self.clone(),
         message: format!("Unknown call: {}", call),
       })
     }
   }
 
-  fn eval_expr(&mut self, expr: Expr) -> Result<Option<Expr>, EvalError> {
-    match expr {
-      Expr::Call(call) => self.eval_call(call),
-      Expr::Lazy(block) => Ok(Some(*block)),
+  fn eval_expr(&mut self, expr: Expr) -> Result<(), EvalError> {
+    match expr.clone() {
+      Expr::Call(call) => self.eval_call(&expr, call),
+      Expr::Lazy(block) => {
+        self.push(*block);
+        Ok(())
+      }
       Expr::List(list) => {
-        let maybe_exprs = list
-          .into_iter()
-          .filter_map(|expr| self.eval_expr(expr).transpose())
-          .try_fold(Vec::new(), |mut acc, expr| {
-            acc.push(expr?);
-            Ok(acc)
-          });
+        let stack_len = self.stack.len();
 
-        match maybe_exprs {
-          Err(err) => Err(err),
-          Ok(exprs) => Ok(Some(Expr::List(exprs))),
-        }
+        self.eval(list)?;
+
+        let list_len = self.stack.len() - stack_len;
+
+        let mut list = iter::repeat_with(|| self.pop(&expr).unwrap())
+          .take(list_len)
+          .collect_vec();
+        list.reverse();
+
+        self.push(Expr::List(list));
+
+        Ok(())
       }
       Expr::ScopePush => {
         self.push_scope();
-        Ok(None)
+        Ok(())
       }
       Expr::ScopePop => {
         self.pop_scope();
-        Ok(None)
+        Ok(())
       }
-      Expr::FnScope(_) => Ok(None),
-      _ => Ok(Some(expr)),
+      Expr::FnScope(_) => Ok(()),
+      expr => {
+        self.push(expr);
+        Ok(())
+      }
     }
   }
 
@@ -1007,22 +1124,22 @@ impl Program {
 
   pub fn eval(&mut self, exprs: Vec<Expr>) -> Result<(), EvalError> {
     let mut clone = self.clone();
+    let result = exprs.into_iter().try_for_each(|expr| clone.eval_expr(expr));
 
-    for expr in exprs {
-      let result = clone.eval_expr(expr)?;
-
-      if let Some(expr) = result {
-        clone.push(expr);
-      }
-    }
-
-    // TODO: Store each scope & stack op as a transaction and just rollback atomically if something happens instead of cloning
-    self.stack = clone.stack;
-    self.scopes = clone.scopes;
-    self.scope_layer = clone.scope_layer;
     self.loaded_files = clone.loaded_files;
 
-    Ok(())
+    match result {
+      Ok(x) => {
+        // TODO: Store each operation in an append-only operations list, and
+        //       rollback if there is an error.
+        self.stack = clone.stack;
+        self.scopes = clone.scopes;
+        self.scope_layer = clone.scope_layer;
+
+        Ok(x)
+      }
+      Err(e) => Err(e),
+    }
   }
 }
 

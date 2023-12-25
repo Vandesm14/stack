@@ -25,7 +25,6 @@ mod tests {
   #[test]
   fn let_fn() {
     let result = run();
-    assert!(result.is_ok());
     assert_eq!(result.unwrap().stack, vec![Expr::Integer(8)]);
   }
 }
