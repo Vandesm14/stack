@@ -1,5 +1,6 @@
 "std/list.stack" import
 "std/linux-x86_64.stack" import
+"std/assert.stack" import
 
 ("the" "words" "should" "be" "in" "order")
 '() 'new-list set
@@ -14,3 +15,5 @@
 list/for_each
 
 new-list " " join
+
+"the words should be in order" "for_each" assert-eq

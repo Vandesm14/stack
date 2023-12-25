@@ -1,4 +1,5 @@
 "std/let.stack" import
+"std/assert.stack" import
 
 '(fn {
   a b -
@@ -6,3 +7,5 @@
 'subtract-two-nums let-fn set
 
 10 2 subtract-two-nums
+
+8 "subtract-two-nums" assert-eq

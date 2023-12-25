@@ -19,4 +19,4 @@
 
 hello
 
-a 1 = "a is not 1" assert
+a 1 = "functions can set outer scope" assert
