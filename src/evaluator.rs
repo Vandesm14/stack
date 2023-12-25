@@ -1022,6 +1022,93 @@ impl Program {
       Intrinsic::Noop => Ok(()),
 
       // Type
+      Intrinsic::ToBoolean => {
+        let item = self.pop(trace_expr)?;
+
+        match item {
+          Expr::String(string) => {
+            let string_str = self.context.resolve(&string);
+
+            self.push(
+              string_str
+                .parse()
+                .ok()
+                .map(Expr::Boolean)
+                .unwrap_or_default(),
+            );
+          }
+          found => self.push(found.to_boolean().unwrap_or_default()),
+        }
+
+        Ok(())
+      },
+      Intrinsic::ToInteger => {
+        let item = self.pop(trace_expr)?;
+
+        match item {
+          Expr::String(string) => {
+            let string_str = self.context.resolve(&string);
+
+            self.push(
+              string_str
+                .parse()
+                .ok()
+                .map(Expr::Integer)
+                .unwrap_or_default(),
+            );
+          }
+          found => self.push(found.to_integer().unwrap_or_default()),
+        }
+
+        Ok(())
+      }
+      Intrinsic::ToFloat => {
+        let item = self.pop(trace_expr)?;
+
+        match item {
+          Expr::String(string) => {
+            let string_str = self.context.resolve(&string);
+
+            self.push(
+              string_str
+                .parse()
+                .ok()
+                .map(Expr::Float)
+                .unwrap_or_default(),
+            );
+          }
+          found => self.push(found.to_float().unwrap_or_default()),
+        }
+
+        Ok(())
+      }
+      Intrinsic::ToPointer => {
+        let item = self.pop(trace_expr)?;
+
+        match item {
+          Expr::String(string) => {
+            let string_str = self.context.resolve(&string);
+            self.push(Expr::Pointer(string_str.as_ptr() as usize));
+          }
+          found => self.push(found.to_pointer().unwrap_or_default()),
+        }
+
+        Ok(())
+      }
+      Intrinsic::ToList => {
+        let item = self.pop(trace_expr)?;
+
+        match item {
+          list @ Expr::List(_) => {
+            self.push(list);
+            Ok(())
+          }
+          found => {
+            self.push(Expr::List(vec![found]));
+            Ok(())
+          }
+        }
+      }
       Intrinsic::ToString => {
         let item = self.pop(trace_expr)?;
 
@@ -1062,40 +1149,6 @@ impl Program {
             );
             self.push(call);
 
-            Ok(())
-          }
-        }
-      }
-      Intrinsic::ToInteger => {
-        let item = self.pop(trace_expr)?;
-
-        match item {
-          Expr::String(string) => {
-            let string_str = self.context.resolve(&string);
-
-            self.push(
-              string_str
-                .parse()
-                .ok()
-                .map(Expr::Integer)
-                .unwrap_or_default(),
-            );
-          }
-          found => self.push(found.to_integer().unwrap_or_default()),
-        }
-
-        Ok(())
-      }
-      Intrinsic::ToList => {
-        let item = self.pop(trace_expr)?;
-
-        match item {
-          list @ Expr::List(_) => {
-            self.push(list);
-            Ok(())
-          }
-          found => {
-            self.push(Expr::List(vec![found]));
             Ok(())
           }
         }

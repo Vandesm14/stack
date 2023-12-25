@@ -59,10 +59,13 @@ pub enum Intrinsic {
   Noop,
 
   // Type
+  ToBoolean,
+  ToInteger,
+  ToFloat,
+  ToPointer,
+  ToList,
   ToString,
   ToCall,
-  ToInteger,
-  ToList,
   TypeOf,
 }
 
@@ -127,10 +130,13 @@ impl TryFrom<&str> for Intrinsic {
       "lazy" => Ok(Self::Lazy),
 
       // Type
+      "toboolean" => Ok(Self::ToBoolean),
+      "tointeger" => Ok(Self::ToInteger),
+      "tofloat" => Ok(Self::ToFloat),
+      "topointer" => Ok(Self::ToPointer),
+      "tolist" => Ok(Self::ToList),
       "tostring" => Ok(Self::ToString),
       "tocall" => Ok(Self::ToCall),
-      "tointeger" => Ok(Self::ToInteger),
-      "tolist" => Ok(Self::ToList),
       "typeof" => Ok(Self::TypeOf),
 
       _ => Err(()),
@@ -204,10 +210,13 @@ impl Intrinsic {
       Self::Noop => "noop",
 
       // Type
+      Self::ToBoolean => "toboolean",
+      Self::ToInteger => "tointeger",
+      Self::ToFloat => "tofloat",
+      Self::ToPointer => "topointer",
+      Self::ToList => "tolist",
       Self::ToString => "tostring",
       Self::ToCall => "tocall",
-      Self::ToInteger => "tointeger",
-      Self::ToList => "tolist",
       Self::TypeOf => "typeof",
     }
   }
