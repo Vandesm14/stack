@@ -6,6 +6,4 @@
 }) '(a b)
 'subtract-two-nums let-fn set
 
-10 2 subtract-two-nums
-
-8 "subtract-two-nums" assert-eq
+[[10 2 subtract-two-nums] 8] ["subtract-two-nums" assert-eq]
