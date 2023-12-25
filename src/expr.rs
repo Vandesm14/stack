@@ -149,8 +149,7 @@ impl Expr {
         }
       }
 
-      Self::String(x) => x.parse().ok().map(Self::Integer),
-
+      // Self::String(x) => x.parse().ok().map(Self::Integer),
       _ => None,
     }
   }
@@ -160,8 +159,7 @@ impl Expr {
       Self::Integer(x) => Some(Self::Float(*x as f64)),
       x @ Self::Float(_) => Some(x.clone()),
 
-      Self::String(x) => x.parse().ok().map(Self::Integer),
-
+      // Self::String(x) => x.parse().ok().map(Self::Float),
       _ => None,
     }
   }

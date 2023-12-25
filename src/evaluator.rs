@@ -537,25 +537,19 @@ impl Program {
 
         match (index, indexable) {
           (Expr::Integer(index), Expr::List(list)) => {
-            let item = if index >= 0 && index < list.len() as i64 {
-              list.get(index as usize).cloned()
-            } else if index < 0 && -index <= list.len() as i64 {
-              list.get(list.len() - -index as usize).cloned()
-            } else {
-              None
-            };
+            let item = (index >= 0 && index < list.len() as i64)
+              .then_some(index as usize)
+              .or(
+                (index < 0 && -index < list.len() as i64)
+                  .then_some(-index as usize),
+              )
+              .and_then(|index| list.get(index))
+              .cloned()
+              .unwrap_or_default();
 
-            match item {
-              Some(item) => {
-                self.push(item);
-                Ok(())
-              }
-              None => Err(EvalError {
-                expr: trace_expr.clone(),
-                program: self.clone(),
-                message: format!("index {index} is out of bounds"),
-              }),
-            }
+            self.push(item);
+
+            Ok(())
           }
           (index, indexable) => Err(EvalError {
             expr: trace_expr.clone(),
@@ -1197,8 +1191,6 @@ impl Program {
   pub fn eval(&mut self, exprs: Vec<Expr>) -> Result<(), EvalError> {
     let mut clone = self.clone();
     let result = exprs.into_iter().try_for_each(|expr| clone.eval_expr(expr));
-
-    self.loaded_files = clone.loaded_files;
 
     match result {
       Ok(x) => {
