@@ -461,3 +461,91 @@ impl Wrap for i64 {
     }
   }
 }
+
+#[cfg(test)]
+mod test {
+  use super::*;
+
+  use test_case::test_case;
+
+  #[test_case(Expr::Nil => Some(Expr::Boolean(false)))]
+  #[test_case(Expr::Boolean(false) => Some(Expr::Boolean(false)))]
+  #[test_case(Expr::Boolean(true) => Some(Expr::Boolean(true)))]
+  #[test_case(Expr::Integer(0) => Some(Expr::Boolean(false)))]
+  #[test_case(Expr::Integer(1) => Some(Expr::Boolean(true)))]
+  #[test_case(Expr::Integer(i64::MIN) => Some(Expr::Boolean(true)))]
+  #[test_case(Expr::Integer(i64::MAX) => Some(Expr::Boolean(true)))]
+  #[test_case(Expr::Float(0.0) => None)]
+  #[test_case(Expr::Float(1.0) => None)]
+  #[test_case(Expr::Float(f64::MIN) => None)]
+  #[test_case(Expr::Float(f64::MAX) => None)]
+  #[test_case(Expr::Float(f64::NEG_INFINITY) => None)]
+  #[test_case(Expr::Float(f64::INFINITY) => None)]
+  #[test_case(Expr::Float(f64::NAN) => None)]
+  #[test_case(Expr::Pointer(0) => None)]
+  #[test_case(Expr::Pointer(1) => None)]
+  fn to_boolean(expr: Expr) -> Option<Expr> {
+    expr.to_boolean()
+  }
+
+  #[test_case(Expr::Nil => None)]
+  #[test_case(Expr::Boolean(false) => Some(Expr::Integer(0)))]
+  #[test_case(Expr::Boolean(true) => Some(Expr::Integer(1)))]
+  #[test_case(Expr::Integer(0) => Some(Expr::Integer(0)))]
+  #[test_case(Expr::Integer(1) => Some(Expr::Integer(1)))]
+  #[test_case(Expr::Integer(i64::MIN) => Some(Expr::Integer(i64::MIN)))]
+  #[test_case(Expr::Integer(i64::MAX) => Some(Expr::Integer(i64::MAX)))]
+  #[test_case(Expr::Float(f64::MIN) => None)]
+  #[test_case(Expr::Float(f64::MAX) => None)]
+  #[test_case(Expr::Float(f64::NEG_INFINITY) => None)]
+  #[test_case(Expr::Float(f64::INFINITY) => None)]
+  #[test_case(Expr::Float(f64::NAN) => None)]
+  #[test_case(Expr::Float(0.0) => Some(Expr::Integer(0)))]
+  #[test_case(Expr::Float(1.0) => Some(Expr::Integer(1)))]
+  #[test_case(Expr::Pointer(0) => Some(Expr::Integer(0)))]
+  #[test_case(Expr::Pointer(1) => Some(Expr::Integer(1)))]
+  fn to_integer(expr: Expr) -> Option<Expr> {
+    expr.to_integer()
+  }
+
+  #[test_case(Expr::Nil => None)]
+  #[test_case(Expr::Boolean(false) => None)]
+  #[test_case(Expr::Boolean(true) => None)]
+  #[test_case(Expr::Integer(0) => Some(Expr::Float(0.0)))]
+  #[test_case(Expr::Integer(1) => Some(Expr::Float(1.0)))]
+  #[test_case(Expr::Integer(i64::MIN) => Some(Expr::Float(i64::MIN as f64)))]
+  #[test_case(Expr::Integer(i64::MAX) => Some(Expr::Float(i64::MAX as f64)))]
+  #[test_case(Expr::Float(f64::MIN) => Some(Expr::Float(f64::MIN)))]
+  #[test_case(Expr::Float(f64::MAX) => Some(Expr::Float(f64::MAX)))]
+  #[test_case(Expr::Float(f64::NEG_INFINITY) => Some(Expr::Float(f64::NEG_INFINITY)))]
+  #[test_case(Expr::Float(f64::INFINITY) => Some(Expr::Float(f64::INFINITY)))]
+  // NOTE: NaN are never equal, see `to_float_nan`.
+  // #[test_case(Expr::Float(f64::NAN) => Some(Expr::Float(f64::NAN)))]
+  #[test_case(Expr::Float(0.0) => Some(Expr::Float(0.0)))]
+  #[test_case(Expr::Float(1.0) => Some(Expr::Float(1.0)))]
+  #[test_case(Expr::Pointer(0) => None)]
+  #[test_case(Expr::Pointer(1) => None)]
+  fn to_float(expr: Expr) -> Option<Expr> {
+    expr.to_float()
+  }
+
+  #[test_case(Expr::Nil => Some(Expr::Pointer(0)))]
+  #[test_case(Expr::Boolean(false) => None)]
+  #[test_case(Expr::Boolean(true) => None)]
+  #[test_case(Expr::Integer(0) => Some(Expr::Pointer(0)))]
+  #[test_case(Expr::Integer(1) => Some(Expr::Pointer(1)))]
+  #[test_case(Expr::Integer(i64::MIN) => None)]
+  #[test_case(Expr::Integer(i64::MAX) => Some(Expr::Pointer(i64::MAX as usize)))]
+  #[test_case(Expr::Float(f64::MIN) => None)]
+  #[test_case(Expr::Float(f64::MAX) => None)]
+  #[test_case(Expr::Float(f64::NEG_INFINITY) => None)]
+  #[test_case(Expr::Float(f64::INFINITY) => None)]
+  #[test_case(Expr::Float(f64::NAN) => None)]
+  #[test_case(Expr::Float(0.0) => None)]
+  #[test_case(Expr::Float(1.0) => None)]
+  #[test_case(Expr::Pointer(0) => Some(Expr::Pointer(0)))]
+  #[test_case(Expr::Pointer(1) => Some(Expr::Pointer(1)))]
+  fn to_pointer(expr: Expr) -> Option<Expr> {
+    expr.to_pointer()
+  }
+}
