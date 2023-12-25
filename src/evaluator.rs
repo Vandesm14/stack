@@ -1,6 +1,7 @@
 use itertools::Itertools;
+use lasso::Spur;
 
-use crate::{Expr, Intrinsic, Type};
+use crate::{Context, Expr, Intrinsic, Type};
 use core::{fmt, iter};
 use std::collections::{HashMap, HashSet};
 
@@ -10,6 +11,7 @@ pub struct Program {
   pub scopes: Vec<HashMap<String, Expr>>,
   pub scope_layer: Option<usize>,
   pub loaded_files: HashSet<String>,
+  pub context: Context,
 }
 
 impl fmt::Display for Program {
@@ -17,10 +19,12 @@ impl fmt::Display for Program {
     write!(f, "Stack: [")?;
 
     self.stack.iter().enumerate().try_for_each(|(i, expr)| {
+      let expr = expr.display(&self.context);
+
       if i == self.stack.len() - 1 {
-        write!(f, "{}", expr)
+        write!(f, "{expr}")
       } else {
-        write!(f, "{}, ", expr)
+        write!(f, "{expr}, ")
       }
     })?;
     write!(f, "]")?;
@@ -37,6 +41,8 @@ impl fmt::Display for Program {
         for (item_i, (key, value)) in
           layer.iter().sorted_by_key(|(s, _)| *s).enumerate()
         {
+          let value = value.display(&self.context);
+
           if item_i == items - 1 && layer_i == layers - 1 {
             write!(f, " + {}: {}", key, value)?;
           } else {
@@ -60,7 +66,7 @@ pub struct EvalError {
 impl fmt::Display for EvalError {
   fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
     writeln!(f, "Error: {}", self.message)?;
-    writeln!(f, "Expr: {}", self.expr)?;
+    writeln!(f, "Expr: {}", self.expr.display(&self.program.context))?;
     writeln!(f,)?;
     write!(f, "{}", self.program)
   }
@@ -73,6 +79,7 @@ impl Program {
       scopes: vec![HashMap::new()],
       scope_layer: None,
       loaded_files: HashSet::new(),
+      context: Context::new(),
     }
   }
 
@@ -413,8 +420,10 @@ impl Program {
 
         match item {
           Expr::String(string) => {
-            let tokens = crate::lex(string.as_str());
-            let exprs = crate::parse(tokens);
+            let string_str = self.context.resolve(&string).to_string();
+
+            let tokens = crate::lex(&mut self.context, &string_str);
+            let exprs = crate::parse(&mut self.context, tokens);
 
             self.push(Expr::List(exprs));
 
@@ -436,19 +445,25 @@ impl Program {
         let item = self.pop(trace_expr)?;
 
         match item {
-          Expr::String(path) => match std::fs::read_to_string(path.clone()) {
-            Ok(contents) => {
-              self.loaded_files.insert(path);
-              self.push(Expr::String(contents));
+          Expr::String(path) => {
+            let path_str = self.context.resolve(&path);
 
-              Ok(())
+            match std::fs::read_to_string(path_str) {
+              Ok(contents) => {
+                self.loaded_files.insert(path_str.to_string());
+
+                let content = self.context.intern(contents);
+                self.push(Expr::String(content));
+
+                Ok(())
+              }
+              Err(e) => Err(EvalError {
+                expr: trace_expr.clone(),
+                program: self.clone(),
+                message: format!("unable to read {path_str}: {e}"),
+              }),
             }
-            Err(e) => Err(EvalError {
-              expr: trace_expr.clone(),
-              program: self.clone(),
-              message: format!("unable to read {path}: {e}"),
-            }),
-          },
+          }
           _ => Err(EvalError {
             expr: trace_expr.clone(),
             program: self.clone(),
@@ -462,7 +477,7 @@ impl Program {
       }
       Intrinsic::Print => {
         let item = self.pop(trace_expr)?;
-        println!("{item}");
+        println!("{}", item.display(&self.context));
         Ok(())
       }
 
@@ -473,12 +488,15 @@ impl Program {
 
         match item {
           Expr::String(string) => {
-            self.push(Expr::List(
-              string
+            let string_str = self.context.resolve(&string).to_owned();
+
+            let list = Expr::List(
+              string_str
                 .chars()
-                .map(|c| Expr::String(c.to_string()))
+                .map(|c| Expr::String(self.context.intern(c.to_string())))
                 .collect_vec(),
-            ));
+            );
+            self.push(list);
 
             Ok(())
           }
@@ -519,25 +537,19 @@ impl Program {
 
         match (index, indexable) {
           (Expr::Integer(index), Expr::List(list)) => {
-            let item = if index >= 0 && index < list.len() as i64 {
-              list.get(index as usize).cloned()
-            } else if index < 0 && -index <= list.len() as i64 {
-              list.get(list.len() - -index as usize).cloned()
-            } else {
-              None
-            };
+            let item = (index >= 0 && index < list.len() as i64)
+              .then_some(index as usize)
+              .or(
+                (index < 0 && -index < list.len() as i64)
+                  .then_some(-index as usize),
+              )
+              .and_then(|index| list.get(index))
+              .cloned()
+              .unwrap_or_default();
 
-            match item {
-              Some(item) => {
-                self.push(item);
-                Ok(())
-              }
-              None => Err(EvalError {
-                expr: trace_expr.clone(),
-                program: self.clone(),
-                message: format!("index {index} is out of bounds"),
-              }),
-            }
+            self.push(item);
+
+            Ok(())
           }
           (index, indexable) => Err(EvalError {
             expr: trace_expr.clone(),
@@ -556,9 +568,14 @@ impl Program {
 
         match (delimiter, list) {
           (Expr::String(delimiter), Expr::List(list)) => {
-            self.push(Expr::String(
-              list.into_iter().join(&delimiter.to_string()),
-            ));
+            let delimiter_str = self.context.resolve(&delimiter);
+
+            let string = list
+              .into_iter()
+              .map(|expr| expr.display(&self.context).to_string())
+              .join(delimiter_str);
+            let string = Expr::String(self.context.intern(string));
+            self.push(string);
 
             Ok(())
           }
@@ -799,17 +816,23 @@ impl Program {
         let val = self.pop(trace_expr)?;
 
         match key {
-          Expr::Call(key) => match Intrinsic::try_from(key.as_str()) {
-            Ok(intrinsic) => Err(EvalError {
-              expr: trace_expr.clone(),
-              program: self.clone(),
-              message: format!(
-                "cannot shadow an intrinsic {}",
-                intrinsic.as_str()
-              ),
-            }),
-            Err(_) => self.set_scope_item(trace_expr, key.as_str(), val),
-          },
+          Expr::Call(key) => {
+            let key_str = self.context.resolve(&key);
+
+            match Intrinsic::try_from(key_str) {
+              Ok(intrinsic) => Err(EvalError {
+                expr: trace_expr.clone(),
+                program: self.clone(),
+                message: format!(
+                  "cannot shadow an intrinsic {}",
+                  intrinsic.as_str()
+                ),
+              }),
+              Err(_) => {
+                self.set_scope_item(trace_expr, &key_str.to_owned(), val)
+              }
+            }
+          }
           key => Err(EvalError {
             expr: trace_expr.clone(),
             program: self.clone(),
@@ -830,9 +853,11 @@ impl Program {
 
         match item {
           Expr::Call(key) => {
+            let key_str = self.context.resolve(&key);
             // NOTE: Always push something, otherwise it can get tricky to
             //       manage the stack in-langauge.
-            self.push(self.scope_item(key.as_str()).unwrap_or_default());
+            self.push(self.scope_item(key_str).unwrap_or_default());
+
             Ok(())
           }
           item => Err(EvalError {
@@ -851,7 +876,9 @@ impl Program {
 
         match item {
           Expr::Call(key) => {
-            self.remove_scope_item(key.as_str());
+            let key_str = self.context.resolve(&key).to_owned();
+            self.remove_scope_item(&key_str);
+
             Ok(())
           }
           item => Err(EvalError {
@@ -958,14 +985,18 @@ impl Program {
         let item = self.pop(trace_expr)?;
 
         match item {
-          Expr::String(name) => match Intrinsic::try_from(name.as_str()) {
-            Ok(intrinsic) => self.eval_intrinsic(trace_expr, intrinsic),
-            Err(_) => Err(EvalError {
-              expr: trace_expr.clone(),
-              program: self.clone(),
-              message: format!("invalid intrinsic {name}"),
-            }),
-          },
+          Expr::String(name) => {
+            let name_str = self.context.resolve(&name);
+
+            match Intrinsic::try_from(name_str) {
+              Ok(intrinsic) => self.eval_intrinsic(trace_expr, intrinsic),
+              Err(_) => Err(EvalError {
+                expr: trace_expr.clone(),
+                program: self.clone(),
+                message: format!("invalid intrinsic {name_str}"),
+              }),
+            }
+          }
           _ => Err(EvalError {
             expr: trace_expr.clone(),
             program: self.clone(),
@@ -995,7 +1026,13 @@ impl Program {
             Ok(())
           }
           found => {
-            self.push(Expr::String(found.to_string()));
+            let string = Expr::String(
+              self
+                .context
+                .intern(found.display(&self.context).to_string()),
+            );
+            self.push(string);
+
             Ok(())
           }
         }
@@ -1013,14 +1050,34 @@ impl Program {
             Ok(())
           }
           found => {
-            self.push(Expr::Call(found.to_string()));
+            let call = Expr::Call(
+              self
+                .context
+                .intern(found.display(&self.context).to_string()),
+            );
+            self.push(call);
+
             Ok(())
           }
         }
       }
       Intrinsic::ToInteger => {
         let item = self.pop(trace_expr)?;
-        self.push(item.to_integer().unwrap_or_default());
+
+        match item {
+          Expr::String(string) => {
+            let string_str = self.context.resolve(&string);
+
+            self.push(
+              string_str
+                .parse()
+                .ok()
+                .map(Expr::Integer)
+                .unwrap_or_default(),
+            );
+          }
+          found => self.push(found.to_integer().unwrap_or_default()),
+        }
 
         Ok(())
       }
@@ -1040,7 +1097,9 @@ impl Program {
       }
       Intrinsic::TypeOf => {
         let item = self.pop(trace_expr)?;
-        self.push(Expr::String(item.type_of().to_string()));
+        let string =
+          Expr::String(self.context.intern(item.type_of().to_string()));
+        self.push(string);
 
         Ok(())
       }
@@ -1050,13 +1109,15 @@ impl Program {
   fn eval_call(
     &mut self,
     trace_expr: &Expr,
-    call: String,
+    call: Spur,
   ) -> Result<(), EvalError> {
-    if let Ok(intrinsic) = Intrinsic::try_from(call.as_str()) {
+    let call_str = self.context.resolve(&call);
+
+    if let Ok(intrinsic) = Intrinsic::try_from(call_str) {
       return self.eval_intrinsic(trace_expr, intrinsic);
     }
 
-    if let Some(value) = self.scope_item(&call) {
+    if let Some(value) = self.scope_item(call_str) {
       if value.is_function() {
         self.eval_expr(Expr::Lazy(Box::new(Expr::Call(call))))?;
         self.eval_intrinsic(trace_expr, Intrinsic::Get)?;
@@ -1064,14 +1125,14 @@ impl Program {
 
         Ok(())
       } else {
-        self.push(self.scope_item(&call).unwrap_or_default());
+        self.push(self.scope_item(call_str).unwrap_or_default());
         Ok(())
       }
     } else {
       Err(EvalError {
         expr: trace_expr.clone(),
         program: self.clone(),
-        message: format!("Unknown call: {}", call),
+        message: format!("unknown call {call_str}"),
       })
     }
   }
@@ -1116,8 +1177,8 @@ impl Program {
   }
 
   pub fn eval_string(&mut self, line: &str) -> Result<(), EvalError> {
-    let tokens = crate::lex(line);
-    let exprs = crate::parse(tokens.clone());
+    let tokens = crate::lex(&mut self.context, line);
+    let exprs = crate::parse(&mut self.context, tokens.clone());
 
     self.eval(exprs)
   }
@@ -1126,8 +1187,6 @@ impl Program {
     let mut clone = self.clone();
     let result = exprs.into_iter().try_for_each(|expr| clone.eval_expr(expr));
 
-    self.loaded_files = clone.loaded_files;
-
     match result {
       Ok(x) => {
         // TODO: Store each operation in an append-only operations list, and
@@ -1135,6 +1194,8 @@ impl Program {
         self.stack = clone.stack;
         self.scopes = clone.scopes;
         self.scope_layer = clone.scope_layer;
+        self.loaded_files = clone.loaded_files;
+        self.context = clone.context;
 
         Ok(x)
       }
@@ -1218,7 +1279,10 @@ mod tests {
     fn dont_eval_skips() {
       let mut program = Program::new();
       program.eval_string("6 'var set 'var").unwrap();
-      assert_eq!(program.stack, vec![Expr::Call("var".to_string())]);
+      assert_eq!(
+        program.stack,
+        vec![Expr::Call(program.context.intern("var"))]
+      );
     }
 
     #[test]
@@ -1510,7 +1574,7 @@ mod tests {
         vec![Expr::List(vec![
           Expr::Integer(1),
           Expr::Integer(2),
-          Expr::Call("+".to_string())
+          Expr::Call(program.context.intern("+"))
         ])]
       );
     }
@@ -1527,7 +1591,7 @@ mod tests {
           Expr::FnScope(Some(0)),
           Expr::Integer(1),
           Expr::Integer(2),
-          Expr::Call("+".to_string())
+          Expr::Call(program.context.intern("+"))
         ])]
       );
     }
@@ -1545,7 +1609,7 @@ mod tests {
             Expr::FnScope(Some(0)),
             Expr::Integer(1),
             Expr::Integer(2),
-            Expr::Call("+".to_string())
+            Expr::Call(program.context.intern("+"))
           ]),
           Expr::Integer(3)
         ]
@@ -1757,7 +1821,7 @@ mod tests {
           Expr::Integer(1),
           Expr::Integer(2),
           Expr::Integer(3),
-          Expr::String("4".to_owned())
+          Expr::String(program.context.intern("4"))
         ])]
       );
     }
@@ -1771,7 +1835,7 @@ mod tests {
         vec![Expr::List(vec![
           Expr::Integer(1),
           Expr::Integer(2),
-          Expr::Call("+".to_owned())
+          Expr::Call(program.context.intern("+"))
         ])]
       );
     }
@@ -1801,9 +1865,9 @@ mod tests {
       assert_eq!(
         program.stack,
         vec![Expr::List(vec![
-          Expr::String("a".to_string()),
-          Expr::String("b".to_string()),
-          Expr::String("c".to_string())
+          Expr::String(program.context.intern("a")),
+          Expr::String(program.context.intern("b")),
+          Expr::String(program.context.intern("c"))
         ])]
       );
     }
@@ -1815,7 +1879,10 @@ mod tests {
         .eval_string("(\"a\" 3 \"hello\" 1.2) \"\" join")
         .unwrap();
 
-      assert_eq!(program.stack, vec![Expr::String("a3hello1.2".to_string())]);
+      assert_eq!(
+        program.stack,
+        vec![Expr::String(program.context.intern("a3hello1.2"))]
+      );
     }
   }
 
@@ -1828,7 +1895,10 @@ mod tests {
       program
         .eval_string("1 2 + '(\"correct\") '(3 =) if")
         .unwrap();
-      assert_eq!(program.stack, vec![Expr::String("correct".to_owned())]);
+      assert_eq!(
+        program.stack,
+        vec![Expr::String(program.context.intern("correct"))]
+      );
     }
 
     #[test]
@@ -1837,7 +1907,10 @@ mod tests {
       program
         .eval_string("1 2 + 3 = '(\"correct\") '() if")
         .unwrap();
-      assert_eq!(program.stack, vec![Expr::String("correct".to_owned())]);
+      assert_eq!(
+        program.stack,
+        vec![Expr::String(program.context.intern("correct"))]
+      );
     }
 
     #[test]
@@ -1846,7 +1919,10 @@ mod tests {
       program
         .eval_string("1 2 + 3 = '(\"incorrect\") '(\"correct\") '() ifelse")
         .unwrap();
-      assert_eq!(program.stack, vec![Expr::String("correct".to_owned())]);
+      assert_eq!(
+        program.stack,
+        vec![Expr::String(program.context.intern("correct"))]
+      );
     }
 
     #[test]
@@ -1855,7 +1931,10 @@ mod tests {
       program
         .eval_string("1 2 + 2 = '(\"incorrect\") '(\"correct\") '() ifelse")
         .unwrap();
-      assert_eq!(program.stack, vec![Expr::String("incorrect".to_owned())]);
+      assert_eq!(
+        program.stack,
+        vec![Expr::String(program.context.intern("incorrect"))]
+      );
     }
   }
 
@@ -1897,14 +1976,17 @@ mod tests {
     fn to_string() {
       let mut program = Program::new();
       program.eval_string("1 tostring").unwrap();
-      assert_eq!(program.stack, vec![Expr::String("1".to_string())]);
+      assert_eq!(
+        program.stack,
+        vec![Expr::String(program.context.intern("1"))]
+      );
     }
 
     #[test]
     fn to_call() {
       let mut program = Program::new();
       program.eval_string("\"a\" tocall").unwrap();
-      assert_eq!(program.stack, vec![Expr::Call("a".to_string())]);
+      assert_eq!(program.stack, vec![Expr::Call(program.context.intern("a"))]);
     }
 
     #[test]
@@ -1918,7 +2000,10 @@ mod tests {
     fn type_of() {
       let mut program = Program::new();
       program.eval_string("1 typeof").unwrap();
-      assert_eq!(program.stack, vec![Expr::String("integer".to_string())]);
+      assert_eq!(
+        program.stack,
+        vec![Expr::String(program.context.intern("integer"))]
+      );
     }
 
     #[test]
@@ -1958,7 +2043,7 @@ mod tests {
       program.eval_string("'set lazy").unwrap();
       assert_eq!(
         program.stack,
-        vec![Expr::Lazy(Expr::Call("set".to_owned()).into())]
+        vec![Expr::Lazy(Expr::Call(program.context.intern("set")).into())]
       );
     }
   }

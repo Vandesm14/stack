@@ -1,6 +1,12 @@
 use core::{cmp::Ordering, fmt, iter, num::FpCategory};
 
 use itertools::Itertools;
+use lasso::Spur;
+
+use crate::Context;
+
+// TODO: Implement a display() function and Display struct that implements the
+//       Display trait for Expr.
 
 #[derive(Debug, Clone, Default)]
 pub enum Expr {
@@ -14,10 +20,10 @@ pub enum Expr {
   Pointer(usize),
 
   List(Vec<Expr>),
-  String(String),
+  String(Spur),
 
   Lazy(Box<Expr>),
-  Call(String),
+  Call(Spur),
 
   FnScope(Option<usize>),
   ScopePush,
@@ -143,8 +149,7 @@ impl Expr {
         }
       }
 
-      Self::String(x) => x.parse().ok().map(Self::Integer),
-
+      // Self::String(x) => x.parse().ok().map(Self::Integer),
       _ => None,
     }
   }
@@ -154,8 +159,7 @@ impl Expr {
       Self::Integer(x) => Some(Self::Float(*x as f64)),
       x @ Self::Float(_) => Some(x.clone()),
 
-      Self::String(x) => x.parse().ok().map(Self::Float),
-
+      // Self::String(x) => x.parse().ok().map(Self::Float),
       _ => None,
     }
   }
@@ -175,6 +179,13 @@ impl Expr {
       x @ Self::Pointer(_) => Some(x.clone()),
 
       _ => None,
+    }
+  }
+
+  pub const fn display<'a>(&'a self, context: &'a Context) -> Display<'a> {
+    Display {
+      context,
+      expr: self,
     }
   }
 
@@ -321,59 +332,6 @@ impl PartialOrd for Expr {
   }
 }
 
-impl fmt::Display for Expr {
-  fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-    match self {
-      Self::Nil => f.write_str("nil"),
-
-      Self::Boolean(x) => fmt::Display::fmt(x, f),
-      Self::Integer(x) => fmt::Display::fmt(x, f),
-      Self::Float(x) => fmt::Display::fmt(x, f),
-
-      Self::Pointer(x) => {
-        f.write_str("*")?;
-        fmt::Display::fmt(x, f)
-      }
-
-      Self::List(x) => {
-        f.write_str("(")?;
-
-        iter::once("")
-          .chain(iter::repeat(" "))
-          .zip(x.iter())
-          .try_for_each(|(s, x)| {
-            f.write_str(s)?;
-            fmt::Display::fmt(x, f)
-          })?;
-
-        f.write_str(")")
-      }
-      Self::String(x) => fmt::Display::fmt(x, f),
-
-      Self::Lazy(x) => {
-        f.write_str("'")?;
-        fmt::Display::fmt(x, f)
-      }
-      Self::Call(x) => fmt::Display::fmt(x, f),
-
-      Self::FnScope(x) => {
-        f.write_str("fn")?;
-
-        match x {
-          Some(x) => {
-            f.write_str("(")?;
-            fmt::Display::fmt(x, f)?;
-            f.write_str(")")
-          }
-          None => Ok(()),
-        }
-      }
-      Self::ScopePush => f.write_str("{"),
-      Self::ScopePop => f.write_str("}"),
-    }
-  }
-}
-
 #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub enum Type {
   Nil,
@@ -443,6 +401,65 @@ impl fmt::Display for Type {
 
         f.write_str("]")
       }
+    }
+  }
+}
+
+#[doc(hidden)]
+pub struct Display<'a> {
+  context: &'a Context,
+  expr: &'a Expr,
+}
+
+impl fmt::Display for Display<'_> {
+  fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+    match self.expr {
+      Expr::Nil => f.write_str("nil"),
+
+      Expr::Boolean(x) => fmt::Display::fmt(x, f),
+      Expr::Integer(x) => fmt::Display::fmt(x, f),
+      Expr::Float(x) => fmt::Display::fmt(x, f),
+
+      Expr::Pointer(x) => {
+        f.write_str("*")?;
+        fmt::Display::fmt(x, f)
+      }
+
+      Expr::List(x) => {
+        f.write_str("(")?;
+
+        iter::once("")
+          .chain(iter::repeat(" "))
+          .zip(x.iter())
+          .try_for_each(|(s, x)| {
+            f.write_str(s)?;
+            fmt::Display::fmt(&x.display(&self.context), f)
+          })?;
+
+        f.write_str(")")
+      }
+      Expr::String(x) => f.write_str(self.context.resolve(x)),
+
+      Expr::Lazy(x) => {
+        f.write_str("'")?;
+        fmt::Display::fmt(&x.display(&self.context), f)
+      }
+      Expr::Call(x) => f.write_str(self.context.resolve(x)),
+
+      Expr::FnScope(x) => {
+        f.write_str("fn")?;
+
+        match x {
+          Some(x) => {
+            f.write_str("(")?;
+            fmt::Display::fmt(x, f)?;
+            f.write_str(")")
+          }
+          None => Ok(()),
+        }
+      }
+      Expr::ScopePush => f.write_str("{"),
+      Expr::ScopePop => f.write_str("}"),
     }
   }
 }

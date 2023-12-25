@@ -23,7 +23,7 @@ mod tests {
   use stack::Expr;
 
   #[test]
-  fn let_fn() {
+  fn r#let() {
     let result = run();
     assert_eq!(result.unwrap().stack, vec![Expr::Integer(8)]);
   }
