@@ -9,9 +9,12 @@ crossterm = "0.27.0"
 itertools = "0.12.0"
 notify = "6"
 rustyline = "13"
-lasso = "0.7.2"
 syscalls = "0.6.15"
 enum-iterator = "1"
+
+[dependencies.lasso]
+version = "0.7.2"
+features = ["inline-more", "multi-threaded"]
 
 [dev-dependencies]
 test-case = "3"
