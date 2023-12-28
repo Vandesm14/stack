@@ -1,16 +1,12 @@
 use core::{cmp::Ordering, fmt, iter, num::FpCategory};
 
 use itertools::Itertools;
-use lasso::Spur;
+use lasso::{Resolver, Spur};
 
-use crate::Context;
-
-// TODO: Implement a display() function and Display struct that implements the
-//       Display trait for Expr.
-
-#[derive(Debug, Clone, Default)]
+#[derive(Debug, Clone)]
 pub enum Expr {
-  #[default]
+  Invalid,
+
   Nil,
 
   Boolean(bool),
@@ -68,6 +64,8 @@ impl Expr {
 
   pub fn type_of(&self) -> Type {
     match self {
+      Self::Invalid => Type::Invalid,
+
       Self::Nil => Type::Nil,
 
       Self::Boolean(_) => Type::Boolean,
@@ -182,9 +180,12 @@ impl Expr {
     }
   }
 
-  pub const fn display<'a>(&'a self, context: &'a Context) -> Display<'a> {
+  pub const fn display<'a>(
+    &'a self,
+    resolver: &'a dyn Resolver<Spur>,
+  ) -> Display<'a> {
     Display {
-      context,
+      resolver,
       expr: self,
     }
   }
@@ -334,6 +335,8 @@ impl PartialOrd for Expr {
 
 #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub enum Type {
+  Invalid,
+
   Nil,
 
   Boolean,
@@ -358,6 +361,8 @@ pub enum Type {
 impl fmt::Display for Type {
   fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
     match self {
+      Self::Invalid => f.write_str("invalid"),
+
       Self::Nil => f.write_str("nil"),
 
       Self::Boolean => f.write_str("boolean"),
@@ -407,13 +412,15 @@ impl fmt::Display for Type {
 
 #[doc(hidden)]
 pub struct Display<'a> {
-  context: &'a Context,
+  resolver: &'a dyn Resolver<Spur>,
   expr: &'a Expr,
 }
 
 impl fmt::Display for Display<'_> {
   fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
     match self.expr {
+      Expr::Invalid => f.write_str("invalid"),
+
       Expr::Nil => f.write_str("nil"),
 
       Expr::Boolean(x) => fmt::Display::fmt(x, f),
@@ -433,18 +440,18 @@ impl fmt::Display for Display<'_> {
           .zip(x.iter())
           .try_for_each(|(s, x)| {
             f.write_str(s)?;
-            fmt::Display::fmt(&x.display(&self.context), f)
+            fmt::Display::fmt(&x.display(self.resolver), f)
           })?;
 
         f.write_str(")")
       }
-      Expr::String(x) => write!(f, "\"{}\"", self.context.resolve(x)),
+      Expr::String(x) => write!(f, "\"{}\"", self.resolver.resolve(x)),
 
       Expr::Lazy(x) => {
         f.write_str("'")?;
-        fmt::Display::fmt(&x.display(&self.context), f)
+        fmt::Display::fmt(&x.display(self.resolver), f)
       }
-      Expr::Call(x) => f.write_str(self.context.resolve(x)),
+      Expr::Call(x) => f.write_str(self.resolver.resolve(x)),
 
       Expr::FnScope(x) => {
         f.write_str("fn")?;
