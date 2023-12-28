@@ -451,3 +451,181 @@ enum State {
   Hyphen,
   Exclamation,
 }
+
+#[cfg(test)]
+mod test {
+  use super::*;
+
+  use test_case::test_case;
+
+  // TODO: Test invalid cases.
+
+  #[test_case("false" => vec![Token { kind: TokenKind::Boolean(false), span: Span { start: 0, end: 5 } }] ; "boolean false")]
+  #[test_case("true" => vec![Token { kind: TokenKind::Boolean(true), span: Span { start: 0, end: 4 } }] ; "boolean true")]
+  #[test_case("0" => vec![Token { kind: TokenKind::Integer(0), span: Span { start: 0, end: 1 } }] ; "integer 0")]
+  #[test_case("123" => vec![Token { kind: TokenKind::Integer(123), span: Span { start: 0, end: 3 } }] ; "integer 123")]
+  #[test_case("-123" => vec![Token { kind: TokenKind::Integer(-123), span: Span { start: 0, end: 4 } }] ; "integer negative 123")]
+  #[test_case("0." => vec![Token { kind: TokenKind::Float(0.0), span: Span { start: 0, end: 2 } }] ; "float 0.")]
+  #[test_case("0.0" => vec![Token { kind: TokenKind::Float(0.0), span: Span { start: 0, end: 3 } }] ; "float 0.0")]
+  #[test_case("-0." => vec![Token { kind: TokenKind::Float(-0.0), span: Span { start: 0, end: 3 } }] ; "float negative 0.")]
+  #[test_case("-0.0" => vec![Token { kind: TokenKind::Float(-0.0), span: Span { start: 0, end: 4 } }] ; "float negative 0.0")]
+  #[test_case("123.0" => vec![Token { kind: TokenKind::Float(123.0), span: Span { start: 0, end: 5 } }] ; "float 123.0")]
+  #[test_case("0.123" => vec![Token { kind: TokenKind::Float(0.123), span: Span { start: 0, end: 5 } }] ; "float 0.123")]
+  #[test_case("-123.0" => vec![Token { kind: TokenKind::Float(-123.0), span: Span { start: 0, end: 6 } }] ; "float negative 123.0")]
+  #[test_case("-0.123" => vec![Token { kind: TokenKind::Float(-0.123), span: Span { start: 0, end: 6 } }] ; "float negative 0.123")]
+  fn lex(source: &str) -> Vec<Token> {
+    let lexer = Lexer::new();
+    lexer.lex(source).collect()
+  }
+
+  #[test]
+  fn lex_string() {
+    let source = "\"Hello, World!\" \"Hey\nthere!\"";
+
+    let lexer = Lexer::new();
+    let tokens: Vec<_> = lexer.lex(source).collect();
+
+    let expected = vec![
+      Token {
+        kind: TokenKind::String(
+          lexer.interner.get_or_intern_static("Hello, World!"),
+        ),
+        span: Span { start: 1, end: 15 },
+      },
+      Token {
+        kind: TokenKind::String(
+          lexer.interner.get_or_intern_static("Hey\nthere!"),
+        ),
+        span: Span { start: 17, end: 28 },
+      },
+    ];
+
+    for (expected, actual) in expected.into_iter().zip(tokens.into_iter()) {
+      assert_eq!(expected, actual);
+    }
+  }
+
+  #[test]
+  fn lex_ident() {
+    let source = "nil fn";
+
+    let lexer = Lexer::new();
+    let tokens: Vec<_> = lexer.lex(source).collect();
+
+    let expected = vec![
+      Token {
+        kind: TokenKind::Nil,
+        span: Span { start: 0, end: 3 },
+      },
+      Token {
+        kind: TokenKind::Fn,
+        span: Span { start: 4, end: 6 },
+      },
+    ];
+
+    for (expected, actual) in expected.into_iter().zip(tokens.into_iter()) {
+      assert_eq!(expected, actual);
+    }
+  }
+
+  #[test]
+  fn lex_keywords() {
+    let source = "hello hello-world";
+
+    let lexer = Lexer::new();
+    let tokens: Vec<_> = lexer.lex(source).collect();
+
+    let expected = vec![
+      Token {
+        kind: TokenKind::Ident(lexer.interner.get_or_intern_static("hello")),
+        span: Span { start: 0, end: 5 },
+      },
+      Token {
+        kind: TokenKind::Ident(
+          lexer.interner.get_or_intern_static("hello-world"),
+        ),
+        span: Span { start: 6, end: 17 },
+      },
+    ];
+
+    for (expected, actual) in expected.into_iter().zip(tokens.into_iter()) {
+      assert_eq!(expected, actual);
+    }
+  }
+
+  #[test]
+  fn lex_single_symbols() {
+    let source = "'()+-*/!<>=";
+
+    let lexer = Lexer::new();
+    let tokens: Vec<_> = lexer.lex(source).collect();
+
+    let expected = vec![
+      Token {
+        kind: TokenKind::Apostrophe,
+        span: Span { start: 0, end: 1 },
+      },
+      Token {
+        kind: TokenKind::ParenStart,
+        span: Span { start: 1, end: 2 },
+      },
+      Token {
+        kind: TokenKind::ParenEnd,
+        span: Span { start: 2, end: 3 },
+      },
+      Token {
+        kind: TokenKind::Ident(lexer.interner.get_or_intern_static("+")),
+        span: Span { start: 3, end: 4 },
+      },
+      Token {
+        kind: TokenKind::Ident(lexer.interner.get_or_intern_static("-")),
+        span: Span { start: 4, end: 5 },
+      },
+      Token {
+        kind: TokenKind::Ident(lexer.interner.get_or_intern_static("*")),
+        span: Span { start: 5, end: 6 },
+      },
+      Token {
+        kind: TokenKind::Ident(lexer.interner.get_or_intern_static("/")),
+        span: Span { start: 6, end: 7 },
+      },
+      Token {
+        kind: TokenKind::Ident(lexer.interner.get_or_intern_static("!")),
+        span: Span { start: 7, end: 8 },
+      },
+      Token {
+        kind: TokenKind::Ident(lexer.interner.get_or_intern_static("<")),
+        span: Span { start: 8, end: 9 },
+      },
+      Token {
+        kind: TokenKind::Ident(lexer.interner.get_or_intern_static(">")),
+        span: Span { start: 9, end: 10 },
+      },
+      Token {
+        kind: TokenKind::Ident(lexer.interner.get_or_intern_static("=")),
+        span: Span { start: 10, end: 11 },
+      },
+    ];
+
+    for (expected, actual) in expected.into_iter().zip(tokens.into_iter()) {
+      assert_eq!(expected, actual);
+    }
+  }
+
+  #[test]
+  fn lex_double_symbols() {
+    let source = "!=";
+
+    let lexer = Lexer::new();
+    let tokens: Vec<_> = lexer.lex(source).collect();
+
+    let expected = vec![Token {
+      kind: TokenKind::Ident(lexer.interner.get_or_intern_static("!=")),
+      span: Span { start: 0, end: 2 },
+    }];
+
+    for (expected, actual) in expected.into_iter().zip(tokens.into_iter()) {
+      assert_eq!(expected, actual);
+    }
+  }
+}
