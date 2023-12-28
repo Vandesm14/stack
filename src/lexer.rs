@@ -249,6 +249,7 @@ impl<'source> Iterator for Lex<'source> {
             });
           }
         },
+        // TODO: Add nan, inf, and -inf for floats.
         State::Float => match c {
           '0'..='9' => {}
           _ => {
