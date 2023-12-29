@@ -221,6 +221,9 @@ impl<'source> Iterator for Lex<'source> {
             state = State::Start;
             start = self.index + 1;
           }
+          '\0' => {
+            break None;
+          }
           _ => {}
         },
         State::Integer => match c {
@@ -623,6 +626,37 @@ mod test {
       kind: TokenKind::Ident(lexer.interner.get_or_intern_static("!=")),
       span: Span { start: 0, end: 2 },
     }];
+
+    for (expected, actual) in expected.into_iter().zip(tokens.into_iter()) {
+      assert_eq!(expected, actual);
+    }
+  }
+
+  #[test]
+  fn lex_comments() {
+    let source = ";; Hello, World!\n123";
+
+    let lexer = Lexer::new();
+    let tokens: Vec<_> = lexer.lex(source).collect();
+
+    let expected = vec![Token {
+      kind: TokenKind::Integer(123),
+      span: Span { start: 15, end: 18 },
+    }];
+
+    for (expected, actual) in expected.into_iter().zip(tokens.into_iter()) {
+      assert_eq!(expected, actual);
+    }
+  }
+
+  #[test]
+  fn lex_comment_at_eof() {
+    let source = ";; Hello, World!";
+
+    let lexer = Lexer::new();
+    let tokens: Vec<_> = lexer.lex(source).collect();
+
+    let expected = Vec::<Token>::new();
 
     for (expected, actual) in expected.into_iter().zip(tokens.into_iter()) {
       assert_eq!(expected, actual);
