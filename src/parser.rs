@@ -82,3 +82,125 @@ impl Parser {
     }
   }
 }
+
+#[cfg(test)]
+mod tests {
+  use crate::Lexer;
+
+  use super::*;
+
+  use test_case::test_case;
+
+  #[test_case(
+    "(1 2 3)"
+    => vec![Expr::List(vec![
+      Expr::Integer(1),
+      Expr::Integer(2),
+      Expr::Integer(3),
+    ])]
+    ; "block"
+  )]
+  #[test_case(
+    "(1 2 3) 4 5 6"
+    => vec![
+      Expr::List(vec![
+        Expr::Integer(1),
+        Expr::Integer(2),
+        Expr::Integer(3),
+      ]),
+      Expr::Integer(4),
+      Expr::Integer(5),
+      Expr::Integer(6),
+    ]
+    ; "block before exprs"
+  )]
+  #[test_case(
+    "1 2 3 (4 5 6)"
+    => vec![
+      Expr::Integer(1),
+      Expr::Integer(2),
+      Expr::Integer(3),
+      Expr::List(vec![
+        Expr::Integer(4),
+        Expr::Integer(5),
+        Expr::Integer(6),
+      ]),
+    ]
+    ; "block after exprs"
+  )]
+  #[test_case(
+    "1 2 (3 4 5) 6"
+    => vec![
+      Expr::Integer(1),
+      Expr::Integer(2),
+      Expr::List(vec![
+        Expr::Integer(3),
+        Expr::Integer(4),
+        Expr::Integer(5),
+      ]),
+      Expr::Integer(6),
+    ]
+    ; "block between exprs"
+  )]
+  #[test_case(
+    "(1 (2 3) 4)"
+    => vec![Expr::List(vec![
+      Expr::Integer(1),
+      Expr::List(vec![
+        Expr::Integer(2),
+        Expr::Integer(3),
+      ]),
+      Expr::Integer(4),
+    ])]
+    ; "nested blocks"
+  )]
+  #[test_case("(" => vec![Expr::Invalid] ; "invalid block 0")]
+  #[test_case(")" => vec![Expr::Invalid] ; "invalid block 1")]
+  #[test_case("(]" => vec![Expr::Invalid] ; "invalid block 2")]
+  #[test_case("(}" => vec![Expr::Invalid] ; "invalid block 3")]
+  #[test_case(
+    "false true"
+    => vec![Expr::Boolean(false), Expr::Boolean(true)]
+    ; "boolean"
+  )]
+  // TODO: Implement a nice way to test with Spurs.
+  // #[test_case(
+  //   "{1 'var set}"
+  //   => vec![
+  //     Expr::ScopePush,
+  //     Expr::Integer(1),
+  //     Expr::Lazy(Expr::Call("var".into()).into()),
+  //     Expr::Call("set".into()),
+  //     Expr::ScopePop,
+  //   ]
+  //   ; "scope"
+  // )]
+  #[test_case(
+    "'(1 2 3)"
+    => vec![Expr::Lazy(Expr::List(vec![
+      Expr::Integer(1),
+      Expr::Integer(2),
+      Expr::Integer(3),
+    ]).into())]
+    ; "lazy block"
+  )]
+  #[test_case(
+    "'(1 '(2) 3)"
+    => vec![Expr::Lazy(Expr::List(vec![
+      Expr::Integer(1),
+      Expr::Lazy(Expr::List(vec![Expr::Integer(2)]).into()),
+      Expr::Integer(3),
+    ]).into())]
+    ; "lazy nested blocks"
+  )]
+  #[test_case(
+    "''1"
+    => vec![Expr::Lazy(Expr::Lazy(Expr::Integer(1).into()).into())]
+    ; "lazy lazy expr"
+  )]
+  fn parse(code: impl AsRef<str>) -> Vec<Expr> {
+    let lexer = Lexer::new();
+    let mut tokens = lexer.lex(code.as_ref());
+    Parser.parse(&mut tokens)
+  }
+}

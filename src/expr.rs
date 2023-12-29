@@ -256,6 +256,7 @@ impl PartialEq for Expr {
       (Self::FnScope(lhs), Self::FnScope(rhs)) => lhs == rhs,
       (Self::ScopePush, Self::ScopePush) => true,
       (Self::ScopePop, Self::ScopePop) => true,
+      (Self::Invalid, Self::Invalid) => true,
 
       // Different types.
       (lhs @ Self::Boolean(_), rhs) => match rhs.to_boolean() {
