@@ -170,50 +170,6 @@ impl<'source> Lexer<'source> {
               },
             };
           }
-          '{' => {
-            self.cursor += char_width;
-
-            break Token {
-              kind: TokenKind::CurlyOpen,
-              span: Span {
-                start,
-                end: self.cursor,
-              },
-            };
-          }
-          '}' => {
-            self.cursor += char_width;
-
-            break Token {
-              kind: TokenKind::CurlyClose,
-              span: Span {
-                start,
-                end: self.cursor,
-              },
-            };
-          }
-          // '[' => {
-          //   self.cursor += char_width;
-
-          //   break Token {
-          //     kind: TokenKind::SquareOpen,
-          //     span: Span {
-          //       start,
-          //       end: self.cursor,
-          //     },
-          //   };
-          // }
-          // ']' => {
-          //   self.cursor += char_width;
-
-          //   break Token {
-          //     kind: TokenKind::SquareClose,
-          //     span: Span {
-          //       start,
-          //       end: self.cursor,
-          //     },
-          //   };
-          // }
           '-' => state = State::Hyphen,
           _ => state = State::Invalid,
         },
@@ -464,10 +420,6 @@ pub enum TokenKind {
   ParenOpen,
   /// `)` symbol.
   ParenClose,
-  /// `{` symbol.
-  CurlyOpen,
-  /// `}` symbol.
-  CurlyClose,
   // /// `[` symbol.
   // SquareOpen,
   // /// `]` symbol.
@@ -502,8 +454,6 @@ impl fmt::Display for TokenKind {
       Self::Apostrophe => f.write_str("'"),
       Self::ParenOpen => f.write_str("("),
       Self::ParenClose => f.write_str(")"),
-      Self::CurlyOpen => f.write_str("{"),
-      Self::CurlyClose => f.write_str("}"),
       // Self::SquareOpen => f.write_str("["),
       // Self::SquareClose => f.write_str("]"),
       Self::Nil => f.write_str("nil"),
@@ -574,9 +524,6 @@ mod test {
   #[test_case("(" => vec![Token { kind: TokenKind::ParenOpen, span: Span { start: 0, end: 1 } }, Token { kind: TokenKind::Eoi, span: Span { start: 1, end: 1 } }] ; "paren open eoi")]
   #[test_case(")" => vec![Token { kind: TokenKind::ParenClose, span: Span { start: 0, end: 1 } }, Token { kind: TokenKind::Eoi, span: Span { start: 1, end: 1 } }] ; "paren close eoi")]
   #[test_case("()" => vec![Token { kind: TokenKind::ParenOpen, span: Span { start: 0, end: 1 } }, Token { kind: TokenKind::ParenClose, span: Span { start: 1, end: 2 } }, Token { kind: TokenKind::Eoi, span: Span { start: 2, end: 2 } }] ; "paren open close eoi")]
-  #[test_case("{" => vec![Token { kind: TokenKind::CurlyOpen, span: Span { start: 0, end: 1 } }, Token { kind: TokenKind::Eoi, span: Span { start: 1, end: 1 } }] ; "curly open eoi")]
-  #[test_case("}" => vec![Token { kind: TokenKind::CurlyClose, span: Span { start: 0, end: 1 } }, Token { kind: TokenKind::Eoi, span: Span { start: 1, end: 1 } }] ; "curly close eoi")]
-  #[test_case("{}" => vec![Token { kind: TokenKind::CurlyOpen, span: Span { start: 0, end: 1 } }, Token { kind: TokenKind::CurlyClose, span: Span { start: 1, end: 2 } }, Token { kind: TokenKind::Eoi, span: Span { start: 2, end: 2 } }] ; "curly open close eoi")]
   // #[test_case("[" => vec![Token { kind: TokenKind::SquareOpen, span: Span { start: 0, end: 1 } }, Token { kind: TokenKind::Eoi, span: Span { start: 1, end: 1 } }] ; "square open eoi")]
   // #[test_case("]" => vec![Token { kind: TokenKind::SquareClose, span: Span { start: 0, end: 1 } }, Token { kind: TokenKind::Eoi, span: Span { start: 1, end: 1 } }] ; "square close eoi")]
   // #[test_case("[]" => vec![Token { kind: TokenKind::SquareOpen, span: Span { start: 0, end: 1 } }, Token { kind: TokenKind::SquareClose, span: Span { start: 1, end: 2 } }, Token { kind: TokenKind::Eoi, span: Span { start: 2, end: 2 } }] ; "square open close eoi")]
@@ -622,7 +569,7 @@ mod test {
 
     let expected = vec![Token {
       kind: TokenKind::Integer(123),
-      span: Span { start: 15, end: 18 },
+      span: Span { start: 17, end: 20 },
     }];
 
     for (expected, actual) in expected.into_iter().zip(tokens.into_iter()) {

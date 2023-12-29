@@ -1,6 +1,6 @@
 use core::{cmp::Ordering, fmt, iter, num::FpCategory};
 
-use lasso::Spur;
+use lasso::{Resolver, Spur};
 
 use crate::interner::interner;
 
@@ -21,8 +21,6 @@ pub enum Expr {
   Call(Spur),
 
   FnScope(Option<usize>),
-  ScopePush,
-  ScopePop,
 }
 
 impl Expr {
@@ -51,16 +49,6 @@ impl Expr {
     }
   }
 
-  pub fn contains_block(&self) -> bool {
-    match self {
-      Expr::List(list) => list.get(1).is_some_and(|x| match x {
-        Expr::ScopePush => true,
-        _ => false,
-      }),
-      _ => false,
-    }
-  }
-
   pub fn type_of(&self) -> Type {
     match self {
       Self::Nil => Type::Nil,
@@ -80,8 +68,6 @@ impl Expr {
       Self::Call(_) => Type::Call,
 
       Self::FnScope(_) => Type::FnScope,
-      Self::ScopePush => Type::ScopePush,
-      Self::ScopePop => Type::ScopePop,
     }
   }
 
@@ -241,8 +227,6 @@ impl PartialEq for Expr {
       (Self::Call(lhs), Self::Call(rhs)) => lhs == rhs,
 
       (Self::FnScope(lhs), Self::FnScope(rhs)) => lhs == rhs,
-      (Self::ScopePush, Self::ScopePush) => true,
-      (Self::ScopePop, Self::ScopePop) => true,
 
       // Different types.
       (lhs @ Self::Boolean(_), rhs) => match rhs.to_boolean() {
@@ -289,8 +273,6 @@ impl PartialOrd for Expr {
       (Self::Call(lhs), Self::Call(rhs)) => lhs.partial_cmp(rhs),
 
       (Self::FnScope(lhs), Self::FnScope(rhs)) => lhs.partial_cmp(rhs),
-      (Self::ScopePush, Self::ScopePush) => Some(Ordering::Equal),
-      (Self::ScopePop, Self::ScopePop) => Some(Ordering::Equal),
 
       // Different types.
       (lhs @ Self::Boolean(_), rhs) => match rhs.to_boolean() {
@@ -316,59 +298,6 @@ impl PartialOrd for Expr {
       },
 
       _ => None,
-    }
-  }
-}
-
-impl fmt::Display for Expr {
-  fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-    match self {
-      Self::Nil => f.write_str("nil"),
-
-      Self::Boolean(x) => fmt::Display::fmt(x, f),
-      Self::Integer(x) => fmt::Display::fmt(x, f),
-      Self::Float(x) => fmt::Display::fmt(x, f),
-
-      Self::Pointer(x) => {
-        f.write_str("*")?;
-        fmt::Display::fmt(x, f)
-      }
-
-      Self::List(x) => {
-        f.write_str("(")?;
-
-        iter::once("")
-          .chain(iter::repeat(" "))
-          .zip(x.iter())
-          .try_for_each(|(s, x)| {
-            f.write_str(s)?;
-            fmt::Display::fmt(x, f)
-          })?;
-
-        f.write_str(")")
-      }
-      Self::String(x) => write!(f, "\"{}\"", interner().resolve(x)),
-
-      Self::Lazy(x) => {
-        f.write_str("'")?;
-        fmt::Display::fmt(x, f)
-      }
-      Self::Call(x) => f.write_str(interner().resolve(x)),
-
-      Self::FnScope(x) => {
-        f.write_str("fn")?;
-
-        match x {
-          Some(x) => {
-            f.write_str("(")?;
-            fmt::Display::fmt(x, f)?;
-            f.write_str(")")
-          }
-          None => Ok(()),
-        }
-      }
-      Self::ScopePush => f.write_str("{"),
-      Self::ScopePop => f.write_str("}"),
     }
   }
 }

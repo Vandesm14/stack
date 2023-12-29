@@ -11,7 +11,6 @@ use std::collections::{HashMap, HashSet};
 pub struct Program {
   pub stack: Vec<Expr>,
   pub scopes: Vec<HashMap<String, Expr>>,
-  pub scope_layer: Option<usize>,
   pub loaded_files: HashSet<String>,
 }
 
@@ -75,7 +74,6 @@ impl Program {
     Self {
       stack: vec![],
       scopes: vec![HashMap::new()],
-      scope_layer: None,
       loaded_files: HashSet::new(),
     }
   }
@@ -106,11 +104,6 @@ impl Program {
               if let Expr::FnScope(scope) = item {
                 if scope.is_none() {
                   let scope_index = self.scopes.len() - 1;
-                  let scope_index = if expr.contains_block() {
-                    scope_index + 1
-                  } else {
-                    scope_index
-                  };
                   return Expr::FnScope(Some(scope_index));
                 }
               }
@@ -135,25 +128,14 @@ impl Program {
   }
 
   fn scope_item(&self, symbol: &str) -> Option<Expr> {
-    let len = self.scopes.len();
-    let take = self.scope_layer.unwrap_or(len - 1) + 1;
-    for layer in self.scopes.iter().take(take).rev() {
-      if let Some(item) = layer.get(symbol) {
-        return Some(item.clone());
-      }
+    let current = self.scopes.last();
+    if let Some(item) = current.and_then(|layer| layer.get(symbol)) {
+      return Some(item.clone());
     }
 
-    None
-  }
-
-  fn scope_item_layer(&self, symbol: &str) -> Option<usize> {
-    let len = self.scopes.len();
-    let take = self.scope_layer.unwrap_or(len - 1) + 1;
-
-    for (layer_i, layer) in self.scopes.iter().take(take).rev().enumerate() {
-      if layer.contains_key(symbol) {
-        return Some(layer_i);
-      }
+    let global = self.scopes.get(0);
+    if let Some(item) = global.and_then(|layer| layer.get(symbol)) {
+      return Some(item.clone());
     }
 
     None
@@ -165,10 +147,7 @@ impl Program {
     symbol: &str,
     value: Expr,
   ) -> Result<(), EvalError> {
-    let len = self.scopes.len();
-    let last = self.scope_layer.unwrap_or(len - 1).min(len - 1);
-
-    if let Some(layer) = self.scopes.get_mut(last) {
+    if let Some(layer) = self.scopes.last_mut() {
       layer.insert(symbol.to_string(), value);
       Ok(())
     } else {
@@ -183,10 +162,8 @@ impl Program {
   }
 
   fn remove_scope_item(&mut self, symbol: &str) {
-    let layer = self.scope_item_layer(symbol);
-
-    if let Some(layer) = layer {
-      self.scopes[layer].remove(symbol);
+    if let Some(layer) = self.scopes.last_mut() {
+      layer.remove(symbol);
     }
   }
 
@@ -558,8 +535,18 @@ impl Program {
         Err(EvalError {
           expr: trace_expr.clone(),
           program: self.clone(),
-          message: format!("panic: {string}"),
+          message: format!(
+            "panic: {}",
+            string.display(&self.interner.as_ref())
+          ),
         })
+      }
+      Intrinsic::Debug => {
+        let item = self.pop(trace_expr)?;
+
+        println!("{}", item.display(&self.interner.as_ref()));
+
+        Ok(())
       }
 
       // List
@@ -1034,17 +1021,16 @@ impl Program {
         match item {
           call @ Expr::Call(_) => self.eval_expr(call),
           item @ Expr::List(_) => match item.function_scope() {
-            Some(scope_layer) => {
+            Some(_) => {
               let Expr::List(list) = item else {
                 unreachable!()
               };
 
-              let prev_layer = self.scope_layer;
-              self.scope_layer = Some(scope_layer);
+              self.push_scope();
 
               match self.eval(list) {
                 Ok(_) => {
-                  self.scope_layer = prev_layer;
+                  self.pop_scope();
                   Ok(())
                 }
                 Err(err) => Err(err),
@@ -1296,14 +1282,6 @@ impl Program {
 
         Ok(())
       }
-      Expr::ScopePush => {
-        self.push_scope();
-        Ok(())
-      }
-      Expr::ScopePop => {
-        self.pop_scope();
-        Ok(())
-      }
       Expr::FnScope(_) => Ok(()),
       expr => {
         self.push(expr);
@@ -1337,7 +1315,7 @@ impl Program {
         //       rollback if there is an error.
         self.stack = clone.stack;
         self.scopes = clone.scopes;
-        self.scope_layer = clone.scope_layer;
+        self.interner = clone.interner;
 
         Ok(x)
       }
@@ -1762,69 +1740,21 @@ mod tests {
       use super::*;
 
       #[test]
-      fn scope_pop() {
-        let mut program = Program::new();
-        program.eval_string("{1 'a set}").unwrap();
-        assert_eq!(program.scopes, vec![HashMap::new()]);
-      }
-
-      #[test]
-      fn scope_open() {
-        let mut program = Program::new();
-        program.eval_string("{1 'a set").unwrap();
-        assert_eq!(
-          program.scopes,
-          vec![
-            // Main Scope
-            HashMap::new(),
-            // Block Scope
-            HashMap::from_iter(vec![("a".to_string(), Expr::Integer(1))])
-          ]
-        );
-      }
-
-      #[test]
-      fn no_overwriting_outside() {
-        let mut program = Program::new();
-        program.eval_string("1 'a set {2 'a set").unwrap();
-        assert_eq!(
-          program.scopes,
-          vec![
-            HashMap::from_iter(vec![("a".to_string(), Expr::Integer(1))]),
-            HashMap::from_iter(vec![("a".to_string(), Expr::Integer(2))])
-          ]
-        );
-      }
-
-      #[test]
-      fn overwriting_inside() {
-        let mut program = Program::new();
-        program.eval_string("{1 'a set 2 'a set").unwrap();
-        assert_eq!(
-          program.scopes,
-          vec![
-            HashMap::new(),
-            HashMap::from_iter(vec![("a".to_string(), Expr::Integer(2))])
-          ]
-        );
-      }
-
-      #[test]
-      fn closures_can_access_higher_scopes() {
+      fn functions_are_isolated() {
         let mut program = Program::new();
         program
           .eval_string(
             "0 'a set
             '(fn 5 'a set)
 
-            '(fn {1' a set call}) call",
+            '(fn 1 'a set call) call",
           )
           .unwrap();
         assert_eq!(
           program.scopes,
           vec![HashMap::from_iter(vec![(
             "a".to_string(),
-            Expr::Integer(5)
+            Expr::Integer(0)
           )]),]
         )
       }
