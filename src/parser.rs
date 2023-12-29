@@ -49,10 +49,6 @@ impl Parser {
       ),
       TokenKind::ParenEnd => Some(Expr::Invalid),
 
-      // TODO: Maybe construct a scope similar to how lists work?
-      TokenKind::CurlyStart => Some(Expr::ScopePush),
-      TokenKind::CurlyEnd => Some(Expr::ScopePop),
-
       TokenKind::Fn => Some(Expr::FnScope(None)),
     }
   }
@@ -157,7 +153,6 @@ mod tests {
   #[test_case("(" => vec![Expr::Invalid] ; "invalid block 0")]
   #[test_case(")" => vec![Expr::Invalid] ; "invalid block 1")]
   #[test_case("(]" => vec![Expr::Invalid] ; "invalid block 2")]
-  #[test_case("(}" => vec![Expr::Invalid] ; "invalid block 3")]
   #[test_case(
     "false true"
     => vec![Expr::Boolean(false), Expr::Boolean(true)]

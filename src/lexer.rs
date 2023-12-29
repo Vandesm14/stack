@@ -135,28 +135,6 @@ impl<'source> Iterator for Lex<'source> {
               },
             });
           }
-          '{' => {
-            self.index += 1;
-
-            break Some(Token {
-              kind: TokenKind::CurlyStart,
-              span: Span {
-                start,
-                end: self.index,
-              },
-            });
-          }
-          '}' => {
-            self.index += 1;
-
-            break Some(Token {
-              kind: TokenKind::CurlyEnd,
-              span: Span {
-                start,
-                end: self.index,
-              },
-            });
-          }
           '\'' => {
             self.index += 1;
 
@@ -422,8 +400,6 @@ pub enum TokenKind {
 
   ParenStart,
   ParenEnd,
-  CurlyStart,
-  CurlyEnd,
 
   Nil,
   Fn,
@@ -641,7 +617,7 @@ mod test {
 
     let expected = vec![Token {
       kind: TokenKind::Integer(123),
-      span: Span { start: 15, end: 18 },
+      span: Span { start: 17, end: 20 },
     }];
 
     for (expected, actual) in expected.into_iter().zip(tokens.into_iter()) {

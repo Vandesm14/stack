@@ -22,8 +22,6 @@ pub enum Expr {
   Call(Spur),
 
   FnScope(Option<usize>),
-  ScopePush,
-  ScopePop,
 }
 
 impl Expr {
@@ -52,16 +50,6 @@ impl Expr {
     }
   }
 
-  pub fn contains_block(&self) -> bool {
-    match self {
-      Expr::List(list) => list.get(1).is_some_and(|x| match x {
-        Expr::ScopePush => true,
-        _ => false,
-      }),
-      _ => false,
-    }
-  }
-
   pub fn type_of(&self) -> Type {
     match self {
       Self::Invalid => Type::Invalid,
@@ -83,8 +71,6 @@ impl Expr {
       Self::Call(_) => Type::Call,
 
       Self::FnScope(_) => Type::FnScope,
-      Self::ScopePush => Type::ScopePush,
-      Self::ScopePop => Type::ScopePop,
     }
   }
 
@@ -254,8 +240,6 @@ impl PartialEq for Expr {
       (Self::Call(lhs), Self::Call(rhs)) => lhs == rhs,
 
       (Self::FnScope(lhs), Self::FnScope(rhs)) => lhs == rhs,
-      (Self::ScopePush, Self::ScopePush) => true,
-      (Self::ScopePop, Self::ScopePop) => true,
       (Self::Invalid, Self::Invalid) => true,
 
       // Different types.
@@ -303,8 +287,6 @@ impl PartialOrd for Expr {
       (Self::Call(lhs), Self::Call(rhs)) => lhs.partial_cmp(rhs),
 
       (Self::FnScope(lhs), Self::FnScope(rhs)) => lhs.partial_cmp(rhs),
-      (Self::ScopePush, Self::ScopePush) => Some(Ordering::Equal),
-      (Self::ScopePop, Self::ScopePop) => Some(Ordering::Equal),
 
       // Different types.
       (lhs @ Self::Boolean(_), rhs) => match rhs.to_boolean() {
@@ -466,8 +448,6 @@ impl fmt::Display for Display<'_> {
           None => Ok(()),
         }
       }
-      Expr::ScopePush => f.write_str("{"),
-      Expr::ScopePop => f.write_str("}"),
     }
   }
 }
