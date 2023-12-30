@@ -269,7 +269,6 @@ impl<'source> Lexer<'source> {
             // included in the length. However, we only want to
             // intern the inner slice.
             let slice = &self.source[start + 1..self.cursor];
-            dbg!(slice);
             let value = interner().get_or_intern(slice);
 
             self.cursor += 1;
