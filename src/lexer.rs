@@ -521,14 +521,20 @@ mod test {
   #[test_case("(\n" => vec![Token { kind: TokenKind::ParenOpen, len: 1 }, Token { kind: TokenKind::Whitespace, len: 1 }, Token { kind: TokenKind::Eoi, len: 0 }] ; "paren open whitespace")]
   #[test_case(")" => vec![Token { kind: TokenKind::ParenClose, len: 1 }, Token { kind: TokenKind::Eoi, len: 0 }] ; "paren close eoi")]
   #[test_case(")\n" => vec![Token { kind: TokenKind::ParenClose, len: 1 }, Token { kind: TokenKind::Whitespace, len: 1 }, Token { kind: TokenKind::Eoi, len: 0 }] ; "paren close whitespace")]
+  #[test_case("()" => vec![Token { kind: TokenKind::ParenOpen, len: 1 }, Token { kind: TokenKind::ParenClose, len: 1 }, Token { kind: TokenKind::Eoi, len: 0 }] ; "paren open close eoi")]
+  #[test_case("(\n)" => vec![Token { kind: TokenKind::ParenOpen, len: 1 }, Token { kind: TokenKind::Whitespace, len: 1 }, Token { kind: TokenKind::ParenClose, len: 1 }, Token { kind: TokenKind::Eoi, len: 0 }] ; "paren open close whitespace")]
   #[test_case("{" => vec![Token { kind: TokenKind::CurlyOpen, len: 1 }, Token { kind: TokenKind::Eoi, len: 0 }] ; "curly open eoi")]
   #[test_case("{\n" => vec![Token { kind: TokenKind::CurlyOpen, len: 1 }, Token { kind: TokenKind::Whitespace, len: 1 }, Token { kind: TokenKind::Eoi, len: 0 }] ; "curly open whitespace")]
   #[test_case("}" => vec![Token { kind: TokenKind::CurlyClose, len: 1 }, Token { kind: TokenKind::Eoi, len: 0 }] ; "curly close eoi")]
   #[test_case("}\n" => vec![Token { kind: TokenKind::CurlyClose, len: 1 }, Token { kind: TokenKind::Whitespace, len: 1 }, Token { kind: TokenKind::Eoi, len: 0 }] ; "curly close whitespace")]
+  #[test_case("{}" => vec![Token { kind: TokenKind::CurlyOpen, len: 1 }, Token { kind: TokenKind::CurlyClose, len: 1 }, Token { kind: TokenKind::Eoi, len: 0 }] ; "curly open close eoi")]
+  #[test_case("{\n}" => vec![Token { kind: TokenKind::CurlyOpen, len: 1 }, Token { kind: TokenKind::Whitespace, len: 1 }, Token { kind: TokenKind::CurlyClose, len: 1 }, Token { kind: TokenKind::Eoi, len: 0 }] ; "curly open close whitespace")]
   #[test_case("[" => vec![Token { kind: TokenKind::SquareOpen, len: 1 }, Token { kind: TokenKind::Eoi, len: 0 }] ; "square open eoi")]
   #[test_case("[\n" => vec![Token { kind: TokenKind::SquareOpen, len: 1 }, Token { kind: TokenKind::Whitespace, len: 1 }, Token { kind: TokenKind::Eoi, len: 0 }] ; "square open whitespace")]
   #[test_case("]" => vec![Token { kind: TokenKind::SquareClose, len: 1 }, Token { kind: TokenKind::Eoi, len: 0 }] ; "square close eoi")]
   #[test_case("]\n" => vec![Token { kind: TokenKind::SquareClose, len: 1 }, Token { kind: TokenKind::Whitespace, len: 1 }, Token { kind: TokenKind::Eoi, len: 0 }] ; "square close whitespace")]
+  #[test_case("[]" => vec![Token { kind: TokenKind::SquareOpen, len: 1 }, Token { kind: TokenKind::SquareClose, len: 1 }, Token { kind: TokenKind::Eoi, len: 0 }] ; "square open close eoi")]
+  #[test_case("[\n]" => vec![Token { kind: TokenKind::SquareOpen, len: 1 }, Token { kind: TokenKind::Whitespace, len: 1 }, Token { kind: TokenKind::SquareClose, len: 1 }, Token { kind: TokenKind::Eoi, len: 0 }] ; "square open close whitespace")]
   fn lexer(source: &str) -> Vec<Token> {
     let mut lexer = Lexer::new(source);
     let mut tokens = Vec::with_capacity(8);
