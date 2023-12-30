@@ -37,8 +37,7 @@ impl<'source> TokenVec<'source> {
 
   /// Returns a [`Token`] at the index.
   ///
-  /// If the index is out of bounds, this returns the token at the end of
-  /// input index instead.
+  /// If the index is out of bounds, this returns the [`Token`] at the end index.
   pub fn token(&mut self, mut index: usize) -> Token {
     // Clamp the upper bound to the end of input index, if smaller.
     index = index.min(self.eoi.unwrap_or(usize::MAX));
@@ -91,8 +90,8 @@ impl<'source> Lexer<'source> {
 
   /// Returns the next [`Token`].
   ///
-  /// Once the first [`TokenKind::Eoi`] has been returned, it will return them
-  /// thereafter, akin to a [`FusedIterator`].
+  /// Once the first [`TokenKind::Eoi`] has been returned, it will continue to
+  /// return them thereafter, akin to a [`FusedIterator`].
   ///
   /// [`FusedIterator`]: core::iter::FusedIterator
   pub fn next(&mut self) -> Token {
