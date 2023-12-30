@@ -1,5 +1,12 @@
+use core::fmt;
+
+use thiserror::Error;
+
 use crate::{Expr, Lexer, TokenKind, TokenVec};
 
+/// Converts a stream of [`Token`]s into a stream of [`Expr`]s.
+///
+/// [`Token`]: crate::Token
 #[derive(Debug, Clone, PartialEq)]
 pub struct Parser<'source> {
   tokens: TokenVec<'source>,
@@ -24,198 +31,198 @@ impl<'source> Parser<'source> {
     self.tokens.reuse(lexer);
   }
 
+  /// Parses all of the available [`Expr`]s into a [`Vec`].
+  ///
+  /// If a [`ParseError`] is encountered, the whole collect fails.
   #[inline]
-  pub fn parse(&mut self) -> Vec<Expr> {
+  pub fn parse(mut self) -> Result<Vec<Expr>, ParseError> {
     let mut exprs = Vec::new();
 
-    while let Some(expr) = self.parse_expr() {
-      exprs.push(expr);
+    while let Some(result) = self.next().transpose() {
+      exprs.push(result?);
     }
 
-    exprs
+    Ok(exprs)
   }
 
-  fn parse_expr(&mut self) -> Option<Expr> {
+  /// Returns the next [`Expr`].
+  ///
+  /// Once the first <code>[Ok]\([None]\)</code> has been returned, it will
+  /// continue to return them thereafter, akin to a [`FusedIterator`].
+  ///
+  /// [`FusedIterator`]: core::iter::FusedIterator
+  pub fn next(&mut self) -> Result<Option<Expr>, ParseError> {
     loop {
       let token = self.tokens.token(self.cursor);
       self.cursor += 1;
 
       match token.kind {
-        TokenKind::Invalid => break Some(Expr::Invalid),
-        TokenKind::Eoi => break None,
+        TokenKind::Invalid | TokenKind::ParenClose => {
+          break Err(ParseError {
+            reason: ParseErrorReason::UnexpectedToken { kind: token.kind },
+            span: self.token_span(self.cursor),
+          });
+        }
+        TokenKind::Eoi => {
+          break Ok(None);
+        }
 
-        TokenKind::Whitespace | TokenKind::Comment => continue,
+        TokenKind::Whitespace | TokenKind::Comment => {
+          continue;
+        }
 
-        TokenKind::Nil => break Some(Expr::Nil),
-        TokenKind::Boolean(x) => break Some(Expr::Boolean(x)),
-        TokenKind::Integer(x) => break Some(Expr::Integer(x)),
-        TokenKind::Float(x) => break Some(Expr::Float(x)),
-        TokenKind::String(x) => break Some(Expr::String(x)),
+        TokenKind::Boolean(x) => {
+          break Ok(Some(Expr::Boolean(x)));
+        }
+        TokenKind::Integer(x) => {
+          break Ok(Some(Expr::Integer(x)));
+        }
+        TokenKind::Float(x) => {
+          break Ok(Some(Expr::Float(x)));
+        }
+        TokenKind::String(x) => {
+          break Ok(Some(Expr::String(x)));
+        }
 
-        TokenKind::Ident(x) => break Some(Expr::Call(x)),
+        TokenKind::Ident(x) => {
+          break Ok(Some(Expr::Call(x)));
+        }
 
         TokenKind::Apostrophe => {
-          break self.parse_expr().map(Box::new).map(Expr::Lazy);
+          break match self.next() {
+            Ok(Some(expr)) => Ok(Some(Expr::Lazy(Box::new(expr)))),
+            Ok(None) => Err(ParseError {
+              reason: ParseErrorReason::UnexpectedToken { kind: token.kind },
+              span: self.token_span(self.cursor - 1),
+            }),
+            err @ Err(_) => err,
+          };
         }
-
         TokenKind::ParenOpen => {
-          break Some(
-            self.parse_list().map(Expr::List).unwrap_or(Expr::Invalid),
-          )
+          let mut list = Vec::new();
+
+          break loop {
+            let token = self.tokens.token(self.cursor);
+
+            match token.kind {
+              TokenKind::Whitespace | TokenKind::Comment => {
+                self.cursor += 1;
+                continue;
+              }
+              TokenKind::ParenClose => {
+                self.cursor += 1;
+                break Ok(Some(Expr::List(list)));
+              }
+              _ => match self.next()? {
+                Some(expr) => list.push(expr),
+                None => {
+                  break Err(ParseError {
+                    reason: ParseErrorReason::UnexpectedToken {
+                      kind: token.kind,
+                    },
+                    span: self.token_span(self.cursor - 1),
+                  });
+                }
+              },
+            }
+          };
         }
-        TokenKind::ParenClose => break Some(Expr::Invalid),
+        // TODO: Should this check to make sure there are matching brakets?
+        TokenKind::CurlyOpen => {
+          break Ok(Some(Expr::ScopePush));
+        }
+        // TODO: Should this check to make sure there are matching brakets?
+        TokenKind::CurlyClose => {
+          break Ok(Some(Expr::ScopePop));
+        }
+        // TODO: Should this check to make sure there are matching brakets?
+        TokenKind::SquareOpen | TokenKind::SquareClose => {
+          continue;
+        }
 
-        // TODO: Maybe construct a scope similar to how lists work?
-        TokenKind::CurlyOpen => break Some(Expr::ScopePush),
-        TokenKind::CurlyClose => break Some(Expr::ScopePop),
-        // TODO: Maybe check that these match correctly?
-        TokenKind::SquareOpen | TokenKind::SquareClose => continue,
-
-        TokenKind::Fn => break Some(Expr::FnScope(None)),
+        TokenKind::Nil => {
+          break Ok(Some(Expr::Nil));
+        }
+        TokenKind::Fn => {
+          break Ok(Some(Expr::FnScope(None)));
+        }
       }
     }
   }
 
-  fn parse_list(&mut self) -> Option<Vec<Expr>> {
-    let mut list = Vec::new();
+  fn token_span(&mut self, index: usize) -> Span {
+    let index_before = index - 1;
+    let mut start = 0;
 
-    loop {
-      match self.tokens.token(self.cursor).kind {
-        TokenKind::Eoi => break None,
-        TokenKind::ParenClose => {
-          self.cursor += 1;
-          break Some(list);
-        }
-        _ => match self.parse_expr() {
-          Some(expr) => list.push(expr),
-          None => {
-            list.push(Expr::Invalid);
-            break Some(list);
-          }
-        },
-      }
+    for i in 0..index_before {
+      let token = self.tokens.token(i);
+      start += token.len as usize;
     }
+
+    Span {
+      start,
+      end: start + (self.tokens.token(index_before).len as usize),
+    }
+  }
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, PartialOrd, Error)]
+#[error("{reason} at {span}")]
+pub struct ParseError {
+  pub reason: ParseErrorReason,
+  pub span: Span,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, PartialOrd, Error)]
+pub enum ParseErrorReason {
+  #[error("unexpected token: {kind}")]
+  UnexpectedToken { kind: TokenKind },
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
+pub struct Span {
+  pub start: usize,
+  pub end: usize,
+}
+
+impl fmt::Display for Span {
+  fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+    write!(f, "{}..{}", self.start, self.end)
   }
 }
 
 #[cfg(test)]
 mod tests {
-  use crate::{interner::interner, Lexer};
+  use crate::interner::interned;
 
   use super::*;
 
   use test_case::test_case;
 
-  #[test_case(
-    "(1 2 3)"
-    => vec![Expr::List(vec![
-      Expr::Integer(1),
-      Expr::Integer(2),
-      Expr::Integer(3),
-    ])]
-    ; "block"
-  )]
-  #[test_case(
-    "(1 2 3) 4 5 6"
-    => vec![
-      Expr::List(vec![
-        Expr::Integer(1),
-        Expr::Integer(2),
-        Expr::Integer(3),
-      ]),
-      Expr::Integer(4),
-      Expr::Integer(5),
-      Expr::Integer(6),
-    ]
-    ; "block before exprs"
-  )]
-  #[test_case(
-    "1 2 3 (4 5 6)"
-    => vec![
-      Expr::Integer(1),
-      Expr::Integer(2),
-      Expr::Integer(3),
-      Expr::List(vec![
-        Expr::Integer(4),
-        Expr::Integer(5),
-        Expr::Integer(6),
-      ]),
-    ]
-    ; "block after exprs"
-  )]
-  #[test_case(
-    "1 2 (3 4 5) 6"
-    => vec![
-      Expr::Integer(1),
-      Expr::Integer(2),
-      Expr::List(vec![
-        Expr::Integer(3),
-        Expr::Integer(4),
-        Expr::Integer(5),
-      ]),
-      Expr::Integer(6),
-    ]
-    ; "block between exprs"
-  )]
-  #[test_case(
-    "(1 (2 3) 4)"
-    => vec![Expr::List(vec![
-      Expr::Integer(1),
-      Expr::List(vec![
-        Expr::Integer(2),
-        Expr::Integer(3),
-      ]),
-      Expr::Integer(4),
-    ])]
-    ; "nested blocks"
-  )]
-  #[test_case("(" => vec![Expr::Invalid] ; "invalid block 0")]
-  #[test_case(")" => vec![Expr::Invalid] ; "invalid block 1")]
-  // TODO: This is not checked currently.
-  // #[test_case("(]" => vec![Expr::Invalid] ; "invalid block 2")]
-  #[test_case("(}" => vec![Expr::Invalid] ; "invalid block 3")]
-  #[test_case(
-    "false true"
-    => vec![Expr::Boolean(false), Expr::Boolean(true)]
-    ; "boolean"
-  )]
-  #[test_case(
-    "{1 'var set}"
-    => vec![
-      Expr::ScopePush,
-      Expr::Integer(1),
-      Expr::Lazy(Expr::Call(interner().get_or_intern_static("var")).into()),
-      Expr::Call(interner().get_or_intern_static("set")),
-      Expr::ScopePop,
-    ]
-    ; "scope"
-  )]
-  #[test_case(
-    "'(1 2 3)"
-    => vec![Expr::Lazy(Expr::List(vec![
-      Expr::Integer(1),
-      Expr::Integer(2),
-      Expr::Integer(3),
-    ]).into())]
-    ; "lazy block"
-  )]
-  #[test_case(
-    "'(1 '(2) 3)"
-    => vec![Expr::Lazy(Expr::List(vec![
-      Expr::Integer(1),
-      Expr::Lazy(Expr::List(vec![Expr::Integer(2)]).into()),
-      Expr::Integer(3),
-    ]).into())]
-    ; "lazy nested blocks"
-  )]
-  #[test_case(
-    "''1"
-    => vec![Expr::Lazy(Expr::Lazy(Expr::Integer(1).into()).into())]
-    ; "lazy lazy expr"
-  )]
-  fn parse(source: &str) -> Vec<Expr> {
+  #[test_case("" => Ok(Vec::<Expr>::new()) ; "empty")]
+  #[test_case(" \t\r\n" => Ok(Vec::<Expr>::new()) ; "whitespace")]
+  #[test_case("ßℝ💣" => Err(ParseError { reason: ParseErrorReason::UnexpectedToken { kind: TokenKind::Invalid }, span: Span { start: 0, end: 9 } }) ; "invalid")]
+  #[test_case("'ßℝ💣" => Err(ParseError { reason: ParseErrorReason::UnexpectedToken { kind: TokenKind::Invalid }, span: Span { start: 1, end: 10 } }) ; "lazy invalid")]
+  #[test_case("12 34 +" => Ok(vec![Expr::Integer(12), Expr::Integer(34), Expr::Call(interned().PLUS)]) ; "int int add")]
+  #[test_case("æ 34 -" => Err(ParseError { reason: ParseErrorReason::UnexpectedToken { kind: TokenKind::Invalid }, span: Span { start: 0, end: 2 } }) ; "invalid int sub")]
+  #[test_case("12 æ *" => Err(ParseError { reason: ParseErrorReason::UnexpectedToken { kind: TokenKind::Invalid }, span: Span { start: 3, end: 5 } }) ; "int invalid mul")]
+  #[test_case("'" => Err(ParseError { reason: ParseErrorReason::UnexpectedToken { kind: TokenKind::Apostrophe }, span: Span { start: 0, end: 1 } }) ; "empty lazy")]
+  #[test_case("'12" => Ok(vec![Expr::Lazy(Box::new(Expr::Integer(12)))]) ; "lazy int")]
+  #[test_case("()" => Ok(vec![Expr::List(vec![])]) ; "empty list")]
+  #[test_case("(\n)" => Ok(vec![Expr::List(vec![])]) ; "empty list whitespace")]
+  #[test_case("'()" => Ok(vec![Expr::Lazy(Box::new(Expr::List(vec![])))]) ; "lazy empty list")]
+  #[test_case("(')" => Err(ParseError { reason: ParseErrorReason::UnexpectedToken { kind: TokenKind::ParenClose }, span: Span { start: 2, end: 3 } }) ; "list empty lazy")]
+  #[test_case("('())" => Ok(vec![Expr::List(vec![Expr::Lazy(Box::new(Expr::List(vec![])))])]) ; "list lazy list")]
+  #[test_case("'('())" => Ok(vec![Expr::Lazy(Box::new(Expr::List(vec![Expr::Lazy(Box::new(Expr::List(vec![])))])))]) ; "lazy list lazy list")]
+  #[test_case("('('))" => Err(ParseError { reason: ParseErrorReason::UnexpectedToken { kind: TokenKind::ParenClose }, span: Span { start: 4, end: 5 } }) ; "list lazy list empty lazy")]
+  #[test_case("'('('))" => Err(ParseError { reason: ParseErrorReason::UnexpectedToken { kind: TokenKind::ParenClose }, span: Span { start: 5, end: 6 } }) ; "lazy list lazy list empty lazy")]
+  #[test_case("(12 +)" => Ok(vec![Expr::List(vec![Expr::Integer(12), Expr::Call(interned().PLUS)])]) ; "list int add")]
+  #[test_case("'(12 +)" => Ok(vec![Expr::Lazy(Box::new(Expr::List(vec![Expr::Integer(12), Expr::Call(interned().PLUS)])))]) ; "lazy list int add")]
+  #[test_case("(æ +)" => Err(ParseError { reason: ParseErrorReason::UnexpectedToken { kind: TokenKind::Invalid }, span: Span { start: 1, end: 3 } }) ; "invalid int add")]
+  #[test_case("'(æ +)" => Err(ParseError { reason: ParseErrorReason::UnexpectedToken { kind: TokenKind::Invalid }, span: Span { start: 2, end: 4 } }) ; "lazy invalid int add")]
+  fn parser(source: &str) -> Result<Vec<Expr>, ParseError> {
     let lexer = Lexer::new(source);
-    let mut parser = Parser::new(lexer);
+    let parser = Parser::new(lexer);
     parser.parse()
   }
 }
