@@ -6,8 +6,6 @@ use crate::interner::interner;
 
 #[derive(Debug, Clone)]
 pub enum Expr {
-  Invalid,
-
   Nil,
 
   Boolean(bool),
@@ -65,8 +63,6 @@ impl Expr {
 
   pub fn type_of(&self) -> Type {
     match self {
-      Self::Invalid => Type::Invalid,
-
       Self::Nil => Type::Nil,
 
       Self::Boolean(_) => Type::Boolean,
@@ -247,7 +243,6 @@ impl PartialEq for Expr {
       (Self::FnScope(lhs), Self::FnScope(rhs)) => lhs == rhs,
       (Self::ScopePush, Self::ScopePush) => true,
       (Self::ScopePop, Self::ScopePop) => true,
-      (Self::Invalid, Self::Invalid) => true,
 
       // Different types.
       (lhs @ Self::Boolean(_), rhs) => match rhs.to_boolean() {
@@ -328,8 +323,6 @@ impl PartialOrd for Expr {
 impl fmt::Display for Expr {
   fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
     match self {
-      Self::Invalid => f.write_str("invalid"),
-
       Self::Nil => f.write_str("nil"),
 
       Self::Boolean(x) => fmt::Display::fmt(x, f),
@@ -382,8 +375,6 @@ impl fmt::Display for Expr {
 
 #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub enum Type {
-  Invalid,
-
   Nil,
 
   Boolean,
@@ -408,8 +399,6 @@ pub enum Type {
 impl fmt::Display for Type {
   fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
     match self {
-      Self::Invalid => f.write_str("invalid"),
-
       Self::Nil => f.write_str("nil"),
 
       Self::Boolean => f.write_str("boolean"),
