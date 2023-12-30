@@ -289,7 +289,7 @@ impl<'source> Iterator for Lex<'source> {
           }
         },
         State::Ident => match c {
-          'a'..='z' | 'A'..='Z' | '0'..='9' | '_' | '-' | '/' => {}
+          'a'..='z' | 'A'..='Z' | '0'..='9' | '_' | '-' | '/' | '!' => {}
           _ => {
             let slice = &self.source[start..self.index];
             let interned = self.lexer.interner.get_or_intern(slice);
