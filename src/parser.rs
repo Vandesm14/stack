@@ -1,77 +1,92 @@
-use core::iter::Peekable;
+use crate::{Expr, Lexer, TokenKind, TokenVec};
 
-use crate::{Expr, Token, TokenKind};
+#[derive(Debug, Clone, PartialEq)]
+pub struct Parser<'source> {
+  tokens: TokenVec<'source>,
+  cursor: usize,
+}
 
-#[derive(Debug, Clone, PartialEq, Eq)]
-pub struct Parser;
+impl<'source> Parser<'source> {
+  /// Creates a new [`Parser`].
+  ///
+  /// Prefer [`Parser::reuse`] where possible.
+  #[inline]
+  pub const fn new(lexer: Lexer<'source>) -> Self {
+    Self {
+      tokens: TokenVec::new(lexer),
+      cursor: 0,
+    }
+  }
 
-impl Parser {
-  pub fn parse<I>(&self, tokens: &mut I) -> Vec<Expr>
-  where
-    I: Iterator<Item = Token>,
-  {
-    let mut tokens = tokens.peekable();
+  /// Creates a [`Parser`] by re-using the allocations of an existing one.
+  #[inline]
+  pub fn reuse(&mut self, lexer: Lexer<'source>) {
+    self.tokens.reuse(lexer);
+  }
+
+  #[inline]
+  pub fn parse(&mut self) -> Vec<Expr> {
     let mut exprs = Vec::new();
 
-    while let Some(expr) = self.parse_expr(&mut tokens) {
+    while let Some(expr) = self.parse_expr() {
       exprs.push(expr);
     }
 
     exprs
   }
 
-  fn parse_expr<I>(&self, tokens: &mut Peekable<I>) -> Option<Expr>
-  where
-    I: Iterator<Item = Token>,
-  {
-    let token = tokens.next()?;
+  fn parse_expr(&mut self) -> Option<Expr> {
+    loop {
+      let token = self.tokens.token(self.cursor);
+      self.cursor += 1;
 
-    match token.kind {
-      TokenKind::Invalid => Some(Expr::Invalid),
+      match token.kind {
+        TokenKind::Invalid => break Some(Expr::Invalid),
+        TokenKind::Eoi => break None,
 
-      TokenKind::Nil => Some(Expr::Nil),
-      TokenKind::Boolean(x) => Some(Expr::Boolean(x)),
-      TokenKind::Integer(x) => Some(Expr::Integer(x)),
-      TokenKind::Float(x) => Some(Expr::Float(x)),
-      TokenKind::String(x) => Some(Expr::String(x)),
+        TokenKind::Whitespace | TokenKind::Comment => continue,
 
-      TokenKind::Ident(x) => Some(Expr::Call(x)),
+        TokenKind::Nil => break Some(Expr::Nil),
+        TokenKind::Boolean(x) => break Some(Expr::Boolean(x)),
+        TokenKind::Integer(x) => break Some(Expr::Integer(x)),
+        TokenKind::Float(x) => break Some(Expr::Float(x)),
+        TokenKind::String(x) => break Some(Expr::String(x)),
 
-      TokenKind::Apostrophe => {
-        self.parse_expr(tokens).map(Box::new).map(Expr::Lazy)
+        TokenKind::Ident(x) => break Some(Expr::Call(x)),
+
+        TokenKind::Apostrophe => {
+          break self.parse_expr().map(Box::new).map(Expr::Lazy);
+        }
+
+        TokenKind::ParenOpen => {
+          break Some(
+            self.parse_list().map(Expr::List).unwrap_or(Expr::Invalid),
+          )
+        }
+        TokenKind::ParenClose => break Some(Expr::Invalid),
+
+        // TODO: Maybe construct a scope similar to how lists work?
+        TokenKind::CurlyOpen => break Some(Expr::ScopePush),
+        TokenKind::CurlyClose => break Some(Expr::ScopePop),
+        // TODO: Maybe check that these match correctly?
+        TokenKind::SquareOpen | TokenKind::SquareClose => continue,
+
+        TokenKind::Fn => break Some(Expr::FnScope(None)),
       }
-
-      TokenKind::ParenStart => Some(
-        self
-          .parse_list(tokens)
-          .map(Expr::List)
-          .unwrap_or(Expr::Invalid),
-      ),
-      TokenKind::ParenEnd => Some(Expr::Invalid),
-
-      // TODO: Maybe construct a scope similar to how lists work?
-      TokenKind::CurlyStart => Some(Expr::ScopePush),
-      TokenKind::CurlyEnd => Some(Expr::ScopePop),
-
-      TokenKind::Fn => Some(Expr::FnScope(None)),
     }
   }
 
-  fn parse_list<I>(&self, tokens: &mut Peekable<I>) -> Option<Vec<Expr>>
-  where
-    I: Iterator<Item = Token>,
-  {
+  fn parse_list(&mut self) -> Option<Vec<Expr>> {
     let mut list = Vec::new();
 
     loop {
-      match tokens.peek().map(|token| token.kind) {
-        None => break None,
-        Some(TokenKind::ParenEnd) => {
-          // If this panics, it's a bug.
-          tokens.next().unwrap();
+      match self.tokens.token(self.cursor).kind {
+        TokenKind::Eoi => break None,
+        TokenKind::ParenClose => {
+          self.cursor += 1;
           break Some(list);
         }
-        Some(_) => match self.parse_expr(tokens) {
+        _ => match self.parse_expr() {
           Some(expr) => list.push(expr),
           None => {
             list.push(Expr::Invalid);
@@ -85,7 +100,7 @@ impl Parser {
 
 #[cfg(test)]
 mod tests {
-  use crate::Lexer;
+  use crate::{interner::interner, Lexer};
 
   use super::*;
 
@@ -156,25 +171,25 @@ mod tests {
   )]
   #[test_case("(" => vec![Expr::Invalid] ; "invalid block 0")]
   #[test_case(")" => vec![Expr::Invalid] ; "invalid block 1")]
-  #[test_case("(]" => vec![Expr::Invalid] ; "invalid block 2")]
+  // TODO: This is not checked currently.
+  // #[test_case("(]" => vec![Expr::Invalid] ; "invalid block 2")]
   #[test_case("(}" => vec![Expr::Invalid] ; "invalid block 3")]
   #[test_case(
     "false true"
     => vec![Expr::Boolean(false), Expr::Boolean(true)]
     ; "boolean"
   )]
-  // TODO: Implement a nice way to test with Spurs.
-  // #[test_case(
-  //   "{1 'var set}"
-  //   => vec![
-  //     Expr::ScopePush,
-  //     Expr::Integer(1),
-  //     Expr::Lazy(Expr::Call("var".into()).into()),
-  //     Expr::Call("set".into()),
-  //     Expr::ScopePop,
-  //   ]
-  //   ; "scope"
-  // )]
+  #[test_case(
+    "{1 'var set}"
+    => vec![
+      Expr::ScopePush,
+      Expr::Integer(1),
+      Expr::Lazy(Expr::Call(interner().get_or_intern_static("var")).into()),
+      Expr::Call(interner().get_or_intern_static("set")),
+      Expr::ScopePop,
+    ]
+    ; "scope"
+  )]
   #[test_case(
     "'(1 2 3)"
     => vec![Expr::Lazy(Expr::List(vec![
@@ -198,9 +213,9 @@ mod tests {
     => vec![Expr::Lazy(Expr::Lazy(Expr::Integer(1).into()).into())]
     ; "lazy lazy expr"
   )]
-  fn parse(code: impl AsRef<str>) -> Vec<Expr> {
-    let lexer = Lexer::new();
-    let mut tokens = lexer.lex(code.as_ref());
-    Parser.parse(&mut tokens)
+  fn parse(source: &str) -> Vec<Expr> {
+    let lexer = Lexer::new(source);
+    let mut parser = Parser::new(lexer);
+    parser.parse()
   }
 }

@@ -1,5 +1,6 @@
 mod evaluator;
 mod expr;
+mod interner;
 mod intrinsics;
 mod lexer;
 mod parser;

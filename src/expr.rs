@@ -1,7 +1,8 @@
 use core::{cmp::Ordering, fmt, iter, num::FpCategory};
 
-use itertools::Itertools;
-use lasso::{Resolver, Spur};
+use lasso::Spur;
+
+use crate::interner::interner;
 
 #[derive(Debug, Clone)]
 pub enum Expr {
@@ -75,7 +76,7 @@ impl Expr {
       Self::Pointer(_) => Type::Pointer,
 
       Self::List(list) => {
-        Type::List(list.iter().map(|expr| expr.type_of()).collect_vec())
+        Type::List(list.iter().map(|expr| expr.type_of()).collect::<Vec<_>>())
       }
       Self::String(_) => Type::String,
 
@@ -177,16 +178,6 @@ impl Expr {
       x @ Self::Pointer(_) => Some(x.clone()),
 
       _ => None,
-    }
-  }
-
-  pub const fn display<'a>(
-    &'a self,
-    resolver: &'a dyn Resolver<Spur>,
-  ) -> Display<'a> {
-    Display {
-      resolver,
-      expr: self,
     }
   }
 
@@ -334,6 +325,61 @@ impl PartialOrd for Expr {
   }
 }
 
+impl fmt::Display for Expr {
+  fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+    match self {
+      Self::Invalid => f.write_str("invalid"),
+
+      Self::Nil => f.write_str("nil"),
+
+      Self::Boolean(x) => fmt::Display::fmt(x, f),
+      Self::Integer(x) => fmt::Display::fmt(x, f),
+      Self::Float(x) => fmt::Display::fmt(x, f),
+
+      Self::Pointer(x) => {
+        f.write_str("*")?;
+        fmt::Display::fmt(x, f)
+      }
+
+      Self::List(x) => {
+        f.write_str("(")?;
+
+        iter::once("")
+          .chain(iter::repeat(" "))
+          .zip(x.iter())
+          .try_for_each(|(s, x)| {
+            f.write_str(s)?;
+            fmt::Display::fmt(x, f)
+          })?;
+
+        f.write_str(")")
+      }
+      Self::String(x) => write!(f, "\"{}\"", interner().resolve(x)),
+
+      Self::Lazy(x) => {
+        f.write_str("'")?;
+        fmt::Display::fmt(x, f)
+      }
+      Self::Call(x) => f.write_str(interner().resolve(x)),
+
+      Self::FnScope(x) => {
+        f.write_str("fn")?;
+
+        match x {
+          Some(x) => {
+            f.write_str("(")?;
+            fmt::Display::fmt(x, f)?;
+            f.write_str(")")
+          }
+          None => Ok(()),
+        }
+      }
+      Self::ScopePush => f.write_str("{"),
+      Self::ScopePop => f.write_str("}"),
+    }
+  }
+}
+
 #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub enum Type {
   Invalid,
@@ -407,67 +453,6 @@ impl fmt::Display for Type {
 
         f.write_str("]")
       }
-    }
-  }
-}
-
-#[doc(hidden)]
-pub struct Display<'a> {
-  resolver: &'a dyn Resolver<Spur>,
-  expr: &'a Expr,
-}
-
-impl fmt::Display for Display<'_> {
-  fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-    match self.expr {
-      Expr::Invalid => f.write_str("invalid"),
-
-      Expr::Nil => f.write_str("nil"),
-
-      Expr::Boolean(x) => fmt::Display::fmt(x, f),
-      Expr::Integer(x) => fmt::Display::fmt(x, f),
-      Expr::Float(x) => fmt::Display::fmt(x, f),
-
-      Expr::Pointer(x) => {
-        f.write_str("*")?;
-        fmt::Display::fmt(x, f)
-      }
-
-      Expr::List(x) => {
-        f.write_str("(")?;
-
-        iter::once("")
-          .chain(iter::repeat(" "))
-          .zip(x.iter())
-          .try_for_each(|(s, x)| {
-            f.write_str(s)?;
-            fmt::Display::fmt(&x.display(self.resolver), f)
-          })?;
-
-        f.write_str(")")
-      }
-      Expr::String(x) => write!(f, "\"{}\"", self.resolver.resolve(x)),
-
-      Expr::Lazy(x) => {
-        f.write_str("'")?;
-        fmt::Display::fmt(&x.display(self.resolver), f)
-      }
-      Expr::Call(x) => f.write_str(self.resolver.resolve(x)),
-
-      Expr::FnScope(x) => {
-        f.write_str("fn")?;
-
-        match x {
-          Some(x) => {
-            f.write_str("(")?;
-            fmt::Display::fmt(x, f)?;
-            f.write_str(")")
-          }
-          None => Ok(()),
-        }
-      }
-      Expr::ScopePush => f.write_str("{"),
-      Expr::ScopePop => f.write_str("}"),
     }
   }
 }

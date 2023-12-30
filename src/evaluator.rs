@@ -1,9 +1,9 @@
-use itertools::Itertools;
-use lasso::{Spur, ThreadedRodeo};
-use std::sync::Arc;
+use itertools::Itertools as _;
+// use itertools::Itertools;
+use lasso::Spur;
 use syscalls::Sysno;
 
-use crate::{Expr, Intrinsic, Lexer, Parser, Type};
+use crate::{interner::interner, Expr, Intrinsic, Lexer, Parser, Type};
 use core::{fmt, iter};
 use std::collections::{HashMap, HashSet};
 
@@ -13,7 +13,6 @@ pub struct Program {
   pub scopes: Vec<HashMap<String, Expr>>,
   pub scope_layer: Option<usize>,
   pub loaded_files: HashSet<String>,
-  pub interner: Arc<ThreadedRodeo<Spur>>,
 }
 
 impl fmt::Display for Program {
@@ -21,8 +20,6 @@ impl fmt::Display for Program {
     write!(f, "Stack: [")?;
 
     self.stack.iter().enumerate().try_for_each(|(i, expr)| {
-      let expr = expr.display(self.interner.as_ref());
-
       if i == self.stack.len() - 1 {
         write!(f, "{expr}")
       } else {
@@ -43,8 +40,6 @@ impl fmt::Display for Program {
         for (item_i, (key, value)) in
           layer.iter().sorted_by_key(|(s, _)| *s).enumerate()
         {
-          let value = value.display(self.interner.as_ref());
-
           if item_i == items - 1 && layer_i == layers - 1 {
             write!(f, " + {}: {}", key, value)?;
           } else {
@@ -68,11 +63,7 @@ pub struct EvalError {
 impl fmt::Display for EvalError {
   fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
     writeln!(f, "Error: {}", self.message)?;
-    writeln!(
-      f,
-      "Expr: {}",
-      self.expr.display(self.program.interner.as_ref())
-    )?;
+    writeln!(f, "Expr: {}", self.expr)?;
     writeln!(f,)?;
     write!(f, "{}", self.program)
   }
@@ -81,16 +72,11 @@ impl fmt::Display for EvalError {
 impl Program {
   #[inline]
   pub fn new() -> Self {
-    Self::with_interner(ThreadedRodeo::new().into())
-  }
-
-  pub fn with_interner(interner: Arc<ThreadedRodeo<Spur>>) -> Self {
     Self {
       stack: vec![],
       scopes: vec![HashMap::new()],
       scope_layer: None,
       loaded_files: HashSet::new(),
-      interner,
     }
   }
 
@@ -431,13 +417,11 @@ impl Program {
 
         match item {
           Expr::String(string) => {
-            let source = self.interner.resolve(&string).to_string();
+            let source = interner().resolve(&string).to_string();
 
-            let lexer = Lexer {
-              interner: self.interner.clone(),
-            };
-            let mut tokens = lexer.lex(&source);
-            let exprs = Parser.parse(&mut tokens);
+            let lexer = Lexer::new(&source);
+            let mut parser = Parser::new(lexer);
+            let exprs = parser.parse();
 
             self.push(Expr::List(exprs));
 
@@ -460,13 +444,13 @@ impl Program {
 
         match item {
           Expr::String(path) => {
-            let path_str = self.interner.resolve(&path);
+            let path_str = interner().resolve(&path);
 
             match std::fs::read_to_string(path_str) {
               Ok(contents) => {
                 self.loaded_files.insert(path_str.to_string());
 
-                let content = self.interner.get_or_intern(contents);
+                let content = interner().get_or_intern(contents);
                 self.push(Expr::String(content));
 
                 Ok(())
@@ -574,10 +558,7 @@ impl Program {
         Err(EvalError {
           expr: trace_expr.clone(),
           program: self.clone(),
-          message: format!(
-            "panic: {}",
-            string.display(&self.interner.as_ref())
-          ),
+          message: format!("panic: {string}"),
         })
       }
 
@@ -588,15 +569,13 @@ impl Program {
 
         match item {
           Expr::String(string) => {
-            let string_str = self.interner.resolve(&string).to_owned();
+            let string_str = interner().resolve(&string).to_owned();
 
             let list = Expr::List(
               string_str
                 .chars()
-                .map(|c| {
-                  Expr::String(self.interner.get_or_intern(c.to_string()))
-                })
-                .collect_vec(),
+                .map(|c| Expr::String(interner().get_or_intern(c.to_string())))
+                .collect::<Vec<_>>(),
             );
             self.push(list);
 
@@ -676,18 +655,16 @@ impl Program {
 
         match (delimiter, list) {
           (Expr::String(delimiter), Expr::List(list)) => {
-            let delimiter_str = self.interner.resolve(&delimiter);
+            let delimiter_str = interner().resolve(&delimiter);
 
             let string = list
               .into_iter()
               .map(|expr| match expr {
-                Expr::String(string) => {
-                  self.interner.resolve(&string).to_string()
-                }
-                _ => expr.display(self.interner.as_ref()).to_string(),
+                Expr::String(string) => interner().resolve(&string).to_string(),
+                _ => expr.to_string(),
               })
               .join(delimiter_str);
-            let string = Expr::String(self.interner.get_or_intern(string));
+            let string = Expr::String(interner().get_or_intern(string));
             self.push(string);
 
             Ok(())
@@ -930,7 +907,7 @@ impl Program {
 
         match key {
           Expr::Call(key) => {
-            let key_str = self.interner.resolve(&key);
+            let key_str = interner().resolve(&key);
 
             match Intrinsic::try_from(key_str) {
               Ok(intrinsic) => Err(EvalError {
@@ -966,7 +943,7 @@ impl Program {
 
         match item {
           Expr::Call(key) => {
-            let key_str = self.interner.resolve(&key);
+            let key_str = interner().resolve(&key);
             // Always push something, otherwise it can get tricky to manage the
             // stack in-langauge.
             self.push(self.scope_item(key_str).unwrap_or(Expr::Nil));
@@ -989,7 +966,7 @@ impl Program {
 
         match item {
           Expr::Call(key) => {
-            let key_str = self.interner.resolve(&key).to_owned();
+            let key_str = interner().resolve(&key).to_owned();
             self.remove_scope_item(&key_str);
 
             Ok(())
@@ -1099,7 +1076,7 @@ impl Program {
 
         match item {
           Expr::String(name) => {
-            let name_str = self.interner.resolve(&name);
+            let name_str = interner().resolve(&name);
 
             match Intrinsic::try_from(name_str) {
               Ok(intrinsic) => self.eval_intrinsic(trace_expr, intrinsic),
@@ -1135,7 +1112,7 @@ impl Program {
 
         match item {
           Expr::String(string) => {
-            let string_str = self.interner.resolve(&string);
+            let string_str = interner().resolve(&string);
 
             self.push(
               string_str
@@ -1155,7 +1132,7 @@ impl Program {
 
         match item {
           Expr::String(string) => {
-            let string_str = self.interner.resolve(&string);
+            let string_str = interner().resolve(&string);
 
             self.push(
               string_str
@@ -1175,7 +1152,7 @@ impl Program {
 
         match item {
           Expr::String(string) => {
-            let string_str = self.interner.resolve(&string);
+            let string_str = interner().resolve(&string);
 
             self.push(
               string_str
@@ -1195,7 +1172,7 @@ impl Program {
 
         match item {
           Expr::String(string) => {
-            let string_str = self.interner.resolve(&string);
+            let string_str = interner().resolve(&string);
             self.push(Expr::Pointer(string_str.as_ptr() as usize));
           }
           found => self.push(found.to_pointer().unwrap_or(Expr::Nil)),
@@ -1226,9 +1203,8 @@ impl Program {
             Ok(())
           }
           found => {
-            let string = Expr::String(self.interner.get_or_intern(
-              found.display(self.interner.as_ref()).to_string(),
-            ));
+            let string =
+              Expr::String(interner().get_or_intern(found.to_string()));
             self.push(string);
 
             Ok(())
@@ -1248,9 +1224,7 @@ impl Program {
             Ok(())
           }
           found => {
-            let call = Expr::Call(self.interner.get_or_intern(
-              found.display(self.interner.as_ref()).to_string(),
-            ));
+            let call = Expr::Call(interner().get_or_intern(found.to_string()));
             self.push(call);
 
             Ok(())
@@ -1260,7 +1234,7 @@ impl Program {
       Intrinsic::TypeOf => {
         let item = self.pop(trace_expr)?;
         let string =
-          Expr::String(self.interner.get_or_intern(item.type_of().to_string()));
+          Expr::String(interner().get_or_intern(item.type_of().to_string()));
         self.push(string);
 
         Ok(())
@@ -1273,7 +1247,7 @@ impl Program {
     trace_expr: &Expr,
     call: Spur,
   ) -> Result<(), EvalError> {
-    let call_str = self.interner.resolve(&call);
+    let call_str = interner().resolve(&call);
 
     if let Ok(intrinsic) = Intrinsic::try_from(call_str) {
       return self.eval_intrinsic(trace_expr, intrinsic);
@@ -1315,7 +1289,7 @@ impl Program {
 
         let mut list = iter::repeat_with(|| self.pop(&expr).unwrap())
           .take(list_len)
-          .collect_vec();
+          .collect::<Vec<_>>();
         list.reverse();
 
         self.push(Expr::List(list));
@@ -1339,12 +1313,9 @@ impl Program {
   }
 
   pub fn eval_string(&mut self, line: &str) -> Result<(), EvalError> {
-    let lexer = Lexer {
-      interner: self.interner.clone(),
-    };
-
-    let mut tokens = lexer.lex(line);
-    let exprs = Parser.parse(&mut tokens);
+    let lexer = Lexer::new(line);
+    let mut parser = Parser::new(lexer);
+    let exprs = parser.parse();
 
     self.eval(exprs)
   }
@@ -1362,7 +1333,6 @@ impl Program {
         self.stack = clone.stack;
         self.scopes = clone.scopes;
         self.scope_layer = clone.scope_layer;
-        self.interner = clone.interner;
 
         Ok(x)
       }
@@ -1448,7 +1418,7 @@ mod tests {
       program.eval_string("6 'var set 'var").unwrap();
       assert_eq!(
         program.stack,
-        vec![Expr::Call(program.interner.get_or_intern_static("var"))]
+        vec![Expr::Call(interner().get_or_intern_static("var"))]
       );
     }
 
@@ -1741,7 +1711,7 @@ mod tests {
         vec![Expr::List(vec![
           Expr::Integer(1),
           Expr::Integer(2),
-          Expr::Call(program.interner.get_or_intern_static("+"))
+          Expr::Call(interner().get_or_intern_static("+"))
         ])]
       );
     }
@@ -1758,7 +1728,7 @@ mod tests {
           Expr::FnScope(Some(0)),
           Expr::Integer(1),
           Expr::Integer(2),
-          Expr::Call(program.interner.get_or_intern_static("+"))
+          Expr::Call(interner().get_or_intern_static("+"))
         ])]
       );
     }
@@ -1776,7 +1746,7 @@ mod tests {
             Expr::FnScope(Some(0)),
             Expr::Integer(1),
             Expr::Integer(2),
-            Expr::Call(program.interner.get_or_intern_static("+"))
+            Expr::Call(interner().get_or_intern_static("+"))
           ]),
           Expr::Integer(3)
         ]
@@ -1988,7 +1958,7 @@ mod tests {
           Expr::Integer(1),
           Expr::Integer(2),
           Expr::Integer(3),
-          Expr::String(program.interner.get_or_intern_static("4"))
+          Expr::String(interner().get_or_intern_static("4"))
         ])]
       );
     }
@@ -2002,7 +1972,7 @@ mod tests {
         vec![Expr::List(vec![
           Expr::Integer(1),
           Expr::Integer(2),
-          Expr::Call(program.interner.get_or_intern_static("+"))
+          Expr::Call(interner().get_or_intern_static("+"))
         ])]
       );
     }
@@ -2039,9 +2009,9 @@ mod tests {
       assert_eq!(
         program.stack,
         vec![Expr::List(vec![
-          Expr::String(program.interner.get_or_intern_static("a")),
-          Expr::String(program.interner.get_or_intern_static("b")),
-          Expr::String(program.interner.get_or_intern_static("c"))
+          Expr::String(interner().get_or_intern_static("a")),
+          Expr::String(interner().get_or_intern_static("b")),
+          Expr::String(interner().get_or_intern_static("c"))
         ])]
       );
     }
@@ -2055,9 +2025,7 @@ mod tests {
 
       assert_eq!(
         program.stack,
-        vec![Expr::String(
-          program.interner.get_or_intern_static("a3hello1.2")
-        )]
+        vec![Expr::String(interner().get_or_intern_static("a3hello1.2"))]
       );
     }
   }
@@ -2073,9 +2041,7 @@ mod tests {
         .unwrap();
       assert_eq!(
         program.stack,
-        vec![Expr::String(
-          program.interner.get_or_intern_static("correct")
-        )]
+        vec![Expr::String(interner().get_or_intern_static("correct"))]
       );
     }
 
@@ -2087,9 +2053,7 @@ mod tests {
         .unwrap();
       assert_eq!(
         program.stack,
-        vec![Expr::String(
-          program.interner.get_or_intern_static("correct")
-        )]
+        vec![Expr::String(interner().get_or_intern_static("correct"))]
       );
     }
 
@@ -2101,9 +2065,7 @@ mod tests {
         .unwrap();
       assert_eq!(
         program.stack,
-        vec![Expr::String(
-          program.interner.get_or_intern_static("correct")
-        )]
+        vec![Expr::String(interner().get_or_intern_static("correct"))]
       );
     }
 
@@ -2115,9 +2077,7 @@ mod tests {
         .unwrap();
       assert_eq!(
         program.stack,
-        vec![Expr::String(
-          program.interner.get_or_intern_static("incorrect")
-        )]
+        vec![Expr::String(interner().get_or_intern_static("incorrect"))]
       );
     }
   }
@@ -2162,7 +2122,7 @@ mod tests {
       program.eval_string("1 tostring").unwrap();
       assert_eq!(
         program.stack,
-        vec![Expr::String(program.interner.get_or_intern_static("1"))]
+        vec![Expr::String(interner().get_or_intern_static("1"))]
       );
     }
 
@@ -2172,7 +2132,7 @@ mod tests {
       program.eval_string("\"a\" tocall").unwrap();
       assert_eq!(
         program.stack,
-        vec![Expr::Call(program.interner.get_or_intern_static("a"))]
+        vec![Expr::Call(interner().get_or_intern_static("a"))]
       );
     }
 
@@ -2189,9 +2149,7 @@ mod tests {
       program.eval_string("1 typeof").unwrap();
       assert_eq!(
         program.stack,
-        vec![Expr::String(
-          program.interner.get_or_intern_static("integer")
-        )]
+        vec![Expr::String(interner().get_or_intern_static("integer"))]
       );
     }
 
@@ -2233,7 +2191,7 @@ mod tests {
       assert_eq!(
         program.stack,
         vec![Expr::Lazy(
-          Expr::Call(program.interner.get_or_intern_static("set")).into()
+          Expr::Call(interner().get_or_intern_static("set")).into()
         )]
       );
     }
