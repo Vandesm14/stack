@@ -420,10 +420,10 @@ impl Program {
             let source = interner().resolve(&string).to_string();
 
             let lexer = Lexer::new(&source);
-            let mut parser = Parser::new(lexer);
-            let exprs = parser.parse();
+            let parser = Parser::new(lexer);
+            let expr = parser.parse().ok().map(Expr::List).unwrap_or(Expr::Nil);
 
-            self.push(Expr::List(exprs));
+            self.push(expr);
 
             Ok(())
           }
@@ -1314,8 +1314,13 @@ impl Program {
 
   pub fn eval_string(&mut self, line: &str) -> Result<(), EvalError> {
     let lexer = Lexer::new(line);
-    let mut parser = Parser::new(lexer);
-    let exprs = parser.parse();
+    let parser = Parser::new(lexer);
+    // TODO: It might be time to add a proper EvalError enum.
+    let exprs = parser.parse().map_err(|e| EvalError {
+      program: self.clone(),
+      message: e.to_string(),
+      expr: Expr::Nil,
+    })?;
 
     self.eval(exprs)
   }
