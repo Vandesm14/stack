@@ -1,3 +1,5 @@
+use core::fmt;
+
 use lasso::Spur;
 
 use crate::interner::{interned, interner};
@@ -418,6 +420,41 @@ pub enum TokenKind {
   Nil,
   /// `fn` keyword.
   Fn,
+}
+
+impl fmt::Display for TokenKind {
+  fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+    match self {
+      Self::Invalid => f.write_str("invalid"),
+      Self::Eoi => f.write_str("end of input"),
+
+      Self::Whitespace => f.write_str("whitespace"),
+      Self::Comment => f.write_str("comment"),
+
+      // TODO: Should this display the kind of token too?
+      Self::Boolean(x) => fmt::Display::fmt(x, f),
+      // TODO: Should this display the kind of token too?
+      Self::Integer(x) => fmt::Display::fmt(x, f),
+      // TODO: Should this display the kind of token too?
+      Self::Float(x) => fmt::Display::fmt(x, f),
+      // TODO: Should this display the kind of token too?
+      Self::String(x) => fmt::Display::fmt(interner().resolve(x), f),
+
+      // TODO: Should this display the kind of token too?
+      Self::Ident(x) => fmt::Display::fmt(interner().resolve(x), f),
+
+      Self::Apostrophe => f.write_str("'"),
+      Self::ParenOpen => f.write_str("("),
+      Self::ParenClose => f.write_str(")"),
+      Self::CurlyOpen => f.write_str("{"),
+      Self::CurlyClose => f.write_str("}"),
+      Self::SquareOpen => f.write_str("["),
+      Self::SquareClose => f.write_str("]"),
+
+      Self::Nil => f.write_str("nil"),
+      Self::Fn => f.write_str("fn"),
+    }
+  }
 }
 
 enum State {
