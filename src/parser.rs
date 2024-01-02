@@ -1,5 +1,3 @@
-use core::fmt;
-
 use thiserror::Error;
 
 use crate::{Expr, Lexer, Span, TokenKind, TokenVec};
@@ -93,7 +91,6 @@ impl<'source> Parser<'source> {
             Ok(Some(expr)) => Ok(Some(Expr::Lazy(Box::new(expr)))),
             Ok(None) => Err(ParseError {
               reason: ParseErrorReason::UnexpectedToken { kind: token.kind },
-              // TODO: Should this be the previous token span?
               span: token.span,
             }),
             err @ Err(_) => err,
@@ -121,7 +118,6 @@ impl<'source> Parser<'source> {
                     reason: ParseErrorReason::UnexpectedToken {
                       kind: token.kind,
                     },
-                    // TODO: Should this be the previous token span?
                     span: token.span,
                   });
                 }
@@ -201,7 +197,7 @@ mod tests {
   #[test_case("[12 34 +]" => Ok(vec![Expr::Integer(12), Expr::Integer(34), Expr::Call(interned().PLUS)]) ; "square int int add")]
   #[test_case("[æ 34 -]" => Err(ParseError { reason: ParseErrorReason::UnexpectedToken { kind: TokenKind::Invalid }, span: Span { start: 1, end: 3 } }) ; "square invalid int sub")]
   #[test_case("[12 æ *]" => Err(ParseError { reason: ParseErrorReason::UnexpectedToken { kind: TokenKind::Invalid }, span: Span { start: 4, end: 6 } }) ; "square int invalid mul")]
-  #[test_case("[']" => Err(ParseError { reason: ParseErrorReason::UnexpectedToken { kind: TokenKind::Apostrophe }, span: Span { start: 2, end: 3 } }) ; "square empty lazy")]
+  #[test_case("[']" => Err(ParseError { reason: ParseErrorReason::UnexpectedToken { kind: TokenKind::Apostrophe }, span: Span { start: 1, end: 2 } }) ; "square empty lazy")]
   #[test_case("['12]" => Ok(vec![Expr::Lazy(Box::new(Expr::Integer(12)))]) ; "square lazy int")]
   #[test_case("[()]" => Ok(vec![Expr::List(vec![])]) ; "square empty list")]
   #[test_case("[(\n)]" => Ok(vec![Expr::List(vec![])]) ; "square empty list whitespace")]

@@ -594,20 +594,20 @@ mod test {
     tokens
   }
 
-  // #[test_case("", 0 => Token { kind: TokenKind::Eoi, len: 0 } ; "empty at 0")]
-  // #[test_case("", 1 => Token { kind: TokenKind::Eoi, len: 0 } ; "empty at 1")]
-  // #[test_case("", 3 => Token { kind: TokenKind::Eoi, len: 0 } ; "empty at 3")]
-  // #[test_case("123", 0 => Token { kind: TokenKind::Integer(123), len: 3 } ; "single at 0")]
-  // #[test_case("123", 1 => Token { kind: TokenKind::Eoi, len: 0 } ; "single at 1")]
-  // #[test_case("123", 3 => Token { kind: TokenKind::Eoi, len: 0 } ; "single at 3")]
-  // #[test_case("hello 123", 0 => Token { kind: TokenKind::Ident(interner().get_or_intern_static("hello")), len: 5 } ; "many at 0")]
-  // #[test_case("hello 123", 1 => Token { kind: TokenKind::Whitespace, len: 1 } ; "many at 1")]
-  // #[test_case("hello 123", 2 => Token { kind: TokenKind::Integer(123), len: 3 } ; "many at 2")]
-  // #[test_case("hello 123", 5 => Token { kind: TokenKind::Eoi, len: 0 } ; "many at 4")]
-  // #[test_case("hello 123", 5 => Token { kind: TokenKind::Eoi, len: 0 } ; "many at 5")]
-  // fn token_vec(source: &str, index: usize) -> Token {
-  //   let lexer = Lexer::new(source);
-  //   let mut token_vec = TokenVec::new(lexer);
-  //   token_vec.token(index)
-  // }
+  #[test_case("", 0 => Token { kind: TokenKind::Eoi, span: Span { start: 0, end: 0 } } ; "empty at 0")]
+  #[test_case("", 1 => Token { kind: TokenKind::Eoi, span: Span { start: 0, end: 0 } } ; "empty at 1")]
+  #[test_case("", 3 => Token { kind: TokenKind::Eoi, span: Span { start: 0, end: 0 } } ; "empty at 3")]
+  #[test_case("123", 0 => Token { kind: TokenKind::Integer(123), span: Span { start: 0, end: 3 } } ; "single at 0")]
+  #[test_case("123", 1 => Token { kind: TokenKind::Eoi, span: Span { start: 3, end: 3 } } ; "single at 1")]
+  #[test_case("123", 3 => Token { kind: TokenKind::Eoi, span: Span { start: 3, end: 3 } } ; "single at 3")]
+  #[test_case("hello 123", 0 => Token { kind: TokenKind::Ident(interner().get_or_intern_static("hello")), span: Span { start: 0, end: 5 } } ; "many at 0")]
+  #[test_case("hello 123", 1 => Token { kind: TokenKind::Whitespace, span: Span { start: 5, end: 6 } } ; "many at 1")]
+  #[test_case("hello 123", 2 => Token { kind: TokenKind::Integer(123), span: Span { start: 6, end: 9 } } ; "many at 2")]
+  #[test_case("hello 123", 5 => Token { kind: TokenKind::Eoi, span: Span { start: 9, end: 9 } } ; "many at 4")]
+  #[test_case("hello 123", 5 => Token { kind: TokenKind::Eoi, span: Span { start: 9, end: 9 } } ; "many at 5")]
+  fn token_vec(source: &str, index: usize) -> Token {
+    let lexer = Lexer::new(source);
+    let mut token_vec = TokenVec::new(lexer);
+    token_vec.token(index)
+  }
 }
