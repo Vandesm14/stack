@@ -1,455 +1,540 @@
-use std::sync::Arc;
+use core::fmt;
 
-use itertools::Itertools;
-use lasso::{Spur, ThreadedRodeo};
+use lasso::Spur;
 
-use crate::Intrinsic;
+use crate::interner::{interned, interner};
 
-#[derive(Debug, Clone, PartialEq, Eq)]
-pub struct Lexer {
-  pub interner: Arc<ThreadedRodeo<Spur>>,
+/// Converts a [`Lexer`] into a lazy <code>[Vec]\<[Token]\></code>.
+///
+/// This is useful in contexts where back-tracking or look-ahead is required,
+/// since it collects [`Token`]s from the [`Lexer`] as needed.
+#[derive(Debug, Clone, PartialEq, PartialOrd)]
+pub struct TokenVec<'source> {
+  lexer: Lexer<'source>,
+  tokens: Vec<Token>,
+  eoi: Option<usize>,
 }
 
-impl Lexer {
-  pub fn new() -> Self {
-    let interner = ThreadedRodeo::new();
-
-    interner.get_or_intern_static("_");
-    interner.get_or_intern_static("+");
-    interner.get_or_intern_static("*");
-    interner.get_or_intern_static("/");
-    interner.get_or_intern_static("=");
-    interner.get_or_intern_static("%");
-    interner.get_or_intern_static("!");
-    interner.get_or_intern_static("&");
-    interner.get_or_intern_static("|");
-    interner.get_or_intern_static("<");
-    interner.get_or_intern_static(">");
-    interner.get_or_intern_static("?");
-    interner.get_or_intern_static("$");
-    interner.get_or_intern_static("-");
-    interner.get_or_intern_static("~");
-    interner.get_or_intern_static("^");
-
-    interner.get_or_intern_static("nil");
-    interner.get_or_intern_static("false");
-    interner.get_or_intern_static("true");
-    interner.get_or_intern_static("fn");
-
-    for intrinsic in enum_iterator::all::<Intrinsic>() {
-      if let Intrinsic::Syscall { arity } = intrinsic {
-        if arity > 6 {
-          continue;
-        }
-      }
-
-      interner.get_or_intern_static(intrinsic.as_str());
+impl<'source> TokenVec<'source> {
+  /// Creates a new [`TokenVec`].
+  ///
+  /// Prefer [`TokenVec::reuse`] where possible.
+  #[inline]
+  pub const fn new(lexer: Lexer<'source>) -> Self {
+    Self {
+      lexer,
+      tokens: Vec::new(),
+      eoi: None,
     }
+  }
+
+  /// Creates a [`TokenVec`] by re-using the allocations of an existing one.
+  #[inline]
+  pub fn reuse(&mut self, lexer: Lexer<'source>) {
+    self.lexer = lexer;
+    self.tokens.clear();
+  }
+
+  /// Returns a [`Token`] at the index.
+  ///
+  /// If the index is out of bounds, this returns the [`Token`] at the end index.
+  pub fn token(&mut self, mut index: usize) -> Token {
+    // Clamp the upper bound to the end of input index, if smaller.
+    index = index.min(self.eoi.unwrap_or(usize::MAX));
+
+    match self.tokens.get(index) {
+      Some(token) => *token,
+      None => loop {
+        let token = self.lexer.next();
+        self.tokens.push(token);
+
+        if token.kind == TokenKind::Eoi {
+          self.eoi = Some(self.tokens.len() - 1);
+          break token;
+        }
+
+        if self.tokens.len() - 1 == index {
+          break token;
+        }
+      },
+    }
+  }
+}
+
+/// Converts a source code <code>&[str]</code> into a stream of [`Token`]s.
+///
+/// This produces a concrete [`Token`] stream, such that every character in the
+/// source code is represented by a [`Token`], and none are disregarded.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
+pub struct Lexer<'source> {
+  pub source: &'source str,
+  cursor: usize,
+}
+
+impl<'source> Lexer<'source> {
+  /// Creates a new [`Lexer`].
+  #[inline]
+  pub fn new(source: &'source str) -> Self {
+    // Skip the UTF-8 BOM if present.
+    let start = source
+      .as_bytes()
+      .starts_with(b"\xef\xbb\xbf")
+      .then_some(3)
+      .unwrap_or(0);
 
     Self {
-      interner: interner.into(),
+      source,
+      cursor: start,
     }
   }
 
-  #[inline]
-  pub fn lex<'source>(&'source self, source: &'source str) -> Lex {
-    Lex {
-      lexer: self,
-      source: source,
-      index: 0,
-    }
-  }
-}
-
-impl Default for Lexer {
-  #[inline]
-  fn default() -> Self {
-    Self::new()
-  }
-}
-
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub struct Lex<'source> {
-  lexer: &'source Lexer,
-  source: &'source str,
-  index: usize,
-}
-
-impl<'source> Iterator for Lex<'source> {
-  type Item = Token;
-
-  fn next(&mut self) -> Option<Self::Item> {
+  /// Returns the next [`Token`].
+  ///
+  /// Once the first [`TokenKind::Eoi`] has been returned, it will continue to
+  /// return them thereafter, akin to a [`FusedIterator`].
+  ///
+  /// [`FusedIterator`]: core::iter::FusedIterator
+  pub fn next(&mut self) -> Token {
     let mut state = State::Start;
-    let mut start = self.index;
+    let mut chars = self.source[self.cursor..].chars();
+
+    let start = self.cursor;
 
     loop {
-      let c = self.source.chars().nth(self.index).unwrap_or('\0');
+      let char = chars.next().unwrap_or('\0');
+      let char_width = char.len_utf8();
 
       match state {
-        State::Start => match c {
-          '\0' => {
-            if self.index != self.source.len() {
-              let token = Token {
-                kind: TokenKind::Invalid,
-                span: Span {
-                  start: self.index,
-                  end: self.index + 1,
-                },
-              };
-
-              self.index += 1;
-              break Some(token);
-            } else {
-              break None;
-            }
-          }
-          '0'..='9' => {
-            state = State::Integer;
-          }
-          'a'..='z' | 'A'..='Z' | '_' => {
-            state = State::Ident;
-          }
-          '"' => {
-            state = State::String;
-            start += 1;
-          }
-          '(' => {
-            self.index += 1;
-
-            break Some(Token {
-              kind: TokenKind::ParenStart,
+        State::Start => match char {
+          '\0' if self.cursor == self.source.len() => {
+            break Token {
+              kind: TokenKind::Eoi,
               span: Span {
                 start,
-                end: self.index,
+                end: self.cursor,
               },
-            });
+            };
           }
-          ')' => {
-            self.index += 1;
-
-            break Some(Token {
-              kind: TokenKind::ParenEnd,
-              span: Span {
-                start,
-                end: self.index,
-              },
-            });
-          }
-          '{' => {
-            self.index += 1;
-
-            break Some(Token {
-              kind: TokenKind::CurlyStart,
-              span: Span {
-                start,
-                end: self.index,
-              },
-            });
-          }
-          '}' => {
-            self.index += 1;
-
-            break Some(Token {
-              kind: TokenKind::CurlyEnd,
-              span: Span {
-                start,
-                end: self.index,
-              },
-            });
-          }
+          // TODO: Remove square brackets from this once they become semantic.
+          ' ' | '\t' | '\r' | '\n' | '[' | ']' => state = State::Whitespace,
+          ';' => state = State::Comment,
+          '0'..='9' => state = State::Int,
+          '"' => state = State::String,
+          'a'..='z'
+          | 'A'..='Z'
+          | '_'
+          | '+'
+          | '*'
+          | '/'
+          | '%'
+          | '='
+          | '!'
+          | '&'
+          | '|'
+          | '<'
+          | '>'
+          | '?'
+          | '$'
+          | '~'
+          | '^' => state = State::Ident,
           '\'' => {
-            self.index += 1;
+            self.cursor += char_width;
 
-            break Some(Token {
+            break Token {
               kind: TokenKind::Apostrophe,
               span: Span {
                 start,
-                end: self.index,
+                end: self.cursor,
               },
-            });
+            };
           }
-          '-' => {
-            state = State::Hyphen;
-          }
-          '!' => {
-            state = State::Exclamation;
-          }
-          '+' | '*' | '/' | '=' | '%' | '&' | '|' | '<' | '>' | '?' | '$'
-          | '~' | '^' => {
-            let mut tmp = [0u8; 4];
-            let s = c.encode_utf8(&mut tmp);
+          '(' => {
+            self.cursor += char_width;
 
-            let interned = self.lexer.interner.get_or_intern(s);
-            self.index += 1;
-
-            break Some(Token {
-              kind: TokenKind::Ident(interned),
+            break Token {
+              kind: TokenKind::ParenOpen,
               span: Span {
                 start,
-                end: self.index,
+                end: self.cursor,
               },
-            });
+            };
           }
-          ';' => {
-            state = State::Comment;
+          ')' => {
+            self.cursor += char_width;
+
+            break Token {
+              kind: TokenKind::ParenClose,
+              span: Span {
+                start,
+                end: self.cursor,
+              },
+            };
           }
-          // TODO: Maybe check that these are opened and closed correctly.
-          '[' | ']' => {
-            start += 1;
+          '{' => {
+            self.cursor += char_width;
+
+            break Token {
+              kind: TokenKind::CurlyOpen,
+              span: Span {
+                start,
+                end: self.cursor,
+              },
+            };
           }
-          c if c.is_whitespace() => {
-            start += 1;
+          '}' => {
+            self.cursor += char_width;
+
+            break Token {
+              kind: TokenKind::CurlyClose,
+              span: Span {
+                start,
+                end: self.cursor,
+              },
+            };
           }
-          _ => {
-            state = State::Invalid;
-          }
+          // '[' => {
+          //   self.cursor += char_width;
+
+          //   break Token {
+          //     kind: TokenKind::SquareOpen,
+          //     span: Span {
+          //       start,
+          //       end: self.cursor,
+          //     },
+          //   };
+          // }
+          // ']' => {
+          //   self.cursor += char_width;
+
+          //   break Token {
+          //     kind: TokenKind::SquareClose,
+          //     span: Span {
+          //       start,
+          //       end: self.cursor,
+          //     },
+          //   };
+          // }
+          '-' => state = State::Hyphen,
+          _ => state = State::Invalid,
         },
-        State::Invalid => match c {
-          c if c.is_whitespace() => {
-            break Some(Token {
+        State::Invalid => match char {
+          '\0' | ' ' | '\t' | '\r' | '\n' | '(' | ')' | '{' | '}' | '['
+          | ']' | '"' => {
+            break Token {
               kind: TokenKind::Invalid,
               span: Span {
                 start,
-                end: self.index,
+                end: self.cursor,
               },
-            })
+            };
           }
           _ => {}
         },
-        State::Comment => match c {
-          '\n' => {
-            state = State::Start;
-            start = self.index + 1;
+        State::Whitespace => match char {
+          ' ' | '\t' | '\r' | '\n' => {}
+          _ => {
+            break Token {
+              kind: TokenKind::Whitespace,
+              span: Span {
+                start,
+                end: self.cursor,
+              },
+            };
+          }
+        },
+        State::Comment => match char {
+          '\0' | '\n' => {
+            break Token {
+              kind: TokenKind::Comment,
+              span: Span {
+                start,
+                end: self.cursor,
+              },
+            };
           }
           _ => {}
         },
-        State::Integer => match c {
+        State::Int => match char {
           '0'..='9' => {}
-          '.' => {
-            state = State::Float;
-          }
+          '.' => state = State::Float,
           _ => {
-            let slice = &self.source[start..self.index];
-            // If this panics, it's a bug.
-            let parsed = match slice.parse() {
-              Ok(parsed) => parsed,
-              Err(err) => panic!(
-                "{start}..{} {err}: {}",
-                self.index,
-                slice.escape_debug().join("")
-              ),
+            let slice = &self.source[start..self.cursor];
+            let span = Span {
+              start,
+              end: self.cursor,
             };
 
-            break Some(Token {
-              kind: TokenKind::Integer(parsed),
-              span: Span {
-                start,
-                end: self.index,
+            break match slice.parse() {
+              Ok(value) => Token {
+                kind: TokenKind::Integer(value),
+                span,
               },
-            });
+              Err(_) => Token {
+                kind: TokenKind::Invalid,
+                span,
+              },
+            };
           }
         },
-        // TODO: Add nan, inf, and -inf for floats.
-        State::Float => match c {
+        State::Float => match char {
           '0'..='9' => {}
           _ => {
-            let slice = &self.source[start..self.index];
-            // If this panics, it's a bug.
-            let parsed = match slice.parse() {
-              Ok(parsed) => parsed,
-              Err(err) => panic!(
-                "{start}..{} {err}: {}",
-                self.index,
-                slice.escape_debug().join("")
-              ),
+            let slice = &self.source[start..self.cursor];
+            let span = Span {
+              start,
+              end: self.cursor,
             };
 
-            break Some(Token {
-              kind: TokenKind::Float(parsed),
-              span: Span {
-                start,
-                end: self.index,
+            break match slice.parse() {
+              Ok(value) => Token {
+                kind: TokenKind::Float(value),
+                span,
               },
-            });
+              Err(_) => Token {
+                kind: TokenKind::Invalid,
+                span,
+              },
+            };
           }
         },
-        State::String => match c {
-          '\\' => {
-            state = State::StringBackslash;
+        State::String => match char {
+          '\0' => {
+            break Token {
+              kind: TokenKind::Invalid,
+              span: Span {
+                start,
+                end: self.cursor,
+              },
+            };
           }
+          '\\' => state = State::StringBackslash,
           '"' => {
-            let slice = &self.source[start..self.index];
-            let interned = self.lexer.interner.get_or_intern(slice);
+            // Since this is a concrete token stream, the quotes are
+            // included in the length. However, we only want to
+            // intern the inner slice.
+            let slice = &self.source[start + 1..self.cursor];
+            let value = interner().get_or_intern(slice);
 
-            self.index += 1;
+            self.cursor += 1;
 
-            break Some(Token {
-              kind: TokenKind::String(interned),
+            break Token {
+              kind: TokenKind::String(value),
               span: Span {
                 start,
-                end: self.index,
+                end: self.cursor,
               },
-            });
+            };
           }
           _ => {}
         },
-        State::StringBackslash => match c {
-          'n' | 'r' | 't' | '0' => {
-            state = State::String;
-          }
-          _ => {
-            break Some(Token {
+        State::StringBackslash => match char {
+          'n' | 'r' | 't' | '0' => state = State::String,
+          _ => state = State::StringInvalid,
+        },
+        State::StringInvalid => match char {
+          '\0' | '"' => {
+            break Token {
               kind: TokenKind::Invalid,
               span: Span {
                 start,
-                end: self.index,
+                end: self.cursor,
               },
-            })
+            };
           }
+          _ => {}
         },
-        State::Ident => match c {
-          'a'..='z' | 'A'..='Z' | '0'..='9' | '_' | '-' | '/' => {}
+        State::Ident => match char {
+          'a'..='z'
+          | 'A'..='Z'
+          | '0'..='9'
+          | '_'
+          | '+'
+          | '-'
+          | '*'
+          | '/'
+          | '%'
+          | '='
+          | '!'
+          | '&'
+          | '|'
+          | '<'
+          | '>'
+          | '?'
+          | '$'
+          | '~'
+          | '^' => {}
           _ => {
-            let slice = &self.source[start..self.index];
-            let interned = self.lexer.interner.get_or_intern(slice);
+            let slice = &self.source[start..self.cursor];
+            let ident = interner().get_or_intern(slice);
 
-            let kind = match interned {
-              interned
-                if interned
-                  == self.lexer.interner.get_or_intern_static("false") =>
-              {
-                TokenKind::Boolean(false)
-              }
-              interned
-                if interned
-                  == self.lexer.interner.get_or_intern_static("true") =>
-              {
-                TokenKind::Boolean(true)
-              }
-              interned
-                if interned
-                  == self.lexer.interner.get_or_intern_static("nil") =>
-              {
-                TokenKind::Nil
-              }
-              interned
-                if interned
-                  == self.lexer.interner.get_or_intern_static("fn") =>
-              {
-                TokenKind::Fn
-              }
-              interned => TokenKind::Ident(interned),
+            let kind = match ident {
+              ident if ident == interned().NIL => TokenKind::Nil,
+              ident if ident == interned().FALSE => TokenKind::Boolean(false),
+              ident if ident == interned().TRUE => TokenKind::Boolean(true),
+              ident if ident == interned().FN => TokenKind::Fn,
+              ident => TokenKind::Ident(ident),
             };
 
-            break Some(Token {
+            break Token {
               kind,
               span: Span {
                 start,
-                end: self.index,
+                end: self.cursor,
               },
-            });
+            };
           }
         },
-        State::Hyphen => match c {
-          '0'..='9' => {
-            state = State::Integer;
-          }
+        State::Hyphen => match char {
+          '0'..='9' => state = State::Int,
+          'a'..='z'
+          | 'A'..='Z'
+          | '_'
+          | '+'
+          | '-'
+          | '*'
+          | '/'
+          | '%'
+          | '='
+          | '!'
+          | '&'
+          | '|'
+          | '<'
+          | '>'
+          | '?'
+          | '$'
+          | '~'
+          | '^' => state = State::Ident,
           _ => {
-            let interned = self.lexer.interner.get_or_intern_static("-");
-
-            break Some(Token {
-              kind: TokenKind::Ident(interned),
+            break Token {
+              kind: TokenKind::Ident(interned().MINUS),
               span: Span {
                 start,
-                end: self.index,
+                end: self.cursor,
               },
-            });
-          }
-        },
-        State::Exclamation => match c {
-          '=' => {
-            let interned = self.lexer.interner.get_or_intern_static("!=");
-            self.index += 1;
-
-            break Some(Token {
-              kind: TokenKind::Ident(interned),
-              span: Span {
-                start,
-                end: self.index,
-              },
-            });
-          }
-          _ => {
-            let interned = self.lexer.interner.get_or_intern_static("!");
-
-            break Some(Token {
-              kind: TokenKind::Ident(interned),
-              span: Span {
-                start,
-                end: self.index,
-              },
-            });
+            };
           }
         },
       }
 
-      self.index += 1;
+      self.cursor += char_width;
     }
   }
 }
 
+/// Contains information about a source code token.
 #[derive(Debug, Clone, Copy, PartialEq, PartialOrd)]
 pub struct Token {
+  /// The lexeme kind.
   pub kind: TokenKind,
+  /// The [`Span`] in bytes that this token represents.
   pub span: Span,
 }
 
+/// [`Token`] lexeme kinds.
 #[derive(Debug, Clone, Copy, PartialEq, PartialOrd)]
 pub enum TokenKind {
+  /// Invalid sequence of [`char`]s.
   Invalid,
+  /// End of input.
+  Eoi,
 
+  /// Sequence of whitespace [`char`]s.
+  Whitespace,
+  /// Semicolon until the next newline or end of input.
+  Comment,
+
+  /// Boolean literal.
   Boolean(bool),
+  /// 64-bit signed integer literal.
   Integer(i64),
+  /// 64-bit floating-point literal.
   Float(f64),
+  /// Sequence of [`char`]s delimited by double-quotes (`"`).
   String(Spur),
 
+  /// Sequence of identifier [`char`]s.
   Ident(Spur),
 
+  /// `'` symbol.
   Apostrophe,
-
-  ParenStart,
-  ParenEnd,
-  CurlyStart,
-  CurlyEnd,
-
+  /// `(` symbol.
+  ParenOpen,
+  /// `)` symbol.
+  ParenClose,
+  /// `{` symbol.
+  CurlyOpen,
+  /// `}` symbol.
+  CurlyClose,
+  // /// `[` symbol.
+  // SquareOpen,
+  // /// `]` symbol.
+  // SquareClose,
+  /// `nil` keyword.
   Nil,
+  /// `fn` keyword.
   Fn,
+}
+
+impl fmt::Display for TokenKind {
+  fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+    match self {
+      Self::Invalid => f.write_str("invalid"),
+      Self::Eoi => f.write_str("end of input"),
+
+      Self::Whitespace => f.write_str("whitespace"),
+      Self::Comment => f.write_str("comment"),
+
+      // TODO: Should this display the kind of token too?
+      Self::Boolean(x) => fmt::Display::fmt(x, f),
+      // TODO: Should this display the kind of token too?
+      Self::Integer(x) => fmt::Display::fmt(x, f),
+      // TODO: Should this display the kind of token too?
+      Self::Float(x) => fmt::Display::fmt(x, f),
+      // TODO: Should this display the kind of token too?
+      Self::String(x) => fmt::Display::fmt(interner().resolve(x), f),
+
+      // TODO: Should this display the kind of token too?
+      Self::Ident(x) => fmt::Display::fmt(interner().resolve(x), f),
+
+      Self::Apostrophe => f.write_str("'"),
+      Self::ParenOpen => f.write_str("("),
+      Self::ParenClose => f.write_str(")"),
+      Self::CurlyOpen => f.write_str("{"),
+      Self::CurlyClose => f.write_str("}"),
+      // Self::SquareOpen => f.write_str("["),
+      // Self::SquareClose => f.write_str("]"),
+      Self::Nil => f.write_str("nil"),
+      Self::Fn => f.write_str("fn"),
+    }
+  }
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub struct Span {
-  /// Inclusive.
+  /// The lower bound (inclusive).
   pub start: usize,
-  /// Exclusive.
+  /// The upper bound (exclusive).
   pub end: usize,
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
+impl fmt::Display for Span {
+  fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+    write!(f, "{}..{}", self.start, self.end)
+  }
+}
+
 enum State {
   Start,
   Invalid,
-
+  Whitespace,
   Comment,
-
-  Integer,
+  Int,
   Float,
   String,
   StringBackslash,
-
+  StringInvalid,
   Ident,
-
   Hyphen,
-  Exclamation,
 }
 
 #[cfg(test)]
@@ -458,174 +543,70 @@ mod test {
 
   use test_case::test_case;
 
-  // TODO: Test invalid cases.
+  #[test_case("" => vec![Token { kind: TokenKind::Eoi, span: Span { start: 0, end: 0 } }] ; "empty")]
+  #[test_case(" \t\r\n" => vec![Token { kind: TokenKind::Whitespace, span: Span { start: 0, end: 4 } }, Token { kind: TokenKind::Eoi, span: Span { start: 4, end: 4 } }] ; "whitespace")]
+  #[test_case("ßℝ💣" => vec![Token { kind: TokenKind::Invalid, span: Span { start: 0, end: 9 } }, Token { kind: TokenKind::Eoi, span: Span { start: 9, end: 9 } }] ; "invalid eoi")]
+  #[test_case("ßℝ💣\n" => vec![Token { kind: TokenKind::Invalid, span: Span { start: 0, end: 9 } }, Token { kind: TokenKind::Whitespace, span: Span { start: 9, end: 10 } }, Token { kind: TokenKind::Eoi, span: Span { start: 10, end: 10 } }] ; "invalid whitespace")]
+  #[test_case("; Comment" => vec![Token { kind: TokenKind::Comment, span: Span { start: 0, end: 9 } }, Token { kind: TokenKind::Eoi, span: Span { start: 9, end: 9 }}] ; "comment eoi")]
+  #[test_case("; Comment\n" => vec![Token { kind: TokenKind::Comment, span: Span { start: 0, end: 9 } }, Token { kind: TokenKind::Whitespace, span: Span { start: 9, end: 10 } }, Token { kind: TokenKind::Eoi, span: Span { start: 10, end: 10 } }] ; "comment whitespace")]
+  #[test_case("123" => vec![Token { kind: TokenKind::Integer(123), span: Span { start: 0, end: 3 } }, Token { kind: TokenKind::Eoi, span: Span { start: 3, end: 3 } }] ; "integer eoi")]
+  #[test_case("-123" => vec![Token { kind: TokenKind::Integer(-123), span: Span { start: 0, end: 4 } }, Token { kind: TokenKind::Eoi, span: Span { start: 4, end: 4 } }] ; "negative integer eoi")]
+  #[test_case("123." => vec![Token { kind: TokenKind::Float(123.0), span: Span { start: 0, end: 4 } }, Token { kind: TokenKind::Eoi, span: Span { start: 4, end: 4 } }] ; "float without fractional eoi")]
+  #[test_case("-123." => vec![Token { kind: TokenKind::Float(-123.0), span: Span { start: 0, end: 5 } }, Token { kind: TokenKind::Eoi, span: Span { start: 5, end: 5 } }] ; "negative float without fractional eoi")]
+  #[test_case("123.456" => vec![Token { kind: TokenKind::Float(123.456), span: Span { start: 0, end: 7 } }, Token { kind: TokenKind::Eoi, span: Span { start: 7, end: 7 } }] ; "float with fractional eoi")]
+  #[test_case("-123.456" => vec![Token { kind: TokenKind::Float(-123.456), span: Span { start: 0, end: 8 } }, Token { kind: TokenKind::Eoi, span: Span { start: 8, end: 8 } }] ; "negative float with fractional eoi")]
+  #[test_case("\"hello\"" => vec![Token { kind: TokenKind::String(interner().get_or_intern_static("hello")), span: Span { start: 0, end: 7 } }, Token { kind: TokenKind::Eoi, span: Span { start: 7, end: 7 } }] ; "string eoi")]
+  #[test_case("\"he\\tlo\"" => vec![Token { kind: TokenKind::String(interner().get_or_intern_static("he\\tlo")), span: Span { start: 0, end: 8 } }, Token { kind: TokenKind::Eoi, span: Span { start: 8, end: 8 } }] ; "string escape eoi")]
+  #[test_case("\"hello" => vec![Token { kind: TokenKind::Invalid, span: Span { start: 0, end: 6 } }, Token { kind: TokenKind::Eoi, span: Span { start: 6, end: 6 } }] ; "string missing end quote eoi")]
+  #[test_case("\"hello\n" => vec![Token { kind: TokenKind::Invalid, span: Span { start: 0, end: 7 } }, Token { kind: TokenKind::Eoi, span: Span { start: 7, end: 7 } }] ; "string missing end quote whitespace")]
+  #[test_case("false" => vec![Token { kind: TokenKind::Boolean(false), span: Span { start: 0, end: 5 } }, Token { kind: TokenKind::Eoi, span: Span { start: 5, end: 5 } }] ; "boolean false eoi")]
+  #[test_case("true" => vec![Token { kind: TokenKind::Boolean(true), span: Span { start: 0, end: 4 } }, Token { kind: TokenKind::Eoi, span: Span { start: 4, end: 4 } }] ; "boolean true eoi")]
+  #[test_case("hello" => vec![Token { kind: TokenKind::Ident(interner().get_or_intern_static("hello")), span: Span { start: 0, end: 5 } }, Token { kind: TokenKind::Eoi, span: Span { start: 5, end: 5 } }] ; "ident eoi")]
+  #[test_case("-hello" => vec![Token { kind: TokenKind::Ident(interner().get_or_intern_static("-hello")), span: Span { start: 0, end: 6 } }, Token { kind: TokenKind::Eoi, span: Span { start: 6, end: 6 } }] ; "ident starting hypen eoi")]
+  #[test_case("hey-o" => vec![Token { kind: TokenKind::Ident(interner().get_or_intern_static("hey-o")), span: Span { start: 0, end: 5 } }, Token { kind: TokenKind::Eoi, span: Span { start: 5, end: 5 } }] ; "kebab ident eoi")]
+  #[test_case("+" => vec![Token { kind: TokenKind::Ident(interned().PLUS), span: Span { start: 0, end: 1 } }, Token { kind: TokenKind::Eoi, span: Span { start: 1, end: 1 } }] ; "plus ident eoi")]
+  #[test_case("-" => vec![Token { kind: TokenKind::Ident(interned().MINUS), span: Span { start: 0, end: 1 } }, Token { kind: TokenKind::Eoi, span: Span { start: 1, end: 1 } }] ; "minus ident eoi")]
+  #[test_case("!=" => vec![Token { kind: TokenKind::Ident(interned().EXCLAMATION_EQUALS), span: Span { start: 0, end: 2 } }, Token { kind: TokenKind::Eoi, span: Span { start: 2, end: 2 } }] ; "exclamation equals ident eoi")]
+  #[test_case("'" => vec![Token { kind: TokenKind::Apostrophe, span: Span { start: 0, end: 1 } }, Token { kind: TokenKind::Eoi, span: Span { start: 1, end: 1 } }] ; "apostrophe eoi")]
+  #[test_case("(" => vec![Token { kind: TokenKind::ParenOpen, span: Span { start: 0, end: 1 } }, Token { kind: TokenKind::Eoi, span: Span { start: 1, end: 1 } }] ; "paren open eoi")]
+  #[test_case(")" => vec![Token { kind: TokenKind::ParenClose, span: Span { start: 0, end: 1 } }, Token { kind: TokenKind::Eoi, span: Span { start: 1, end: 1 } }] ; "paren close eoi")]
+  #[test_case("()" => vec![Token { kind: TokenKind::ParenOpen, span: Span { start: 0, end: 1 } }, Token { kind: TokenKind::ParenClose, span: Span { start: 1, end: 2 } }, Token { kind: TokenKind::Eoi, span: Span { start: 2, end: 2 } }] ; "paren open close eoi")]
+  #[test_case("{" => vec![Token { kind: TokenKind::CurlyOpen, span: Span { start: 0, end: 1 } }, Token { kind: TokenKind::Eoi, span: Span { start: 1, end: 1 } }] ; "curly open eoi")]
+  #[test_case("}" => vec![Token { kind: TokenKind::CurlyClose, span: Span { start: 0, end: 1 } }, Token { kind: TokenKind::Eoi, span: Span { start: 1, end: 1 } }] ; "curly close eoi")]
+  #[test_case("{}" => vec![Token { kind: TokenKind::CurlyOpen, span: Span { start: 0, end: 1 } }, Token { kind: TokenKind::CurlyClose, span: Span { start: 1, end: 2 } }, Token { kind: TokenKind::Eoi, span: Span { start: 2, end: 2 } }] ; "curly open close eoi")]
+  // #[test_case("[" => vec![Token { kind: TokenKind::SquareOpen, span: Span { start: 0, end: 1 } }, Token { kind: TokenKind::Eoi, span: Span { start: 1, end: 1 } }] ; "square open eoi")]
+  // #[test_case("]" => vec![Token { kind: TokenKind::SquareClose, span: Span { start: 0, end: 1 } }, Token { kind: TokenKind::Eoi, span: Span { start: 1, end: 1 } }] ; "square close eoi")]
+  // #[test_case("[]" => vec![Token { kind: TokenKind::SquareOpen, span: Span { start: 0, end: 1 } }, Token { kind: TokenKind::SquareClose, span: Span { start: 1, end: 2 } }, Token { kind: TokenKind::Eoi, span: Span { start: 2, end: 2 } }] ; "square open close eoi")]
+  fn lexer(source: &str) -> Vec<Token> {
+    let mut lexer = Lexer::new(source);
+    let mut tokens = Vec::with_capacity(8);
 
-  #[test_case("false" => vec![Token { kind: TokenKind::Boolean(false), span: Span { start: 0, end: 5 } }] ; "boolean false")]
-  #[test_case("true" => vec![Token { kind: TokenKind::Boolean(true), span: Span { start: 0, end: 4 } }] ; "boolean true")]
-  #[test_case("0" => vec![Token { kind: TokenKind::Integer(0), span: Span { start: 0, end: 1 } }] ; "integer 0")]
-  #[test_case("123" => vec![Token { kind: TokenKind::Integer(123), span: Span { start: 0, end: 3 } }] ; "integer 123")]
-  #[test_case("-123" => vec![Token { kind: TokenKind::Integer(-123), span: Span { start: 0, end: 4 } }] ; "integer negative 123")]
-  #[test_case("0." => vec![Token { kind: TokenKind::Float(0.0), span: Span { start: 0, end: 2 } }] ; "float 0.")]
-  #[test_case("0.0" => vec![Token { kind: TokenKind::Float(0.0), span: Span { start: 0, end: 3 } }] ; "float 0.0")]
-  #[test_case("-0." => vec![Token { kind: TokenKind::Float(-0.0), span: Span { start: 0, end: 3 } }] ; "float negative 0.")]
-  #[test_case("-0.0" => vec![Token { kind: TokenKind::Float(-0.0), span: Span { start: 0, end: 4 } }] ; "float negative 0.0")]
-  #[test_case("123.0" => vec![Token { kind: TokenKind::Float(123.0), span: Span { start: 0, end: 5 } }] ; "float 123.0")]
-  #[test_case("0.123" => vec![Token { kind: TokenKind::Float(0.123), span: Span { start: 0, end: 5 } }] ; "float 0.123")]
-  #[test_case("-123.0" => vec![Token { kind: TokenKind::Float(-123.0), span: Span { start: 0, end: 6 } }] ; "float negative 123.0")]
-  #[test_case("-0.123" => vec![Token { kind: TokenKind::Float(-0.123), span: Span { start: 0, end: 6 } }] ; "float negative 0.123")]
-  fn lex(source: &str) -> Vec<Token> {
-    let lexer = Lexer::new();
-    lexer.lex(source).collect()
+    loop {
+      let token = lexer.next();
+      tokens.push(token);
+
+      if token.kind == TokenKind::Eoi {
+        break;
+      }
+    }
+
+    tokens
   }
 
-  #[test]
-  fn lex_string() {
-    let source = "\"Hello, World!\" \"Hey\nthere!\"";
-
-    let lexer = Lexer::new();
-    let tokens: Vec<_> = lexer.lex(source).collect();
-
-    let expected = vec![
-      Token {
-        kind: TokenKind::String(
-          lexer.interner.get_or_intern_static("Hello, World!"),
-        ),
-        span: Span { start: 1, end: 15 },
-      },
-      Token {
-        kind: TokenKind::String(
-          lexer.interner.get_or_intern_static("Hey\nthere!"),
-        ),
-        span: Span { start: 17, end: 28 },
-      },
-    ];
-
-    for (expected, actual) in expected.into_iter().zip(tokens.into_iter()) {
-      assert_eq!(expected, actual);
-    }
-  }
-
-  #[test]
-  fn lex_ident() {
-    let source = "nil fn";
-
-    let lexer = Lexer::new();
-    let tokens: Vec<_> = lexer.lex(source).collect();
-
-    let expected = vec![
-      Token {
-        kind: TokenKind::Nil,
-        span: Span { start: 0, end: 3 },
-      },
-      Token {
-        kind: TokenKind::Fn,
-        span: Span { start: 4, end: 6 },
-      },
-    ];
-
-    for (expected, actual) in expected.into_iter().zip(tokens.into_iter()) {
-      assert_eq!(expected, actual);
-    }
-  }
-
-  #[test]
-  fn lex_keywords() {
-    let source = "hello hello-world";
-
-    let lexer = Lexer::new();
-    let tokens: Vec<_> = lexer.lex(source).collect();
-
-    let expected = vec![
-      Token {
-        kind: TokenKind::Ident(lexer.interner.get_or_intern_static("hello")),
-        span: Span { start: 0, end: 5 },
-      },
-      Token {
-        kind: TokenKind::Ident(
-          lexer.interner.get_or_intern_static("hello-world"),
-        ),
-        span: Span { start: 6, end: 17 },
-      },
-    ];
-
-    for (expected, actual) in expected.into_iter().zip(tokens.into_iter()) {
-      assert_eq!(expected, actual);
-    }
-  }
-
-  #[test]
-  fn lex_single_symbols() {
-    let source = "'()+-*/!<>=";
-
-    let lexer = Lexer::new();
-    let tokens: Vec<_> = lexer.lex(source).collect();
-
-    let expected = vec![
-      Token {
-        kind: TokenKind::Apostrophe,
-        span: Span { start: 0, end: 1 },
-      },
-      Token {
-        kind: TokenKind::ParenStart,
-        span: Span { start: 1, end: 2 },
-      },
-      Token {
-        kind: TokenKind::ParenEnd,
-        span: Span { start: 2, end: 3 },
-      },
-      Token {
-        kind: TokenKind::Ident(lexer.interner.get_or_intern_static("+")),
-        span: Span { start: 3, end: 4 },
-      },
-      Token {
-        kind: TokenKind::Ident(lexer.interner.get_or_intern_static("-")),
-        span: Span { start: 4, end: 5 },
-      },
-      Token {
-        kind: TokenKind::Ident(lexer.interner.get_or_intern_static("*")),
-        span: Span { start: 5, end: 6 },
-      },
-      Token {
-        kind: TokenKind::Ident(lexer.interner.get_or_intern_static("/")),
-        span: Span { start: 6, end: 7 },
-      },
-      Token {
-        kind: TokenKind::Ident(lexer.interner.get_or_intern_static("!")),
-        span: Span { start: 7, end: 8 },
-      },
-      Token {
-        kind: TokenKind::Ident(lexer.interner.get_or_intern_static("<")),
-        span: Span { start: 8, end: 9 },
-      },
-      Token {
-        kind: TokenKind::Ident(lexer.interner.get_or_intern_static(">")),
-        span: Span { start: 9, end: 10 },
-      },
-      Token {
-        kind: TokenKind::Ident(lexer.interner.get_or_intern_static("=")),
-        span: Span { start: 10, end: 11 },
-      },
-    ];
-
-    for (expected, actual) in expected.into_iter().zip(tokens.into_iter()) {
-      assert_eq!(expected, actual);
-    }
-  }
-
-  #[test]
-  fn lex_double_symbols() {
-    let source = "!=";
-
-    let lexer = Lexer::new();
-    let tokens: Vec<_> = lexer.lex(source).collect();
-
-    let expected = vec![Token {
-      kind: TokenKind::Ident(lexer.interner.get_or_intern_static("!=")),
-      span: Span { start: 0, end: 2 },
-    }];
-
-    for (expected, actual) in expected.into_iter().zip(tokens.into_iter()) {
-      assert_eq!(expected, actual);
-    }
+  #[test_case("", 0 => Token { kind: TokenKind::Eoi, span: Span { start: 0, end: 0 } } ; "empty at 0")]
+  #[test_case("", 1 => Token { kind: TokenKind::Eoi, span: Span { start: 0, end: 0 } } ; "empty at 1")]
+  #[test_case("", 3 => Token { kind: TokenKind::Eoi, span: Span { start: 0, end: 0 } } ; "empty at 3")]
+  #[test_case("123", 0 => Token { kind: TokenKind::Integer(123), span: Span { start: 0, end: 3 } } ; "single at 0")]
+  #[test_case("123", 1 => Token { kind: TokenKind::Eoi, span: Span { start: 3, end: 3 } } ; "single at 1")]
+  #[test_case("123", 3 => Token { kind: TokenKind::Eoi, span: Span { start: 3, end: 3 } } ; "single at 3")]
+  #[test_case("hello 123", 0 => Token { kind: TokenKind::Ident(interner().get_or_intern_static("hello")), span: Span { start: 0, end: 5 } } ; "many at 0")]
+  #[test_case("hello 123", 1 => Token { kind: TokenKind::Whitespace, span: Span { start: 5, end: 6 } } ; "many at 1")]
+  #[test_case("hello 123", 2 => Token { kind: TokenKind::Integer(123), span: Span { start: 6, end: 9 } } ; "many at 2")]
+  #[test_case("hello 123", 5 => Token { kind: TokenKind::Eoi, span: Span { start: 9, end: 9 } } ; "many at 4")]
+  #[test_case("hello 123", 5 => Token { kind: TokenKind::Eoi, span: Span { start: 9, end: 9 } } ; "many at 5")]
+  fn token_vec(source: &str, index: usize) -> Token {
+    let lexer = Lexer::new(source);
+    let mut token_vec = TokenVec::new(lexer);
+    token_vec.token(index)
   }
 }

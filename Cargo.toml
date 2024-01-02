@@ -11,6 +11,7 @@ notify = "6"
 rustyline = "13"
 syscalls = "0.6.15"
 enum-iterator = "1"
+thiserror = "1"
 
 [dependencies.lasso]
 version = "0.7.2"
