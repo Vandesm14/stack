@@ -115,7 +115,8 @@ impl<'source> Lexer<'source> {
               },
             };
           }
-          ' ' | '\t' | '\r' | '\n' => state = State::Whitespace,
+          // TODO: Remove square brackets from this once they become semantic.
+          ' ' | '\t' | '\r' | '\n' | '[' | ']' => state = State::Whitespace,
           ';' => state = State::Comment,
           '0'..='9' => state = State::Int,
           '"' => state = State::String,
@@ -191,28 +192,28 @@ impl<'source> Lexer<'source> {
               },
             };
           }
-          '[' => {
-            self.cursor += char_width;
+          // '[' => {
+          //   self.cursor += char_width;
 
-            break Token {
-              kind: TokenKind::SquareOpen,
-              span: Span {
-                start,
-                end: self.cursor,
-              },
-            };
-          }
-          ']' => {
-            self.cursor += char_width;
+          //   break Token {
+          //     kind: TokenKind::SquareOpen,
+          //     span: Span {
+          //       start,
+          //       end: self.cursor,
+          //     },
+          //   };
+          // }
+          // ']' => {
+          //   self.cursor += char_width;
 
-            break Token {
-              kind: TokenKind::SquareClose,
-              span: Span {
-                start,
-                end: self.cursor,
-              },
-            };
-          }
+          //   break Token {
+          //     kind: TokenKind::SquareClose,
+          //     span: Span {
+          //       start,
+          //       end: self.cursor,
+          //     },
+          //   };
+          // }
           '-' => state = State::Hyphen,
           _ => state = State::Invalid,
         },
@@ -464,11 +465,10 @@ pub enum TokenKind {
   CurlyOpen,
   /// `}` symbol.
   CurlyClose,
-  /// `[` symbol.
-  SquareOpen,
-  /// `]` symbol.
-  SquareClose,
-
+  // /// `[` symbol.
+  // SquareOpen,
+  // /// `]` symbol.
+  // SquareClose,
   /// `nil` keyword.
   Nil,
   /// `fn` keyword.
@@ -501,9 +501,8 @@ impl fmt::Display for TokenKind {
       Self::ParenClose => f.write_str(")"),
       Self::CurlyOpen => f.write_str("{"),
       Self::CurlyClose => f.write_str("}"),
-      Self::SquareOpen => f.write_str("["),
-      Self::SquareClose => f.write_str("]"),
-
+      // Self::SquareOpen => f.write_str("["),
+      // Self::SquareClose => f.write_str("]"),
       Self::Nil => f.write_str("nil"),
       Self::Fn => f.write_str("fn"),
     }
@@ -575,9 +574,9 @@ mod test {
   #[test_case("{" => vec![Token { kind: TokenKind::CurlyOpen, span: Span { start: 0, end: 1 } }, Token { kind: TokenKind::Eoi, span: Span { start: 1, end: 1 } }] ; "curly open eoi")]
   #[test_case("}" => vec![Token { kind: TokenKind::CurlyClose, span: Span { start: 0, end: 1 } }, Token { kind: TokenKind::Eoi, span: Span { start: 1, end: 1 } }] ; "curly close eoi")]
   #[test_case("{}" => vec![Token { kind: TokenKind::CurlyOpen, span: Span { start: 0, end: 1 } }, Token { kind: TokenKind::CurlyClose, span: Span { start: 1, end: 2 } }, Token { kind: TokenKind::Eoi, span: Span { start: 2, end: 2 } }] ; "curly open close eoi")]
-  #[test_case("[" => vec![Token { kind: TokenKind::SquareOpen, span: Span { start: 0, end: 1 } }, Token { kind: TokenKind::Eoi, span: Span { start: 1, end: 1 } }] ; "square open eoi")]
-  #[test_case("]" => vec![Token { kind: TokenKind::SquareClose, span: Span { start: 0, end: 1 } }, Token { kind: TokenKind::Eoi, span: Span { start: 1, end: 1 } }] ; "square close eoi")]
-  #[test_case("[]" => vec![Token { kind: TokenKind::SquareOpen, span: Span { start: 0, end: 1 } }, Token { kind: TokenKind::SquareClose, span: Span { start: 1, end: 2 } }, Token { kind: TokenKind::Eoi, span: Span { start: 2, end: 2 } }] ; "square open close eoi")]
+  // #[test_case("[" => vec![Token { kind: TokenKind::SquareOpen, span: Span { start: 0, end: 1 } }, Token { kind: TokenKind::Eoi, span: Span { start: 1, end: 1 } }] ; "square open eoi")]
+  // #[test_case("]" => vec![Token { kind: TokenKind::SquareClose, span: Span { start: 0, end: 1 } }, Token { kind: TokenKind::Eoi, span: Span { start: 1, end: 1 } }] ; "square close eoi")]
+  // #[test_case("[]" => vec![Token { kind: TokenKind::SquareOpen, span: Span { start: 0, end: 1 } }, Token { kind: TokenKind::SquareClose, span: Span { start: 1, end: 2 } }, Token { kind: TokenKind::Eoi, span: Span { start: 2, end: 2 } }] ; "square open close eoi")]
   fn lexer(source: &str) -> Vec<Token> {
     let mut lexer = Lexer::new(source);
     let mut tokens = Vec::with_capacity(8);

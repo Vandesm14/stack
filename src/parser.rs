@@ -133,11 +133,10 @@ impl<'source> Parser<'source> {
         TokenKind::CurlyClose => {
           break Ok(Some(Expr::ScopePop));
         }
-        // TODO: This should check to make sure there are matching brakets.
-        TokenKind::SquareOpen | TokenKind::SquareClose => {
-          continue;
-        }
-
+        // // TODO: This should check to make sure there are matching brakets.
+        // TokenKind::SquareOpen | TokenKind::SquareClose => {
+        //   continue;
+        // }
         TokenKind::Nil => {
           break Ok(Some(Expr::Nil));
         }
