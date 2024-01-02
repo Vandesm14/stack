@@ -125,15 +125,15 @@ impl<'source> Parser<'source> {
             }
           };
         }
-        // TODO: Should this check to make sure there are matching brakets?
+        // TODO: This should check to make sure there are matching brakets.
         TokenKind::CurlyOpen => {
           break Ok(Some(Expr::ScopePush));
         }
-        // TODO: Should this check to make sure there are matching brakets?
+        // TODO: This should check to make sure there are matching brakets.
         TokenKind::CurlyClose => {
           break Ok(Some(Expr::ScopePop));
         }
-        // TODO: Should this check to make sure there are matching brakets?
+        // TODO: This should check to make sure there are matching brakets.
         TokenKind::SquareOpen | TokenKind::SquareClose => {
           continue;
         }
