@@ -2,7 +2,7 @@ use core::fmt;
 
 use thiserror::Error;
 
-use crate::{Expr, Lexer, TokenKind, TokenVec};
+use crate::{Expr, Lexer, Span, TokenKind, TokenVec};
 
 /// Converts a stream of [`Token`]s into a stream of [`Expr`]s.
 ///
@@ -60,7 +60,7 @@ impl<'source> Parser<'source> {
         TokenKind::Invalid | TokenKind::ParenClose => {
           break Err(ParseError {
             reason: ParseErrorReason::UnexpectedToken { kind: token.kind },
-            span: self.token_span(self.cursor),
+            span: token.span,
           });
         }
         TokenKind::Eoi => {
@@ -93,7 +93,8 @@ impl<'source> Parser<'source> {
             Ok(Some(expr)) => Ok(Some(Expr::Lazy(Box::new(expr)))),
             Ok(None) => Err(ParseError {
               reason: ParseErrorReason::UnexpectedToken { kind: token.kind },
-              span: self.token_span(self.cursor - 1),
+              // TODO: Should this be the previous token span?
+              span: token.span,
             }),
             err @ Err(_) => err,
           };
@@ -120,7 +121,8 @@ impl<'source> Parser<'source> {
                     reason: ParseErrorReason::UnexpectedToken {
                       kind: token.kind,
                     },
-                    span: self.token_span(self.cursor - 1),
+                    // TODO: Should this be the previous token span?
+                    span: token.span,
                   });
                 }
               },
@@ -149,21 +151,6 @@ impl<'source> Parser<'source> {
       }
     }
   }
-
-  fn token_span(&mut self, index: usize) -> Span {
-    let index_before = index - 1;
-    let mut start = 0;
-
-    for i in 0..index_before {
-      let token = self.tokens.token(i);
-      start += token.len as usize;
-    }
-
-    Span {
-      start,
-      end: start + (self.tokens.token(index_before).len as usize),
-    }
-  }
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, PartialOrd, Error)]
@@ -177,18 +164,6 @@ pub struct ParseError {
 pub enum ParseErrorReason {
   #[error("unexpected token: {kind}")]
   UnexpectedToken { kind: TokenKind },
-}
-
-#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
-pub struct Span {
-  pub start: usize,
-  pub end: usize,
-}
-
-impl fmt::Display for Span {
-  fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-    write!(f, "{}..{}", self.start, self.end)
-  }
 }
 
 #[cfg(test)]
@@ -220,6 +195,26 @@ mod tests {
   #[test_case("'(12 +)" => Ok(vec![Expr::Lazy(Box::new(Expr::List(vec![Expr::Integer(12), Expr::Call(interned().PLUS)])))]) ; "lazy list int add")]
   #[test_case("(æ +)" => Err(ParseError { reason: ParseErrorReason::UnexpectedToken { kind: TokenKind::Invalid }, span: Span { start: 1, end: 3 } }) ; "invalid int add")]
   #[test_case("'(æ +)" => Err(ParseError { reason: ParseErrorReason::UnexpectedToken { kind: TokenKind::Invalid }, span: Span { start: 2, end: 4 } }) ; "lazy invalid int add")]
+  #[test_case("[]" => Ok(vec![]) ; "square empty")]
+  #[test_case("[ßℝ💣]" => Err(ParseError { reason: ParseErrorReason::UnexpectedToken { kind: TokenKind::Invalid }, span: Span { start: 1, end: 10 } }) ; "square invalid")]
+  #[test_case("['ßℝ💣]" => Err(ParseError { reason: ParseErrorReason::UnexpectedToken { kind: TokenKind::Invalid }, span: Span { start: 2, end: 11 } }) ; "square lazy invalid")]
+  #[test_case("[12 34 +]" => Ok(vec![Expr::Integer(12), Expr::Integer(34), Expr::Call(interned().PLUS)]) ; "square int int add")]
+  #[test_case("[æ 34 -]" => Err(ParseError { reason: ParseErrorReason::UnexpectedToken { kind: TokenKind::Invalid }, span: Span { start: 1, end: 3 } }) ; "square invalid int sub")]
+  #[test_case("[12 æ *]" => Err(ParseError { reason: ParseErrorReason::UnexpectedToken { kind: TokenKind::Invalid }, span: Span { start: 4, end: 6 } }) ; "square int invalid mul")]
+  #[test_case("[']" => Err(ParseError { reason: ParseErrorReason::UnexpectedToken { kind: TokenKind::Apostrophe }, span: Span { start: 2, end: 3 } }) ; "square empty lazy")]
+  #[test_case("['12]" => Ok(vec![Expr::Lazy(Box::new(Expr::Integer(12)))]) ; "square lazy int")]
+  #[test_case("[()]" => Ok(vec![Expr::List(vec![])]) ; "square empty list")]
+  #[test_case("[(\n)]" => Ok(vec![Expr::List(vec![])]) ; "square empty list whitespace")]
+  #[test_case("['()]" => Ok(vec![Expr::Lazy(Box::new(Expr::List(vec![])))]) ; "square lazy empty list")]
+  #[test_case("[(')]" => Err(ParseError { reason: ParseErrorReason::UnexpectedToken { kind: TokenKind::ParenClose }, span: Span { start: 3, end: 4 } }) ; "square list empty lazy")]
+  #[test_case("[('())]" => Ok(vec![Expr::List(vec![Expr::Lazy(Box::new(Expr::List(vec![])))])]) ; "square list lazy list")]
+  #[test_case("['('())]" => Ok(vec![Expr::Lazy(Box::new(Expr::List(vec![Expr::Lazy(Box::new(Expr::List(vec![])))])))]) ; "square lazy list lazy list")]
+  #[test_case("[('('))]" => Err(ParseError { reason: ParseErrorReason::UnexpectedToken { kind: TokenKind::ParenClose }, span: Span { start: 5, end: 6 } }) ; "square list lazy list empty lazy")]
+  #[test_case("['('('))]" => Err(ParseError { reason: ParseErrorReason::UnexpectedToken { kind: TokenKind::ParenClose }, span: Span { start: 6, end: 7 } }) ; "square lazy list lazy list empty lazy")]
+  #[test_case("[(12 +)]" => Ok(vec![Expr::List(vec![Expr::Integer(12), Expr::Call(interned().PLUS)])]) ; "square list int add")]
+  #[test_case("['(12 +)]" => Ok(vec![Expr::Lazy(Box::new(Expr::List(vec![Expr::Integer(12), Expr::Call(interned().PLUS)])))]) ; "square lazy list int add")]
+  #[test_case("[(æ +)]" => Err(ParseError { reason: ParseErrorReason::UnexpectedToken { kind: TokenKind::Invalid }, span: Span { start: 2, end: 4 } }) ; "square invalid int add")]
+  #[test_case("['(æ +)]" => Err(ParseError { reason: ParseErrorReason::UnexpectedToken { kind: TokenKind::Invalid }, span: Span { start: 3, end: 5 } }) ; "square lazy invalid int add")]
   fn parser(source: &str) -> Result<Vec<Expr>, ParseError> {
     let lexer = Lexer::new(source);
     let parser = Parser::new(lexer);
