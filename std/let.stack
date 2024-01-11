@@ -1,5 +1,3 @@
-"std/assert.stack" import
-
 ;; Creates a let block
 ;; {list(fn ...) list(vars)} -> {list(fn ...)}
 '(fn
