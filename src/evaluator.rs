@@ -98,17 +98,11 @@ impl Program {
   }
 
   fn scope_item(&self, symbol: &str) -> Option<Expr> {
-    let current = self.scopes.last();
-    if let Some(item) = current.and_then(|layer| layer.get(symbol)) {
-      return Some(item.clone());
-    }
-
-    let global = self.scopes.first();
-    if let Some(item) = global.and_then(|layer| layer.get(symbol)) {
-      return Some(item.clone());
-    }
-
-    None
+    self
+      .scopes
+      .iter()
+      .rev()
+      .find_map(|layer| layer.get(symbol).cloned())
   }
 
   fn set_scope_item(
@@ -1748,6 +1742,45 @@ mod tests {
             Expr::Integer(0)
           )]),]
         )
+      }
+
+      #[test]
+      fn functions_can_use_same_scope() {
+        let mut program = Program::new();
+        program
+          .eval_string(
+            "0 'a set
+            '(fn! 1 'a set) call",
+          )
+          .unwrap();
+
+        assert_eq!(
+          program.scopes,
+          vec![HashMap::from_iter(vec![(
+            "a".to_string(),
+            Expr::Integer(1)
+          )]),]
+        )
+      }
+
+      #[test]
+      fn functions_can_shadow_vars() {
+        let mut program = Program::new();
+        program
+          .eval_string(
+            "0 'a set
+            '(fn 1 'a set a) call a",
+          )
+          .unwrap();
+
+        assert_eq!(
+          program.scopes,
+          vec![HashMap::from_iter(vec![(
+            "a".to_string(),
+            Expr::Integer(0)
+          )]),]
+        );
+        assert_eq!(program.stack, vec![Expr::Integer(1), Expr::Integer(0)])
       }
     }
   }
