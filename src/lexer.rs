@@ -328,6 +328,9 @@ impl<'source> Lexer<'source> {
               ident if ident == interned().FALSE => TokenKind::Boolean(false),
               ident if ident == interned().TRUE => TokenKind::Boolean(true),
               ident if ident == interned().FN => TokenKind::Fn,
+              ident if ident == interned().FN_EXCLAMATION => {
+                TokenKind::FnExclamation
+              }
               ident => TokenKind::Ident(ident),
             };
 
@@ -425,6 +428,8 @@ pub enum TokenKind {
   Nil,
   /// `fn` keyword.
   Fn,
+  /// `fn!` keyword.
+  FnExclamation,
 }
 
 impl fmt::Display for TokenKind {
@@ -455,6 +460,7 @@ impl fmt::Display for TokenKind {
       // Self::SquareClose => f.write_str("]"),
       Self::Nil => f.write_str("nil"),
       Self::Fn => f.write_str("fn"),
+      Self::FnExclamation => f.write_str("fn!"),
     }
   }
 }

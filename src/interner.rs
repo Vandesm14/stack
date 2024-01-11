@@ -24,6 +24,7 @@ pub struct Interned {
   pub AND: Spur,
   pub OR: Spur,
   pub FN: Spur,
+  pub FN_EXCLAMATION: Spur,
 }
 
 /// Provides access to the static, thread-safe interner.
@@ -56,6 +57,7 @@ pub fn interned() -> &'static Interned {
       AND: interner.get_or_intern_static("and"),
       OR: interner.get_or_intern_static("or"),
       FN: interner.get_or_intern_static("fn"),
+      FN_EXCLAMATION: interner.get_or_intern_static("fn!"),
     }
   })
 }

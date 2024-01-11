@@ -135,6 +135,9 @@ impl<'source> Parser<'source> {
         TokenKind::Fn => {
           break Ok(Some(Expr::Fn(true)));
         }
+        TokenKind::FnExclamation => {
+          break Ok(Some(Expr::Fn(false)));
+        }
       }
     }
   }
