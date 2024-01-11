@@ -1,0 +1,15 @@
+;; ( a b -- bool )
+'(fn!
+    ;; ( a b -- a b a b )
+    swap dup rot swap dup rot
+    ;; ( a b a b -- bool )
+    < rot = or
+) '<= set
+
+;; ( a b -- bool )
+'(fn!
+    ;; ( a b -- a b a b )
+    swap dup rot swap dup rot
+    ;; ( a b a b -- bool )
+    > rot = or
+) '>= set
