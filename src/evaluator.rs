@@ -505,16 +505,13 @@ impl Program {
         Err(EvalError {
           expr: trace_expr.clone(),
           program: self.clone(),
-          message: format!(
-            "panic: {}",
-            string.display(&self.interner.as_ref())
-          ),
+          message: format!("panic: {}", string),
         })
       }
       Intrinsic::Debug => {
         let item = self.pop(trace_expr)?;
 
-        println!("{}", item.display(&self.interner.as_ref()));
+        println!("{}", item);
 
         Ok(())
       }
@@ -1312,7 +1309,6 @@ impl Program {
         //       rollback if there is an error.
         self.stack = clone.stack;
         self.scopes = clone.scopes;
-        self.interner = clone.interner;
 
         Ok(x)
       }

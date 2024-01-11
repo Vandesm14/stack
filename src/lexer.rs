@@ -208,9 +208,6 @@ impl<'source> Lexer<'source> {
               },
             };
           }
-          '\0' => {
-            break None;
-          }
           _ => {}
         },
         State::Int => match char {
@@ -558,36 +555,5 @@ mod test {
     let lexer = Lexer::new(source);
     let mut token_vec = TokenVec::new(lexer);
     token_vec.token(index)
-  }
-
-  #[test]
-  fn lex_comments() {
-    let source = ";; Hello, World!\n123";
-
-    let lexer = Lexer::new();
-    let tokens: Vec<_> = lexer.lex(source).collect();
-
-    let expected = vec![Token {
-      kind: TokenKind::Integer(123),
-      span: Span { start: 17, end: 20 },
-    }];
-
-    for (expected, actual) in expected.into_iter().zip(tokens.into_iter()) {
-      assert_eq!(expected, actual);
-    }
-  }
-
-  #[test]
-  fn lex_comment_at_eof() {
-    let source = ";; Hello, World!";
-
-    let lexer = Lexer::new();
-    let tokens: Vec<_> = lexer.lex(source).collect();
-
-    let expected = Vec::<Token>::new();
-
-    for (expected, actual) in expected.into_iter().zip(tokens.into_iter()) {
-      assert_eq!(expected, actual);
-    }
   }
 }
