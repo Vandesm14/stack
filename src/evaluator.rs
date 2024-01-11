@@ -94,36 +94,6 @@ impl Program {
   }
 
   fn push(&mut self, expr: Expr) {
-    let expr = match expr.clone() {
-      Expr::List(list) => Expr::List(
-        list
-          .into_iter()
-          .enumerate()
-          .map(|(i, item)| {
-            if i == 0 {
-              if let Expr::FnScope(scope) = item {
-                if scope.is_none() {
-                  let scope_index = self.scopes.len() - 1;
-                  return Expr::FnScope(Some(scope_index));
-                }
-              }
-            }
-
-            item
-          })
-          .collect(),
-      ),
-      Expr::FnScope(scope) => {
-        if scope.is_none() {
-          let scope_index = self.scopes.len() - 1;
-          Expr::FnScope(Some(scope_index))
-        } else {
-          Expr::FnScope(scope)
-        }
-      }
-      _ => expr,
-    };
-
     self.stack.push(expr);
   }
 
@@ -1041,7 +1011,7 @@ impl Program {
 
         match item {
           call @ Expr::Call(_) => self.eval_expr(call),
-          item @ Expr::List(_) => match item.function_scope() {
+          item @ Expr::List(_) => match item.create_fn_scope() {
             Some(_) => {
               let Expr::List(list) = item else {
                 unreachable!()
@@ -1303,7 +1273,7 @@ impl Program {
 
         Ok(())
       }
-      Expr::FnScope(_) => Ok(()),
+      Expr::Fn(_) => Ok(()),
       expr => {
         self.push(expr);
         Ok(())
@@ -1729,7 +1699,7 @@ mod tests {
       assert_eq!(
         program.stack,
         vec![Expr::List(vec![
-          Expr::FnScope(Some(0)),
+          Expr::Fn(true),
           Expr::Integer(1),
           Expr::Integer(2),
           Expr::Call(interner().get_or_intern_static("+"))
@@ -1747,7 +1717,7 @@ mod tests {
         program.stack,
         vec![
           Expr::List(vec![
-            Expr::FnScope(Some(0)),
+            Expr::Fn(true),
             Expr::Integer(1),
             Expr::Integer(2),
             Expr::Call(interner().get_or_intern_static("+"))

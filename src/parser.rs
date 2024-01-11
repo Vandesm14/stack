@@ -133,7 +133,7 @@ impl<'source> Parser<'source> {
           break Ok(Some(Expr::Nil));
         }
         TokenKind::Fn => {
-          break Ok(Some(Expr::FnScope(None)));
+          break Ok(Some(Expr::Fn(true)));
         }
       }
     }

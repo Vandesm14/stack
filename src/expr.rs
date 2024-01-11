@@ -20,7 +20,8 @@ pub enum Expr {
   Lazy(Box<Expr>),
   Call(Spur),
 
-  FnScope(Option<usize>),
+  /// Boolean denotes whether to create a new scope.
+  Fn(bool),
 }
 
 impl Expr {
@@ -36,13 +37,13 @@ impl Expr {
   }
 
   pub fn is_function(&self) -> bool {
-    self.function_scope().is_some()
+    self.create_fn_scope().is_some()
   }
 
-  pub fn function_scope(&self) -> Option<usize> {
+  pub fn create_fn_scope(&self) -> Option<bool> {
     match self {
       Expr::List(list) => list.first().and_then(|x| match x {
-        Expr::FnScope(scope) => *scope,
+        Expr::Fn(scope) => Some(*scope),
         _ => None,
       }),
       _ => None,
@@ -67,7 +68,7 @@ impl Expr {
       Self::Lazy(x) => x.type_of(),
       Self::Call(_) => Type::Call,
 
-      Self::FnScope(_) => Type::FnScope,
+      Self::Fn(_) => Type::FnScope,
     }
   }
 
@@ -226,7 +227,7 @@ impl PartialEq for Expr {
       (Self::Lazy(lhs), Self::Lazy(rhs)) => lhs == rhs,
       (Self::Call(lhs), Self::Call(rhs)) => lhs == rhs,
 
-      (Self::FnScope(lhs), Self::FnScope(rhs)) => lhs == rhs,
+      (Self::Fn(lhs), Self::Fn(rhs)) => lhs == rhs,
 
       // Different types.
       (lhs @ Self::Boolean(_), rhs) => match rhs.to_boolean() {
@@ -272,7 +273,7 @@ impl PartialOrd for Expr {
       (Self::Lazy(lhs), Self::Lazy(rhs)) => lhs.partial_cmp(rhs),
       (Self::Call(lhs), Self::Call(rhs)) => lhs.partial_cmp(rhs),
 
-      (Self::FnScope(lhs), Self::FnScope(rhs)) => lhs.partial_cmp(rhs),
+      (Self::Fn(lhs), Self::Fn(rhs)) => lhs.partial_cmp(rhs),
 
       // Different types.
       (lhs @ Self::Boolean(_), rhs) => match rhs.to_boolean() {
@@ -370,6 +371,58 @@ impl fmt::Display for Type {
           })?;
 
         f.write_str("]")
+      }
+    }
+  }
+}
+
+#[doc(hidden)]
+pub struct Display<'a> {
+  resolver: &'a dyn Resolver<Spur>,
+  expr: &'a Expr,
+}
+
+impl fmt::Display for Display<'_> {
+  fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+    match self.expr {
+      Expr::Nil => f.write_str("nil"),
+
+      Expr::Boolean(x) => fmt::Display::fmt(x, f),
+      Expr::Integer(x) => fmt::Display::fmt(x, f),
+      Expr::Float(x) => fmt::Display::fmt(x, f),
+
+      Expr::Pointer(x) => {
+        f.write_str("*")?;
+        fmt::Display::fmt(x, f)
+      }
+
+      Expr::List(x) => {
+        f.write_str("(")?;
+
+        iter::once("")
+          .chain(iter::repeat(" "))
+          .zip(x.iter())
+          .try_for_each(|(s, x)| {
+            f.write_str(s)?;
+            fmt::Display::fmt(&x.display(self.resolver), f)
+          })?;
+
+        f.write_str(")")
+      }
+      Expr::String(x) => write!(f, "\"{}\"", self.resolver.resolve(x)),
+
+      Expr::Lazy(x) => {
+        f.write_str("'")?;
+        fmt::Display::fmt(&x.display(self.resolver), f)
+      }
+      Expr::Call(x) => f.write_str(self.resolver.resolve(x)),
+
+      Expr::Fn(x) => {
+        f.write_str("fn")?;
+
+        f.write_str("(")?;
+        fmt::Display::fmt(x, f)?;
+        f.write_str(")")
       }
     }
   }
