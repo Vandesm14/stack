@@ -1,54 +1,6 @@
 "std/stack.stack" import
 "std/let.stack" import
 
-;; Define a reverse function
-'(fn
-  ;; Duplicate the list before eating it with the len function
-  dup
-  len 'i set
-
-  () 'new_list set
-
-  ;; Define a function that decrements i
-  '(fn i 1 - 'i set) 'decrement_i set
-
-  '(fn
-    ;; Decrement i
-    decrement_i
-
-    ;; Dupe the list
-    dup
-
-    ;; Get the nth element (i)
-    i nth
-
-    ;; Push the new list to the stack
-    'new_list get
-
-    ;; Swap it with the nth element (list, nth)
-    swap
-
-    ;; Insert the nth element into the new list
-    insert
-
-    ;; Update the new list
-    'new_list set
-  ) '(i 0 !=) while
-
-  ;; Clean up i and decrement_i
-  'i unset
-  'decrement_i unset
-
-  ;; Remove the original list
-  pop
-
-  ;; Push the new list
-  'new_list get
-
-  ;; Clean up new_list
-  'new_list unset
-) 'list/reverse set
-
 '(fn
   0 'i set
   ['list get len] 'length set
