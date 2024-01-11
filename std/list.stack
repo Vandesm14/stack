@@ -50,15 +50,15 @@
 
 ;; [Block, Integer] -> [Integer]
 ;; Runs a block n times
-'(fn {
+'(fn!
   1 + swap
   '(1 - dup 0 !=)
   while
   pop
-}) 'for set
+) 'for set
 
 ;; <T>[List<T>, Block(T)] -> ()
-'(fn {
+'(fn
   ;; Set the block and list
   'block set
   'list set
@@ -67,7 +67,7 @@
   len 'length set
 
   ;; Create a function to get the next item and call the block
-  '(fn {
+  '(fn!
     ;; Duplicate the last two items of the stack [list, length]
     dup2
 
@@ -79,7 +79,7 @@
 
     ;; Call the block
     block
-  }) 'each set
+  ) 'each set
 
   ;; Assemble our args
   'list get
@@ -91,4 +91,4 @@
 
   ;; Pop the list from the stack (cleanup)
   pop
-}) 'list/for_each set
+) 'list/for_each set

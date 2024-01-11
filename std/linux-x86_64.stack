@@ -13,19 +13,19 @@
 2 'stderr set
 
 ;; Write a string from its parts to the file-descriptor.
-'(fn str-len str-ptr fd sys-write syscall3) '(str-len str-ptr fd) 'raw/write let-fn set
+'(fn str-len str-ptr fd sys-write syscall3) '(str-len str-ptr fd) 'raw/write defn
 ;; Write a string to the file-descriptor.
-'(fn str explode len str topointer fd raw/write) '(str fd) 'raw/write-str let-fn set
+'(fn str explode len str topointer fd raw/write) '(str fd) 'raw/write-str defn
 
 ;; Print anything to stderr.
-'(fn any tostring stderr raw/write-str pop) '(any) 'eprint let-fn set
+'(fn any tostring stderr raw/write-str pop) '(any) 'eprint defn
 ;; Print anything to stdout.
-'(fn any tostring stdout raw/write-str pop) '(any) 'print let-fn set
+'(fn any tostring stdout raw/write-str pop) '(any) 'print defn
 
 ;; Print anything to stderr with a newline.
-'(fn (any tostring "\n") "" join stderr raw/write-str pop) '(any) 'eprintln let-fn set
+'(fn (any tostring "\n") "" join stderr raw/write-str pop) '(any) 'eprintln defn
 ;; Print anything to stdout with a newline.
-'(fn (any tostring "\n") "" join stdout raw/write-str pop) '(any) 'println let-fn set
+'(fn (any tostring "\n") "" join stdout raw/write-str pop) '(any) 'println defn
 
 ;; Exit the process with a code.
-'(fn code sys-exit syscall1) '(code) 'exit let-fn set
+'(fn code sys-exit syscall1) '(code) 'exit defn
