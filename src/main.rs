@@ -93,11 +93,7 @@ fn eval_file(path: PathBuf, watcher: Option<&mut INotifyWatcher>) {
         println!("Watching files for changes...");
 
         println!(" - {}", path.display());
-        for path in program
-          .loaded_files
-          .iter()
-          .filter(|p| p.ends_with(".stack"))
-        {
+        for path in program.loaded_files().filter(|p| p.ends_with(".stack")) {
           println!(" - {}", path);
           watcher
             .watch(Path::new(path), RecursiveMode::NonRecursive)

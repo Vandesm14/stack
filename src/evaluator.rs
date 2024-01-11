@@ -5,13 +5,19 @@ use syscalls::Sysno;
 
 use crate::{interner::interner, Expr, Intrinsic, Lexer, Parser, Type};
 use core::{fmt, iter};
-use std::collections::{HashMap, HashSet};
+use std::{collections::HashMap, time::SystemTime};
+
+#[derive(Debug, Clone)]
+struct LoadedFile {
+  contents: Spur,
+  mtime: SystemTime,
+}
 
 #[derive(Debug, Clone, Default)]
 pub struct Program {
   pub stack: Vec<Expr>,
   pub scopes: Vec<HashMap<String, Expr>>,
-  pub loaded_files: HashSet<String>,
+  pub loaded_files: HashMap<String, LoadedFile>,
 }
 
 impl fmt::Display for Program {
@@ -74,7 +80,7 @@ impl Program {
     Self {
       stack: vec![],
       scopes: vec![HashMap::new()],
-      loaded_files: HashSet::new(),
+      loaded_files: HashMap::new(),
     }
   }
 
@@ -83,6 +89,10 @@ impl Program {
     self.eval_string(core_lib)?;
 
     Ok(self)
+  }
+
+  pub fn loaded_files(&self) -> impl Iterator<Item = &str> {
+    self.loaded_files.keys().map(|s| s.as_str())
   }
 
   fn pop(&mut self, trace_expr: &Expr) -> Result<Expr, EvalError> {
@@ -386,21 +396,44 @@ impl Program {
         match item {
           Expr::String(path) => {
             let path_str = interner().resolve(&path);
+            let file_is_newer =
+              if let Some(loaded_file) = self.loaded_files.get(path_str) {
+                let metadata = std::fs::metadata(path_str).ok().unwrap();
+                let mtime = metadata.modified().ok().unwrap();
+                mtime > loaded_file.mtime
+              } else {
+                true
+              };
 
-            match std::fs::read_to_string(path_str) {
-              Ok(contents) => {
-                self.loaded_files.insert(path_str.to_string());
+            if file_is_newer {
+              match std::fs::read_to_string(path_str) {
+                Ok(contents) => {
+                  let content = interner().get_or_intern(contents);
+                  self.loaded_files.insert(
+                    path_str.to_string(),
+                    LoadedFile {
+                      contents: content,
+                      mtime: std::fs::metadata(path_str)
+                        .unwrap()
+                        .modified()
+                        .unwrap(),
+                    },
+                  );
+                  self.push(Expr::String(content));
 
-                let content = interner().get_or_intern(contents);
-                self.push(Expr::String(content));
-
-                Ok(())
+                  Ok(())
+                }
+                Err(e) => Err(EvalError {
+                  expr: trace_expr.clone(),
+                  program: self.clone(),
+                  message: format!("unable to read {path_str}: {e}"),
+                }),
               }
-              Err(e) => Err(EvalError {
-                expr: trace_expr.clone(),
-                program: self.clone(),
-                message: format!("unable to read {path_str}: {e}"),
-              }),
+            } else {
+              let contents = self.loaded_files.get(path_str).unwrap().contents;
+              self.push(Expr::String(contents));
+
+              Ok(())
             }
           }
           _ => Err(EvalError {
