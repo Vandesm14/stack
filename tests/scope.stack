@@ -4,19 +4,19 @@
 0 'a set
 
 '(fn
-  'a get
-  1 +
+  a 1 +
   'a set
 ) 'add-one-to-a set
 
-'(fn {
-  2 'a set
+add-one-to-a
 
-  add-one-to-a
+a 0 "functions create a new scope" assert-eq
 
-  ;; ("hello:" a) " " join print
-}) 'hello set
+'(fn!
+  a 2 +
+  3 'a set
+) 'add-one-to-a! set
 
-hello
+add-one-to-a!
 
-a 1 = "functions can set outer scope" assert
+a 3 "functions! use the current scope" assert-eq
