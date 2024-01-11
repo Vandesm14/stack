@@ -1011,17 +1011,23 @@ impl Program {
 
         match item {
           call @ Expr::Call(_) => self.eval_expr(call),
+          // This is where auto-call is defined and functions are evaluated when
+          // they are called via an identifier
           item @ Expr::List(_) => match item.create_fn_scope() {
-            Some(_) => {
+            Some(create_fn_scope) => {
               let Expr::List(list) = item else {
                 unreachable!()
               };
 
-              self.push_scope();
+              if create_fn_scope {
+                self.push_scope();
+              }
 
               match self.eval(list) {
                 Ok(_) => {
-                  self.pop_scope();
+                  if create_fn_scope {
+                    self.pop_scope();
+                  }
                   Ok(())
                 }
                 Err(err) => Err(err),
