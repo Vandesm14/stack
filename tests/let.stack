@@ -1,9 +1,6 @@
 "std/let.stack" import
 "std/assert.stack" import
 
-'(fn {
-  a b -
-}) '(a b)
-'subtract-two-nums let-fn set
+'(fn a b -) '(a b) 'subtract defn
 
-[[10 2 subtract-two-nums] 8] ["subtract-two-nums" assert-eq]
+[[10 2 subtract] 8] ["subtract" assert-eq]

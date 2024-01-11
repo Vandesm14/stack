@@ -1,49 +1,81 @@
-;; Easier creation of functions with let
-;;
-;; [List(body), List(args), Call(name)] -> [List(code), List(name)]
-;;
-;; Usage:
-;; '(fn {
-;;   a b -
-;; }) '(a b)
-;; 'subtract-two-nums let-fn set
-'(fn {
-  'name set
-  'args set
-  'body set
+"std/assert.stack" import
 
-  'args get len 'length set
-  '() 'args-code set
+;; Creates a let block
+;; {list(fn ...) list(vars)} -> {list(fn ...)}
+'(fn
+  ['vars set]
+  ['func set]
 
-  0 'i set
-  '(fn i 1 + 'i set) 'inc-i set
-  '(fn 'args get length i - 1 - nth) 'get-nth set
+  ['vars get len] ['var-len set]
+
+
+  ['() 'new-fn set]
+
+  ['func get]
+  [list-shift dup typeof]
+  ["fn" =]
 
   '(
-    get-nth
-    args-code swap
+    ;; Insert the `fn` call into the new function (preserving metadata)
+    ['new-fn get swap insert]
+    ['new-fn set]
 
-    lazy insert 'args-code set
-    args-code 'set insert 'args-code set
+    ;; list-shift gives us the item and the list
+    ;; We want to update `func` to not include the `fn` call
+    ;; if it has it
+    ['func set]
+) '(
+  ;; Pulls from the equal check above the `if` statement
+) if
 
-    inc-i
-  ) '(i length <) while
+  [0 'i set]
 
-  '() 'new-fn set
-
-  '(fn
+  '(
+    ;; Get the new function
     ['new-fn get]
-    ['body get list-shift]
-    [swap 'body set]
-    [insert 'new-fn set]) 'shift-body-into-new set
 
-  ;; Pusn `fn scope_push` boilerplate if it exists
-  '(shift-body-into-new) '(['body get 0 nth] [typeof "fn" =]) if
-  '(shift-body-into-new) '(['body get 0] [nth typeof "scope_push" =]) if
+    ;; Get the vars
+    [vars]
 
-  ['new-fn get] ['args-code get] [concat 'new-fn set]
-  ['new-fn get] ['body get] [concat 'new-fn set]
+    ;; Index of the next var in reverse
+    [[var-len 1 -] i -]
 
-  'new-fn get
-  'name get
-}) 'let-fn set
+    ;; Get the nth item, make it lazy, and insert it
+    [nth lazy insert]
+
+    ;; Insert a `set` call
+    ['set insert]
+
+    ;; Update our new-fn
+    ['new-fn set]
+
+    [i 1 + 'i set]
+  )
+  '(i var-len <)
+  while
+
+  ['new-fn get]
+  ['func get]
+  concat
+) 'let-fn set
+
+;; QoL function to auto-call the created let block
+;; {list(fn ...) list(vars)} -> {}
+'(fn! let-fn call) 'let set
+
+;; QoL function to set a let block to a variable
+;; {list(fn ...) list(vars) symbol} -> {}
+'(fn!
+  ;; Creating a scoped function to keep `func`, `vars`, and `symbol` private
+  '(fn
+    ['func get]
+    ['vars get]
+    let-fn
+
+    symbol
+    ;; Returning {list(fn ...) symbol}
+  ) '(func vars symbol) let
+
+  ;; Setting the function to the symbol in the current scope
+  set
+) 'defn set
