@@ -36,6 +36,7 @@ pub enum Intrinsic {
   ListShift,
   Concat,
   Unwrap,
+  Reverse,
 
   // Control Flow
   IfElse,
@@ -116,6 +117,7 @@ impl TryFrom<&str> for Intrinsic {
       "list-shift" => Ok(Self::ListShift),
       "concat" => Ok(Self::Concat),
       "unwrap" => Ok(Self::Unwrap),
+      "reverse" => Ok(Self::Reverse),
 
       // Control Flow
       "ifelse" => Ok(Self::IfElse),
@@ -207,6 +209,7 @@ impl Intrinsic {
       Self::ListShift => "list-shift",
       Self::Concat => "concat",
       Self::Unwrap => "unwrap",
+      Self::Reverse => "reverse",
 
       // Control Flow
       Self::IfElse => "ifelse",

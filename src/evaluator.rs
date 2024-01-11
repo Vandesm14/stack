@@ -780,6 +780,27 @@ impl Program {
           }),
         }
       }
+      Intrinsic::Reverse => {
+        let item = self.pop(trace_expr)?;
+
+        match item {
+          Expr::List(mut list) => {
+            list.reverse();
+            self.push(Expr::List(list));
+
+            Ok(())
+          }
+          item => Err(EvalError {
+            expr: trace_expr.clone(),
+            program: self.clone(),
+            message: format!(
+              "expected {}, found {}",
+              Type::List(vec![]),
+              item.type_of(),
+            ),
+          }),
+        }
+      }
 
       // Control Flow
       Intrinsic::IfElse => {

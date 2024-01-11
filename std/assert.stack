@@ -1,5 +1,3 @@
-"std/let.stack" import
-
 '(fn
   swap
   '(pop)
@@ -9,7 +7,11 @@
 ) 'assert set
 
 '(fn
+  'context set
+  'right set
+  'left set
+
   '('() ["assertion for [" insert] [context insert] ["] failed:\nLeft = " insert] [left insert] ["\nRight = " insert] [right insert] ["" join] panic)
   '(left right !=)
   if
-) '(left right context) 'assert-eq let-fn set
+) 'assert-eq set
