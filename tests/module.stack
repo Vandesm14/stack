@@ -1,0 +1,7 @@
+"std/module.stack" import
+"std/assert.stack" import
+
+["testing/mod.stack" import 'mod use]
+
+[mod/a 0] ["mod/a should be 0" assert-eq]
+[mod/b 1] ["mod/b should be 1" assert-eq]

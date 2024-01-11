@@ -1,0 +1,10 @@
+"std/module.stack" import
+
+'(fn
+  0 'a set
+  1 'b set
+
+  '()
+  'a export
+  'b export
+) call
