@@ -1,6 +1,6 @@
 use core::{cmp::Ordering, fmt, iter, num::FpCategory};
 
-use lasso::{Resolver, Spur};
+use lasso::Spur;
 
 use crate::interner::interner;
 

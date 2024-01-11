@@ -76,6 +76,7 @@ impl<'source> Lexer<'source> {
   #[inline]
   pub fn new(source: &'source str) -> Self {
     // Skip the UTF-8 BOM if present.
+    #[allow(clippy::obfuscated_if_else)]
     let start = source
       .as_bytes()
       .starts_with(b"\xef\xbb\xbf")
@@ -94,6 +95,8 @@ impl<'source> Lexer<'source> {
   /// return them thereafter, akin to a [`FusedIterator`].
   ///
   /// [`FusedIterator`]: core::iter::FusedIterator
+  #[allow(clippy::should_implement_trait)]
+  // ^ This is fine. If it acts like an iterator, it's an iterator.
   pub fn next(&mut self) -> Token {
     let mut state = State::Start;
     let mut chars = self.source[self.cursor..].chars();

@@ -103,7 +103,7 @@ impl Program {
       return Some(item.clone());
     }
 
-    let global = self.scopes.get(0);
+    let global = self.scopes.first();
     if let Some(item) = global.and_then(|layer| layer.get(symbol)) {
       return Some(item.clone());
     }
@@ -423,8 +423,8 @@ impl Program {
       Intrinsic::Syscall { arity } => {
         let sysno = self.pop(trace_expr).and_then(|sysno| match sysno {
           Expr::Integer(sysno) => (sysno >= 0)
-            .then(|| sysno as usize)
-            .and_then(|sysno| Sysno::new(sysno))
+            .then_some(sysno as usize)
+            .and_then(Sysno::new)
             .ok_or_else(|| EvalError {
               expr: trace_expr.clone(),
               program: self.clone(),
@@ -456,7 +456,7 @@ impl Program {
                 Err(EvalError {
                   expr: trace_expr.clone(),
                   program: self.clone(),
-                  message: format!("integer must be positive"),
+                  message: "integer must be positive".to_string(),
                 })
               }
             }
@@ -893,9 +893,7 @@ impl Program {
                   intrinsic.as_str()
                 ),
               }),
-              Err(_) => {
-                self.set_scope_item(trace_expr, &key_str.to_owned(), val)
-              }
+              Err(_) => self.set_scope_item(trace_expr, key_str, val),
             }
           }
           key => Err(EvalError {

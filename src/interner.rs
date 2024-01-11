@@ -30,7 +30,7 @@ pub struct Interned {
 /// Provides access to the static, thread-safe interner.
 #[inline]
 pub fn interner() -> &'static ThreadedRodeo<Spur> {
-  INTERNER.get_or_init(|| ThreadedRodeo::new())
+  INTERNER.get_or_init(ThreadedRodeo::new)
 }
 
 /// Provides access to a static struct that contains commonly interned slices.
