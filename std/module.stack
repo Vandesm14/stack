@@ -1,0 +1,64 @@
+"std/let.stack" import
+"std/list.stack" import
+
+'(fn!
+  dup
+  get
+
+  '()
+  [swap insert]
+  [swap insert]
+  [insert]
+) 'export set
+
+;; Run this function within the same scope
+'(fn!
+  ;; Create a template function that will be used to set all of the imported variables
+  ;; in the current scope
+  '(fn!)
+
+  ;; Create a let block to bring in our args
+  '(fn
+    ['namespace get]
+    ['runner get]
+    ['scope get]
+
+    ;; Create a let block for the for_each loop
+    '(fn
+      ['runner get]
+      ['item get]
+
+      ;; Pop the symbol from the export {(val symbol)} -> {(val) symbol}
+      ;; Turn it into a string then into a list of chars
+      [list-pop tostring explode]
+
+      ;; Turn the namespace into a string then into a list of chars
+      ;; Add a "/" to the end of the namespace
+      ['namespace get tostring explode "/" insert]
+      [swap]
+
+      ;; Join the namespace and the symbol
+      [concat "" join]
+
+      ;; Push the item as a lazy symbol to the set code
+      [tocall lazy insert]
+
+      ;; Push a `'set` call to the code
+      ['set insert]
+
+      ;; Add the code to the template function and update it
+      [concat 'runner set]
+
+      ;; Put the namespace and runner back on the stack
+      'namespace get
+      'runner get
+    ) '(namespace runner item) let-fn
+    list/for_each
+  ) '(scope namespace runner) let
+
+  ;; Call our template function to set all of the imported variables
+  call
+
+  ;; Pop namespace
+  pop
+) 'use set
