@@ -8,7 +8,7 @@ use core::{fmt, iter};
 use std::{collections::HashMap, time::SystemTime};
 
 #[derive(Debug, Clone)]
-struct LoadedFile {
+pub struct LoadedFile {
   contents: Spur,
   mtime: SystemTime,
 }
