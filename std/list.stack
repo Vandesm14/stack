@@ -1,4 +1,5 @@
 "std/stack.stack" import
+"std/let.stack" import
 
 ;; Define a reverse function
 '(fn
@@ -48,47 +49,28 @@
   'new_list unset
 ) 'list/reverse set
 
-;; [Block, Integer] -> [Integer]
-;; Runs a block n times
-'(fn!
-  1 + swap
-  '(1 - dup 0 !=)
-  while
-  pop
-) 'for set
-
-;; <T>[List<T>, Block(T)] -> ()
 '(fn
-  ;; Set the block and list
-  'block set
-  'list set
+  0 'i set
+  ['list get len] 'length set
 
-  'list get
-  len 'length set
-
-  ;; Create a function to get the next item and call the block
   '(fn!
-    ;; Duplicate the last two items of the stack [list, length]
-    dup2
+    i length <
+  ) 'i-in-bounds set
 
-    ;; Negate the length of the list
-    -1 *
+  '(fn!
+    i 1 + 'i set
+  ) 'increment-i set
 
-    ;; Get the nth item of the list
-    nth
+  '(fn!
+    list i nth
+  ) 'get-nth set
 
-    ;; Call the block
+  '(
+    get-nth
+
     block
-  ) 'each set
 
-  ;; Assemble our args
-  'list get
-  'each get
-  'length get
-
-  ;; Call the for loop
-  for
-
-  ;; Pop the list from the stack (cleanup)
-  pop
-) 'list/for_each set
+    increment-i
+  )
+  '(i-in-bounds) while
+) '(list block) 'list/for_each defn
