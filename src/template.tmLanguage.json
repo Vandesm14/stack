@@ -1,0 +1,431 @@
+{
+  "information_for_contributors": [
+    "This file has been converted from https://github.com/atom/language-stack/blob/master/grammars/stack.cson",
+    "If you want to provide a fix or improvement, please create a pull request against the original repository.",
+    "Once accepted there, we are happy to receive an update request."
+  ],
+  "version": "https://github.com/atom/language-stack/commit/45bdb881501d0b8f8b707ca1d3fcc8b4b99fca03",
+  "name": "Stack",
+  "scopeName": "source.stack",
+  "patterns": [
+    {
+      "include": "#comment"
+    },
+    {
+      "include": "#shebang-comment"
+    },
+    {
+      "include": "#quoted-sexp"
+    },
+    {
+      "include": "#sexp"
+    },
+    {
+      "include": "#keyfn"
+    },
+    {
+      "include": "#string"
+    },
+    {
+      "include": "#vector"
+    },
+    {
+      "include": "#set"
+    },
+    {
+      "include": "#map"
+    },
+    {
+      "include": "#regexp"
+    },
+    {
+      "include": "#var"
+    },
+    {
+      "include": "#constants"
+    },
+    {
+      "include": "#dynamic-variables"
+    },
+    {
+      "include": "#metadata"
+    },
+    {
+      "include": "#namespace-symbol"
+    },
+    {
+      "include": "#symbol"
+    }
+  ],
+  "repository": {
+    "comment": {
+      "begin": "(?<!\\\\);",
+      "beginCaptures": {
+        "0": {
+          "name": "punctuation.definition.comment.stack"
+        }
+      },
+      "end": "$",
+      "name": "comment.line.semicolon.stack"
+    },
+    "constants": {
+      "patterns": [
+        {
+          "match": "(nil)(?=(\\s|\\)|\\]|\\}))",
+          "name": "constant.language.nil.stack"
+        },
+        {
+          "match": "(true|false)",
+          "name": "constant.language.boolean.stack"
+        },
+        {
+          "match": "(##(?:Inf|-Inf|NaN))",
+          "name": "constant.numeric.symbol.stack"
+        },
+        {
+          "match": "([-+]?\\d+/\\d+)",
+          "name": "constant.numeric.ratio.stack"
+        },
+        {
+          "match": "([-+]?(?:(?:3[0-6])|(?:[12]\\d)|[2-9])[rR][0-9A-Za-z]+N?)",
+          "name": "constant.numeric.arbitrary-radix.stack"
+        },
+        {
+          "match": "([-+]?0[xX][0-9a-fA-F]+N?)",
+          "name": "constant.numeric.hexadecimal.stack"
+        },
+        {
+          "match": "([-+]?0[0-7]+N?)",
+          "name": "constant.numeric.octal.stack"
+        },
+        {
+          "match": "([-+]?[0-9]+(?:(\\.|(?=[eEM]))[0-9]*([eE][-+]?[0-9]+)?)M?)",
+          "name": "constant.numeric.double.stack"
+        },
+        {
+          "match": "([-+]?\\d+N?)",
+          "name": "constant.numeric.long.stack"
+        },
+        {
+          "include": "#keyword"
+        }
+      ]
+    },
+    "keyword": {
+      "match": "(?<=(\\s|\\(|\\[|\\{)):[\\w\\#\\.\\-\\_\\:\\+\\=\\>\\<\\/\\!\\?\\*]+(?=(\\s|\\)|\\]|\\}|\\,))",
+      "name": "constant.keyword.stack"
+    },
+    "keyfn": {
+      "patterns": [
+        {
+          "match": "(?<=(\\s|\\(|\\[|\\{))(if(-[-\\p{Ll}\\?]*)?|let(-[-\\p{Ll}\\?]*)?|${template}|([\\p{Ll}]*case))(?=(\\s|\\)|\\]|\\}))",
+          "name": "storage.control.stack"
+        },
+        {
+          "match": "(?<=(\\s|\\(|\\[|\\{))(declare-?|(in-)?ns|import|use|require|load|compile|set)(?=(\\s|\\)|\\]|\\}))",
+          "name": "keyword.control.stack"
+        }
+      ]
+    },
+    "dynamic-variables": {
+      "match": "\\*[\\w\\.\\-\\_\\:\\+\\=\\>\\<\\!\\?\\d]+\\*",
+      "name": "meta.symbol.dynamic.stack"
+    },
+    "map": {
+      "begin": "(\\{)",
+      "beginCaptures": {
+        "1": {
+          "name": "punctuation.section.map.begin.stack"
+        }
+      },
+      "end": "(\\}(?=[\\}\\]\\)\\s]*(?:;|$)))|(\\})",
+      "endCaptures": {
+        "1": {
+          "name": "punctuation.section.map.end.trailing.stack"
+        },
+        "2": {
+          "name": "punctuation.section.map.end.stack"
+        }
+      },
+      "name": "meta.map.stack",
+      "patterns": [
+        {
+          "include": "$self"
+        }
+      ]
+    },
+    "metadata": {
+      "patterns": [
+        {
+          "begin": "(\\^\\{)",
+          "beginCaptures": {
+            "1": {
+              "name": "punctuation.section.metadata.map.begin.stack"
+            }
+          },
+          "end": "(\\}(?=[\\}\\]\\)\\s]*(?:;|$)))|(\\})",
+          "endCaptures": {
+            "1": {
+              "name": "punctuation.section.metadata.map.end.trailing.stack"
+            },
+            "2": {
+              "name": "punctuation.section.metadata.map.end.stack"
+            }
+          },
+          "name": "meta.metadata.map.stack",
+          "patterns": [
+            {
+              "include": "$self"
+            }
+          ]
+        },
+        {
+          "begin": "(\\^)",
+          "end": "(\\s)",
+          "name": "meta.metadata.simple.stack",
+          "patterns": [
+            {
+              "include": "#keyword"
+            },
+            {
+              "include": "$self"
+            }
+          ]
+        }
+      ]
+    },
+    "quoted-sexp": {
+      "begin": "(['``]\\()",
+      "beginCaptures": {
+        "1": {
+          "name": "punctuation.section.expression.begin.stack"
+        }
+      },
+      "end": "(\\))$|(\\)(?=[\\}\\]\\)\\s]*(?:;|$)))|(\\))",
+      "endCaptures": {
+        "1": {
+          "name": "punctuation.section.expression.end.trailing.stack"
+        },
+        "2": {
+          "name": "punctuation.section.expression.end.trailing.stack"
+        },
+        "3": {
+          "name": "punctuation.section.expression.end.stack"
+        }
+      },
+      "name": "meta.quoted-expression.stack",
+      "patterns": [
+        {
+          "include": "$self"
+        }
+      ]
+    },
+    "regexp": {
+      "begin": "#\"",
+      "beginCaptures": {
+        "0": {
+          "name": "punctuation.definition.regexp.begin.stack"
+        }
+      },
+      "end": "\"",
+      "endCaptures": {
+        "0": {
+          "name": "punctuation.definition.regexp.end.stack"
+        }
+      },
+      "name": "string.regexp.stack",
+      "patterns": [
+        {
+          "include": "#regexp_escaped_char"
+        }
+      ]
+    },
+    "regexp_escaped_char": {
+      "match": "\\\\.",
+      "name": "constant.character.escape.stack"
+    },
+    "set": {
+      "begin": "(\\#\\{)",
+      "beginCaptures": {
+        "1": {
+          "name": "punctuation.section.set.begin.stack"
+        }
+      },
+      "end": "(\\}(?=[\\}\\]\\)\\s]*(?:;|$)))|(\\})",
+      "endCaptures": {
+        "1": {
+          "name": "punctuation.section.set.end.trailing.stack"
+        },
+        "2": {
+          "name": "punctuation.section.set.end.stack"
+        }
+      },
+      "name": "meta.set.stack",
+      "patterns": [
+        {
+          "include": "$self"
+        }
+      ]
+    },
+    "sexp": {
+      "begin": "(\\()",
+      "beginCaptures": {
+        "1": {
+          "name": "punctuation.section.expression.begin.stack"
+        }
+      },
+      "end": "(\\))$|(\\)(?=[\\}\\]\\)\\s]*(?:;|$)))|(\\))",
+      "endCaptures": {
+        "1": {
+          "name": "punctuation.section.expression.end.trailing.stack"
+        },
+        "2": {
+          "name": "punctuation.section.expression.end.trailing.stack"
+        },
+        "3": {
+          "name": "punctuation.section.expression.end.stack"
+        }
+      },
+      "name": "meta.expression.stack",
+      "patterns": [
+        {
+          "begin": "(?<=\\()(ns|declare|def[\\w\\d._:+=><!?*-]*|[\\w._:+=><!?*-][\\w\\d._:+=><!?*-]*/def[\\w\\d._:+=><!?*-]*)\\s+",
+          "beginCaptures": {
+            "1": {
+              "name": "keyword.control.stack"
+            }
+          },
+          "end": "(?=\\))",
+          "name": "meta.definition.global.stack",
+          "patterns": [
+            {
+              "include": "#metadata"
+            },
+            {
+              "include": "#dynamic-variables"
+            },
+            {
+              "match": "([\\p{L}\\.\\-\\_\\+\\=\\>\\<\\!\\?\\*][\\w\\.\\-\\_\\:\\+\\=\\>\\<\\!\\?\\*\\d]*)",
+              "name": "entity.global.stack"
+            },
+            {
+              "include": "$self"
+            }
+          ]
+        },
+        {
+          "include": "#keyfn"
+        },
+        {
+          "include": "#constants"
+        },
+        {
+          "include": "#vector"
+        },
+        {
+          "include": "#map"
+        },
+        {
+          "include": "#set"
+        },
+        {
+          "include": "#sexp"
+        },
+        {
+          "match": "(?<=\\()(.+?)(?=\\s|\\))",
+          "captures": {
+            "1": {
+              "name": "entity.name.function.stack"
+            }
+          },
+          "patterns": [
+            {
+              "include": "$self"
+            }
+          ]
+        },
+        {
+          "include": "$self"
+        }
+      ]
+    },
+    "shebang-comment": {
+      "begin": "^(#!)",
+      "beginCaptures": {
+        "1": {
+          "name": "punctuation.definition.comment.shebang.stack"
+        }
+      },
+      "end": "$",
+      "name": "comment.line.shebang.stack"
+    },
+    "string": {
+      "begin": "(?<!\\\\)(\")",
+      "beginCaptures": {
+        "1": {
+          "name": "punctuation.definition.string.begin.stack"
+        }
+      },
+      "end": "(\")",
+      "endCaptures": {
+        "1": {
+          "name": "punctuation.definition.string.end.stack"
+        }
+      },
+      "name": "string.quoted.double.stack",
+      "patterns": [
+        {
+          "match": "\\\\.",
+          "name": "constant.character.escape.stack"
+        }
+      ]
+    },
+    "namespace-symbol": {
+      "patterns": [
+        {
+          "match": "([\\p{L}\\.\\-\\_\\+\\=\\>\\<\\!\\?\\*][\\w\\.\\-\\_\\:\\+\\=\\>\\<\\!\\?\\*\\d]*)/",
+          "captures": {
+            "1": {
+              "name": "meta.symbol.namespace.stack"
+            }
+          }
+        }
+      ]
+    },
+    "symbol": {
+      "patterns": [
+        {
+          "match": "([\\p{L}\\.\\-\\_\\+\\=\\>\\<\\!\\?\\*][\\w\\.\\-\\_\\:\\+\\=\\>\\<\\!\\?\\*\\d]*)",
+          "name": "meta.symbol.stack"
+        }
+      ]
+    },
+    "var": {
+      "match": "(?<=(\\s|\\(|\\[|\\{)\\#)'[\\w\\.\\-\\_\\:\\+\\=\\>\\<\\/\\!\\?\\*]+(?=(\\s|\\)|\\]|\\}))",
+      "name": "meta.var.stack"
+    },
+    "vector": {
+      "begin": "(\\[)",
+      "beginCaptures": {
+        "1": {
+          "name": "punctuation.section.vector.begin.stack"
+        }
+      },
+      "end": "(\\](?=[\\}\\]\\)\\s]*(?:;|$)))|(\\])",
+      "endCaptures": {
+        "1": {
+          "name": "punctuation.section.vector.end.trailing.stack"
+        },
+        "2": {
+          "name": "punctuation.section.vector.end.stack"
+        }
+      },
+      "name": "meta.vector.stack",
+      "patterns": [
+        {
+          "include": "$self"
+        }
+      ]
+    }
+  }
+}

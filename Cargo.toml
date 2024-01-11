@@ -23,3 +23,7 @@ test-case = "3"
 [[bin]]
 name = "stack"
 path = "src/main.rs"
+
+[[bin]]
+name = "stack-generate"
+path = "src/generate_highlighter.rs"
