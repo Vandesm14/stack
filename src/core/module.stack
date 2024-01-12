@@ -1,6 +1,3 @@
-"std/let.stack" import
-"std/list.stack" import
-
 '(fn!
   dup
   get
@@ -19,6 +16,8 @@
 
   ;; Create a let block to bring in our args
   '(fn
+    "std/list.stack" import
+
     ['namespace get]
     ['runner get]
     ['scope get]
@@ -76,6 +75,8 @@
 
   ;; Create a let block to bring in our args
   '(fn
+    "std/list.stack" import
+
     ['runner get]
     ['scope get]
 
