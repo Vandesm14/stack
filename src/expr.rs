@@ -14,8 +14,10 @@ pub enum Expr {
 
   Pointer(usize),
 
-  List(Vec<Expr>),
   String(Spur),
+
+  List(Vec<Expr>),
+  U8List(Vec<u8>),
 
   Lazy(Box<Expr>),
   Call(Spur),
@@ -60,10 +62,12 @@ impl Expr {
 
       Self::Pointer(_) => Type::Pointer,
 
+      Self::String(_) => Type::String,
+
       Self::List(list) => {
         Type::List(list.iter().map(|expr| expr.type_of()).collect::<Vec<_>>())
       }
-      Self::String(_) => Type::String,
+      Self::U8List(_) => Type::U8List,
 
       Self::Lazy(x) => x.type_of(),
       Self::Call(_) => Type::Call,
@@ -148,7 +152,8 @@ impl Expr {
 
   pub fn to_pointer(&self) -> Option<Self> {
     match self {
-      // TODO: Should nil be usable as a null pointer?
+      // TODO: Should nil be usable as a null pointer? If so, Pointer should
+      //       store a NonZeroUsize instead.
       Self::Nil => Some(Self::Pointer(0)),
       Self::Integer(x) => {
         if *x >= 0 {
@@ -221,8 +226,10 @@ impl PartialEq for Expr {
 
       (Self::Pointer(lhs), Self::Pointer(rhs)) => lhs == rhs,
 
-      (Self::List(lhs), Self::List(rhs)) => lhs == rhs,
       (Self::String(lhs), Self::String(rhs)) => lhs == rhs,
+
+      (Self::List(lhs), Self::List(rhs)) => lhs == rhs,
+      (Self::U8List(lhs), Self::U8List(rhs)) => lhs == rhs,
 
       (Self::Lazy(lhs), Self::Lazy(rhs)) => lhs == rhs,
       (Self::Call(lhs), Self::Call(rhs)) => lhs == rhs,
@@ -317,6 +324,8 @@ impl fmt::Display for Expr {
         fmt::Display::fmt(x, f)
       }
 
+      Self::String(x) => write!(f, "\"{}\"", interner().resolve(x)),
+
       Self::List(x) => {
         f.write_str("(")?;
 
@@ -330,7 +339,19 @@ impl fmt::Display for Expr {
 
         f.write_str(")")
       }
-      Self::String(x) => write!(f, "\"{}\"", interner().resolve(x)),
+      Self::U8List(x) => {
+        f.write_str("(")?;
+
+        iter::once("")
+          .chain(iter::repeat(" "))
+          .zip(x.iter())
+          .try_for_each(|(s, x)| {
+            f.write_str(s)?;
+            fmt::Display::fmt(x, f)
+          })?;
+
+        f.write_str(")")
+      },
 
       Self::Lazy(x) => {
         f.write_str("'")?;
@@ -359,8 +380,10 @@ pub enum Type {
 
   Pointer,
 
-  List(Vec<Self>),
   String,
+
+  List(Vec<Self>),
+  U8List,
 
   Call,
 
@@ -383,6 +406,8 @@ impl fmt::Display for Type {
 
       Self::Pointer => f.write_str("pointer"),
 
+      Self::String => f.write_str("string"),
+
       Self::List(list) => {
         f.write_str("(")?;
 
@@ -396,7 +421,7 @@ impl fmt::Display for Type {
 
         f.write_str(")")
       }
-      Self::String => f.write_str("string"),
+      Self::U8List => f.write_str("u8_list"),
 
       Self::Call => f.write_str("call"),
 
