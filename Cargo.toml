@@ -24,6 +24,6 @@ test-case = "3"
 name = "stack"
 path = "src/main.rs"
 
-[[bin]]
-name = "stack-generate"
-path = "src/generate_highlighter.rs"
+# [[bin]]
+# name = "stack-generate"
+# path = "src/generate_highlighter.rs"
