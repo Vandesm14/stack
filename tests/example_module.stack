@@ -13,8 +13,10 @@
 
 '(fn
   '(fn 2 +) 'add-two set
+  '(2 2 +) 'list set
 
   '()
   'add-two export
+  'list export
 ) call
 concat
