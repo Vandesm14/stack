@@ -1,11 +1,44 @@
 '(fn
   '() 'map/new set
-  '() 'map/pair set
 
-  '(fn) '(map key value) 'map/insert defn
+  '(fn
+    '()
+    ['key get insert]
+    ['value get insert]
+  ) '(key value) 'map/pair defn
+
+  '(fn 0 nth) 'map/head set
+  '(fn 1 nth) 'map/tail set
+
+  '(fn
+    "std/list.stack" import
+
+    false
+
+    'map get
+    '(fn
+      item map/head
+      key
+      =
+
+      has-item
+      or
+    ) '(has-item item) let-fn
+    list/for_each
+  ) '(map key) 'map/has defn
+
+  '(fn
+    'map get
+    'pair get
+
+    insert
+  ) '(map pair) 'map/insert defn
 
   '()
   'map/new export
   'map/pair export
   'map/insert export
+  'map/has export
+  'map/head export
+  'map/tail export
 ) call

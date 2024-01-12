@@ -1,0 +1,9 @@
+"std/assert.stack" import
+["std/map.stack" import use-all]
+
+'()
+['a 1 map/pair] map/insert
+['b 2 map/pair] map/insert
+
+[dup 'a map/has] ["map has a" assert]
+['c map/has] [not "map doesn't have c" assert]
