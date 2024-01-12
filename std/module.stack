@@ -28,6 +28,11 @@
       ['runner get]
       ['item get]
 
+      ;; Set the first item to be lazy so that it is not evaluated
+      [unwrap swap lazy]
+      ;; Reconstruct the pair
+      ['() swap insert swap insert]
+
       ;; Pop the symbol from the export {(val symbol)} -> {(val) symbol}
       ;; Turn it into a string then into a list of chars
       [list-pop tostring explode]

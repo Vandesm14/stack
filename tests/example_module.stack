@@ -11,3 +11,11 @@
 ) call
 
 [dup '((0 a) (1 b))] ["should export variables" assert-eq]
+
+'(fn
+  '(fn 2 +) 'add-two set
+
+  '()
+  'add-two export
+) call
+concat
