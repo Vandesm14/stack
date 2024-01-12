@@ -179,10 +179,6 @@ impl Program {
             self.push(Expr::Float(lhs + rhs));
             Ok(())
           }
-          Some((Expr::Pointer(lhs), Expr::Pointer(rhs))) => {
-            self.push(Expr::Pointer(lhs + rhs));
-            Ok(())
-          }
           _ => Err(EvalError {
             expr: trace_expr.clone(),
             program: self.clone(),
@@ -208,10 +204,6 @@ impl Program {
           }
           Some((Expr::Float(lhs), Expr::Float(rhs))) => {
             self.push(Expr::Float(lhs - rhs));
-            Ok(())
-          }
-          Some((Expr::Pointer(lhs), Expr::Pointer(rhs))) => {
-            self.push(Expr::Pointer(lhs - rhs));
             Ok(())
           }
           _ => Err(EvalError {
@@ -241,10 +233,6 @@ impl Program {
             self.push(Expr::Float(lhs * rhs));
             Ok(())
           }
-          Some((Expr::Pointer(lhs), Expr::Pointer(rhs))) => {
-            self.push(Expr::Pointer(lhs * rhs));
-            Ok(())
-          }
           _ => Err(EvalError {
             expr: trace_expr.clone(),
             program: self.clone(),
@@ -272,10 +260,6 @@ impl Program {
             self.push(Expr::Float(lhs / rhs));
             Ok(())
           }
-          Some((Expr::Pointer(lhs), Expr::Pointer(rhs))) => {
-            self.push(Expr::Pointer(lhs / rhs));
-            Ok(())
-          }
           _ => Err(EvalError {
             expr: trace_expr.clone(),
             program: self.clone(),
@@ -301,10 +285,6 @@ impl Program {
           }
           Some((Expr::Float(lhs), Expr::Float(rhs))) => {
             self.push(Expr::Float(lhs % rhs));
-            Ok(())
-          }
-          Some((Expr::Pointer(lhs), Expr::Pointer(rhs))) => {
-            self.push(Expr::Pointer(lhs % rhs));
             Ok(())
           }
           _ => Err(EvalError {
@@ -481,10 +461,6 @@ impl Program {
         let args = (0..arity).try_fold(
           Vec::with_capacity(arity as usize),
           |mut args, _| match self.pop(trace_expr)? {
-            Expr::Pointer(x) => {
-              args.push(x);
-              Ok(args)
-            }
             Expr::Integer(x) => {
               if x >= 0 {
                 args.push(x as usize);
@@ -1182,33 +1158,6 @@ impl Program {
 
         Ok(())
       }
-      Intrinsic::ToPointer => {
-        let item = self.pop(trace_expr)?;
-
-        match item {
-          Expr::String(string) => {
-            let string_str = interner().resolve(&string);
-            self.push(Expr::Pointer(string_str.as_ptr() as usize));
-          }
-          found => self.push(found.to_pointer().unwrap_or(Expr::Nil)),
-        }
-
-        Ok(())
-      }
-      Intrinsic::ToList => {
-        let item = self.pop(trace_expr)?;
-
-        match item {
-          list @ Expr::List(_) => {
-            self.push(list);
-            Ok(())
-          }
-          found => {
-            self.push(Expr::List(vec![found]));
-            Ok(())
-          }
-        }
-      }
       Intrinsic::ToString => {
         let item = self.pop(trace_expr)?;
 
@@ -1222,6 +1171,20 @@ impl Program {
               Expr::String(interner().get_or_intern(found.to_string()));
             self.push(string);
 
+            Ok(())
+          }
+        }
+      }
+      Intrinsic::ToList => {
+        let item = self.pop(trace_expr)?;
+
+        match item {
+          list @ Expr::List(_) => {
+            self.push(list);
+            Ok(())
+          }
+          found => {
+            self.push(Expr::List(vec![found]));
             Ok(())
           }
         }

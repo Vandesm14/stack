@@ -67,9 +67,8 @@ pub enum Intrinsic {
   ToBoolean,
   ToInteger,
   ToFloat,
-  ToPointer,
-  ToList,
   ToString,
+  ToList,
   ToCall,
   TypeOf,
 }
@@ -148,9 +147,8 @@ impl TryFrom<&str> for Intrinsic {
       "toboolean" => Ok(Self::ToBoolean),
       "tointeger" => Ok(Self::ToInteger),
       "tofloat" => Ok(Self::ToFloat),
-      "topointer" => Ok(Self::ToPointer),
-      "tolist" => Ok(Self::ToList),
       "tostring" => Ok(Self::ToString),
+      "tolist" => Ok(Self::ToList),
       "tocall" => Ok(Self::ToCall),
       "typeof" => Ok(Self::TypeOf),
 
@@ -240,9 +238,8 @@ impl Intrinsic {
       Self::ToBoolean => "toboolean",
       Self::ToInteger => "tointeger",
       Self::ToFloat => "tofloat",
-      Self::ToPointer => "topointer",
-      Self::ToList => "tolist",
       Self::ToString => "tostring",
+      Self::ToList => "tolist",
       Self::ToCall => "tocall",
       Self::TypeOf => "typeof",
     }
