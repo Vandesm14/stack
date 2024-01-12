@@ -1189,6 +1189,30 @@ impl Program {
           }
         }
       }
+      Intrinsic::ToU8List => {
+        let item = self.pop(trace_expr)?;
+
+        match item {
+          list @ Expr::U8List(_) => {
+            self.push(list);
+            Ok(())
+          }
+          Expr::String(s) => {
+            self.push(Expr::U8List(interner().resolve(&s).as_bytes().to_vec()));
+            Ok(())
+          }
+          // TODO: Convert valid integer lists into a u8 list.
+          // Expr::List(l) => {},
+          found => Err(EvalError {
+            program: self.clone(),
+            expr: trace_expr.clone(),
+            message: format!(
+              "cannot create a u8 list from a {}",
+              found.type_of()
+            ),
+          }),
+        }
+      }
       Intrinsic::ToCall => {
         let item = self.pop(trace_expr)?;
 

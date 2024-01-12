@@ -69,6 +69,7 @@ pub enum Intrinsic {
   ToFloat,
   ToString,
   ToList,
+  ToU8List,
   ToCall,
   TypeOf,
 }
@@ -149,6 +150,7 @@ impl TryFrom<&str> for Intrinsic {
       "tofloat" => Ok(Self::ToFloat),
       "tostring" => Ok(Self::ToString),
       "tolist" => Ok(Self::ToList),
+      "tou8list" => Ok(Self::ToU8List),
       "tocall" => Ok(Self::ToCall),
       "typeof" => Ok(Self::TypeOf),
 
@@ -240,6 +242,7 @@ impl Intrinsic {
       Self::ToFloat => "tofloat",
       Self::ToString => "tostring",
       Self::ToList => "tolist",
+      Self::ToU8List => "tou8list",
       Self::ToCall => "tocall",
       Self::TypeOf => "typeof",
     }
