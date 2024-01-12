@@ -1,5 +1,4 @@
 use itertools::Itertools as _;
-// use itertools::Itertools;
 use lasso::Spur;
 use syscalls::Sysno;
 
