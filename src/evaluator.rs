@@ -1284,8 +1284,28 @@ impl Program {
             self.push(Expr::U8List(interner().resolve(&s).as_bytes().to_vec()));
             Ok(())
           }
-          // TODO: Convert valid integer lists into a u8 list.
-          // Expr::List(l) => {},
+          Expr::List(l) => {
+            let l_len = l.len();
+
+            let list = l.into_iter().try_fold(
+              Vec::with_capacity(l_len),
+              |mut list, item| match item {
+                Expr::Integer(i) if i >= 0 && i <= u8::MAX as i64 => {
+                  list.push(i as u8);
+                  Ok(list)
+                }
+                _ => Err(EvalError {
+                  program: self.clone(),
+                  expr: trace_expr.clone(),
+                  message: format!("cannot convert expression into u8 list"),
+                }),
+              },
+            )?;
+
+            self.push(Expr::U8List(list));
+
+            Ok(())
+          }
           // TODO: Should this return nil instead?
           found => Err(EvalError {
             program: self.clone(),
