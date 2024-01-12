@@ -18,6 +18,7 @@ pub struct Program {
   pub stack: Vec<Expr>,
   pub scopes: Vec<HashMap<String, Expr>>,
   pub loaded_files: HashMap<String, LoadedFile>,
+  pub debug_trace: Option<Vec<Expr>>,
 }
 
 impl fmt::Display for Program {
@@ -34,6 +35,10 @@ impl fmt::Display for Program {
     write!(f, "]")?;
 
     writeln!(f,)?;
+
+    if let Some(trace) = &self.debug_trace {
+      writeln!(f, "Trace:\n  {}", trace.iter().rev().take(20).join("\n  "))?;
+    }
 
     if !self.scopes.is_empty() {
       writeln!(f, "Scope:")?;
@@ -81,6 +86,7 @@ impl Program {
       stack: vec![],
       scopes: vec![HashMap::new()],
       loaded_files: HashMap::new(),
+      debug_trace: None,
     }
   }
 
@@ -89,6 +95,11 @@ impl Program {
     self.eval_string(core_lib)?;
 
     Ok(self)
+  }
+
+  pub fn with_debug(mut self) -> Self {
+    self.debug_trace = Some(vec![]);
+    self
   }
 
   pub fn loaded_files(&self) -> impl Iterator<Item = &str> {
@@ -1279,6 +1290,10 @@ impl Program {
   }
 
   fn eval_expr(&mut self, expr: Expr) -> Result<(), EvalError> {
+    if let Some(trace) = &mut self.debug_trace {
+      trace.push(expr.clone());
+    }
+
     match expr.clone() {
       Expr::Call(call) => self.eval_call(&expr, call),
       Expr::Lazy(block) => {
@@ -1334,6 +1349,7 @@ impl Program {
         //       rollback if there is an error.
         self.stack = clone.stack;
         self.scopes = clone.scopes;
+        self.debug_trace = clone.debug_trace;
 
         Ok(x)
       }

@@ -27,8 +27,11 @@ enum Commands {
   Run {
     path: PathBuf,
 
-    #[arg(long)]
+    #[arg(short, long)]
     watch: bool,
+
+    #[arg(short, long)]
+    debug: bool,
   },
 }
 
@@ -72,13 +75,17 @@ fn repl() -> rustyline::Result<()> {
   Ok(())
 }
 
-fn eval_file(path: PathBuf, watcher: Option<&mut INotifyWatcher>) {
+fn eval_file(path: PathBuf, watcher: Option<&mut INotifyWatcher>, debug: bool) {
   let mut stdout = stdout();
 
   match fs::read(path.clone()) {
     Ok(contents) => {
       let contents = String::from_utf8(contents).unwrap();
       let mut program = Program::new().with_core().unwrap();
+
+      if debug {
+        program = program.with_debug();
+      }
 
       if watcher.is_some() {
         execute!(stdout, Clear(ClearType::All)).unwrap();
@@ -111,7 +118,7 @@ fn main() {
   let cli = Cli::parse();
 
   match cli.command {
-    Some(Commands::Run { path, watch }) => match watch {
+    Some(Commands::Run { path, watch, debug }) => match watch {
       true => {
         let (tx, rx) = std::sync::mpsc::channel();
 
@@ -119,19 +126,19 @@ fn main() {
           RecommendedWatcher::new(tx, Config::default()).unwrap();
         watcher.watch(&path, RecursiveMode::NonRecursive).unwrap();
 
-        eval_file(path.clone(), Some(&mut watcher));
+        eval_file(path.clone(), Some(&mut watcher), debug);
         for res in rx {
           match res {
             Ok(event) => {
               if let EventKind::Access(AccessKind::Close(_)) = event.kind {
-                eval_file(path.clone(), Some(&mut watcher));
+                eval_file(path.clone(), Some(&mut watcher), debug);
               }
             }
             Err(error) => eprintln!("Error: {error:?}"),
           }
         }
       }
-      false => eval_file(path, None),
+      false => eval_file(path, None, debug),
     },
     None => {
       println!("Running REPL");
