@@ -578,6 +578,11 @@ impl Program {
             self.push(Expr::Integer(list.len() as i64));
             Ok(())
           }
+          Expr::U8List(list) => {
+            // TODO: Check that the length fits in an i64.
+            self.push(Expr::Integer(list.len() as i64));
+            Ok(())
+          },
           _ => Err(EvalError {
             expr: trace_expr.clone(),
             program: self.clone(),
@@ -606,6 +611,27 @@ impl Program {
             match item {
               Some(item) => {
                 self.push(item);
+                Ok(())
+              }
+              None => Err(EvalError {
+                expr: trace_expr.clone(),
+                program: self.clone(),
+                message: format!("index {index} is out of bounds"),
+              }),
+            }
+          }
+          (Expr::Integer(index), Expr::U8List(list)) => {
+            let item = if index >= 0 && index < list.len() as i64 {
+              list.get(index as usize).cloned()
+            } else if index < 0 && -index <= list.len() as i64 {
+              list.get(list.len() - -index as usize).cloned()
+            } else {
+              None
+            };
+
+            match item {
+              Some(item) => {
+                self.push(Expr::Integer(item as i64));
                 Ok(())
               }
               None => Err(EvalError {
@@ -669,6 +695,13 @@ impl Program {
 
             Ok(())
           }
+          (Expr::Integer(item), Expr::U8List(mut list)) => {
+            // TODO: Check that the item fits in an u8.
+            list.push(item as u8);
+            self.push(Expr::U8List(list));
+
+            Ok(())
+          }
           (item, list) => Err(EvalError {
             expr: trace_expr.clone(),
             program: self.clone(),
@@ -689,6 +722,14 @@ impl Program {
             let item = list.pop().unwrap_or(Expr::Nil);
 
             self.push(Expr::List(list));
+            self.push(item);
+
+            Ok(())
+          }
+          Expr::U8List(mut list) => {
+            let item = list.pop().map(|i| Expr::Integer(i as i64)).unwrap_or(Expr::Nil);
+
+            self.push(Expr::U8List(list));
             self.push(item);
 
             Ok(())
@@ -718,6 +759,17 @@ impl Program {
 
             Ok(())
           }
+          Expr::U8List(mut list) => {
+            let item = (!list.is_empty())
+              .then(|| list.remove(0))
+              .map(|i| Expr::Integer(i as i64))
+              .unwrap_or(Expr::Nil);
+
+            self.push(Expr::U8List(list));
+            self.push(item);
+
+            Ok(())
+          }
           item => Err(EvalError {
             expr: trace_expr.clone(),
             program: self.clone(),
@@ -740,6 +792,12 @@ impl Program {
 
             Ok(())
           }
+          (Expr::U8List(mut lhs), Expr::U8List(rhs)) => {
+            lhs.extend(rhs);
+            self.push(Expr::U8List(lhs));
+
+            Ok(())
+          }
           (lhs, rhs) => Err(EvalError {
             expr: trace_expr.clone(),
             program: self.clone(),
@@ -757,6 +815,10 @@ impl Program {
         match item {
           Expr::List(list) => {
             self.stack.extend(list);
+            Ok(())
+          }
+          Expr::U8List(list) => {
+            self.stack.extend(list.into_iter().map(|i| Expr::Integer(i as i64)));
             Ok(())
           }
           item => Err(EvalError {
@@ -777,6 +839,12 @@ impl Program {
           Expr::List(mut list) => {
             list.reverse();
             self.push(Expr::List(list));
+
+            Ok(())
+          }
+          Expr::U8List(mut list) => {
+            list.reverse();
+            self.push(Expr::U8List(list));
 
             Ok(())
           }
