@@ -458,6 +458,8 @@ impl Program {
           }),
         })?;
 
+        let mut u8_lists = Vec::new();
+
         let args = (0..arity).try_fold(
           Vec::with_capacity(arity as usize),
           |mut args, _| match self.pop(trace_expr)? {
@@ -472,6 +474,13 @@ impl Program {
                   message: "integer must be positive".to_string(),
                 })
               }
+            }
+            Expr::U8List(mut list) => {
+              args.push(list.as_mut_ptr() as usize);
+              // TODO: Implement reference-counted values, it makes life so much
+              //       easier and safer.
+              u8_lists.push(list);
+              Ok(args)
             }
             arg => Err(EvalError {
               expr: trace_expr.clone(),
@@ -508,6 +517,7 @@ impl Program {
           _ => unimplemented!("invalid syscall arity: {arity}"),
         };
 
+        self.stack.extend(u8_lists.into_iter().map(Expr::U8List));
         self.push(Expr::Integer(result as i64));
 
         Ok(())
