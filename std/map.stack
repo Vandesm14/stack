@@ -1,0 +1,11 @@
+'(fn
+  '() 'map/new set
+  '() 'map/pair set
+
+  '(fn) '(map key value) 'map/insert defn
+
+  '()
+  'map/new export
+  'map/pair export
+  'map/insert export
+) call

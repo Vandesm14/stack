@@ -1,4 +1,3 @@
-"std/let.stack" import
 "std/assert.stack" import
 
 '(fn a b -) '(a b) 'subtract defn
