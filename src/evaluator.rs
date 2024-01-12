@@ -582,7 +582,7 @@ impl Program {
             // TODO: Check that the length fits in an i64.
             self.push(Expr::Integer(list.len() as i64));
             Ok(())
-          },
+          }
           _ => Err(EvalError {
             expr: trace_expr.clone(),
             program: self.clone(),
@@ -727,7 +727,10 @@ impl Program {
             Ok(())
           }
           Expr::U8List(mut list) => {
-            let item = list.pop().map(|i| Expr::Integer(i as i64)).unwrap_or(Expr::Nil);
+            let item = list
+              .pop()
+              .map(|i| Expr::Integer(i as i64))
+              .unwrap_or(Expr::Nil);
 
             self.push(Expr::U8List(list));
             self.push(item);
@@ -818,7 +821,9 @@ impl Program {
             Ok(())
           }
           Expr::U8List(list) => {
-            self.stack.extend(list.into_iter().map(|i| Expr::Integer(i as i64)));
+            self
+              .stack
+              .extend(list.into_iter().map(|i| Expr::Integer(i as i64)));
             Ok(())
           }
           item => Err(EvalError {
@@ -1281,6 +1286,7 @@ impl Program {
           }
           // TODO: Convert valid integer lists into a u8 list.
           // Expr::List(l) => {},
+          // TODO: Should this return nil instead?
           found => Err(EvalError {
             program: self.clone(),
             expr: trace_expr.clone(),
