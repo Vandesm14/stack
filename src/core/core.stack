@@ -1,4 +1,0 @@
-'(fn! read-file parse call) 'import set
-
-"core/let.stack" import
-"core/module.stack" import

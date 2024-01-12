@@ -91,7 +91,7 @@ impl Program {
   }
 
   pub fn with_core(mut self) -> Result<Self, EvalError> {
-    let core_lib = include_str!("./core/core.stack");
+    let core_lib = include_str!("./core.stack");
     self.eval_string(core_lib)?;
 
     Ok(self)

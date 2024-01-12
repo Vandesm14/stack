@@ -1,3 +1,90 @@
+'(fn! read-file parse call) 'import set
+
+;; Let
+;; ========================================
+
+;; Creates a let block
+;; {list(fn ...) list(vars)} -> {list(fn ...)}
+'(fn
+  ['vars set]
+  ['func set]
+
+  ['vars get len] ['var-len set]
+
+
+  ['() 'new-fn set]
+
+  ['func get]
+  [list-shift dup typeof]
+  ["fn" =]
+
+  '(
+    ;; Insert the `fn` call into the new function (preserving metadata)
+    ['new-fn get swap insert]
+    ['new-fn set]
+
+    ;; list-shift gives us the item and the list
+    ;; We want to update `func` to not include the `fn` call
+    ;; if it has it
+    ['func set]
+) '(
+  ;; Pulls from the equal check above the `if` statement
+) if
+
+  [0 'i set]
+
+  '(
+    ;; Get the new function
+    ['new-fn get]
+
+    ;; Get the vars
+    [vars]
+
+    ;; Index of the next var in reverse
+    [[var-len 1 -] i -]
+
+    ;; Get the nth item, make it lazy, and insert it
+    [nth lazy insert]
+
+    ;; Insert a `set` call
+    ['set insert]
+
+    ;; Update our new-fn
+    ['new-fn set]
+
+    [i 1 + 'i set]
+  )
+  '(i var-len <)
+  while
+
+  ['new-fn get]
+  ['func get]
+  concat
+) 'let-fn set
+
+;; QoL function to auto-call the created let block
+;; {list(fn ...) list(vars)} -> {}
+'(fn! let-fn call) 'let set
+
+;; QoL function to set a let block to a variable
+;; {list(fn ...) list(vars) symbol} -> {}
+'(fn!
+  ;; Creating a scoped function to keep `func`, `vars`, and `symbol` private
+  '(fn
+    ['func get]
+    ['vars get]
+    let-fn
+
+    symbol
+    ;; Returning {list(fn ...) symbol}
+  ) '(func vars symbol) let
+
+  ;; Setting the function to the symbol in the current scope
+  set
+) 'defn set
+
+;; Modules
+;; ========================================
 '(fn!
   dup
   get
