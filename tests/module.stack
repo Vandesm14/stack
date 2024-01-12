@@ -1,8 +1,16 @@
 "std/module.stack" import
 "std/assert.stack" import
 
+;; Test `use`
 ["tests/example_module.stack" import 'mod use]
 
 [mod/a 0] ["mod/a should be 0" assert-eq]
 [mod/b 1] ["mod/b should be 1" assert-eq]
 [0 mod/add-two 2] ["mod/add-two should be 2" assert-eq]
+
+;; Test `use-all`
+["tests/example_module.stack" import use-all]
+
+[a 0] ["a should be 0" assert-eq]
+[b 1] ["b should be 1" assert-eq]
+[0 add-two 2] ["add-two should be 2" assert-eq]

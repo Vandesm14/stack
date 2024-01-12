@@ -67,3 +67,43 @@
   ;; Pop namespace
   pop
 ) 'use set
+
+;; Run this function within the same scope
+'(fn!
+  ;; Create a template function that will be used to set all of the imported variables
+  ;; in the current scope
+  '(fn!)
+
+  ;; Create a let block to bring in our args
+  '(fn
+    ['runner get]
+    ['scope get]
+
+    ;; Create a let block for the for_each loop
+    '(fn
+      ['runner get]
+      ['item get]
+
+      ;; Set the first item to be lazy so that it is not evaluated
+      [unwrap swap lazy]
+      ;; Reconstruct the pair
+      ['() swap insert swap insert]
+
+      ;; Push the item as a lazy symbol to the set code
+      [list-pop lazy insert]
+
+      ;; Push a `'set` call to the code
+      ['set insert]
+
+      ;; Add the code to the template function and update it
+      [concat 'runner set]
+
+      ;; Put the runner back on the stack
+      'runner get
+    ) '(runner item) let-fn
+    list/for_each
+  ) '(scope runner) let
+
+  ;; Call our template function to set all of the imported variables
+  call
+) 'use-all set
