@@ -1,6 +1,7 @@
 "std/assert.stack" import
+"std/list.stack" import
 
 ;; Add the string as a list
-"Hello, World!" explode
+"Hello, World!" tolist
 
 [[reverse "" join] "!dlroW ,olleH"] ["reverse string" assert-eq]

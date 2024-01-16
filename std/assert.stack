@@ -1,6 +1,6 @@
 '(fn
   swap
-  '(pop)
+  '(drop)
   '([explode] ["assertion failed: " explode] [swap] [concat "" join] panic)
   '(true !=)
   ifelse

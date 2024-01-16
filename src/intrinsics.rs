@@ -31,6 +31,7 @@ pub enum Intrinsic {
   Index,
   Split,
   Concat,
+  Unwrap,
 
   // Control Flow
   IfElse,
@@ -46,14 +47,13 @@ pub enum Intrinsic {
   // Stack
   Collect,
   Clear,
-  Pop,
+  Drop,
   Dup,
   Swap,
   Rot,
 
   // Functions/Data
   Call,
-  CallNative,
   Lazy,
   Noop,
 
@@ -106,6 +106,7 @@ impl TryFrom<&str> for Intrinsic {
       "index" => Ok(Self::Index),
       "split" => Ok(Self::Split),
       "concat" => Ok(Self::Concat),
+      "unwrap" => Ok(Self::Unwrap),
 
       // Control Flow
       "ifelse" => Ok(Self::IfElse),
@@ -121,14 +122,13 @@ impl TryFrom<&str> for Intrinsic {
       // Stack
       "collect" => Ok(Self::Collect),
       "clear" => Ok(Self::Clear),
-      "pop" => Ok(Self::Pop),
+      "drop" => Ok(Self::Drop),
       "dup" => Ok(Self::Dup),
       "swap" => Ok(Self::Swap),
       "rot" => Ok(Self::Rot),
 
       // Functions/Data
       "call" => Ok(Self::Call),
-      "call_native" => Ok(Self::CallNative),
       "lazy" => Ok(Self::Lazy),
       "noop" => Ok(Self::Noop),
 
@@ -192,6 +192,7 @@ impl Intrinsic {
       Self::Index => "index",
       Self::Split => "split",
       Self::Concat => "concat",
+      Self::Unwrap => "unwrap",
 
       // Control Flow
       Self::IfElse => "ifelse",
@@ -207,14 +208,13 @@ impl Intrinsic {
       // Stack
       Self::Collect => "collect",
       Self::Clear => "clear",
-      Self::Pop => "pop",
+      Self::Drop => "drop",
       Self::Dup => "dup",
       Self::Swap => "swap",
       Self::Rot => "rot",
 
       // Functions/Data
       Self::Call => "call",
-      Self::CallNative => "call_native",
       Self::Lazy => "lazy",
       Self::Noop => "noop",
 

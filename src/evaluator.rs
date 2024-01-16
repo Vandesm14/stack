@@ -644,6 +644,19 @@ impl Program {
 
         Ok(())
       }
+      Intrinsic::Unwrap => {
+        let list = self.pop(trace_expr)?;
+
+        match list {
+          Expr::List(list) => self.stack.extend(list),
+          Expr::U8List(list) => self
+            .stack
+            .extend(list.into_iter().map(i64::from).map(Expr::Integer)),
+          list => self.push(list),
+        }
+
+        Ok(())
+      }
 
       // Control Flow
       Intrinsic::IfElse => {
@@ -843,7 +856,7 @@ impl Program {
         self.stack.clear();
         Ok(())
       }
-      Intrinsic::Pop => {
+      Intrinsic::Drop => {
         self.stack.pop();
         Ok(())
       }
@@ -920,33 +933,6 @@ impl Program {
                 Type::Call,
                 Type::List(vec![Type::FnScope, Type::Any])
               ]),
-              item.type_of(),
-            ),
-          }),
-        }
-      }
-      Intrinsic::CallNative => {
-        let item = self.pop(trace_expr)?;
-
-        match item {
-          Expr::String(name) => {
-            let name_str = interner().resolve(&name);
-
-            match Intrinsic::try_from(name_str) {
-              Ok(intrinsic) => self.eval_intrinsic(trace_expr, intrinsic),
-              Err(_) => Err(EvalError {
-                expr: trace_expr.clone(),
-                program: self.clone(),
-                message: format!("invalid intrinsic {name_str}"),
-              }),
-            }
-          }
-          _ => Err(EvalError {
-            expr: trace_expr.clone(),
-            program: self.clone(),
-            message: format!(
-              "expected {}, found {}",
-              Type::String,
               item.type_of(),
             ),
           }),
@@ -1044,13 +1030,28 @@ impl Program {
         match item {
           list @ Expr::List(_) => {
             self.push(list);
-            Ok(())
+          }
+          Expr::String(s) => {
+            self.push(Expr::List(
+              interner()
+                .resolve(&s)
+                .chars()
+                .map(|c| c as i64)
+                .map(Expr::Integer)
+                .collect(),
+            ));
+          }
+          Expr::U8List(list) => {
+            self.push(Expr::List(
+              list.into_iter().map(i64::from).map(Expr::Integer).collect(),
+            ));
           }
           found => {
             self.push(Expr::List(vec![found]));
-            Ok(())
           }
         }
+
+        Ok(())
       }
       Intrinsic::ToU8List => {
         let item = self.pop(trace_expr)?;
@@ -1292,12 +1293,12 @@ mod tests {
       assert_eq!(program.stack, vec![Expr::Integer(9)]);
     }
 
-    // #[test]
-    // fn eval_from_stack() {
-    //   let mut program = Program::new();
-    //   program.eval_string("'(1 2 +) unwrap call").unwrap();
-    //   assert_eq!(program.stack, vec![Expr::Integer(3)]);
-    // }
+    #[test]
+    fn eval_from_stack() {
+      let mut program = Program::new();
+      program.eval_string("'(1 2 +) unwrap call").unwrap();
+      assert_eq!(program.stack, vec![Expr::Integer(3)]);
+    }
 
     #[test]
     fn dont_eval_skips() {
@@ -1715,9 +1716,9 @@ mod tests {
     }
 
     #[test]
-    fn popping_from_stack() {
+    fn dropping_from_stack() {
       let mut program = Program::new();
-      program.eval_string("1 2 pop").unwrap();
+      program.eval_string("1 2 drop").unwrap();
       assert_eq!(program.stack, vec![Expr::Integer(1)]);
     }
 

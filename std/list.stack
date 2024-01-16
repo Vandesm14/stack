@@ -4,17 +4,9 @@
   0 'i set
   ['list get len] 'length set
 
-  '(fn!
-    i length <
-  ) 'i-in-bounds set
-
-  '(fn!
-    i 1 + 'i set
-  ) 'increment-i set
-
-  '(fn!
-    list i nth
-  ) 'get-nth set
+  '(fn! i length <) 'i-in-bounds set
+  '(fn! i 1 + 'i set) 'increment-i set
+  '(fn! list i index swap drop) 'get-nth set
 
   '(
     get-nth

@@ -1,6 +1,27 @@
 '(fn! read-file parse call) 'import set
 '(fn false =) 'not set
 
+;; List
+;; ========================================
+
+;; (list item -- 'list)
+'(fn! tolist concat) 'push set
+;; (list -- 'list item)
+'(fn! len 1 - split unwrap) 'pop set
+
+;; (list item -- 'list)
+'(fn! tolist swap concat) 'shift set
+;; (list -- 'list item)
+'(fn! 1 split swap unwrap) 'unshift set
+
+;; (list index item -- 'list)
+'(fn! rot split swap rot rot tolist concat swap concat) 'insert set
+;; (list index -- 'list item)
+'(fn! 1 + split swap pop rot swap concat swap) 'remove set
+
+;; (list -- 'list)
+'(fn! () '(pop rot rot swap push) '(swap len 0 !=) while drop) 'reverse set
+
 ;; Let
 ;; ========================================
 
@@ -16,7 +37,7 @@
   ['() 'new-fn set]
 
   ['func get]
-  [list-shift dup typeof]
+  [shift dup typeof]
   ["fn" =]
 
   '(
@@ -24,7 +45,7 @@
     ['new-fn get swap insert]
     ['new-fn set]
 
-    ;; list-shift gives us the item and the list
+    ;; shift gives us the item and the list
     ;; We want to update `func` to not include the `fn` call
     ;; if it has it
     ['func set]
@@ -45,7 +66,7 @@
     [[var-len 1 -] i -]
 
     ;; Get the nth item, make it lazy, and insert it
-    [nth lazy insert]
+    [index swap drop lazy insert]
 
     ;; Insert a `set` call
     ['set insert]
@@ -122,7 +143,7 @@
 
       ;; Pop the symbol from the export {(val symbol)} -> {(val) symbol}
       ;; Turn it into a string then into a list of chars
-      [list-pop tostring explode]
+      [pop tostring explode]
 
       ;; Turn the namespace into a string then into a list of chars
       ;; Add a "/" to the end of the namespace
@@ -152,7 +173,7 @@
   call
 
   ;; Pop namespace
-  pop
+  drop
 ) 'use set
 
 ;; Run this function within the same scope
@@ -179,7 +200,7 @@
       ['() swap insert swap insert]
 
       ;; Push the item as a lazy symbol to the set code
-      [list-pop lazy insert]
+      [pop lazy insert]
 
       ;; Push a `'set` call to the code
       ['set insert]
