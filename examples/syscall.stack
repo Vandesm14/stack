@@ -1,6 +1,6 @@
 "std/linux-x86_64.stack" import
 
-"Hello, World!" eprintln
-1 println
+(0 0 0 0 0) tou8list stdin read
+pop eprintln
 
-;; 0 exit
+;; exit-ok

@@ -1,5 +1,4 @@
 use itertools::Itertools as _;
-// use itertools::Itertools;
 use lasso::Spur;
 use syscalls::Sysno;
 
@@ -180,10 +179,6 @@ impl Program {
             self.push(Expr::Float(lhs + rhs));
             Ok(())
           }
-          Some((Expr::Pointer(lhs), Expr::Pointer(rhs))) => {
-            self.push(Expr::Pointer(lhs + rhs));
-            Ok(())
-          }
           _ => Err(EvalError {
             expr: trace_expr.clone(),
             program: self.clone(),
@@ -209,10 +204,6 @@ impl Program {
           }
           Some((Expr::Float(lhs), Expr::Float(rhs))) => {
             self.push(Expr::Float(lhs - rhs));
-            Ok(())
-          }
-          Some((Expr::Pointer(lhs), Expr::Pointer(rhs))) => {
-            self.push(Expr::Pointer(lhs - rhs));
             Ok(())
           }
           _ => Err(EvalError {
@@ -242,10 +233,6 @@ impl Program {
             self.push(Expr::Float(lhs * rhs));
             Ok(())
           }
-          Some((Expr::Pointer(lhs), Expr::Pointer(rhs))) => {
-            self.push(Expr::Pointer(lhs * rhs));
-            Ok(())
-          }
           _ => Err(EvalError {
             expr: trace_expr.clone(),
             program: self.clone(),
@@ -273,10 +260,6 @@ impl Program {
             self.push(Expr::Float(lhs / rhs));
             Ok(())
           }
-          Some((Expr::Pointer(lhs), Expr::Pointer(rhs))) => {
-            self.push(Expr::Pointer(lhs / rhs));
-            Ok(())
-          }
           _ => Err(EvalError {
             expr: trace_expr.clone(),
             program: self.clone(),
@@ -302,10 +285,6 @@ impl Program {
           }
           Some((Expr::Float(lhs), Expr::Float(rhs))) => {
             self.push(Expr::Float(lhs % rhs));
-            Ok(())
-          }
-          Some((Expr::Pointer(lhs), Expr::Pointer(rhs))) => {
-            self.push(Expr::Pointer(lhs % rhs));
             Ok(())
           }
           _ => Err(EvalError {
@@ -479,13 +458,11 @@ impl Program {
           }),
         })?;
 
+        let mut u8_lists = Vec::new();
+
         let args = (0..arity).try_fold(
           Vec::with_capacity(arity as usize),
           |mut args, _| match self.pop(trace_expr)? {
-            Expr::Pointer(x) => {
-              args.push(x);
-              Ok(args)
-            }
             Expr::Integer(x) => {
               if x >= 0 {
                 args.push(x as usize);
@@ -497,6 +474,13 @@ impl Program {
                   message: "integer must be positive".to_string(),
                 })
               }
+            }
+            Expr::U8List(mut list) => {
+              args.push(list.as_mut_ptr() as usize);
+              // TODO: Implement reference-counted values, it makes life so much
+              //       easier and safer.
+              u8_lists.push(list);
+              Ok(args)
             }
             arg => Err(EvalError {
               expr: trace_expr.clone(),
@@ -533,6 +517,7 @@ impl Program {
           _ => unimplemented!("invalid syscall arity: {arity}"),
         };
 
+        self.stack.extend(u8_lists.into_iter().map(Expr::U8List));
         self.push(Expr::Integer(result as i64));
 
         Ok(())
@@ -593,6 +578,11 @@ impl Program {
             self.push(Expr::Integer(list.len() as i64));
             Ok(())
           }
+          Expr::U8List(list) => {
+            // TODO: Check that the length fits in an i64.
+            self.push(Expr::Integer(list.len() as i64));
+            Ok(())
+          }
           _ => Err(EvalError {
             expr: trace_expr.clone(),
             program: self.clone(),
@@ -621,6 +611,27 @@ impl Program {
             match item {
               Some(item) => {
                 self.push(item);
+                Ok(())
+              }
+              None => Err(EvalError {
+                expr: trace_expr.clone(),
+                program: self.clone(),
+                message: format!("index {index} is out of bounds"),
+              }),
+            }
+          }
+          (Expr::Integer(index), Expr::U8List(list)) => {
+            let item = if index >= 0 && index < list.len() as i64 {
+              list.get(index as usize).cloned()
+            } else if index < 0 && -index <= list.len() as i64 {
+              list.get(list.len() - -index as usize).cloned()
+            } else {
+              None
+            };
+
+            match item {
+              Some(item) => {
+                self.push(Expr::Integer(item as i64));
                 Ok(())
               }
               None => Err(EvalError {
@@ -684,6 +695,13 @@ impl Program {
 
             Ok(())
           }
+          (Expr::Integer(item), Expr::U8List(mut list)) => {
+            // TODO: Check that the item fits in an u8.
+            list.push(item as u8);
+            self.push(Expr::U8List(list));
+
+            Ok(())
+          }
           (item, list) => Err(EvalError {
             expr: trace_expr.clone(),
             program: self.clone(),
@@ -704,6 +722,17 @@ impl Program {
             let item = list.pop().unwrap_or(Expr::Nil);
 
             self.push(Expr::List(list));
+            self.push(item);
+
+            Ok(())
+          }
+          Expr::U8List(mut list) => {
+            let item = list
+              .pop()
+              .map(|i| Expr::Integer(i as i64))
+              .unwrap_or(Expr::Nil);
+
+            self.push(Expr::U8List(list));
             self.push(item);
 
             Ok(())
@@ -733,6 +762,17 @@ impl Program {
 
             Ok(())
           }
+          Expr::U8List(mut list) => {
+            let item = (!list.is_empty())
+              .then(|| list.remove(0))
+              .map(|i| Expr::Integer(i as i64))
+              .unwrap_or(Expr::Nil);
+
+            self.push(Expr::U8List(list));
+            self.push(item);
+
+            Ok(())
+          }
           item => Err(EvalError {
             expr: trace_expr.clone(),
             program: self.clone(),
@@ -755,6 +795,12 @@ impl Program {
 
             Ok(())
           }
+          (Expr::U8List(mut lhs), Expr::U8List(rhs)) => {
+            lhs.extend(rhs);
+            self.push(Expr::U8List(lhs));
+
+            Ok(())
+          }
           (lhs, rhs) => Err(EvalError {
             expr: trace_expr.clone(),
             program: self.clone(),
@@ -772,6 +818,12 @@ impl Program {
         match item {
           Expr::List(list) => {
             self.stack.extend(list);
+            Ok(())
+          }
+          Expr::U8List(list) => {
+            self
+              .stack
+              .extend(list.into_iter().map(|i| Expr::Integer(i as i64)));
             Ok(())
           }
           item => Err(EvalError {
@@ -792,6 +844,12 @@ impl Program {
           Expr::List(mut list) => {
             list.reverse();
             self.push(Expr::List(list));
+
+            Ok(())
+          }
+          Expr::U8List(mut list) => {
+            list.reverse();
+            self.push(Expr::U8List(list));
 
             Ok(())
           }
@@ -1183,33 +1241,6 @@ impl Program {
 
         Ok(())
       }
-      Intrinsic::ToPointer => {
-        let item = self.pop(trace_expr)?;
-
-        match item {
-          Expr::String(string) => {
-            let string_str = interner().resolve(&string);
-            self.push(Expr::Pointer(string_str.as_ptr() as usize));
-          }
-          found => self.push(found.to_pointer().unwrap_or(Expr::Nil)),
-        }
-
-        Ok(())
-      }
-      Intrinsic::ToList => {
-        let item = self.pop(trace_expr)?;
-
-        match item {
-          list @ Expr::List(_) => {
-            self.push(list);
-            Ok(())
-          }
-          found => {
-            self.push(Expr::List(vec![found]));
-            Ok(())
-          }
-        }
-      }
       Intrinsic::ToString => {
         let item = self.pop(trace_expr)?;
 
@@ -1225,6 +1256,65 @@ impl Program {
 
             Ok(())
           }
+        }
+      }
+      Intrinsic::ToList => {
+        let item = self.pop(trace_expr)?;
+
+        match item {
+          list @ Expr::List(_) => {
+            self.push(list);
+            Ok(())
+          }
+          found => {
+            self.push(Expr::List(vec![found]));
+            Ok(())
+          }
+        }
+      }
+      Intrinsic::ToU8List => {
+        let item = self.pop(trace_expr)?;
+
+        match item {
+          list @ Expr::U8List(_) => {
+            self.push(list);
+            Ok(())
+          }
+          Expr::String(s) => {
+            self.push(Expr::U8List(interner().resolve(&s).as_bytes().to_vec()));
+            Ok(())
+          }
+          Expr::List(l) => {
+            let l_len = l.len();
+
+            let list = l.into_iter().try_fold(
+              Vec::with_capacity(l_len),
+              |mut list, item| match item {
+                Expr::Integer(i) if i >= 0 && i <= u8::MAX as i64 => {
+                  list.push(i as u8);
+                  Ok(list)
+                }
+                _ => Err(EvalError {
+                  program: self.clone(),
+                  expr: trace_expr.clone(),
+                  message: format!("cannot convert expression into u8 list"),
+                }),
+              },
+            )?;
+
+            self.push(Expr::U8List(list));
+
+            Ok(())
+          }
+          // TODO: Should this return nil instead?
+          found => Err(EvalError {
+            program: self.clone(),
+            expr: trace_expr.clone(),
+            message: format!(
+              "cannot create a u8 list from a {}",
+              found.type_of()
+            ),
+          }),
         }
       }
       Intrinsic::ToCall => {

@@ -12,10 +12,10 @@ pub enum Expr {
   Integer(i64),
   Float(f64),
 
-  Pointer(usize),
+  String(Spur),
 
   List(Vec<Expr>),
-  String(Spur),
+  U8List(Vec<u8>),
 
   Lazy(Box<Expr>),
   Call(Spur),
@@ -58,12 +58,12 @@ impl Expr {
       Self::Integer(_) => Type::Integer,
       Self::Float(_) => Type::Float,
 
-      Self::Pointer(_) => Type::Pointer,
+      Self::String(_) => Type::String,
 
       Self::List(list) => {
         Type::List(list.iter().map(|expr| expr.type_of()).collect::<Vec<_>>())
       }
-      Self::String(_) => Type::String,
+      Self::U8List(_) => Type::U8List,
 
       Self::Lazy(x) => x.type_of(),
       Self::Call(_) => Type::Call,
@@ -77,9 +77,6 @@ impl Expr {
       x @ Self::Boolean(_) => Some(x.clone()).zip(other.to_boolean()),
       x @ Self::Integer(_) => Some(x.clone()).zip(other.to_integer()),
       x @ Self::Float(_) => Some(x.clone()).zip(other.to_float()),
-
-      x @ Self::Pointer(_) => Some(x.clone()).zip(other.to_pointer()),
-
       _ => None,
     }
   }
@@ -123,14 +120,6 @@ impl Expr {
         }
       }
 
-      Self::Pointer(x) => {
-        if *x < i64::MAX as usize {
-          Some(Self::Integer(*x as i64))
-        } else {
-          None
-        }
-      }
-
       // Self::String(x) => x.parse().ok().map(Self::Integer),
       _ => None,
     }
@@ -142,24 +131,6 @@ impl Expr {
       x @ Self::Float(_) => Some(x.clone()),
 
       // Self::String(x) => x.parse().ok().map(Self::Float),
-      _ => None,
-    }
-  }
-
-  pub fn to_pointer(&self) -> Option<Self> {
-    match self {
-      // TODO: Should nil be usable as a null pointer?
-      Self::Nil => Some(Self::Pointer(0)),
-      Self::Integer(x) => {
-        if *x >= 0 {
-          Some(Self::Pointer(*x as usize))
-        } else {
-          None
-        }
-      }
-
-      x @ Self::Pointer(_) => Some(x.clone()),
-
       _ => None,
     }
   }
@@ -219,10 +190,10 @@ impl PartialEq for Expr {
       (Self::Integer(lhs), Self::Integer(rhs)) => lhs == rhs,
       (Self::Float(lhs), Self::Float(rhs)) => lhs == rhs,
 
-      (Self::Pointer(lhs), Self::Pointer(rhs)) => lhs == rhs,
+      (Self::String(lhs), Self::String(rhs)) => lhs == rhs,
 
       (Self::List(lhs), Self::List(rhs)) => lhs == rhs,
-      (Self::String(lhs), Self::String(rhs)) => lhs == rhs,
+      (Self::U8List(lhs), Self::U8List(rhs)) => lhs == rhs,
 
       (Self::Lazy(lhs), Self::Lazy(rhs)) => lhs == rhs,
       (Self::Call(lhs), Self::Call(rhs)) => lhs == rhs,
@@ -247,11 +218,6 @@ impl PartialEq for Expr {
         None => false,
       },
 
-      (lhs @ Self::Pointer(_), rhs) => match rhs.to_pointer() {
-        Some(rhs) => *lhs == rhs,
-        None => false,
-      },
-
       _ => false,
     }
   }
@@ -264,8 +230,6 @@ impl PartialOrd for Expr {
       (Self::Nil, Self::Nil) => Some(Ordering::Equal),
       (Self::Integer(lhs), Self::Integer(rhs)) => lhs.partial_cmp(rhs),
       (Self::Float(lhs), Self::Float(rhs)) => lhs.partial_cmp(rhs),
-
-      (Self::Pointer(lhs), Self::Pointer(rhs)) => lhs.partial_cmp(rhs),
 
       (Self::List(lhs), Self::List(rhs)) => lhs.partial_cmp(rhs),
       (Self::String(lhs), Self::String(rhs)) => lhs.partial_cmp(rhs),
@@ -293,11 +257,6 @@ impl PartialOrd for Expr {
         None => None,
       },
 
-      (lhs @ Self::Pointer(_), rhs) => match rhs.to_pointer() {
-        Some(rhs) => lhs.partial_cmp(&rhs),
-        None => None,
-      },
-
       _ => None,
     }
   }
@@ -312,10 +271,7 @@ impl fmt::Display for Expr {
       Self::Integer(x) => fmt::Display::fmt(x, f),
       Self::Float(x) => fmt::Display::fmt(x, f),
 
-      Self::Pointer(x) => {
-        f.write_str("*")?;
-        fmt::Display::fmt(x, f)
-      }
+      Self::String(x) => write!(f, "\"{}\"", interner().resolve(x)),
 
       Self::List(x) => {
         f.write_str("(")?;
@@ -330,7 +286,19 @@ impl fmt::Display for Expr {
 
         f.write_str(")")
       }
-      Self::String(x) => write!(f, "\"{}\"", interner().resolve(x)),
+      Self::U8List(x) => {
+        f.write_str("(")?;
+
+        iter::once("")
+          .chain(iter::repeat(" "))
+          .zip(x.iter())
+          .try_for_each(|(s, x)| {
+            f.write_str(s)?;
+            fmt::Display::fmt(x, f)
+          })?;
+
+        f.write_str(")")
+      }
 
       Self::Lazy(x) => {
         f.write_str("'")?;
@@ -359,8 +327,10 @@ pub enum Type {
 
   Pointer,
 
-  List(Vec<Self>),
   String,
+
+  List(Vec<Self>),
+  U8List,
 
   Call,
 
@@ -383,6 +353,8 @@ impl fmt::Display for Type {
 
       Self::Pointer => f.write_str("pointer"),
 
+      Self::String => f.write_str("string"),
+
       Self::List(list) => {
         f.write_str("(")?;
 
@@ -396,7 +368,7 @@ impl fmt::Display for Type {
 
         f.write_str(")")
       }
-      Self::String => f.write_str("string"),
+      Self::U8List => f.write_str("u8_list"),
 
       Self::Call => f.write_str("call"),
 
@@ -442,8 +414,6 @@ mod test {
   #[test_case(Expr::Float(f64::NEG_INFINITY) => None)]
   #[test_case(Expr::Float(f64::INFINITY) => None)]
   #[test_case(Expr::Float(f64::NAN) => None)]
-  #[test_case(Expr::Pointer(0) => None)]
-  #[test_case(Expr::Pointer(1) => None)]
   fn to_boolean(expr: Expr) -> Option<Expr> {
     expr.to_boolean()
   }
@@ -462,8 +432,6 @@ mod test {
   #[test_case(Expr::Float(f64::NAN) => None)]
   #[test_case(Expr::Float(0.0) => Some(Expr::Integer(0)))]
   #[test_case(Expr::Float(1.0) => Some(Expr::Integer(1)))]
-  #[test_case(Expr::Pointer(0) => Some(Expr::Integer(0)))]
-  #[test_case(Expr::Pointer(1) => Some(Expr::Integer(1)))]
   fn to_integer(expr: Expr) -> Option<Expr> {
     expr.to_integer()
   }
@@ -483,29 +451,7 @@ mod test {
   // #[test_case(Expr::Float(f64::NAN) => Some(Expr::Float(f64::NAN)))]
   #[test_case(Expr::Float(0.0) => Some(Expr::Float(0.0)))]
   #[test_case(Expr::Float(1.0) => Some(Expr::Float(1.0)))]
-  #[test_case(Expr::Pointer(0) => None)]
-  #[test_case(Expr::Pointer(1) => None)]
   fn to_float(expr: Expr) -> Option<Expr> {
     expr.to_float()
-  }
-
-  #[test_case(Expr::Nil => Some(Expr::Pointer(0)))]
-  #[test_case(Expr::Boolean(false) => None)]
-  #[test_case(Expr::Boolean(true) => None)]
-  #[test_case(Expr::Integer(0) => Some(Expr::Pointer(0)))]
-  #[test_case(Expr::Integer(1) => Some(Expr::Pointer(1)))]
-  #[test_case(Expr::Integer(i64::MIN) => None)]
-  #[test_case(Expr::Integer(i64::MAX) => Some(Expr::Pointer(i64::MAX as usize)))]
-  #[test_case(Expr::Float(f64::MIN) => None)]
-  #[test_case(Expr::Float(f64::MAX) => None)]
-  #[test_case(Expr::Float(f64::NEG_INFINITY) => None)]
-  #[test_case(Expr::Float(f64::INFINITY) => None)]
-  #[test_case(Expr::Float(f64::NAN) => None)]
-  #[test_case(Expr::Float(0.0) => None)]
-  #[test_case(Expr::Float(1.0) => None)]
-  #[test_case(Expr::Pointer(0) => Some(Expr::Pointer(0)))]
-  #[test_case(Expr::Pointer(1) => Some(Expr::Pointer(1)))]
-  fn to_pointer(expr: Expr) -> Option<Expr> {
-    expr.to_pointer()
   }
 }
