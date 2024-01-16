@@ -540,329 +540,109 @@ impl Program {
       }
 
       // List
-      // TODO: Deprecate in favor of `"hello" tolist`
-      Intrinsic::Explode => {
-        let item = self.pop(trace_expr)?;
+      Intrinsic::Len => {
+        let list = self.stack.last().ok_or_else(|| EvalError {
+          expr: trace_expr.clone(),
+          program: self.clone(),
+          message: "Stack underflow".into(),
+        })?;
 
-        match item {
-          Expr::String(string) => {
-            let string_str = interner().resolve(&string).to_owned();
-
-            let list = Expr::List(
-              string_str
-                .chars()
-                .map(|c| Expr::String(interner().get_or_intern(c.to_string())))
-                .collect::<Vec<_>>(),
-            );
-            self.push(list);
-
-            Ok(())
-          }
-          _ => Err(EvalError {
-            expr: trace_expr.clone(),
-            program: self.clone(),
-            message: format!(
-              "expected {}, found {}",
-              Type::String,
-              item.type_of(),
-            ),
-          }),
+        match list {
+          Expr::List(list) => match i64::try_from(list.len()) {
+            Ok(i) => self.push(Expr::Integer(i)),
+            Err(_) => self.push(Expr::Nil),
+          },
+          Expr::U8List(list) => match i64::try_from(list.len()) {
+            Ok(i) => self.push(Expr::Integer(i)),
+            Err(_) => self.push(Expr::Nil),
+          },
+          _ => self.push(Expr::Nil),
         }
-      }
-      Intrinsic::Length => {
-        let item = self.pop(trace_expr)?;
 
-        match item {
-          Expr::List(list) => {
-            // TODO: Check that the length fits in an i64.
-            self.push(Expr::Integer(list.len() as i64));
-            Ok(())
-          }
-          Expr::U8List(list) => {
-            // TODO: Check that the length fits in an i64.
-            self.push(Expr::Integer(list.len() as i64));
-            Ok(())
-          }
-          _ => Err(EvalError {
-            expr: trace_expr.clone(),
-            program: self.clone(),
-            message: format!(
-              "expected {}, found {}",
-              Type::List(vec![]),
-              item.type_of(),
-            ),
-          }),
-        }
+        Ok(())
       }
-      Intrinsic::Nth => {
+      Intrinsic::Index => {
         let index = self.pop(trace_expr)?;
-        let indexable = self.pop(trace_expr)?;
+        let list = self.stack.last().ok_or_else(|| EvalError {
+          expr: trace_expr.clone(),
+          program: self.clone(),
+          message: "Stack underflow".into(),
+        })?;
 
-        match (index, indexable) {
-          (Expr::Integer(index), Expr::List(list)) => {
-            let item = if index >= 0 && index < list.len() as i64 {
-              list.get(index as usize).cloned()
-            } else if index < 0 && -index <= list.len() as i64 {
-              list.get(list.len() - -index as usize).cloned()
-            } else {
-              None
-            };
-
-            match item {
-              Some(item) => {
-                self.push(item);
-                Ok(())
+        match index {
+          Expr::Integer(index) => match usize::try_from(index) {
+            Ok(i) => match list {
+              Expr::List(list) => {
+                self.push(list.get(i).cloned().unwrap_or(Expr::Nil))
               }
-              None => Err(EvalError {
-                expr: trace_expr.clone(),
-                program: self.clone(),
-                message: format!("index {index} is out of bounds"),
-              }),
-            }
-          }
-          (Expr::Integer(index), Expr::U8List(list)) => {
-            let item = if index >= 0 && index < list.len() as i64 {
-              list.get(index as usize).cloned()
-            } else if index < 0 && -index <= list.len() as i64 {
-              list.get(list.len() - -index as usize).cloned()
-            } else {
-              None
-            };
-
-            match item {
-              Some(item) => {
-                self.push(Expr::Integer(item as i64));
-                Ok(())
-              }
-              None => Err(EvalError {
-                expr: trace_expr.clone(),
-                program: self.clone(),
-                message: format!("index {index} is out of bounds"),
-              }),
-            }
-          }
-          (index, indexable) => Err(EvalError {
-            expr: trace_expr.clone(),
-            program: self.clone(),
-            message: format!(
-              "expected {}, found {}",
-              Type::List(vec![Type::List(vec![]), Type::Integer]),
-              Type::List(vec![indexable.type_of(), index.type_of()]),
-            ),
-          }),
+              Expr::U8List(list) => self.push(
+                list
+                  .get(i)
+                  .copied()
+                  .map(i64::from)
+                  .map(Expr::Integer)
+                  .unwrap_or(Expr::Nil),
+              ),
+              _ => self.push(Expr::Nil),
+            },
+            Err(_) => self.push(Expr::Nil),
+          },
+          _ => self.push(Expr::Nil),
         }
+
+        Ok(())
       }
-      Intrinsic::Join => {
-        let delimiter = self.pop(trace_expr)?;
+      Intrinsic::Split => {
+        let index = self.pop(trace_expr)?;
         let list = self.pop(trace_expr)?;
 
-        match (delimiter, list) {
-          (Expr::String(delimiter), Expr::List(list)) => {
-            let delimiter_str = interner().resolve(&delimiter);
-
-            let string = list
-              .into_iter()
-              .map(|expr| match expr {
-                Expr::String(string) => interner().resolve(&string).to_string(),
-                _ => expr.to_string(),
-              })
-              .join(delimiter_str);
-            let string = Expr::String(interner().get_or_intern(string));
-            self.push(string);
-
-            Ok(())
-          }
-          (delimiter, list) => Err(EvalError {
-            expr: trace_expr.clone(),
-            program: self.clone(),
-            message: format!(
-              "expected {}, found {}",
-              Type::List(vec![Type::List(vec![]), Type::String]),
-              Type::List(vec![list.type_of(), delimiter.type_of()]),
-            ),
-          }),
+        match index {
+          Expr::Integer(index) => match usize::try_from(index) {
+            Ok(i) => match list {
+              Expr::List(mut list) => {
+                if i <= list.len() {
+                  let rest = list.split_off(i);
+                  self.push(Expr::List(list));
+                  self.push(Expr::List(rest));
+                } else {
+                  self.push(Expr::Nil);
+                }
+              }
+              Expr::U8List(mut list) => {
+                if i <= list.len() {
+                  let rest = list.split_off(i);
+                  self.push(Expr::U8List(list));
+                  self.push(Expr::U8List(rest));
+                } else {
+                  self.push(Expr::Nil);
+                }
+              }
+              _ => self.push(Expr::Nil),
+            },
+            Err(_) => self.push(Expr::Nil),
+          },
+          _ => self.push(Expr::Nil),
         }
-      }
-      // Pushes the last value in the stack into the list
-      Intrinsic::Insert => {
-        let item = self.pop(trace_expr)?;
-        let list = self.pop(trace_expr)?;
 
-        match (item, list) {
-          (item, Expr::List(mut list)) => {
-            list.push(item);
-            self.push(Expr::List(list));
-
-            Ok(())
-          }
-          (Expr::Integer(item), Expr::U8List(mut list)) => {
-            // TODO: Check that the item fits in an u8.
-            list.push(item as u8);
-            self.push(Expr::U8List(list));
-
-            Ok(())
-          }
-          (item, list) => Err(EvalError {
-            expr: trace_expr.clone(),
-            program: self.clone(),
-            message: format!(
-              "expected {}, found {}",
-              Type::List(vec![Type::List(vec![]), Type::Any,]),
-              Type::List(vec![list.type_of(), item.type_of()]),
-            ),
-          }),
-        }
-      }
-      // Pops the last value of a list onto the stack
-      Intrinsic::ListPop => {
-        let item = self.pop(trace_expr)?;
-
-        match item {
-          Expr::List(mut list) => {
-            let item = list.pop().unwrap_or(Expr::Nil);
-
-            self.push(Expr::List(list));
-            self.push(item);
-
-            Ok(())
-          }
-          Expr::U8List(mut list) => {
-            let item = list
-              .pop()
-              .map(|i| Expr::Integer(i as i64))
-              .unwrap_or(Expr::Nil);
-
-            self.push(Expr::U8List(list));
-            self.push(item);
-
-            Ok(())
-          }
-          item => Err(EvalError {
-            expr: trace_expr.clone(),
-            program: self.clone(),
-            message: format!(
-              "expected {}, found {}",
-              Type::List(vec![]),
-              item.type_of(),
-            ),
-          }),
-        }
-      }
-      Intrinsic::ListShift => {
-        let item = self.pop(trace_expr)?;
-
-        match item {
-          Expr::List(mut list) => {
-            let item = (!list.is_empty())
-              .then(|| list.remove(0))
-              .unwrap_or(Expr::Nil);
-
-            self.push(Expr::List(list));
-            self.push(item);
-
-            Ok(())
-          }
-          Expr::U8List(mut list) => {
-            let item = (!list.is_empty())
-              .then(|| list.remove(0))
-              .map(|i| Expr::Integer(i as i64))
-              .unwrap_or(Expr::Nil);
-
-            self.push(Expr::U8List(list));
-            self.push(item);
-
-            Ok(())
-          }
-          item => Err(EvalError {
-            expr: trace_expr.clone(),
-            program: self.clone(),
-            message: format!(
-              "expected {}, found {}",
-              Type::List(vec![]),
-              item.type_of(),
-            ),
-          }),
-        }
+        Ok(())
       }
       Intrinsic::Concat => {
-        let rhs = self.pop(trace_expr)?;
-        let lhs = self.pop(trace_expr)?;
+        let list_rhs = self.pop(trace_expr)?;
+        let list_lhs = self.pop(trace_expr)?;
 
-        match (lhs, rhs) {
-          (Expr::List(mut lhs), Expr::List(rhs)) => {
-            lhs.extend(rhs);
-            self.push(Expr::List(lhs));
-
-            Ok(())
+        match (list_lhs, list_rhs) {
+          (Expr::List(mut list_lhs), Expr::List(list_rhs)) => {
+            list_lhs.extend(list_rhs);
+            self.push(Expr::List(list_lhs));
           }
-          (Expr::U8List(mut lhs), Expr::U8List(rhs)) => {
-            lhs.extend(rhs);
-            self.push(Expr::U8List(lhs));
-
-            Ok(())
+          (Expr::U8List(mut list_lhs), Expr::U8List(list_rhs)) => {
+            list_lhs.extend(list_rhs);
+            self.push(Expr::U8List(list_lhs));
           }
-          (lhs, rhs) => Err(EvalError {
-            expr: trace_expr.clone(),
-            program: self.clone(),
-            message: format!(
-              "expected {}, found {}",
-              Type::List(vec![Type::List(vec![]), Type::List(vec![])]),
-              Type::List(vec![lhs.type_of(), rhs.type_of()]),
-            ),
-          }),
+          _ => self.push(Expr::Nil),
         }
-      }
-      Intrinsic::Unwrap => {
-        let item = self.pop(trace_expr)?;
 
-        match item {
-          Expr::List(list) => {
-            self.stack.extend(list);
-            Ok(())
-          }
-          Expr::U8List(list) => {
-            self
-              .stack
-              .extend(list.into_iter().map(|i| Expr::Integer(i as i64)));
-            Ok(())
-          }
-          item => Err(EvalError {
-            expr: trace_expr.clone(),
-            program: self.clone(),
-            message: format!(
-              "expected {}, found {}",
-              Type::List(vec![]),
-              item.type_of(),
-            ),
-          }),
-        }
-      }
-      Intrinsic::Reverse => {
-        let item = self.pop(trace_expr)?;
-
-        match item {
-          Expr::List(mut list) => {
-            list.reverse();
-            self.push(Expr::List(list));
-
-            Ok(())
-          }
-          Expr::U8List(mut list) => {
-            list.reverse();
-            self.push(Expr::U8List(list));
-
-            Ok(())
-          }
-          item => Err(EvalError {
-            expr: trace_expr.clone(),
-            program: self.clone(),
-            message: format!(
-              "expected {}, found {}",
-              Type::List(vec![]),
-              item.type_of(),
-            ),
-          }),
-        }
+        Ok(())
       }
 
       // Control Flow
@@ -1512,12 +1292,12 @@ mod tests {
       assert_eq!(program.stack, vec![Expr::Integer(9)]);
     }
 
-    #[test]
-    fn eval_from_stack() {
-      let mut program = Program::new();
-      program.eval_string("'(1 2 +) unwrap call").unwrap();
-      assert_eq!(program.stack, vec![Expr::Integer(3)]);
-    }
+    // #[test]
+    // fn eval_from_stack() {
+    //   let mut program = Program::new();
+    //   program.eval_string("'(1 2 +) unwrap call").unwrap();
+    //   assert_eq!(program.stack, vec![Expr::Integer(3)]);
+    // }
 
     #[test]
     fn dont_eval_skips() {
@@ -1844,7 +1624,7 @@ mod tests {
     fn assembling_functions_in_code() {
       let mut program = Program::new();
       program
-        .eval_string("'() 'fn insert 1 insert 2 insert '+ insert dup call")
+        .eval_string("'() 'fn tolist concat 1 tolist concat 2 tolist concat '+ tolist concat dup call")
         .unwrap();
       assert_eq!(
         program.stack,
@@ -1979,72 +1759,32 @@ mod tests {
       );
     }
 
-    #[test]
-    fn collect_and_unwrap() {
-      let mut program = Program::new();
-      program
-        .eval_string("1 2 3 collect 'a set 'a get unwrap")
-        .unwrap();
-      assert_eq!(
-        program.stack,
-        vec![Expr::Integer(1), Expr::Integer(2), Expr::Integer(3)]
-      );
-      assert_eq!(
-        program.scopes,
-        vec![HashMap::from_iter(vec![(
-          "a".to_string(),
-          Expr::List(vec![
-            Expr::Integer(1),
-            Expr::Integer(2),
-            Expr::Integer(3)
-          ])
-        )])]
-      );
-    }
+    // #[test]
+    // fn collect_and_unwrap() {
+    //   let mut program = Program::new();
+    //   program
+    //     .eval_string("1 2 3 collect 'a set 'a get unwrap")
+    //     .unwrap();
+    //   assert_eq!(
+    //     program.stack,
+    //     vec![Expr::Integer(1), Expr::Integer(2), Expr::Integer(3)]
+    //   );
+    //   assert_eq!(
+    //     program.scopes,
+    //     vec![HashMap::from_iter(vec![(
+    //       "a".to_string(),
+    //       Expr::List(vec![
+    //         Expr::Integer(1),
+    //         Expr::Integer(2),
+    //         Expr::Integer(3)
+    //       ])
+    //     )])]
+    //   );
+    // }
   }
 
   mod list_ops {
     use super::*;
-
-    #[test]
-    fn inserting_into_list() {
-      let mut program = Program::new();
-      program.eval_string("(1 2) 3 insert").unwrap();
-      assert_eq!(
-        program.stack,
-        vec![Expr::List(vec![
-          Expr::Integer(1),
-          Expr::Integer(2),
-          Expr::Integer(3)
-        ])]
-      );
-    }
-
-    #[test]
-    fn popping_from_list() {
-      let mut program = Program::new();
-      program.eval_string("(1 2 3) list-pop").unwrap();
-      assert_eq!(
-        program.stack,
-        vec![
-          Expr::List(vec![Expr::Integer(1), Expr::Integer(2)]),
-          Expr::Integer(3)
-        ]
-      );
-    }
-
-    #[test]
-    fn shifting_from_list() {
-      let mut program = Program::new();
-      program.eval_string("(1 2 3) list-shift").unwrap();
-      assert_eq!(
-        program.stack,
-        vec![
-          Expr::List(vec![Expr::Integer(2), Expr::Integer(3)]),
-          Expr::Integer(1)
-        ]
-      );
-    }
 
     #[test]
     fn concatenating_lists() {
@@ -2079,54 +1819,67 @@ mod tests {
     fn getting_length_of_list() {
       let mut program = Program::new();
       program.eval_string("(1 2 3) len").unwrap();
-      assert_eq!(program.stack, vec![Expr::Integer(3)]);
-    }
-
-    #[test]
-    fn getting_nth_item_of_list() {
-      let mut program = Program::new();
-      program.eval_string("(1 2 3) 1 nth").unwrap();
-      assert_eq!(program.stack, vec![Expr::Integer(2)]);
-    }
-
-    #[test]
-    fn getting_nth_item_of_list_negative_index() {
-      let mut program = Program::new();
-      program.eval_string("(1 2 3) -1 nth").unwrap();
-      assert_eq!(program.stack, vec![Expr::Integer(3)]);
-    }
-  }
-
-  mod string_ops {
-    use super::*;
-
-    #[test]
-    fn exploding_string() {
-      let mut program = Program::new();
-      program.eval_string("\"abc\" explode").unwrap();
       assert_eq!(
         program.stack,
-        vec![Expr::List(vec![
-          Expr::String(interner().get_or_intern_static("a")),
-          Expr::String(interner().get_or_intern_static("b")),
-          Expr::String(interner().get_or_intern_static("c"))
-        ])]
+        vec![
+          Expr::List(vec![
+            Expr::Integer(1),
+            Expr::Integer(2),
+            Expr::Integer(3)
+          ]),
+          Expr::Integer(3)
+        ]
       );
     }
 
     #[test]
-    fn joining_to_string() {
+    fn getting_indexed_item_of_list() {
       let mut program = Program::new();
-      program
-        .eval_string("(\"a\" 3 \"hello\" 1.2) \"\" join")
-        .unwrap();
-
+      program.eval_string("(1 2 3) 1 index").unwrap();
       assert_eq!(
         program.stack,
-        vec![Expr::String(interner().get_or_intern_static("a3hello1.2"))]
+        vec![
+          Expr::List(vec![
+            Expr::Integer(1),
+            Expr::Integer(2),
+            Expr::Integer(3)
+          ]),
+          Expr::Integer(2)
+        ]
       );
     }
   }
+
+  // mod string_ops {
+  //   use super::*;
+
+  //   // #[test]
+  //   // fn exploding_string() {
+  //   //   let mut program = Program::new();
+  //   //   program.eval_string("\"abc\" explode").unwrap();
+  //   //   assert_eq!(
+  //   //     program.stack,
+  //   //     vec![Expr::List(vec![
+  //   //       Expr::String(interner().get_or_intern_static("a")),
+  //   //       Expr::String(interner().get_or_intern_static("b")),
+  //   //       Expr::String(interner().get_or_intern_static("c"))
+  //   //     ])]
+  //   //   );
+  //   // }
+
+  //   // #[test]
+  //   // fn joining_to_string() {
+  //   //   let mut program = Program::new();
+  //   //   program
+  //   //     .eval_string("(\"a\" 3 \"hello\" 1.2) \"\" join")
+  //   //     .unwrap();
+
+  //   //   assert_eq!(
+  //   //     program.stack,
+  //   //     vec![Expr::String(interner().get_or_intern_static("a3hello1.2"))]
+  //   //   );
+  //   // }
+  // }
 
   mod control_flow {
     use super::*;

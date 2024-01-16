@@ -27,16 +27,10 @@ pub enum Intrinsic {
   Debug,
 
   // List
-  Explode,
-  Length,
-  Nth,
-  Join,
-  Insert,
-  ListPop,
-  ListShift,
+  Len,
+  Index,
+  Split,
   Concat,
-  Unwrap,
-  Reverse,
 
   // Control Flow
   IfElse,
@@ -108,16 +102,10 @@ impl TryFrom<&str> for Intrinsic {
       "debug" => Ok(Self::Debug),
 
       // List
-      "explode" => Ok(Self::Explode),
-      "len" => Ok(Self::Length),
-      "nth" => Ok(Self::Nth),
-      "join" => Ok(Self::Join),
-      "insert" => Ok(Self::Insert),
-      "list-pop" => Ok(Self::ListPop),
-      "list-shift" => Ok(Self::ListShift),
+      "len" => Ok(Self::Len),
+      "index" => Ok(Self::Index),
+      "split" => Ok(Self::Split),
       "concat" => Ok(Self::Concat),
-      "unwrap" => Ok(Self::Unwrap),
-      "reverse" => Ok(Self::Reverse),
 
       // Control Flow
       "ifelse" => Ok(Self::IfElse),
@@ -200,16 +188,10 @@ impl Intrinsic {
       Self::Debug => "debug",
 
       // List
-      Self::Explode => "explode",
-      Self::Length => "len",
-      Self::Nth => "nth",
-      Self::Join => "join",
-      Self::Insert => "insert",
-      Self::ListPop => "list-pop",
-      Self::ListShift => "list-shift",
+      Self::Len => "len",
+      Self::Index => "index",
+      Self::Split => "split",
       Self::Concat => "concat",
-      Self::Unwrap => "unwrap",
-      Self::Reverse => "reverse",
 
       // Control Flow
       Self::IfElse => "ifelse",
