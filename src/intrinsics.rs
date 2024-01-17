@@ -27,16 +27,13 @@ pub enum Intrinsic {
   Debug,
 
   // List
-  Explode,
-  Length,
-  Nth,
+  Len,
+  Index,
+  Split,
   Join,
-  Insert,
-  ListPop,
-  ListShift,
   Concat,
   Unwrap,
-  Reverse,
+  Wrap,
 
   // Control Flow
   IfElse,
@@ -52,14 +49,13 @@ pub enum Intrinsic {
   // Stack
   Collect,
   Clear,
-  Pop,
+  Drop,
   Dup,
   Swap,
   Rot,
 
   // Functions/Data
   Call,
-  CallNative,
   Lazy,
   Noop,
 
@@ -108,16 +104,13 @@ impl TryFrom<&str> for Intrinsic {
       "debug" => Ok(Self::Debug),
 
       // List
-      "explode" => Ok(Self::Explode),
-      "len" => Ok(Self::Length),
-      "nth" => Ok(Self::Nth),
+      "len" => Ok(Self::Len),
+      "index" => Ok(Self::Index),
+      "split" => Ok(Self::Split),
       "join" => Ok(Self::Join),
-      "insert" => Ok(Self::Insert),
-      "list-pop" => Ok(Self::ListPop),
-      "list-shift" => Ok(Self::ListShift),
       "concat" => Ok(Self::Concat),
       "unwrap" => Ok(Self::Unwrap),
-      "reverse" => Ok(Self::Reverse),
+      "wrap" => Ok(Self::Wrap),
 
       // Control Flow
       "ifelse" => Ok(Self::IfElse),
@@ -133,14 +126,13 @@ impl TryFrom<&str> for Intrinsic {
       // Stack
       "collect" => Ok(Self::Collect),
       "clear" => Ok(Self::Clear),
-      "pop" => Ok(Self::Pop),
+      "drop" => Ok(Self::Drop),
       "dup" => Ok(Self::Dup),
       "swap" => Ok(Self::Swap),
       "rot" => Ok(Self::Rot),
 
       // Functions/Data
       "call" => Ok(Self::Call),
-      "call_native" => Ok(Self::CallNative),
       "lazy" => Ok(Self::Lazy),
       "noop" => Ok(Self::Noop),
 
@@ -200,16 +192,13 @@ impl Intrinsic {
       Self::Debug => "debug",
 
       // List
-      Self::Explode => "explode",
-      Self::Length => "len",
-      Self::Nth => "nth",
+      Self::Len => "len",
+      Self::Index => "index",
+      Self::Split => "split",
       Self::Join => "join",
-      Self::Insert => "insert",
-      Self::ListPop => "list-pop",
-      Self::ListShift => "list-shift",
       Self::Concat => "concat",
       Self::Unwrap => "unwrap",
-      Self::Reverse => "reverse",
+      Self::Wrap => "wrap",
 
       // Control Flow
       Self::IfElse => "ifelse",
@@ -225,14 +214,13 @@ impl Intrinsic {
       // Stack
       Self::Collect => "collect",
       Self::Clear => "clear",
-      Self::Pop => "pop",
+      Self::Drop => "drop",
       Self::Dup => "dup",
       Self::Swap => "swap",
       Self::Rot => "rot",
 
       // Functions/Data
       Self::Call => "call",
-      Self::CallNative => "call_native",
       Self::Lazy => "lazy",
       Self::Noop => "noop",
 

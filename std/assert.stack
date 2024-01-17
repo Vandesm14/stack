@@ -1,7 +1,7 @@
 '(fn
   swap
-  '(pop)
-  '([explode] ["assertion failed: " explode] [swap] [concat "" join] panic)
+  '(drop)
+  '([tolist] ["assertion failed: " tolist] [swap] [concat "" join] panic)
   '(true !=)
   ifelse
 ) 'assert set
@@ -11,7 +11,7 @@
   'right set
   'left set
 
-  '('() ["assertion for [" insert] [context insert] ["] failed:\nLeft = " insert] [left insert] ["\nRight = " insert] [right insert] ["" join] panic)
+  '('() ["assertion for [" push] [context push] ["] failed:\nLeft = " push] [left push] ["\nRight = " push] [right push] ["" join] panic)
   '(left right !=)
   if
 ) 'assert-eq set

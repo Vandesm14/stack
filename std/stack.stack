@@ -1,4 +1,4 @@
-'(fn
+'(fn!
   swap
   dup
   rot

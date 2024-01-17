@@ -2,18 +2,14 @@
 "std/linux-x86_64.stack" import
 "std/assert.stack" import
 
+'()
 ("the" "words" "should" "be" "in" "order")
-['() 'new-list set]
 
-'(fn
-  [new-list swap insert]
-
-  ['new-list set]
-)
+'(fn push)
 list/for_each
 
-[new-list " " join]
+[" " join]
 ["the words should be in order"]
 
 ;; FIXME: The list/for_each function is broken. Ignoring this test for now
-;; ["for_each" assert-eq]
+["for_each" assert-eq]

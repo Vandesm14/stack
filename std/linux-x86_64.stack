@@ -13,14 +13,14 @@
 '(fn! buf tou8list dup len swap fd sys-write syscall3) '(buf fd) 'write defn
 
 ;; Write from a buffer into stderr.
-'(fn! buf stderr write pop pop) '(buf) 'eprint defn
+'(fn! buf stderr write drop drop) '(buf) 'eprint defn
 ;; Write from a buffer into stdout.
-'(fn! buf stdout write pop pop) '(buf) 'print defn
+'(fn! buf stdout write drop drop) '(buf) 'print defn
 
 ;; Write from a buffer into stderr with a newline.
-'(fn! buf tou8list newline insert eprint) '(buf) 'eprintln defn
+'(fn! buf tou8list newline push eprint) '(buf) 'eprintln defn
 ;; Write from a buffer into stdout with a newline.
-'(fn! buf tou8list newline insert print) '(buf) 'println defn
+'(fn! buf tou8list newline push print) '(buf) 'println defn
 
 ;; Read into a buffer from a file-descriptor.
 '(fn! buf tou8list dup len swap fd sys-read syscall3) '(buf fd) 'read defn

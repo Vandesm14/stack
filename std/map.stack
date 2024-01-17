@@ -3,12 +3,12 @@
 
   '(fn
     '()
-    ['key get insert]
-    ['value get insert]
+    ['key get push]
+    ['value get push]
   ) '(key value) 'map/pair defn
 
-  '(fn 0 nth) 'map/head set
-  '(fn 1 nth) 'map/tail set
+  '(fn 0 index swap drop) 'map/head set
+  '(fn 1 index swap drop) 'map/tail set
 
   '(fn
     "std/list.stack" import
@@ -31,7 +31,7 @@
     'map get
     'pair get
 
-    insert
+    push
   ) '(map pair) 'map/insert defn
 
   '()
