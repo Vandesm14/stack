@@ -10,22 +10,30 @@
 10 'newline set
 
 ;; Write from a buffer into a file-descriptor.
-'(fn! buf tou8list dup len swap fd sys-write syscall3) '(buf fd) 'write defn
+;; (buf fd -- )
+'(fn! swap tou8list len swap rot rot sys-write syscall3) 'write set
 
 ;; Write from a buffer into stderr.
-'(fn! buf stderr write drop drop) '(buf) 'eprint defn
+;; (buf -- )
+'(fn! stderr write drop drop) 'eprint set
 ;; Write from a buffer into stdout.
-'(fn! buf stdout write drop drop) '(buf) 'print defn
+;; (buf -- )
+'(fn! stdout write drop drop) 'print set
 
 ;; Write from a buffer into stderr with a newline.
-'(fn! buf tou8list newline push eprint) '(buf) 'eprintln defn
+;; (buf -- )
+'(fn! tou8list (newline) tou8list concat eprint) 'eprintln set
 ;; Write from a buffer into stdout with a newline.
-'(fn! buf tou8list newline push print) '(buf) 'println defn
+;; (buf -- )
+'(fn! tou8list (newline) tou8list concat print) 'println set
 
 ;; Read into a buffer from a file-descriptor.
-'(fn! buf tou8list dup len swap fd sys-read syscall3) '(buf fd) 'read defn
+;; (buf fd -- )
+'(fn! swap tou8list len swap rot rot sys-read syscall3) 'read set
 
 ;; Exit the current process with a code.
-'(fn! code sys-exit syscall1) '(code) 'exit defn
+;; (code -- )
+'(fn! sys-exit syscall1) 'exit set
 ;; Exit the current process without an error code.
+;; ( -- )
 '(fn! 0 exit) 'exit-ok set
