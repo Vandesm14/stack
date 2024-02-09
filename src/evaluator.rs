@@ -1656,6 +1656,8 @@ mod tests {
   }
 
   mod variables {
+    use crate::FnSymbol;
+
     use super::*;
 
     #[test]
@@ -1664,10 +1666,10 @@ mod tests {
       program.eval_string("1 'a set").unwrap();
       assert_eq!(
         program.scopes,
-        vec![HashMap::from_iter(vec![(
-          "a".to_string(),
-          Expr::Integer(1)
-        )])]
+        vec![Scope::from(HashMap::from_iter(vec![(
+          interner().get_or_intern("a"),
+          Scope::make_rc(Expr::Integer(1))
+        )]))]
       );
     }
 
@@ -1689,7 +1691,7 @@ mod tests {
     fn removing_variables() {
       let mut program = Program::new();
       program.eval_string("1 'a set 'a unset").unwrap();
-      assert_eq!(program.scopes, vec![HashMap::new()]);
+      assert_eq!(program.scopes, vec![Scope::new()]);
     }
 
     #[test]
@@ -1726,7 +1728,10 @@ mod tests {
       assert_eq!(
         program.stack,
         vec![Expr::List(vec![
-          Expr::Fn(true),
+          Expr::Fn(FnSymbol {
+            scoped: false,
+            scope: Scope::new(),
+          }),
           Expr::Integer(1),
           Expr::Integer(2),
           Expr::Call(interner().get_or_intern_static("+"))
@@ -1744,7 +1749,10 @@ mod tests {
         program.stack,
         vec![
           Expr::List(vec![
-            Expr::Fn(true),
+            Expr::Fn(FnSymbol {
+              scoped: false,
+              scope: Scope::new(),
+            }),
             Expr::Integer(1),
             Expr::Integer(2),
             Expr::Call(interner().get_or_intern_static("+"))
@@ -1770,10 +1778,10 @@ mod tests {
           .unwrap();
         assert_eq!(
           program.scopes,
-          vec![HashMap::from_iter(vec![(
-            "a".to_string(),
-            Expr::Integer(0)
-          )]),]
+          vec![Scope::from(HashMap::from_iter(vec![(
+            interner().get_or_intern("a"),
+            Scope::make_rc(Expr::Integer(0))
+          )])),]
         )
       }
 
@@ -1789,10 +1797,10 @@ mod tests {
 
         assert_eq!(
           program.scopes,
-          vec![HashMap::from_iter(vec![(
-            "a".to_string(),
-            Expr::Integer(1)
-          )]),]
+          vec![Scope::from(HashMap::from_iter(vec![(
+            interner().get_or_intern("a"),
+            Scope::make_rc(Expr::Integer(1))
+          )])),]
         )
       }
 
@@ -1808,10 +1816,10 @@ mod tests {
 
         assert_eq!(
           program.scopes,
-          vec![HashMap::from_iter(vec![(
-            "a".to_string(),
-            Expr::Integer(0)
-          )]),]
+          vec![Scope::from(HashMap::from_iter(vec![(
+            interner().get_or_intern("a"),
+            Scope::make_rc(Expr::Integer(0))
+          )])),]
         );
         assert_eq!(program.stack, vec![Expr::Integer(1), Expr::Integer(0)])
       }

@@ -31,6 +31,14 @@ impl Scope {
     Self::default()
   }
 
+  pub fn from(items: HashMap<Spur, Val>) -> Self {
+    Self { items }
+  }
+
+  pub fn make_rc(val: Expr) -> Val {
+    Rc::new(RefCell::new(val))
+  }
+
   pub fn define(&mut self, name: Spur, item: Expr) -> Result<(), String> {
     let item = Rc::new(RefCell::new(item));
     self.items.insert(name, item);
