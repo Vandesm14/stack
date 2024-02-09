@@ -79,6 +79,20 @@ impl Expr {
     }
   }
 
+  pub fn unlazy(&self) -> &Self {
+    match self {
+      Self::Lazy(x) => x.unlazy(),
+      x => x,
+    }
+  }
+
+  pub fn unlazy_mut(&mut self) -> &mut Self {
+    match self {
+      Self::Lazy(x) => x.unlazy_mut(),
+      x => x,
+    }
+  }
+
   pub fn type_of(&self) -> Type {
     match self {
       Self::Nil => Type::Nil,

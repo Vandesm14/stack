@@ -119,7 +119,7 @@ impl Program {
     let mut scanner = Scanner::new(self.scopes.last().unwrap().clone());
     scanner.scan(expr.clone());
 
-    println!("{}: {:?}", expr, scanner.scope);
+    println!("{:#?}", scanner.scan(expr.clone()));
 
     self.stack.push(expr);
   }
