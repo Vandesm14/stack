@@ -13,10 +13,33 @@ add-one-to-a
 a 0 "functions create a new scope" assert-eq
 
 '(fn!
-  a 2 +
   3 'a set
 ) 'add-one-to-a! def
 
 add-one-to-a!
 
 a 3 "functions! use the current scope" assert-eq
+
+0 'i def
+'(fn
+  0 'i def
+
+  '(fn i)
+
+  '(fn
+    i 1 +
+    'i set
+  )
+)
+
+;; "Create" a counter
+call
+
+;; Call the first returned function to increment the counter
+call
+
+;; Call the second returned function to get the current value
+call
+
+1 "functions can use values from dead scopes (closures)" assert-eq
+i 0 "closures are isolated" assert-eq
