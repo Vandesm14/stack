@@ -4,6 +4,12 @@ use lasso::Spur;
 
 use crate::interner::interner;
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
+pub struct FnSymbol {
+  pub scoped: bool,
+  pub id: Option<usize>,
+}
+
 #[derive(Debug, Clone)]
 pub enum Expr {
   Nil,
@@ -21,7 +27,7 @@ pub enum Expr {
   Call(Spur),
 
   /// Boolean denotes whether to create a new scope.
-  Fn(bool),
+  Fn(FnSymbol),
 }
 
 impl Expr {
@@ -37,15 +43,38 @@ impl Expr {
   }
 
   pub fn is_function(&self) -> bool {
-    self.create_fn_scope().is_some()
+    match self {
+      Expr::List(list) => list
+        .first()
+        .and_then(|x| match x {
+          Expr::Fn(scope) => Some(true),
+          _ => Some(false),
+        })
+        .unwrap_or(false),
+      _ => false,
+    }
   }
 
-  pub fn create_fn_scope(&self) -> Option<bool> {
+  pub fn fn_symbol(&self) -> Option<FnSymbol> {
     match self {
-      Expr::List(list) => list.first().and_then(|x| match x {
-        Expr::Fn(scope) => Some(*scope),
-        _ => None,
-      }),
+      Expr::List(list) => list
+        .first()
+        .and_then(|x| match x {
+          Expr::Fn(scope) => Some(*scope),
+          _ => None,
+        }),
+      _ => None,
+    }
+  }
+
+  pub fn fn_body(&self) -> Option<&[Expr]> {
+    match self {
+      Expr::List(list) => list
+        .first()
+        .and_then(|x| match x {
+          Expr::Fn(_) => Some(&list[1..]),
+          _ => None,
+        }),
       _ => None,
     }
   }
@@ -306,13 +335,7 @@ impl fmt::Display for Expr {
       }
       Self::Call(x) => f.write_str(interner().resolve(x)),
 
-      Self::Fn(x) => {
-        f.write_str("fn")?;
-
-        f.write_str("(")?;
-        fmt::Display::fmt(x, f)?;
-        f.write_str(")")
-      }
+      Self::Fn(x) => f.write_str("fn"),
     }
   }
 }

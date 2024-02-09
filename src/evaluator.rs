@@ -2,7 +2,9 @@ use itertools::Itertools as _;
 use lasso::Spur;
 use syscalls::Sysno;
 
-use crate::{interner::interner, Expr, Intrinsic, Lexer, Parser, Type};
+use crate::{
+  interner::interner, Expr, Intrinsic, Lexer, Parser, Scanner, Scope, Type
+};
 use core::{fmt, iter};
 use std::{collections::HashMap, time::SystemTime};
 
@@ -15,7 +17,7 @@ pub struct LoadedFile {
 #[derive(Debug, Clone, Default)]
 pub struct Program {
   pub stack: Vec<Expr>,
-  pub scopes: Vec<HashMap<String, Expr>>,
+  pub scopes: Vec<Scope>,
   pub loaded_files: HashMap<String, LoadedFile>,
   pub debug_trace: Option<Vec<Expr>>,
 }
@@ -44,15 +46,15 @@ impl fmt::Display for Program {
 
       let layers = self.scopes.len();
       for (layer_i, layer) in self.scopes.iter().enumerate() {
-        let items = layer.len();
+        let items = layer.items.len();
         writeln!(f, "Layer {}:", layer_i)?;
         for (item_i, (key, value)) in
-          layer.iter().sorted_by_key(|(s, _)| *s).enumerate()
+          layer.items.iter().sorted_by_key(|(s, _)| *s).enumerate()
         {
           if item_i == items - 1 && layer_i == layers - 1 {
-            write!(f, " + {}: {}", key, value)?;
+            write!(f, " + {}: {}", interner().resolve(key), value.clone().borrow())?;
           } else {
-            writeln!(f, " + {}: {}", key, value)?;
+            writeln!(f, " + {}: {}", interner().resolve(key), value.clone().borrow())?;
           }
         }
       }
@@ -83,7 +85,7 @@ impl Program {
   pub fn new() -> Self {
     Self {
       stack: vec![],
-      scopes: vec![HashMap::new()],
+      scopes: vec![Scope::new()],
       loaded_files: HashMap::new(),
       debug_trace: None,
     }
@@ -114,6 +116,11 @@ impl Program {
   }
 
   fn push(&mut self, expr: Expr) {
+    let mut scanner = Scanner::new(self.scopes.last().unwrap().clone());
+    scanner.scan(expr.clone());
+
+    println!("{}: {:?}", expr, scanner.scope);
+
     self.stack.push(expr);
   }
 
@@ -122,7 +129,7 @@ impl Program {
       .scopes
       .iter()
       .rev()
-      .find_map(|layer| layer.get(symbol).cloned())
+      .find_map(|layer| layer.get(interner().get_or_intern(symbol)))
   }
 
   fn set_scope_item(
@@ -132,7 +139,7 @@ impl Program {
     value: Expr,
   ) -> Result<(), EvalError> {
     if let Some(layer) = self.scopes.last_mut() {
-      layer.insert(symbol.to_string(), value);
+      layer.set(interner().get_or_intern(symbol), value);
       Ok(())
     } else {
       Err(EvalError {
@@ -147,12 +154,12 @@ impl Program {
 
   fn remove_scope_item(&mut self, symbol: &str) {
     if let Some(layer) = self.scopes.last_mut() {
-      layer.remove(symbol);
+      layer.remove(interner().get_or_intern(symbol));
     }
   }
 
   fn push_scope(&mut self) {
-    self.scopes.push(HashMap::new());
+    self.scopes.push(Scope::new());
   }
 
   fn pop_scope(&mut self) {
@@ -935,33 +942,34 @@ impl Program {
           call @ Expr::Call(_) => self.eval_expr(call),
           // This is where auto-call is defined and functions are evaluated when
           // they are called via an identifier
-          item @ Expr::List(_) => match item.create_fn_scope() {
-            Some(create_fn_scope) => {
-              let Expr::List(list) = item else {
-                unreachable!()
-              };
+          // TODO: Get this working again.
+          // item @ Expr::List(_) => match item.create_fn_scope() {
+          //   Some(create_fn_scope) => {
+          //     let Expr::List(list) = item else {
+          //       unreachable!()
+          //     };
 
-              if create_fn_scope {
-                self.push_scope();
-              }
+          //     if create_fn_scope {
+          //       self.push_scope();
+          //     }
 
-              match self.eval(list) {
-                Ok(_) => {
-                  if create_fn_scope {
-                    self.pop_scope();
-                  }
-                  Ok(())
-                }
-                Err(err) => Err(err),
-              }
-            }
-            None => {
-              let Expr::List(list) = item else {
-                unreachable!()
-              };
-              self.eval(list)
-            }
-          },
+          //     match self.eval(list) {
+          //       Ok(_) => {
+          //         if create_fn_scope {
+          //           self.pop_scope();
+          //         }
+          //         Ok(())
+          //       }
+          //       Err(err) => Err(err),
+          //     }
+          //   }
+          //   None => {
+          //     let Expr::List(list) = item else {
+          //       unreachable!()
+          //     };
+          //     self.eval(list)
+          //   }
+          // },
           _ => Err(EvalError {
             expr: trace_expr.clone(),
             program: self.clone(),
