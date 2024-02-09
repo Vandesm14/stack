@@ -1,12 +1,12 @@
 "std/linux-x86_64.stack" import
 "std/assert.stack" import
 
-0 'a set
+0 'a def
 
 '(fn
   a 1 +
-  'a set
-) 'add-one-to-a set
+  'a def
+) 'add-one-to-a def
 
 add-one-to-a
 
@@ -15,7 +15,7 @@ a 0 "functions create a new scope" assert-eq
 '(fn!
   a 2 +
   3 'a set
-) 'add-one-to-a! set
+) 'add-one-to-a! def
 
 add-one-to-a!
 

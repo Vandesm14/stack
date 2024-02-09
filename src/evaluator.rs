@@ -1416,7 +1416,7 @@ mod tests {
     #[test]
     fn dont_eval_skips() {
       let mut program = Program::new();
-      program.eval_string("6 'var set 'var").unwrap();
+      program.eval_string("6 'var def 'var").unwrap();
       assert_eq!(
         program.stack,
         vec![Expr::Call(interner().get_or_intern_static("var"))]
@@ -1440,7 +1440,7 @@ mod tests {
     #[test]
     fn eval_lists_eagerly() {
       let mut program = Program::new();
-      program.eval_string("6 'var set (var)").unwrap();
+      program.eval_string("6 'var def (var)").unwrap();
       assert_eq!(program.stack, vec![Expr::List(vec![Expr::Integer(6)])]);
     }
   }
@@ -1663,7 +1663,7 @@ mod tests {
     #[test]
     fn storing_variables() {
       let mut program = Program::new();
-      program.eval_string("1 'a set").unwrap();
+      program.eval_string("1 'a def").unwrap();
       assert_eq!(
         program.scopes,
         vec![Scope::from(HashMap::from_iter(vec![(
@@ -1676,21 +1676,21 @@ mod tests {
     #[test]
     fn retrieving_variables() {
       let mut program = Program::new();
-      program.eval_string("1 'a set a").unwrap();
+      program.eval_string("1 'a def a").unwrap();
       assert_eq!(program.stack, vec![Expr::Integer(1)]);
     }
 
     #[test]
     fn evaluating_variables() {
       let mut program = Program::new();
-      program.eval_string("1 'a set a 2 +").unwrap();
+      program.eval_string("1 'a def a 2 +").unwrap();
       assert_eq!(program.stack, vec![Expr::Integer(3)]);
     }
 
     #[test]
     fn removing_variables() {
       let mut program = Program::new();
-      program.eval_string("1 'a set 'a unset").unwrap();
+      program.eval_string("1 'a def 'a unset").unwrap();
       assert_eq!(program.scopes, vec![Scope::new()]);
     }
 
@@ -1698,7 +1698,7 @@ mod tests {
     fn auto_calling_functions() {
       let mut program = Program::new();
       program
-        .eval_string("'(fn 1 2 +) 'is-three set is-three")
+        .eval_string("'(fn 1 2 +) 'is-three def is-three")
         .unwrap();
       assert_eq!(program.stack, vec![Expr::Integer(3)]);
     }
@@ -1707,7 +1707,7 @@ mod tests {
     fn only_auto_call_functions() {
       let mut program = Program::new();
       program
-        .eval_string("'(1 2 +) 'is-three set is-three")
+        .eval_string("'(1 2 +) 'is-three def is-three")
         .unwrap();
       assert_eq!(
         program.stack,
@@ -1723,14 +1723,27 @@ mod tests {
     fn getting_function_body() {
       let mut program = Program::new();
       program
-        .eval_string("'(fn 1 2 +) 'is-three set 'is-three get")
+        .eval_string("'(fn 1 2 +) 'is-three def 'is-three get")
         .unwrap();
       assert_eq!(
         program.stack,
         vec![Expr::List(vec![
           Expr::Fn(FnSymbol {
-            scoped: false,
-            scope: Scope::new(),
+            scoped: true,
+            scope: Scope::from(
+              HashMap::from_iter(vec![(
+                interner().get_or_intern_static("is-three"),
+                Scope::make_rc(Expr::List(vec![
+                  Expr::Fn(FnSymbol {
+                    scoped: true,
+                    scope: Scope::new(),
+                  }),
+                  Expr::Integer(1),
+                  Expr::Integer(2),
+                  Expr::Call(interner().get_or_intern_static("+"))
+                ]))
+              )])
+            ),
           }),
           Expr::Integer(1),
           Expr::Integer(2),
@@ -1750,7 +1763,7 @@ mod tests {
         vec![
           Expr::List(vec![
             Expr::Fn(FnSymbol {
-              scoped: false,
+              scoped: true,
               scope: Scope::new(),
             }),
             Expr::Integer(1),
@@ -1770,10 +1783,10 @@ mod tests {
         let mut program = Program::new();
         program
           .eval_string(
-            "0 'a set
-            '(fn 5 'a set)
+            "0 'a def
+            '(fn 5 'a def)
 
-            '(fn 1 'a set call) call",
+            '(fn 1 'a def call) call",
           )
           .unwrap();
         assert_eq!(
@@ -1790,8 +1803,8 @@ mod tests {
         let mut program = Program::new();
         program
           .eval_string(
-            "0 'a set
-            '(fn! 1 'a set) call",
+            "0 'a def
+            '(fn! 1 'a def) call",
           )
           .unwrap();
 
@@ -1809,8 +1822,8 @@ mod tests {
         let mut program = Program::new();
         program
           .eval_string(
-            "0 'a set
-            '(fn 1 'a set a) call a",
+            "0 'a def
+            '(fn 1 'a def a) call a",
           )
           .unwrap();
 
@@ -2064,7 +2077,7 @@ mod tests {
       program
         .eval_string(
           ";; Set i to 3
-           3 'i set
+           3 'i def
 
            '(
              ;; Decrement i by 1
