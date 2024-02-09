@@ -39,14 +39,12 @@ impl Scope {
   }
 
   pub fn set(&mut self, name: Spur, item: Expr) -> Result<(), String> {
-    if let None = self.items.get(&name) {
-      return Err("Cannot set to a nonexistent variable".to_owned());
+    if let Some(val) = self.items.get(&name) {
+      *val.borrow_mut() = item;
+      Ok(())
+    } else {
+      Err("Cannot set to a nonexistent variable".to_owned())
     }
-
-    let item = Rc::new(RefCell::new(item));
-    self.items.insert(name, item);
-
-    Ok(())
   }
 
   pub fn remove(&mut self, name: Spur) -> Result<(), String> {

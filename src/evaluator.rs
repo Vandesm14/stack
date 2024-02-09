@@ -141,15 +141,20 @@ impl Program {
     value: Expr,
   ) -> Result<(), EvalError> {
     if let Some(layer) = self.scopes.last_mut() {
-      // TODO: Use the error from [`Scope`]
-      layer.define(interner().get_or_intern(symbol), value);
-      Ok(())
+      match layer.define(interner().get_or_intern(symbol), value) {
+        Ok(_) => Ok(()),
+        Err(message) => Err(EvalError {
+          expr: trace_expr.clone(),
+          program: self.clone(),
+          message,
+        }),
+      }
     } else {
       Err(EvalError {
         expr: trace_expr.clone(),
         program: self.clone(),
         message: format!(
-          "no scope to define {symbol}, there may be too many \"}}\""
+          "no scope to define {symbol}"
         ),
       })
     }
@@ -162,15 +167,20 @@ impl Program {
     value: Expr,
   ) -> Result<(), EvalError> {
     if let Some(layer) = self.scopes.last_mut() {
-      // TODO: Use the error from [`Scope`]
-      layer.set(interner().get_or_intern(symbol), value);
-      Ok(())
+      match layer.set(interner().get_or_intern(symbol), value) {
+        Ok(_) => Ok(()),
+        Err(message) => Err(EvalError {
+          expr: trace_expr.clone(),
+          program: self.clone(),
+          message,
+        }),
+      }
     } else {
       Err(EvalError {
         expr: trace_expr.clone(),
         program: self.clone(),
         message: format!(
-          "no scope to set {symbol}, there may be too many \"}}\""
+          "no scope to set {symbol}"
         ),
       })
     }
