@@ -117,19 +117,42 @@ impl Program {
 
   fn push(&mut self, expr: Expr) {
     let mut scanner = Scanner::new(self.scopes.last().unwrap().clone());
-    scanner.scan(expr.clone());
+    let new_expr = scanner.scan(expr.clone());
 
-    println!("{:#?}", scanner.scan(expr.clone()));
-
-    self.stack.push(expr);
+    match new_expr {
+      Ok(new_expr) => self.stack.push(new_expr),
+      Err(err) => {
+        eprintln!("{}", err);
+      }
+    }
   }
 
   fn scope_item(&self, symbol: &str) -> Option<Expr> {
     self
       .scopes
-      .iter()
-      .rev()
-      .find_map(|layer| layer.get(interner().get_or_intern(symbol)))
+      .last()
+      .and_then(|layer| layer.get(interner().get_or_intern(symbol)))
+  }
+
+  fn def_scope_item(
+    &mut self,
+    trace_expr: &Expr,
+    symbol: &str,
+    value: Expr,
+  ) -> Result<(), EvalError> {
+    if let Some(layer) = self.scopes.last_mut() {
+      // TODO: Use the error from [`Scope`]
+      layer.define(interner().get_or_intern(symbol), value);
+      Ok(())
+    } else {
+      Err(EvalError {
+        expr: trace_expr.clone(),
+        program: self.clone(),
+        message: format!(
+          "no scope to define {symbol}, there may be too many \"}}\""
+        ),
+      })
+    }
   }
 
   fn set_scope_item(
@@ -139,6 +162,7 @@ impl Program {
     value: Expr,
   ) -> Result<(), EvalError> {
     if let Some(layer) = self.scopes.last_mut() {
+      // TODO: Use the error from [`Scope`]
       layer.set(interner().get_or_intern(symbol), value);
       Ok(())
     } else {
@@ -158,8 +182,8 @@ impl Program {
     }
   }
 
-  fn push_scope(&mut self) {
-    self.scopes.push(Scope::new());
+  fn push_scope(&mut self, scope: Scope) {
+    self.scopes.push(scope);
   }
 
   fn pop_scope(&mut self) {
@@ -810,6 +834,41 @@ impl Program {
       }),
 
       // Scope
+      Intrinsic::Def => {
+        let key = self.pop(trace_expr)?;
+        let val = self.pop(trace_expr)?;
+
+        match key {
+          Expr::Call(key) => {
+            let key_str = interner().resolve(&key);
+
+            match Intrinsic::try_from(key_str) {
+              Ok(intrinsic) => Err(EvalError {
+                expr: trace_expr.clone(),
+                program: self.clone(),
+                message: format!(
+                  "cannot shadow an intrinsic {}",
+                  intrinsic.as_str()
+                ),
+              }),
+              Err(_) => self.def_scope_item(trace_expr, key_str, val),
+            }
+          }
+          key => Err(EvalError {
+            expr: trace_expr.clone(),
+            program: self.clone(),
+            message: format!(
+              "expected {}, found {}",
+              Type::List(vec![
+                // TODO: A type to represent functions.
+                Type::Any,
+                Type::Call,
+              ]),
+              Type::List(vec![val.type_of(), key.type_of(),]),
+            ),
+          }),
+        }
+      }
       Intrinsic::Set => {
         let key = self.pop(trace_expr)?;
         let val = self.pop(trace_expr)?;
@@ -943,33 +1002,32 @@ impl Program {
           // This is where auto-call is defined and functions are evaluated when
           // they are called via an identifier
           // TODO: Get this working again.
-          // item @ Expr::List(_) => match item.create_fn_scope() {
-          //   Some(create_fn_scope) => {
-          //     let Expr::List(list) = item else {
-          //       unreachable!()
-          //     };
+          item @ Expr::List(_) => match item.is_function() {
+            true => {
+              let fn_symbol = item.fn_symbol().unwrap();
+              let fn_body = item.fn_body().unwrap();
 
-          //     if create_fn_scope {
-          //       self.push_scope();
-          //     }
+              if fn_symbol.scoped {
+                self.push_scope(fn_symbol.scope.clone());
+              }
 
-          //     match self.eval(list) {
-          //       Ok(_) => {
-          //         if create_fn_scope {
-          //           self.pop_scope();
-          //         }
-          //         Ok(())
-          //       }
-          //       Err(err) => Err(err),
-          //     }
-          //   }
-          //   None => {
-          //     let Expr::List(list) = item else {
-          //       unreachable!()
-          //     };
-          //     self.eval(list)
-          //   }
-          // },
+              match self.eval(fn_body.to_vec()) {
+                Ok(_) => {
+                  if fn_symbol.scoped {
+                    self.pop_scope();
+                  }
+                  Ok(())
+                }
+                Err(err) => Err(err),
+              }
+            }
+            false => {
+              let Expr::List(list) = item else {
+                unreachable!()
+              };
+              self.eval(list)
+            }
+          },
           _ => Err(EvalError {
             expr: trace_expr.clone(),
             program: self.clone(),

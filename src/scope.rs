@@ -120,3 +120,8 @@ impl Scanner {
     }
   }
 }
+
+#[cfg(test)]
+mod tests {
+  // TODO: Write tests
+}
