@@ -7,7 +7,7 @@ use std::{cell::RefCell, collections::HashMap, fmt::Formatter, rc::Rc};
 
 type Val = Rc<RefCell<Expr>>;
 
-#[derive(Default, Clone)]
+#[derive(Default, Clone, PartialEq)]
 pub struct Scope {
   pub items: HashMap<Spur, Val>,
 }

@@ -2,12 +2,12 @@ use core::{cmp::Ordering, fmt, iter, num::FpCategory};
 
 use lasso::Spur;
 
-use crate::interner::interner;
+use crate::{interner::interner, Scope};
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
+#[derive(Debug, Clone)]
 pub struct FnSymbol {
   pub scoped: bool,
-  pub id: Option<usize>,
+  pub scope: Scope,
 }
 
 #[derive(Debug, Clone)]
@@ -55,12 +55,12 @@ impl Expr {
     }
   }
 
-  pub fn fn_symbol(&self) -> Option<FnSymbol> {
+  pub fn fn_symbol(&self) -> Option<&FnSymbol> {
     match self {
       Expr::List(list) => list
         .first()
         .and_then(|x| match x {
-          Expr::Fn(scope) => Some(*scope),
+          Expr::Fn(scope) => Some(scope),
           _ => None,
         }),
       _ => None,
@@ -227,7 +227,7 @@ impl PartialEq for Expr {
       (Self::Lazy(lhs), Self::Lazy(rhs)) => lhs == rhs,
       (Self::Call(lhs), Self::Call(rhs)) => lhs == rhs,
 
-      (Self::Fn(lhs), Self::Fn(rhs)) => lhs == rhs,
+      (Self::Fn(lhs), Self::Fn(rhs)) => lhs.scope == rhs.scope && lhs.scoped == rhs.scoped,
 
       // Different types.
       (lhs @ Self::Boolean(_), rhs) => match rhs.to_boolean() {
@@ -266,7 +266,7 @@ impl PartialOrd for Expr {
       (Self::Lazy(lhs), Self::Lazy(rhs)) => lhs.partial_cmp(rhs),
       (Self::Call(lhs), Self::Call(rhs)) => lhs.partial_cmp(rhs),
 
-      (Self::Fn(lhs), Self::Fn(rhs)) => lhs.partial_cmp(rhs),
+      (Self::Fn(lhs), Self::Fn(rhs)) => lhs.scoped.partial_cmp(&rhs.scoped),
 
       // Different types.
       (lhs @ Self::Boolean(_), rhs) => match rhs.to_boolean() {
