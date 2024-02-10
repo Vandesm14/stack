@@ -19,20 +19,20 @@ fn running_complex_code() {
       "
   '(fn
     0 'i def
-  
+
     '(fn
       i 1 + 'i set
     ) 'inc def
-  
+
     '(fn i) 'value def
-  
+
     '()
     'inc export
     'value export
   ) 'counter def
-  
+
   counter 'my-counter use
-  
+
   my-counter/inc
   my-counter/inc
   my-counter/inc
@@ -42,13 +42,11 @@ fn running_complex_code() {
 }
 
 fn criterion_benchmark(c: &mut Criterion) {
-  c.bench_function("cold start with core", |b| {
-    b.iter(|| cold_start_with_core())
-  });
+  c.bench_function("cold start with core", |b| b.iter(cold_start_with_core));
 
-  c.bench_function("cold start no core", |b| b.iter(|| cold_start_no_core()));
+  c.bench_function("cold start no core", |b| b.iter(cold_start_no_core));
 
-  c.bench_function("running code", |b| b.iter(|| running_complex_code()));
+  c.bench_function("running code", |b| b.iter(running_complex_code));
 }
 
 criterion_group!(benches, criterion_benchmark);
