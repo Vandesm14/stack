@@ -28,9 +28,9 @@ impl fmt::Display for Program {
 
     self.stack.iter().enumerate().try_for_each(|(i, expr)| {
       if i == self.stack.len() - 1 {
-        write!(f, "{expr}")
+        write!(f, "{}", expr)
       } else {
-        write!(f, "{expr}, ")
+        write!(f, "{}, ", expr)
       }
     })?;
     write!(f, "]")?;
@@ -44,19 +44,6 @@ impl fmt::Display for Program {
     if !self.scopes.is_empty() {
       writeln!(f, "Scope:")?;
 
-      // for (layer_i, layer) in self.scopes.iter().enumerate() {
-      //   let items = layer.items.len();
-      //   writeln!(f, "Layer {}:", layer_i)?;
-      //   for (item_i, (key, value)) in
-      //     layer.items.iter().sorted_by_key(|(s, _)| *s).enumerate()
-      //   {
-      //     if item_i == items - 1 && layer_i == layers - 1 {
-      //       write!(f, " + {}: {}", interner().resolve(key), value.clone().borrow())?;
-      //     } else {
-      //       writeln!(f, " + {}: {}", interner().resolve(key), value.clone().borrow())?;
-      //     }
-      //   }
-      // }
       let layer = self.scopes.last().unwrap();
       let items = layer.items.len();
       for (item_i, (key, value)) in
