@@ -82,22 +82,12 @@ impl<T> Chain<T> {
     }
   }
 
-  pub fn val(&self) -> T
-  where
-    T: Clone,
-  {
-    self.value.borrow().clone()
-  }
-
-  pub fn link(&mut self) -> Self
-  where
-    T: Clone,
-  {
-    let child = Self {
+  pub fn link(&mut self) -> Rc<RefCell<Self>> {
+    let child = Rc::new(RefCell::new(Self {
       value: self.value.clone(),
       child: None,
-    };
-    *self.child.borrow_mut() = Some(Rc::new(RefCell::new(child.clone())));
+    }));
+    *self.child.borrow_mut() = Some(child.clone());
 
     child
   }
@@ -105,28 +95,28 @@ impl<T> Chain<T> {
   pub fn root(&self) -> Rc<RefCell<T>> {
     self.value.clone()
   }
+}
 
-  pub fn unlink_with_rc(&mut self, value: Rc<RefCell<T>>)
-  where
-    T: Clone,
-  {
+impl<T> Chain<T>
+where
+  T: Clone,
+{
+  pub fn val(&self) -> T {
+    self.value.borrow().clone()
+  }
+
+  pub fn unlink_with_rc(&mut self, value: Rc<RefCell<T>>) {
     self.value = value.clone();
     if let Some(child) = &self.child {
       RefCell::borrow_mut(child).unlink_with_rc(value);
     }
   }
 
-  pub fn unlink_with(&mut self, val: T)
-  where
-    T: Clone,
-  {
+  pub fn unlink_with(&mut self, val: T) {
     self.unlink_with_rc(Rc::new(RefCell::new(val)));
   }
 
-  pub fn set(&mut self, val: T)
-  where
-    T: Clone,
-  {
+  pub fn set(&mut self, val: T) {
     *RefCell::borrow_mut(&self.value) = val;
   }
 }
@@ -148,7 +138,7 @@ mod tests {
     let link = chain.link();
 
     assert_eq!(chain.val(), 1);
-    assert_eq!(link.val(), 1);
+    assert_eq!(link.borrow().val(), 1);
   }
 
   #[test]
@@ -158,56 +148,75 @@ mod tests {
     chain.set(2);
 
     assert_eq!(chain.val(), 2);
-    assert_eq!(link.val(), 2);
+    assert_eq!(link.borrow().val(), 2);
   }
 
   #[test]
   fn change_value_with_link() {
     let mut chain = Chain::new(1);
-    let mut link = chain.link();
-    link.set(2);
+    let link = chain.link();
+    RefCell::borrow_mut(&link).set(2);
 
     assert_eq!(chain.val(), 2);
-    assert_eq!(link.val(), 2);
+    assert_eq!(link.borrow().val(), 2);
   }
 
   #[test]
   fn unlink_chain() {
     let mut a = Chain::new(1);
-    let mut b = a.link();
-    let c = b.link();
+    let b = a.link();
+    let c = RefCell::borrow_mut(&b).link();
 
     assert_eq!(a.val(), 1);
-    assert_eq!(b.val(), 1);
-    assert_eq!(c.val(), 1);
+    assert_eq!(b.borrow().val(), 1);
+    assert_eq!(c.borrow().val(), 1);
 
-    b.unlink_with(2);
+    RefCell::borrow_mut(&b).unlink_with(2);
 
     assert_eq!(a.val(), 1);
-    assert_eq!(b.val(), 2);
-    assert_eq!(c.val(), 2);
+    assert_eq!(b.borrow().val(), 2);
+    assert_eq!(c.borrow().val(), 2);
   }
 
   #[test]
   fn cloned_chains_are_links() {
     let mut a = Chain::new(1);
-    let mut b = a.link();
+    let b = a.link();
     let clone = b.clone();
 
     assert_eq!(a.val(), 1);
-    assert_eq!(b.val(), 1);
-    assert_eq!(clone.val(), 1);
+    assert_eq!(b.borrow().val(), 1);
+    assert_eq!(clone.borrow().val(), 1);
 
-    b.set(2);
-
-    assert_eq!(a.val(), 2);
-    assert_eq!(b.val(), 2);
-    assert_eq!(clone.val(), 2);
-
-    b.unlink_with(3);
+    RefCell::borrow_mut(&b).set(2);
 
     assert_eq!(a.val(), 2);
-    assert_eq!(b.val(), 3);
-    assert_eq!(clone.val(), 3);
+    assert_eq!(b.borrow().val(), 2);
+    assert_eq!(clone.borrow().val(), 2);
+
+    RefCell::borrow_mut(&b).unlink_with(3);
+
+    assert_eq!(a.val(), 2);
+    assert_eq!(b.borrow().val(), 3);
+    assert_eq!(clone.borrow().val(), 3);
+  }
+
+  #[test]
+  fn unlinked_children_dont_propagate_changes() {
+    let mut a = Chain::new(1);
+    let b = a.link();
+    let c = RefCell::borrow_mut(&b).link();
+
+    assert_eq!(a.val(), 1);
+    assert_eq!(b.borrow().val(), 1);
+    assert_eq!(c.borrow().val(), 1);
+
+    RefCell::borrow_mut(&b).unlink_with(2);
+
+    a.set(4);
+
+    assert_eq!(a.val(), 4);
+    assert_eq!(b.borrow().val(), 2);
+    assert_eq!(c.borrow().val(), 2);
   }
 }
