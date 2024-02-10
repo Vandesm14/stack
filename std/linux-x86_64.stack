@@ -1,13 +1,13 @@
 ;; See https://chromium.googlesource.com/chromiumos/docs/+/HEAD/constants/syscalls.md#x86_64-64_bit.
-0 'sys-read set
-1 'sys-write set
-60 'sys-exit set
+0 'sys-read def
+1 'sys-write def
+60 'sys-exit def
 
-0 'stdin set
-1 'stdout set
-2 'stderr set
+0 'stdin def
+1 'stdout def
+2 'stderr def
 
-10 'newline set
+10 'newline def
 
 ;; Write from a buffer into a file-descriptor.
 '(fn! buf tou8list dup len swap fd sys-write syscall3) '(buf fd) 'write defn
@@ -28,4 +28,4 @@
 ;; Exit the current process with a code.
 '(fn! code sys-exit syscall1) '(code) 'exit defn
 ;; Exit the current process without an error code.
-'(fn! 0 exit) 'exit-ok set
+'(fn! 0 exit) 'exit-ok def

@@ -1,6 +1,6 @@
 use thiserror::Error;
 
-use crate::{Expr, Lexer, Span, TokenKind, TokenVec};
+use crate::{Expr, FnSymbol, Lexer, Scope, Span, TokenKind, TokenVec};
 
 /// Converts a stream of [`Token`]s into a stream of [`Expr`]s.
 ///
@@ -135,10 +135,16 @@ impl<'source> Parser<'source> {
           break Ok(Some(Expr::Nil));
         }
         TokenKind::Fn => {
-          break Ok(Some(Expr::Fn(true)));
+          break Ok(Some(Expr::Fn(FnSymbol {
+            scoped: true,
+            scope: Scope::new(),
+          })));
         }
         TokenKind::FnExclamation => {
-          break Ok(Some(Expr::Fn(false)));
+          break Ok(Some(Expr::Fn(FnSymbol {
+            scoped: false,
+            scope: Scope::new(),
+          })));
         }
       }
     }

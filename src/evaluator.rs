@@ -2,7 +2,9 @@ use itertools::Itertools as _;
 use lasso::Spur;
 use syscalls::Sysno;
 
-use crate::{interner::interner, Expr, Intrinsic, Lexer, Parser, Type};
+use crate::{
+  interner::interner, Expr, Intrinsic, Lexer, Parser, Scanner, Scope, Type,
+};
 use core::{fmt, iter};
 use std::{collections::HashMap, time::SystemTime};
 
@@ -15,7 +17,7 @@ pub struct LoadedFile {
 #[derive(Debug, Clone, Default)]
 pub struct Program {
   pub stack: Vec<Expr>,
-  pub scopes: Vec<HashMap<String, Expr>>,
+  pub scopes: Vec<Scope>,
   pub loaded_files: HashMap<String, LoadedFile>,
   pub debug_trace: Option<Vec<Expr>>,
 }
@@ -26,9 +28,9 @@ impl fmt::Display for Program {
 
     self.stack.iter().enumerate().try_for_each(|(i, expr)| {
       if i == self.stack.len() - 1 {
-        write!(f, "{expr}")
+        write!(f, "{}", expr)
       } else {
-        write!(f, "{expr}, ")
+        write!(f, "{}, ", expr)
       }
     })?;
     write!(f, "]")?;
@@ -42,18 +44,25 @@ impl fmt::Display for Program {
     if !self.scopes.is_empty() {
       writeln!(f, "Scope:")?;
 
-      let layers = self.scopes.len();
-      for (layer_i, layer) in self.scopes.iter().enumerate() {
-        let items = layer.len();
-        writeln!(f, "Layer {}:", layer_i)?;
-        for (item_i, (key, value)) in
-          layer.iter().sorted_by_key(|(s, _)| *s).enumerate()
-        {
-          if item_i == items - 1 && layer_i == layers - 1 {
-            write!(f, " + {}: {}", key, value)?;
-          } else {
-            writeln!(f, " + {}: {}", key, value)?;
-          }
+      let layer = self.scopes.last().unwrap();
+      let items = layer.items.len();
+      for (item_i, (key, value)) in
+        layer.items.iter().sorted_by_key(|(s, _)| *s).enumerate()
+      {
+        if item_i == items - 1 {
+          write!(
+            f,
+            " + {}: {}",
+            interner().resolve(key),
+            value.borrow().val()
+          )?;
+        } else {
+          writeln!(
+            f,
+            " + {}: {}",
+            interner().resolve(key),
+            value.borrow().val()
+          )?;
         }
       }
     }
@@ -83,7 +92,7 @@ impl Program {
   pub fn new() -> Self {
     Self {
       stack: vec![],
-      scopes: vec![HashMap::new()],
+      scopes: vec![Scope::new()],
       loaded_files: HashMap::new(),
       debug_trace: None,
     }
@@ -114,15 +123,38 @@ impl Program {
   }
 
   fn push(&mut self, expr: Expr) {
-    self.stack.push(expr);
+    self.stack.push(expr)
   }
 
   fn scope_item(&self, symbol: &str) -> Option<Expr> {
     self
       .scopes
-      .iter()
-      .rev()
-      .find_map(|layer| layer.get(symbol).cloned())
+      .last()
+      .and_then(|layer| layer.get_val(interner().get_or_intern(symbol)))
+  }
+
+  fn def_scope_item(
+    &mut self,
+    trace_expr: &Expr,
+    symbol: &str,
+    value: Expr,
+  ) -> Result<(), EvalError> {
+    if let Some(layer) = self.scopes.last_mut() {
+      match layer.define(interner().get_or_intern(symbol), value) {
+        Ok(_) => Ok(()),
+        Err(message) => Err(EvalError {
+          expr: trace_expr.clone(),
+          program: self.clone(),
+          message,
+        }),
+      }
+    } else {
+      Err(EvalError {
+        expr: trace_expr.clone(),
+        program: self.clone(),
+        message: format!("no scope to define {symbol}"),
+      })
+    }
   }
 
   fn set_scope_item(
@@ -132,27 +164,32 @@ impl Program {
     value: Expr,
   ) -> Result<(), EvalError> {
     if let Some(layer) = self.scopes.last_mut() {
-      layer.insert(symbol.to_string(), value);
-      Ok(())
+      match layer.set(interner().get_or_intern(symbol), value) {
+        Ok(_) => Ok(()),
+        Err(message) => Err(EvalError {
+          expr: trace_expr.clone(),
+          program: self.clone(),
+          message,
+        }),
+      }
     } else {
       Err(EvalError {
         expr: trace_expr.clone(),
         program: self.clone(),
-        message: format!(
-          "no scope to set {symbol}, there may be too many \"}}\""
-        ),
+        message: format!("no scope to set {symbol}"),
       })
     }
   }
 
+  // TODO: Make this return a result
   fn remove_scope_item(&mut self, symbol: &str) {
     if let Some(layer) = self.scopes.last_mut() {
-      layer.remove(symbol);
+      layer.remove(interner().get_or_intern(symbol)).unwrap();
     }
   }
 
-  fn push_scope(&mut self) {
-    self.scopes.push(HashMap::new());
+  fn push_scope(&mut self, scope: Scope) {
+    self.scopes.push(scope);
   }
 
   fn pop_scope(&mut self) {
@@ -803,6 +840,41 @@ impl Program {
       }),
 
       // Scope
+      Intrinsic::Def => {
+        let key = self.pop(trace_expr)?;
+        let val = self.pop(trace_expr)?;
+
+        match key {
+          Expr::Call(key) => {
+            let key_str = interner().resolve(&key);
+
+            match Intrinsic::try_from(key_str) {
+              Ok(intrinsic) => Err(EvalError {
+                expr: trace_expr.clone(),
+                program: self.clone(),
+                message: format!(
+                  "cannot shadow an intrinsic {}",
+                  intrinsic.as_str()
+                ),
+              }),
+              Err(_) => self.def_scope_item(trace_expr, key_str, val),
+            }
+          }
+          key => Err(EvalError {
+            expr: trace_expr.clone(),
+            program: self.clone(),
+            message: format!(
+              "expected {}, found {}",
+              Type::List(vec![
+                // TODO: A type to represent functions.
+                Type::Any,
+                Type::Call,
+              ]),
+              Type::List(vec![val.type_of(), key.type_of(),]),
+            ),
+          }),
+        }
+      }
       Intrinsic::Set => {
         let key = self.pop(trace_expr)?;
         let val = self.pop(trace_expr)?;
@@ -935,27 +1007,42 @@ impl Program {
           call @ Expr::Call(_) => self.eval_expr(call),
           // This is where auto-call is defined and functions are evaluated when
           // they are called via an identifier
-          item @ Expr::List(_) => match item.create_fn_scope() {
-            Some(create_fn_scope) => {
-              let Expr::List(list) = item else {
-                unreachable!()
-              };
+          // TODO: Get this working again.
+          item @ Expr::List(_) => match item.is_function() {
+            true => {
+              let mut scanner =
+                Scanner::new(self.scopes.last().unwrap().duplicate());
+              let item = scanner.scan(item.clone());
 
-              if create_fn_scope {
-                self.push_scope();
-              }
+              match item {
+                Ok(item) => {
+                  let fn_symbol = item.fn_symbol().unwrap();
+                  let fn_body = item.fn_body().unwrap();
 
-              match self.eval(list) {
-                Ok(_) => {
-                  if create_fn_scope {
-                    self.pop_scope();
+                  if fn_symbol.scoped {
+                    self.push_scope(fn_symbol.scope.clone());
                   }
-                  Ok(())
+
+                  match self.eval(fn_body.to_vec()) {
+                    Ok(_) => {
+                      if fn_symbol.scoped {
+                        self.pop_scope();
+                      }
+                      Ok(())
+                    }
+                    Err(err) => Err(err),
+                  }
                 }
-                Err(err) => Err(err),
+                Err(message) => {
+                  return Err(EvalError {
+                    expr: trace_expr.clone(),
+                    program: self.clone(),
+                    message,
+                  });
+                }
               }
             }
-            None => {
+            false => {
               let Expr::List(list) = item else {
                 unreachable!()
               };
@@ -1268,6 +1355,8 @@ impl Program {
 
 #[cfg(test)]
 mod tests {
+  use crate::FnSymbol;
+
   use super::*;
 
   mod eval {
@@ -1340,7 +1429,7 @@ mod tests {
     #[test]
     fn dont_eval_skips() {
       let mut program = Program::new();
-      program.eval_string("6 'var set 'var").unwrap();
+      program.eval_string("6 'var def 'var").unwrap();
       assert_eq!(
         program.stack,
         vec![Expr::Call(interner().get_or_intern_static("var"))]
@@ -1364,7 +1453,7 @@ mod tests {
     #[test]
     fn eval_lists_eagerly() {
       let mut program = Program::new();
-      program.eval_string("6 'var set (var)").unwrap();
+      program.eval_string("6 'var def (var)").unwrap();
       assert_eq!(program.stack, vec![Expr::List(vec![Expr::Integer(6)])]);
     }
   }
@@ -1585,42 +1674,44 @@ mod tests {
     #[test]
     fn storing_variables() {
       let mut program = Program::new();
-      program.eval_string("1 'a set").unwrap();
-      assert_eq!(
-        program.scopes,
-        vec![HashMap::from_iter(vec![(
-          "a".to_string(),
-          Expr::Integer(1)
-        )])]
-      );
+      program.eval_string("1 'a def").unwrap();
+
+      let a = program
+        .scopes
+        .last()
+        .unwrap()
+        .get_val(interner().get_or_intern("a"))
+        .unwrap();
+
+      assert_eq!(a, Expr::Integer(1));
     }
 
     #[test]
     fn retrieving_variables() {
       let mut program = Program::new();
-      program.eval_string("1 'a set a").unwrap();
+      program.eval_string("1 'a def a").unwrap();
       assert_eq!(program.stack, vec![Expr::Integer(1)]);
     }
 
     #[test]
     fn evaluating_variables() {
       let mut program = Program::new();
-      program.eval_string("1 'a set a 2 +").unwrap();
+      program.eval_string("1 'a def a 2 +").unwrap();
       assert_eq!(program.stack, vec![Expr::Integer(3)]);
     }
 
     #[test]
     fn removing_variables() {
       let mut program = Program::new();
-      program.eval_string("1 'a set 'a unset").unwrap();
-      assert_eq!(program.scopes, vec![HashMap::new()]);
+      program.eval_string("1 'a def 'a unset").unwrap();
+      assert_eq!(program.scopes, vec![Scope::new()]);
     }
 
     #[test]
     fn auto_calling_functions() {
       let mut program = Program::new();
       program
-        .eval_string("'(fn 1 2 +) 'is-three set is-three")
+        .eval_string("'(fn 1 2 +) 'is-three def is-three")
         .unwrap();
       assert_eq!(program.stack, vec![Expr::Integer(3)]);
     }
@@ -1629,7 +1720,7 @@ mod tests {
     fn only_auto_call_functions() {
       let mut program = Program::new();
       program
-        .eval_string("'(1 2 +) 'is-three set is-three")
+        .eval_string("'(1 2 +) 'is-three def is-three")
         .unwrap();
       assert_eq!(
         program.stack,
@@ -1645,12 +1736,15 @@ mod tests {
     fn getting_function_body() {
       let mut program = Program::new();
       program
-        .eval_string("'(fn 1 2 +) 'is-three set 'is-three get")
+        .eval_string("'(fn 1 2 +) 'is-three def 'is-three get")
         .unwrap();
       assert_eq!(
         program.stack,
         vec![Expr::List(vec![
-          Expr::Fn(true),
+          Expr::Fn(FnSymbol {
+            scoped: true,
+            scope: Scope::new(),
+          }),
           Expr::Integer(1),
           Expr::Integer(2),
           Expr::Call(interner().get_or_intern_static("+"))
@@ -1668,7 +1762,10 @@ mod tests {
         program.stack,
         vec![
           Expr::List(vec![
-            Expr::Fn(true),
+            Expr::Fn(FnSymbol {
+              scoped: true,
+              scope: Scope::new(),
+            }),
             Expr::Integer(1),
             Expr::Integer(2),
             Expr::Call(interner().get_or_intern_static("+"))
@@ -1686,19 +1783,21 @@ mod tests {
         let mut program = Program::new();
         program
           .eval_string(
-            "0 'a set
-            '(fn 5 'a set)
+            "0 'a def
+            '(fn 5 'a def)
 
-            '(fn 1 'a set call) call",
+            '(fn 1 'a def call) call",
           )
           .unwrap();
-        assert_eq!(
-          program.scopes,
-          vec![HashMap::from_iter(vec![(
-            "a".to_string(),
-            Expr::Integer(0)
-          )]),]
-        )
+
+        let a = program
+          .scopes
+          .last()
+          .unwrap()
+          .get_val(interner().get_or_intern("a"))
+          .unwrap();
+
+        assert_eq!(a, Expr::Integer(0));
       }
 
       #[test]
@@ -1706,18 +1805,19 @@ mod tests {
         let mut program = Program::new();
         program
           .eval_string(
-            "0 'a set
-            '(fn! 1 'a set) call",
+            "0 'a def
+            '(fn! 1 'a def) call",
           )
           .unwrap();
 
-        assert_eq!(
-          program.scopes,
-          vec![HashMap::from_iter(vec![(
-            "a".to_string(),
-            Expr::Integer(1)
-          )]),]
-        )
+        let a = program
+          .scopes
+          .last()
+          .unwrap()
+          .get_val(interner().get_or_intern("a"))
+          .unwrap();
+
+        assert_eq!(a, Expr::Integer(1));
       }
 
       #[test]
@@ -1725,18 +1825,19 @@ mod tests {
         let mut program = Program::new();
         program
           .eval_string(
-            "0 'a set
-            '(fn 1 'a set a) call a",
+            "0 'a def
+            '(fn 1 'a def a) call a",
           )
           .unwrap();
 
-        assert_eq!(
-          program.scopes,
-          vec![HashMap::from_iter(vec![(
-            "a".to_string(),
-            Expr::Integer(0)
-          )]),]
-        );
+        let a = program
+          .scopes
+          .last()
+          .unwrap()
+          .get_val(interner().get_or_intern("a"))
+          .unwrap();
+
+        assert_eq!(a, Expr::Integer(0));
         assert_eq!(program.stack, vec![Expr::Integer(1), Expr::Integer(0)])
       }
     }
@@ -1797,6 +1898,7 @@ mod tests {
       );
     }
 
+    // TODO: wtf is this? do we still need this test??
     // #[test]
     // fn collect_and_unwrap() {
     //   let mut program = Program::new();
@@ -1888,6 +1990,7 @@ mod tests {
     }
   }
 
+  // TODO: Make this a test again
   // mod string_ops {
   //   use super::*;
 
@@ -1980,7 +2083,7 @@ mod tests {
       program
         .eval_string(
           ";; Set i to 3
-           3 'i set
+           3 'i def
 
            '(
              ;; Decrement i by 1

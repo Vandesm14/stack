@@ -2,7 +2,21 @@ use core::{cmp::Ordering, fmt, iter, num::FpCategory};
 
 use lasso::Spur;
 
-use crate::interner::interner;
+use crate::{interner::interner, Scope};
+
+#[derive(Clone)]
+pub struct FnSymbol {
+  pub scoped: bool,
+  pub scope: Scope,
+}
+
+impl fmt::Debug for FnSymbol {
+  fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+    f.debug_struct("FnSymbol")
+      .field("scoped", &self.scoped)
+      .finish()
+  }
+}
 
 #[derive(Debug, Clone)]
 pub enum Expr {
@@ -21,7 +35,7 @@ pub enum Expr {
   Call(Spur),
 
   /// Boolean denotes whether to create a new scope.
-  Fn(bool),
+  Fn(FnSymbol),
 }
 
 impl Expr {
@@ -37,16 +51,49 @@ impl Expr {
   }
 
   pub fn is_function(&self) -> bool {
-    self.create_fn_scope().is_some()
+    match self {
+      Expr::List(list) => list
+        .first()
+        .and_then(|x| match x {
+          Expr::Fn(_) => Some(true),
+          _ => Some(false),
+        })
+        .unwrap_or(false),
+      _ => false,
+    }
   }
 
-  pub fn create_fn_scope(&self) -> Option<bool> {
+  pub fn fn_symbol(&self) -> Option<&FnSymbol> {
     match self {
       Expr::List(list) => list.first().and_then(|x| match x {
-        Expr::Fn(scope) => Some(*scope),
+        Expr::Fn(scope) => Some(scope),
         _ => None,
       }),
       _ => None,
+    }
+  }
+
+  pub fn fn_body(&self) -> Option<&[Expr]> {
+    match self {
+      Expr::List(list) => list.first().and_then(|x| match x {
+        Expr::Fn(_) => Some(&list[1..]),
+        _ => None,
+      }),
+      _ => None,
+    }
+  }
+
+  pub fn unlazy(&self) -> &Self {
+    match self {
+      Self::Lazy(x) => x.unlazy(),
+      x => x,
+    }
+  }
+
+  pub fn unlazy_mut(&mut self) -> &mut Self {
+    match self {
+      Self::Lazy(x) => x.unlazy_mut(),
+      x => x,
     }
   }
 
@@ -198,7 +245,9 @@ impl PartialEq for Expr {
       (Self::Lazy(lhs), Self::Lazy(rhs)) => lhs == rhs,
       (Self::Call(lhs), Self::Call(rhs)) => lhs == rhs,
 
-      (Self::Fn(lhs), Self::Fn(rhs)) => lhs == rhs,
+      (Self::Fn(lhs), Self::Fn(rhs)) => {
+        lhs.scope == rhs.scope && lhs.scoped == rhs.scoped
+      }
 
       // Different types.
       (lhs @ Self::Boolean(_), rhs) => match rhs.to_boolean() {
@@ -237,7 +286,7 @@ impl PartialOrd for Expr {
       (Self::Lazy(lhs), Self::Lazy(rhs)) => lhs.partial_cmp(rhs),
       (Self::Call(lhs), Self::Call(rhs)) => lhs.partial_cmp(rhs),
 
-      (Self::Fn(lhs), Self::Fn(rhs)) => lhs.partial_cmp(rhs),
+      (Self::Fn(lhs), Self::Fn(rhs)) => lhs.scoped.partial_cmp(&rhs.scoped),
 
       // Different types.
       (lhs @ Self::Boolean(_), rhs) => match rhs.to_boolean() {
@@ -306,13 +355,7 @@ impl fmt::Display for Expr {
       }
       Self::Call(x) => f.write_str(interner().resolve(x)),
 
-      Self::Fn(x) => {
-        f.write_str("fn")?;
-
-        f.write_str("(")?;
-        fmt::Display::fmt(x, f)?;
-        f.write_str(")")
-      }
+      Self::Fn(_) => f.write_str("fn"),
     }
   }
 }

@@ -1,5 +1,5 @@
 '(fn
-  '() 'map/new set
+  '() 'map/new def
 
   '(fn
     '()
@@ -7,8 +7,8 @@
     ['value get push]
   ) '(key value) 'map/pair defn
 
-  '(fn 0 index swap drop) 'map/head set
-  '(fn 1 index swap drop) 'map/tail set
+  '(fn 0 index swap drop) 'map/head def
+  '(fn 1 index swap drop) 'map/tail def
 
   '(fn
     "std/list.stack" import

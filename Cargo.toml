@@ -19,6 +19,11 @@ features = ["inline-more", "multi-threaded"]
 
 [dev-dependencies]
 test-case = "3"
+criterion = "0.5.1"
+
+[[bench]]
+name = "eval"
+harness = false
 
 [[bin]]
 name = "stack"

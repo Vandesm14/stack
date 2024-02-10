@@ -1,22 +1,64 @@
 "std/linux-x86_64.stack" import
 "std/assert.stack" import
 
-0 'a set
+0 'var def
+var 0 "can define variables" assert-eq
+
+1 'var def
+var 1 "can redefine variables" assert-eq
+
+'(fn! 2 'var def) call
+var 2 "can redefine variables with functions!" assert-eq
+
+0 'a def
 
 '(fn
   a 1 +
-  'a set
-) 'add-one-to-a set
+  'a def
+) 'add-one-to-a def
 
 add-one-to-a
 
 a 0 "functions create a new scope" assert-eq
 
 '(fn!
-  a 2 +
   3 'a set
-) 'add-one-to-a! set
+) 'add-one-to-a! def
 
 add-one-to-a!
 
 a 3 "functions! use the current scope" assert-eq
+
+0 'i def
+'(fn
+  0 'i def
+
+  '(fn i)
+
+  '(fn
+    i 1 +
+    'i set
+  )
+)
+
+;; "Create" a counter
+call
+
+;; Call the first returned function to increment the counter
+call
+
+;; Call the second returned function to get the current value
+call
+
+1 "functions can use values from dead scopes (closures)" assert-eq
+i 0 "closures are isolated" assert-eq
+
+'(fn
+  0 'b def
+  
+  '(fn! 1 'b def) call
+  
+  b
+) call
+
+1 "functions! can use the current scope" assert-eq

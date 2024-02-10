@@ -42,6 +42,7 @@ pub enum Intrinsic {
   Halt,
 
   // Scope
+  Def,
   Set,
   Get,
   Unset,
@@ -119,6 +120,7 @@ impl TryFrom<&str> for Intrinsic {
       "halt" => Ok(Self::Halt),
 
       // Scope
+      "def" => Ok(Self::Def),
       "set" => Ok(Self::Set),
       "get" => Ok(Self::Get),
       "unset" => Ok(Self::Unset),
@@ -207,6 +209,7 @@ impl Intrinsic {
       Self::Halt => "halt",
 
       // Scope
+      Self::Def => "def",
       Self::Set => "set",
       Self::Get => "get",
       Self::Unset => "unset",

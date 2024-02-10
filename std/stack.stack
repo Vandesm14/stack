@@ -5,4 +5,4 @@
   swap
   dup
   rot
-) 'dup2 set
+) 'dup2 def

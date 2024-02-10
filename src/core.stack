@@ -1,26 +1,26 @@
-'(fn! read-file parse call) 'import set
-'(fn false =) 'not set
+'(fn! read-file parse call) 'import def
+'(fn false =) 'not def
 
 ;; List
 ;; ========================================
 
 ;; (list item -- 'list)
-'(fn! wrap concat) 'push set
+'(fn! wrap concat) 'push def
 ;; (list -- 'list item)
-'(fn! len 1 - split unwrap) 'pop set
+'(fn! len 1 - split unwrap) 'pop def
 
 ;; (list item -- 'list)
-'(fn! wrap swap concat) 'shift set
+'(fn! wrap swap concat) 'shift def
 ;; (list -- 'list item)
-'(fn! 1 split swap unwrap) 'unshift set
+'(fn! 1 split swap unwrap) 'unshift def
 
 ;; (list index item -- 'list)
-'(fn! rot split swap rot rot wrap concat swap concat) 'insert set
+'(fn! rot split swap rot rot wrap concat swap concat) 'insert def
 ;; (list index -- 'list item)
-'(fn! 1 + split swap pop rot swap concat swap) 'remove set
+'(fn! 1 + split swap pop rot swap concat swap) 'remove def
 
 ;; (list -- 'list)
-'(fn! () '(pop rot rot swap push) '(swap len 0 !=) while drop) 'reverse set
+'(fn! () '(pop rot rot swap push) '(swap len 0 !=) while drop) 'reverse def
 
 ;; Let
 ;; ========================================
@@ -28,12 +28,12 @@
 ;; Creates a let block
 ;; {list(fn ...) list(vars)} -> {list(fn ...)}
 '(fn
-  ['vars set]
-  ['func set]
+  ['vars def]
+  ['func def]
 
-  ['vars get len] ['var-len set drop]
+  ['vars get len] ['var-len def drop]
 
-  ['() 'new-fn set]
+  ['() 'new-fn def]
 
   ['func get]
   [unshift dup typeof]
@@ -51,7 +51,7 @@
   ["fn" =]
 ) if
 
-  [0 'i set]
+  [0 'i def]
 
   '(
     ;; Get the new function
@@ -66,8 +66,8 @@
     ;; Get the nth item, make it lazy, and insert it
     [index swap drop lazy push]
 
-    ;; Insert a `set` call
-    ['set push]
+    ;; Insert a `def` call
+    ['def push]
 
     ;; Update our new-fn
     ['new-fn set]
@@ -80,11 +80,11 @@
   ['new-fn get]
   ['func get]
   concat
-) 'let-fn set
+) 'let-fn def
 
 ;; QoL function to auto-call the created let block
 ;; {list(fn ...) list(vars)} -> {}
-'(fn! let-fn call) 'let set
+'(fn! let-fn call) 'let def
 
 ;; QoL function to set a let block to a variable
 ;; {list(fn ...) list(vars) symbol} -> {}
@@ -100,8 +100,8 @@
   ) '(func vars symbol) let
 
   ;; Setting the function to the symbol in the current scope
-  set
-) 'defn set
+  def
+) 'defn def
 
 ;; Modules
 ;; ========================================
@@ -113,7 +113,7 @@
   [swap push]
   [swap push]
   [push]
-) 'export set
+) 'export def
 
 ;; Run this function within the same scope
 '(fn!
@@ -155,7 +155,7 @@
       [tocall lazy push]
 
       ;; Push a `'set` call to the code
-      ['set push]
+      ['def push]
 
       ;; Add the code to the template function and update it
       [concat 'runner set]
@@ -172,7 +172,7 @@
 
   ;; Pop namespace
   drop
-) 'use set
+) 'use def
 
 ;; Run this function within the same scope
 '(fn!
@@ -201,10 +201,10 @@
       [pop lazy push]
 
       ;; Push a `'set` call to the code
-      ['set push]
+      ['def push]
 
       ;; Add the code to the template function and update it
-      [concat 'runner set]
+      [concat 'runner def]
 
       ;; Put the runner back on the stack
       'runner get
@@ -214,4 +214,4 @@
 
   ;; Call our template function to set all of the imported variables
   call
-) 'use-all set
+) 'use-all def

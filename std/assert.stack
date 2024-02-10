@@ -4,14 +4,14 @@
   '([tolist] ["assertion failed: " tolist] [swap] [concat "" join] panic)
   '(true !=)
   ifelse
-) 'assert set
+) 'assert def
 
 '(fn
-  'context set
-  'right set
-  'left set
+  'context def
+  'right def
+  'left def
 
   '('() ["assertion for [" push] [context push] ["] failed:\nLeft = " push] [left push] ["\nRight = " push] [right push] ["" join] panic)
   '(left right !=)
   if
-) 'assert-eq set
+) 'assert-eq def

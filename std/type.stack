@@ -1,2 +1,2 @@
-'(fn typeof tolist 0 index swap drop "(" =) 'is-list set
-'(fn typeof tolist dup len 2 > swap 1 index swap drop "f" = =) 'is-function set
+'(fn typeof tolist 0 index swap drop "(" =) 'is-list def
+'(fn typeof tolist dup len 2 > swap 1 index swap drop "f" = =) 'is-function def
