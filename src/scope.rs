@@ -146,14 +146,7 @@ impl Scanner {
       }
 
       let mut fn_scope = fn_symbol.scope.clone();
-
-      println!();
-      println!("fn before: {:?}", fn_scope.clone());
-      println!("ours before: {:?}", self.scope.clone());
-
       fn_scope.merge(self.scope.clone());
-
-      println!("after: {:?}", fn_scope.clone());
 
       let fn_symbol = Expr::Fn(FnSymbol {
         scope: fn_scope,
