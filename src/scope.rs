@@ -76,6 +76,15 @@ impl Scope {
   pub fn get_ref(&self, name: Spur) -> Option<Val> {
     self.items.get(&name).cloned()
   }
+
+  /// Merges another scope into this one, not overwriting any existing variables
+  pub fn merge(&mut self, other: Scope) {
+    for (name, item) in other.items {
+      if !self.has(name) {
+        self.items.insert(name, item);
+      }
+    }
+  }
 }
 
 #[derive(Default, Debug, Clone)]
@@ -109,8 +118,18 @@ impl Scanner {
         }
       }
 
+      let mut fn_scope = fn_symbol.scope.clone(); 
+
+      println!();
+      println!("fn before: {:?}", fn_scope.clone());
+      println!("ours before: {:?}", self.scope.clone());
+
+      fn_scope.merge(self.scope.clone());
+
+      println!("after: {:?}", fn_scope.clone());
+
       let fn_symbol = Expr::Fn(FnSymbol {
-        scope: self.scope.clone(),
+        scope: fn_scope,
         scoped: fn_symbol.scoped,
       });
 
