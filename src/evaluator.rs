@@ -3,7 +3,7 @@ use lasso::Spur;
 use syscalls::Sysno;
 
 use crate::{
-  interner::interner, Expr, Intrinsic, Lexer, Parser, Scanner, Scope, Type
+  interner::interner, Expr, Intrinsic, Lexer, Parser, Scanner, Scope, Type,
 };
 use core::{fmt, iter};
 use std::{collections::HashMap, time::SystemTime};
@@ -50,9 +50,19 @@ impl fmt::Display for Program {
         layer.items.iter().sorted_by_key(|(s, _)| *s).enumerate()
       {
         if item_i == items - 1 {
-          write!(f, " + {}: {}", interner().resolve(key), value.clone().borrow())?;
+          write!(
+            f,
+            " + {}: {}",
+            interner().resolve(key),
+            value.root().borrow()
+          )?;
         } else {
-          writeln!(f, " + {}: {}", interner().resolve(key), value.clone().borrow())?;
+          writeln!(
+            f,
+            " + {}: {}",
+            interner().resolve(key),
+            value.root().borrow()
+          )?;
         }
       }
     }
@@ -113,7 +123,7 @@ impl Program {
   }
 
   fn push(&mut self, expr: Expr) {
-    let mut scanner = Scanner::new(self.scopes.last().unwrap().clone());
+    let mut scanner = Scanner::new(self.scopes.last().unwrap().duplicate());
     let new_expr = scanner.scan(expr.clone());
 
     match new_expr {
@@ -128,7 +138,7 @@ impl Program {
     self
       .scopes
       .last()
-      .and_then(|layer| layer.get(interner().get_or_intern(symbol)))
+      .and_then(|layer| layer.get_val(interner().get_or_intern(symbol)))
   }
 
   fn def_scope_item(
@@ -150,9 +160,7 @@ impl Program {
       Err(EvalError {
         expr: trace_expr.clone(),
         program: self.clone(),
-        message: format!(
-          "no scope to define {symbol}"
-        ),
+        message: format!("no scope to define {symbol}"),
       })
     }
   }
@@ -176,9 +184,7 @@ impl Program {
       Err(EvalError {
         expr: trace_expr.clone(),
         program: self.clone(),
-        message: format!(
-          "no scope to set {symbol}"
-        ),
+        message: format!("no scope to set {symbol}"),
       })
     }
   }
@@ -1341,6 +1347,8 @@ impl Program {
 
 #[cfg(test)]
 mod tests {
+  use crate::{FnSymbol, Val};
+
   use super::*;
 
   mod eval {
@@ -1653,8 +1661,6 @@ mod tests {
   }
 
   mod variables {
-    use crate::FnSymbol;
-
     use super::*;
 
     #[test]
@@ -1665,7 +1671,7 @@ mod tests {
         program.scopes,
         vec![Scope::from(HashMap::from_iter(vec![(
           interner().get_or_intern("a"),
-          Scope::make_rc(Expr::Integer(1))
+          Val::new(Expr::Integer(1))
         )]))]
       );
     }
@@ -1727,20 +1733,18 @@ mod tests {
         vec![Expr::List(vec![
           Expr::Fn(FnSymbol {
             scoped: true,
-            scope: Scope::from(
-              HashMap::from_iter(vec![(
-                interner().get_or_intern_static("is-three"),
-                Scope::make_rc(Expr::List(vec![
-                  Expr::Fn(FnSymbol {
-                    scoped: true,
-                    scope: Scope::new(),
-                  }),
-                  Expr::Integer(1),
-                  Expr::Integer(2),
-                  Expr::Call(interner().get_or_intern_static("+"))
-                ]))
-              )])
-            ),
+            scope: Scope::from(HashMap::from_iter(vec![(
+              interner().get_or_intern_static("is-three"),
+              Val::new(Expr::List(vec![
+                Expr::Fn(FnSymbol {
+                  scoped: true,
+                  scope: Scope::new(),
+                }),
+                Expr::Integer(1),
+                Expr::Integer(2),
+                Expr::Call(interner().get_or_intern_static("+"))
+              ]))
+            )])),
           }),
           Expr::Integer(1),
           Expr::Integer(2),
@@ -1773,6 +1777,8 @@ mod tests {
     }
 
     mod scope {
+      use crate::Val;
+
       use super::*;
 
       #[test]
@@ -1790,7 +1796,7 @@ mod tests {
           program.scopes,
           vec![Scope::from(HashMap::from_iter(vec![(
             interner().get_or_intern("a"),
-            Scope::make_rc(Expr::Integer(0))
+            Val::new(Expr::Integer(0))
           )])),]
         )
       }
@@ -1809,7 +1815,7 @@ mod tests {
           program.scopes,
           vec![Scope::from(HashMap::from_iter(vec![(
             interner().get_or_intern("a"),
-            Scope::make_rc(Expr::Integer(1))
+            Val::new(Expr::Integer(1))
           )])),]
         )
       }
@@ -1828,7 +1834,7 @@ mod tests {
           program.scopes,
           vec![Scope::from(HashMap::from_iter(vec![(
             interner().get_or_intern("a"),
-            Scope::make_rc(Expr::Integer(0))
+            Val::new(Expr::Integer(0))
           )])),]
         );
         assert_eq!(program.stack, vec![Expr::Integer(1), Expr::Integer(0)])
@@ -1891,6 +1897,7 @@ mod tests {
       );
     }
 
+    // TODO: wtf is this? do we still need this test??
     // #[test]
     // fn collect_and_unwrap() {
     //   let mut program = Program::new();
@@ -1982,6 +1989,7 @@ mod tests {
     }
   }
 
+  // TODO: Make this a test again
   // mod string_ops {
   //   use super::*;
 

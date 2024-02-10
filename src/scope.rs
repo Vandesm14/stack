@@ -1,13 +1,11 @@
-use crate::{
-  interner::interner, Expr, FnSymbol, Intrinsic
-};
+use crate::{interner::interner, Chain, Expr, FnSymbol, Intrinsic};
 use core::fmt;
 use lasso::Spur;
-use std::{cell::RefCell, collections::HashMap, fmt::Formatter, rc::Rc};
+use std::{collections::HashMap, fmt::Formatter};
 
-type Val = Rc<RefCell<Expr>>;
+pub type Val = Chain<Expr>;
 
-#[derive(Default, Clone, PartialEq)]
+#[derive(Default, PartialEq)]
 pub struct Scope {
   pub items: HashMap<Spur, Val>,
 }
@@ -18,11 +16,19 @@ impl fmt::Debug for Scope {
       .items
       .iter()
       .map(|(name, item)| (interner().resolve(name), item));
-    write!(
-      f,
-      "{:?}",
-      HashMap::<&str, &Val>::from_iter(iter)
-    )
+    write!(f, "{:?}", HashMap::<&str, &Val>::from_iter(iter))
+  }
+}
+
+impl Clone for Scope {
+  fn clone(&self) -> Self {
+    let mut items = HashMap::new();
+
+    for (name, item) in self.items.iter() {
+      items.insert(*name, item.clone());
+    }
+
+    Self { items }
   }
 }
 
@@ -35,20 +41,28 @@ impl Scope {
     Self { items }
   }
 
-  pub fn make_rc(val: Expr) -> Val {
-    Rc::new(RefCell::new(val))
-  }
-
   pub fn define(&mut self, name: Spur, item: Expr) -> Result<(), String> {
-    let item = Rc::new(RefCell::new(item));
-    self.items.insert(name, item);
+    if let Some(val) = self.items.get(&name) {
+      match val {
+        Chain::Link(_) => {
+          val.unlink_with(|_| item);
+        }
+        Chain::Root(root) => {
+          let mut root = root.borrow_mut();
+          *root = item;
+        }
+      }
+    } else {
+      let val = Val::new(item);
+      self.items.insert(name, val);
+    }
 
     Ok(())
   }
 
   pub fn set(&mut self, name: Spur, item: Expr) -> Result<(), String> {
     if let Some(val) = self.items.get(&name) {
-      *val.borrow_mut() = item;
+      *val.root().borrow_mut() = item;
       Ok(())
     } else {
       Err("Cannot set to a nonexistent variable".to_owned())
@@ -69,12 +83,15 @@ impl Scope {
     self.items.contains_key(&name)
   }
 
-  pub fn get(&self, name: Spur) -> Option<Expr> {
-    self.items.get(&name).map(|item| item.borrow().clone())
+  pub fn get_val(&self, name: Spur) -> Option<Expr> {
+    self
+      .items
+      .get(&name)
+      .map(|item| item.root().borrow().clone())
   }
 
-  pub fn get_ref(&self, name: Spur) -> Option<Val> {
-    self.items.get(&name).cloned()
+  pub fn get_ref(&self, name: Spur) -> Option<&Val> {
+    self.items.get(&name)
   }
 
   /// Merges another scope into this one, not overwriting any existing variables
@@ -85,9 +102,19 @@ impl Scope {
       }
     }
   }
+
+  pub fn duplicate(&self) -> Self {
+    let mut items = HashMap::new();
+
+    for (name, item) in self.items.iter() {
+      items.insert(*name, item.link());
+    }
+
+    Self { items }
+  }
 }
 
-#[derive(Default, Debug, Clone)]
+#[derive(Default, Debug)]
 pub struct Scanner {
   pub scope: Scope,
 }
@@ -118,7 +145,7 @@ impl Scanner {
         }
       }
 
-      let mut fn_scope = fn_symbol.scope.clone(); 
+      let mut fn_scope = fn_symbol.scope.clone();
 
       println!();
       println!("fn before: {:?}", fn_scope.clone());

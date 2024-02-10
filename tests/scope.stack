@@ -1,6 +1,15 @@
 "std/linux-x86_64.stack" import
 "std/assert.stack" import
 
+0 'var def
+var 0 "can define variables" assert-eq
+
+1 'var def
+var 1 "can redefine variables" assert-eq
+
+'(fn! 2 'var def) call
+var 2 "can redefine variables with functions!" assert-eq
+
 0 'a def
 
 '(fn
