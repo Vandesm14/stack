@@ -42,6 +42,12 @@ def
 my-var debug ;; prints 0
 ```
 
+Variables work like so:
+- `def` is used to define a variable and assign a value to it
+  - This can be used to set variables as well, though it will do so within the current scope
+- `set` is used to change the value of an existing variable
+  - This will error if you try to set a variable that doesn't exist
+
 ### Lists
 
 Stack has a built-in list type that can be used to store multiple values. Lists are created with the `()` syntax. When pushed to the stack, the data inside lists **will be evaluated**. The evaluation happens from left to right, and the result is reimplemented into the list. For example, the list below adds two numbers and is collapsed down into the result.
