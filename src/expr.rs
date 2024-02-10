@@ -4,10 +4,18 @@ use lasso::Spur;
 
 use crate::{interner::interner, Scope};
 
-#[derive(Debug, Clone)]
+#[derive(Clone)]
 pub struct FnSymbol {
   pub scoped: bool,
   pub scope: Scope,
+}
+
+impl fmt::Debug for FnSymbol {
+  fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+    f.debug_struct("FnSymbol")
+      .field("scoped", &self.scoped)
+      .finish()
+  }
 }
 
 #[derive(Debug, Clone)]
