@@ -19,6 +19,9 @@ use stack::{EvalError, Program};
 struct Cli {
   #[command(subcommand)]
   command: Option<Commands>,
+
+  #[arg(long)]
+  no_core: bool,
 }
 
 #[derive(Subcommand)]
@@ -32,9 +35,6 @@ enum Commands {
 
     #[arg(short, long)]
     debug: bool,
-
-    #[arg(long)]
-    no_core: bool,
   },
 }
 
@@ -47,9 +47,13 @@ fn eval_string(program: &Program, result: Result<(), EvalError>) {
   }
 }
 
-fn repl() -> rustyline::Result<()> {
+fn repl(with_core: bool) -> rustyline::Result<()> {
   let mut rl = DefaultEditor::new()?;
-  let mut program = Program::new().with_core().unwrap();
+  let mut program = Program::new();
+
+  if with_core {
+    program = program.with_core().unwrap();
+  }
 
   loop {
     let readline = rl.readline(">> ");
@@ -130,12 +134,7 @@ fn main() {
   let cli = Cli::parse();
 
   match cli.command {
-    Some(Commands::Run {
-      path,
-      watch,
-      debug,
-      no_core,
-    }) => match watch {
+    Some(Commands::Run { path, watch, debug }) => match watch {
       true => {
         let (tx, rx) = std::sync::mpsc::channel();
 
@@ -143,23 +142,28 @@ fn main() {
           RecommendedWatcher::new(tx, Config::default()).unwrap();
         watcher.watch(&path, RecursiveMode::NonRecursive).unwrap();
 
-        eval_file(path.clone(), Some(&mut watcher), debug, !no_core);
+        eval_file(path.clone(), Some(&mut watcher), debug, !cli.no_core);
         for res in rx {
           match res {
             Ok(event) => {
               if let EventKind::Access(AccessKind::Close(_)) = event.kind {
-                eval_file(path.clone(), Some(&mut watcher), debug, !no_core);
+                eval_file(
+                  path.clone(),
+                  Some(&mut watcher),
+                  debug,
+                  !cli.no_core,
+                );
               }
             }
             Err(error) => eprintln!("Error: {error:?}"),
           }
         }
       }
-      false => eval_file(path, None, debug, !no_core),
+      false => eval_file(path, None, debug, !cli.no_core),
     },
     None => {
       println!("Running REPL");
-      repl().unwrap();
+      repl(!cli.no_core).unwrap();
     }
   }
 }
