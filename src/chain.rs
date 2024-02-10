@@ -72,6 +72,7 @@ use std::{borrow::BorrowMut, rc::Rc};
 pub struct Chain<T> {
   value: Rc<RefCell<T>>,
   child: Option<Rc<RefCell<Chain<T>>>>,
+  root: bool,
 }
 
 impl<T> Chain<T> {
@@ -79,6 +80,7 @@ impl<T> Chain<T> {
     Self {
       value: Rc::new(RefCell::new(value)),
       child: None,
+      root: true,
     }
   }
 
@@ -86,6 +88,7 @@ impl<T> Chain<T> {
     let child = Rc::new(RefCell::new(Self {
       value: self.value.clone(),
       child: None,
+      root: false,
     }));
     *self.child.borrow_mut() = Some(child.clone());
 
@@ -105,15 +108,23 @@ where
     self.value.borrow().clone()
   }
 
-  pub fn unlink_with_rc(&mut self, value: Rc<RefCell<T>>) {
+  fn unlink_with_rc(&mut self, value: Rc<RefCell<T>>, new_root: bool) {
+    let mut new_root = new_root;
+
+    if new_root {
+      self.root = true;
+      new_root = false;
+    }
+
     self.value = value.clone();
+
     if let Some(child) = &self.child {
-      RefCell::borrow_mut(child).unlink_with_rc(value);
+      RefCell::borrow_mut(child).unlink_with_rc(value, new_root);
     }
   }
 
   pub fn unlink_with(&mut self, val: T) {
-    self.unlink_with_rc(Rc::new(RefCell::new(val)));
+    self.unlink_with_rc(Rc::new(RefCell::new(val)), true);
   }
 
   pub fn set(&mut self, val: T) {
@@ -218,5 +229,22 @@ mod tests {
     assert_eq!(a.val(), 4);
     assert_eq!(b.borrow().val(), 2);
     assert_eq!(c.borrow().val(), 2);
+  }
+
+  #[test]
+  fn unlinking_and_roots() {
+    let mut a = Chain::new(1);
+    let b = a.link();
+    let c = RefCell::borrow_mut(&b).link();
+
+    assert_eq!(a.root, true);
+    assert_eq!(b.borrow().root, false);
+    assert_eq!(c.borrow().root, false);
+
+    RefCell::borrow_mut(&b).unlink_with(2);
+
+    assert_eq!(a.root, true);
+    assert_eq!(b.borrow().root, true);
+    assert_eq!(c.borrow().root, false);
   }
 }
