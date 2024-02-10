@@ -1,0 +1,6 @@
+[book]
+authors = ["Shane Vandegrift"]
+language = "en"
+multilingual = false
+src = "src"
+title = "Stack"
