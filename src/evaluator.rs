@@ -123,15 +123,7 @@ impl Program {
   }
 
   fn push(&mut self, expr: Expr) {
-    let mut scanner = Scanner::new(self.scopes.last().unwrap().duplicate());
-    let new_expr = scanner.scan(expr.clone());
-
-    match new_expr {
-      Ok(new_expr) => self.stack.push(new_expr),
-      Err(err) => {
-        eprintln!("{}", err);
-      }
-    }
+    self.stack.push(expr)
   }
 
   fn scope_item(&self, symbol: &str) -> Option<Expr> {
@@ -1018,21 +1010,36 @@ impl Program {
           // TODO: Get this working again.
           item @ Expr::List(_) => match item.is_function() {
             true => {
-              let fn_symbol = item.fn_symbol().unwrap();
-              let fn_body = item.fn_body().unwrap();
+              let mut scanner =
+                Scanner::new(self.scopes.last().unwrap().duplicate());
+              let item = scanner.scan(item.clone());
 
-              if fn_symbol.scoped {
-                self.push_scope(fn_symbol.scope.clone());
-              }
+              match item {
+                Ok(item) => {
+                  let fn_symbol = item.fn_symbol().unwrap();
+                  let fn_body = item.fn_body().unwrap();
 
-              match self.eval(fn_body.to_vec()) {
-                Ok(_) => {
                   if fn_symbol.scoped {
-                    self.pop_scope();
+                    self.push_scope(fn_symbol.scope.clone());
                   }
-                  Ok(())
+
+                  match self.eval(fn_body.to_vec()) {
+                    Ok(_) => {
+                      if fn_symbol.scoped {
+                        self.pop_scope();
+                      }
+                      Ok(())
+                    }
+                    Err(err) => Err(err),
+                  }
                 }
-                Err(err) => Err(err),
+                Err(message) => {
+                  return Err(EvalError {
+                    expr: trace_expr.clone(),
+                    program: self.clone(),
+                    message,
+                  });
+                }
               }
             }
             false => {
@@ -1734,18 +1741,7 @@ mod tests {
         vec![Expr::List(vec![
           Expr::Fn(FnSymbol {
             scoped: true,
-            scope: Scope::from(HashMap::from_iter(vec![(
-              interner().get_or_intern_static("is-three"),
-              Val::new(Expr::List(vec![
-                Expr::Fn(FnSymbol {
-                  scoped: true,
-                  scope: Scope::new(),
-                }),
-                Expr::Integer(1),
-                Expr::Integer(2),
-                Expr::Call(interner().get_or_intern_static("+"))
-              ]))
-            )])),
+            scope: Scope::new(),
           }),
           Expr::Integer(1),
           Expr::Integer(2),
