@@ -189,9 +189,10 @@ impl Program {
     }
   }
 
+  // TODO: Make this return a result
   fn remove_scope_item(&mut self, symbol: &str) {
     if let Some(layer) = self.scopes.last_mut() {
-      layer.remove(interner().get_or_intern(symbol));
+      layer.remove(interner().get_or_intern(symbol)).unwrap();
     }
   }
 

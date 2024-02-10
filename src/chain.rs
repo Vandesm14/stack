@@ -1,13 +1,18 @@
 use core::cell::RefCell;
 use std::rc::Rc;
 
+// TODO: Look into a more efficient way to implement this.
+
 #[derive(Debug, Clone)]
 pub enum Chain<T> {
   Root(Rc<RefCell<T>>),
   Link(Rc<RefCell<Self>>),
 }
 
-impl<T> PartialEq for Chain<T> where T: PartialEq {
+impl<T> PartialEq for Chain<T>
+where
+  T: PartialEq,
+{
   fn eq(&self, other: &Self) -> bool {
     RefCell::borrow(&self.root()).eq(&RefCell::borrow(&other.root()))
   }
@@ -57,3 +62,5 @@ where
     self.unlink_with(|chain| RefCell::borrow(&chain.root()).clone())
   }
 }
+
+// TODO: Add tests
