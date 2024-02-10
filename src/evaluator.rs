@@ -1355,7 +1355,7 @@ impl Program {
 
 #[cfg(test)]
 mod tests {
-  use crate::{FnSymbol, Val};
+  use crate::FnSymbol;
 
   use super::*;
 
@@ -1669,10 +1669,6 @@ mod tests {
   }
 
   mod variables {
-    use std::{cell::RefCell, rc::Rc};
-
-    use crate::Chain;
-
     use super::*;
 
     #[test]
@@ -1780,8 +1776,6 @@ mod tests {
     }
 
     mod scope {
-      use crate::Val;
-
       use super::*;
 
       #[test]
