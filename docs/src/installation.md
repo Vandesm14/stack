@@ -3,6 +3,12 @@
 Stack is currently not in the cargo registry, so to install, you must clone the repo and install it manually.
 
 ```bash
+# Clone the repo
+git clone https://github.com/vandesm14/stack
+
+# Move into the directory
+cd stack
+
 # After cloning the repo
 cargo install --path .
 
