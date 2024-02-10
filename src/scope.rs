@@ -28,7 +28,8 @@ impl Clone for Scope {
       items.insert(*name, item.clone());
     }
 
-    Self { items }
+    // Self { items }
+    todo!()
   }
 }
 
@@ -44,13 +45,14 @@ impl Scope {
   pub fn define(&mut self, name: Spur, item: Expr) -> Result<(), String> {
     if let Some(val) = self.items.get(&name) {
       match val {
-        Chain::Link(_) => {
-          val.unlink_with(|_| item);
-        }
-        Chain::Root(root) => {
-          let mut root = root.borrow_mut();
-          *root = item;
-        }
+        // Chain::Link(_) => {
+        //   val.unlink_with(|_| item);
+        // }
+        // Chain::Root(root) => {
+        //   let mut root = root.borrow_mut();
+        //   *root = item;
+        // }
+        _ => todo!(),
       }
     } else {
       let val = Val::new(item);
@@ -107,7 +109,8 @@ impl Scope {
     let mut items = HashMap::new();
 
     for (name, item) in self.items.iter() {
-      items.insert(*name, item.link());
+      // items.insert(*name, item.link());
+      todo!()
     }
 
     Self { items }

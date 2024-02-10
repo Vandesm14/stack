@@ -1,165 +1,189 @@
-use std::fs;
-use std::io::stdout;
-use std::path::{Path, PathBuf};
+// use std::fs;
+// use std::io::stdout;
+// use std::path::{Path, PathBuf};
 
-use clap::{Parser, Subcommand};
-use crossterm::terminal::{Clear, ClearType};
-use crossterm::{cursor, execute};
-use notify::event::AccessKind;
-use notify::{
-  Config, EventKind, INotifyWatcher, RecommendedWatcher, RecursiveMode, Watcher,
-};
+// use clap::{Parser, Subcommand};
+// use crossterm::terminal::{Clear, ClearType};
+// use crossterm::{cursor, execute};
+// use notify::event::AccessKind;
+// use notify::{
+//   Config, EventKind, INotifyWatcher, RecommendedWatcher, RecursiveMode, Watcher,
+// };
 
-use rustyline::error::ReadlineError;
-use rustyline::DefaultEditor;
-use stack::{EvalError, Program};
+// use rustyline::error::ReadlineError;
+// use rustyline::DefaultEditor;
+// use stack::{EvalError, Program};
 
-#[derive(Parser)]
-#[command(author, version, about, long_about = None)]
-struct Cli {
-  #[command(subcommand)]
-  command: Option<Commands>,
-}
+// #[derive(Parser)]
+// #[command(author, version, about, long_about = None)]
+// struct Cli {
+//   #[command(subcommand)]
+//   command: Option<Commands>,
+// }
 
-#[derive(Subcommand)]
-enum Commands {
-  #[command(about = "Run a file")]
-  Run {
-    path: PathBuf,
+// #[derive(Subcommand)]
+// enum Commands {
+//   #[command(about = "Run a file")]
+//   Run {
+//     path: PathBuf,
 
-    #[arg(short, long)]
-    watch: bool,
+//     #[arg(short, long)]
+//     watch: bool,
 
-    #[arg(short, long)]
-    debug: bool,
+//     #[arg(short, long)]
+//     debug: bool,
 
-    #[arg(long)]
-    no_core: bool,
-  },
-}
+//     #[arg(long)]
+//     no_core: bool,
+//   },
+// }
 
-fn eval_string(program: &Program, result: Result<(), EvalError>) {
-  println!();
-  if let Err(err) = result {
-    eprintln!("{}", err);
-  } else {
-    println!("{}", program);
-  }
-}
+// fn eval_string(program: &Program, result: Result<(), EvalError>) {
+//   println!();
+//   if let Err(err) = result {
+//     eprintln!("{}", err);
+//   } else {
+//     println!("{}", program);
+//   }
+// }
 
-fn repl() -> rustyline::Result<()> {
-  let mut rl = DefaultEditor::new()?;
-  let mut program = Program::new().with_core().unwrap();
+// fn repl() -> rustyline::Result<()> {
+//   let mut rl = DefaultEditor::new()?;
+//   let mut program = Program::new().with_core().unwrap();
 
-  loop {
-    let readline = rl.readline(">> ");
-    match readline {
-      Ok(line) => {
-        rl.add_history_entry(line.as_str()).unwrap();
+//   loop {
+//     let readline = rl.readline(">> ");
+//     match readline {
+//       Ok(line) => {
+//         rl.add_history_entry(line.as_str()).unwrap();
 
-        let result = program.eval_string(line.as_str());
-        eval_string(&program, result);
-      }
-      Err(ReadlineError::Interrupted) => {
-        println!("CTRL-C");
-        break;
-      }
-      Err(ReadlineError::Eof) => {
-        println!("CTRL-D");
-        break;
-      }
-      Err(err) => {
-        println!("Error: {:?}", err);
-        break;
-      }
-    }
-  }
+//         let result = program.eval_string(line.as_str());
+//         eval_string(&program, result);
+//       }
+//       Err(ReadlineError::Interrupted) => {
+//         println!("CTRL-C");
+//         break;
+//       }
+//       Err(ReadlineError::Eof) => {
+//         println!("CTRL-D");
+//         break;
+//       }
+//       Err(err) => {
+//         println!("Error: {:?}", err);
+//         break;
+//       }
+//     }
+//   }
 
-  Ok(())
-}
+//   Ok(())
+// }
 
-fn eval_file(
-  path: PathBuf,
-  watcher: Option<&mut INotifyWatcher>,
-  debug: bool,
-  with_core: bool,
-) {
-  let mut stdout = stdout();
+// fn eval_file(
+//   path: PathBuf,
+//   watcher: Option<&mut INotifyWatcher>,
+//   debug: bool,
+//   with_core: bool,
+// ) {
+//   let mut stdout = stdout();
 
-  match fs::read(path.clone()) {
-    Ok(contents) => {
-      let contents = String::from_utf8(contents).unwrap();
-      let mut program = Program::new();
+//   match fs::read(path.clone()) {
+//     Ok(contents) => {
+//       let contents = String::from_utf8(contents).unwrap();
+//       let mut program = Program::new();
 
-      if debug {
-        program = program.with_debug();
-      }
+//       if debug {
+//         program = program.with_debug();
+//       }
 
-      if with_core {
-        program = program.with_core().unwrap();
-      }
+//       if with_core {
+//         program = program.with_core().unwrap();
+//       }
 
-      if watcher.is_some() {
-        execute!(stdout, Clear(ClearType::All)).unwrap();
-        execute!(stdout, cursor::MoveTo(0, 0)).unwrap();
-      }
+//       if watcher.is_some() {
+//         execute!(stdout, Clear(ClearType::All)).unwrap();
+//         execute!(stdout, cursor::MoveTo(0, 0)).unwrap();
+//       }
 
-      let result = program.eval_string(contents.as_str());
-      eval_string(&program, result);
+//       let result = program.eval_string(contents.as_str());
+//       eval_string(&program, result);
 
-      if let Some(watcher) = watcher {
-        println!();
-        println!("Watching files for changes...");
+//       if let Some(watcher) = watcher {
+//         println!();
+//         println!("Watching files for changes...");
 
-        println!(" - {}", path.display());
-        for path in program.loaded_files().filter(|p| p.ends_with(".stack")) {
-          println!(" - {}", path);
-          watcher
-            .watch(Path::new(path), RecursiveMode::NonRecursive)
-            .unwrap();
-        }
-      }
-    }
-    Err(err) => {
-      eprintln!("Error: {:?}", err);
-    }
-  }
-}
+//         println!(" - {}", path.display());
+//         for path in program.loaded_files().filter(|p| p.ends_with(".stack")) {
+//           println!(" - {}", path);
+//           watcher
+//             .watch(Path::new(path), RecursiveMode::NonRecursive)
+//             .unwrap();
+//         }
+//       }
+//     }
+//     Err(err) => {
+//       eprintln!("Error: {:?}", err);
+//     }
+//   }
+// }
+
+// fn main() {
+//   let cli = Cli::parse();
+
+//   match cli.command {
+//     Some(Commands::Run {
+//       path,
+//       watch,
+//       debug,
+//       no_core,
+//     }) => match watch {
+//       true => {
+//         let (tx, rx) = std::sync::mpsc::channel();
+
+//         let mut watcher =
+//           RecommendedWatcher::new(tx, Config::default()).unwrap();
+//         watcher.watch(&path, RecursiveMode::NonRecursive).unwrap();
+
+//         eval_file(path.clone(), Some(&mut watcher), debug, !no_core);
+//         for res in rx {
+//           match res {
+//             Ok(event) => {
+//               if let EventKind::Access(AccessKind::Close(_)) = event.kind {
+//                 eval_file(path.clone(), Some(&mut watcher), debug, !no_core);
+//               }
+//             }
+//             Err(error) => eprintln!("Error: {error:?}"),
+//           }
+//         }
+//       }
+//       false => eval_file(path, None, debug, !no_core),
+//     },
+//     None => {
+//       println!("Running REPL");
+//       repl().unwrap();
+//     }
+//   }
+// }
+
+use stack::Chain;
 
 fn main() {
-  let cli = Cli::parse();
+  let mut a = Chain::new(1);
+  let mut b = a.link();
+  let c = b.link();
 
-  match cli.command {
-    Some(Commands::Run {
-      path,
-      watch,
-      debug,
-      no_core,
-    }) => match watch {
-      true => {
-        let (tx, rx) = std::sync::mpsc::channel();
+  assert_eq!(a.val(), 1);
+  assert_eq!(b.val(), 1);
+  assert_eq!(c.val(), 1);
 
-        let mut watcher =
-          RecommendedWatcher::new(tx, Config::default()).unwrap();
-        watcher.watch(&path, RecursiveMode::NonRecursive).unwrap();
+  b.set(2);
 
-        eval_file(path.clone(), Some(&mut watcher), debug, !no_core);
-        for res in rx {
-          match res {
-            Ok(event) => {
-              if let EventKind::Access(AccessKind::Close(_)) = event.kind {
-                eval_file(path.clone(), Some(&mut watcher), debug, !no_core);
-              }
-            }
-            Err(error) => eprintln!("Error: {error:?}"),
-          }
-        }
-      }
-      false => eval_file(path, None, debug, !no_core),
-    },
-    None => {
-      println!("Running REPL");
-      repl().unwrap();
-    }
-  }
+  println!("{:?}", a);
+  println!("{:?}", b);
+  println!("{:?}", c);
+
+  b.unlink_with(3);
+
+  println!("{:?}", a);
+  println!("{:?}", b);
+  println!("{:?}", c);
 }
