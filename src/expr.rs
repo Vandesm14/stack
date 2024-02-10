@@ -55,7 +55,7 @@ impl Expr {
       Expr::List(list) => list
         .first()
         .and_then(|x| match x {
-          Expr::Fn(scope) => Some(true),
+          Expr::Fn(_) => Some(true),
           _ => Some(false),
         })
         .unwrap_or(false),
@@ -65,24 +65,20 @@ impl Expr {
 
   pub fn fn_symbol(&self) -> Option<&FnSymbol> {
     match self {
-      Expr::List(list) => list
-        .first()
-        .and_then(|x| match x {
-          Expr::Fn(scope) => Some(scope),
-          _ => None,
-        }),
+      Expr::List(list) => list.first().and_then(|x| match x {
+        Expr::Fn(scope) => Some(scope),
+        _ => None,
+      }),
       _ => None,
     }
   }
 
   pub fn fn_body(&self) -> Option<&[Expr]> {
     match self {
-      Expr::List(list) => list
-        .first()
-        .and_then(|x| match x {
-          Expr::Fn(_) => Some(&list[1..]),
-          _ => None,
-        }),
+      Expr::List(list) => list.first().and_then(|x| match x {
+        Expr::Fn(_) => Some(&list[1..]),
+        _ => None,
+      }),
       _ => None,
     }
   }
@@ -249,7 +245,9 @@ impl PartialEq for Expr {
       (Self::Lazy(lhs), Self::Lazy(rhs)) => lhs == rhs,
       (Self::Call(lhs), Self::Call(rhs)) => lhs == rhs,
 
-      (Self::Fn(lhs), Self::Fn(rhs)) => lhs.scope == rhs.scope && lhs.scoped == rhs.scoped,
+      (Self::Fn(lhs), Self::Fn(rhs)) => {
+        lhs.scope == rhs.scope && lhs.scoped == rhs.scoped
+      }
 
       // Different types.
       (lhs @ Self::Boolean(_), rhs) => match rhs.to_boolean() {
@@ -357,7 +355,7 @@ impl fmt::Display for Expr {
       }
       Self::Call(x) => f.write_str(interner().resolve(x)),
 
-      Self::Fn(x) => f.write_str("fn"),
+      Self::Fn(_) => f.write_str("fn"),
     }
   }
 }
