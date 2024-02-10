@@ -1,9 +1,9 @@
 use crate::{interner::interner, Chain, Expr, FnSymbol, Intrinsic};
 use core::fmt;
 use lasso::Spur;
-use std::{collections::HashMap, fmt::Formatter};
+use std::{cell::RefCell, collections::HashMap, fmt::Formatter, rc::Rc};
 
-pub type Val = Chain<Expr>;
+pub type Val = Rc<RefCell<Chain<Expr>>>;
 
 #[derive(Default, PartialEq)]
 pub struct Scope {
@@ -28,8 +28,7 @@ impl Clone for Scope {
       items.insert(*name, item.clone());
     }
 
-    // Self { items }
-    todo!()
+    Self { items }
   }
 }
 
@@ -43,8 +42,9 @@ impl Scope {
   }
 
   pub fn define(&mut self, name: Spur, item: Expr) -> Result<(), String> {
-    if let Some(val) = self.items.get(&name) {
-      match val {
+    if let Some(chain) = self.items.get(&name) {
+      let mut chain = RefCell::borrow_mut(&chain);
+      match chain.is_root() {
         // Chain::Link(_) => {
         //   val.unlink_with(|_| item);
         // }
@@ -52,10 +52,15 @@ impl Scope {
         //   let mut root = root.borrow_mut();
         //   *root = item;
         // }
-        _ => todo!(),
+        true => {
+          chain.set(item);
+        }
+        false => {
+          chain.unlink_with(item);
+        }
       }
     } else {
-      let val = Val::new(item);
+      let val = Rc::new(RefCell::new(Chain::new(item)));
       self.items.insert(name, val);
     }
 
@@ -63,8 +68,9 @@ impl Scope {
   }
 
   pub fn set(&mut self, name: Spur, item: Expr) -> Result<(), String> {
-    if let Some(val) = self.items.get(&name) {
-      *val.root().borrow_mut() = item;
+    if let Some(chain) = self.items.get_mut(&name) {
+      let mut chain = RefCell::borrow_mut(&chain);
+      chain.set(item);
       Ok(())
     } else {
       Err("Cannot set to a nonexistent variable".to_owned())
@@ -86,10 +92,7 @@ impl Scope {
   }
 
   pub fn get_val(&self, name: Spur) -> Option<Expr> {
-    self
-      .items
-      .get(&name)
-      .map(|item| item.root().borrow().clone())
+    self.items.get(&name).map(|item| item.borrow().val())
   }
 
   pub fn get_ref(&self, name: Spur) -> Option<&Val> {
@@ -109,8 +112,8 @@ impl Scope {
     let mut items = HashMap::new();
 
     for (name, item) in self.items.iter() {
-      // items.insert(*name, item.link());
-      todo!()
+      let mut item = RefCell::borrow_mut(&item);
+      items.insert(*name, item.link());
     }
 
     Self { items }

@@ -98,6 +98,10 @@ impl<T> Chain<T> {
   pub fn root(&self) -> Rc<RefCell<T>> {
     self.value.clone()
   }
+
+  pub fn is_root(&self) -> bool {
+    self.root
+  }
 }
 
 impl<T> Chain<T>

@@ -54,14 +54,14 @@ impl fmt::Display for Program {
             f,
             " + {}: {}",
             interner().resolve(key),
-            value.root().borrow()
+            value.borrow().val()
           )?;
         } else {
           writeln!(
             f,
             " + {}: {}",
             interner().resolve(key),
-            value.root().borrow()
+            value.borrow().val()
           )?;
         }
       }
@@ -1669,19 +1669,25 @@ mod tests {
   }
 
   mod variables {
+    use std::{cell::RefCell, rc::Rc};
+
+    use crate::Chain;
+
     use super::*;
 
     #[test]
     fn storing_variables() {
       let mut program = Program::new();
       program.eval_string("1 'a def").unwrap();
-      assert_eq!(
-        program.scopes,
-        vec![Scope::from(HashMap::from_iter(vec![(
-          interner().get_or_intern("a"),
-          Val::new(Expr::Integer(1))
-        )]))]
-      );
+
+      let a = program
+        .scopes
+        .last()
+        .unwrap()
+        .get_val(interner().get_or_intern("a"))
+        .unwrap();
+
+      assert_eq!(a, Expr::Integer(1));
     }
 
     #[test]
@@ -1789,13 +1795,15 @@ mod tests {
             '(fn 1 'a def call) call",
           )
           .unwrap();
-        assert_eq!(
-          program.scopes,
-          vec![Scope::from(HashMap::from_iter(vec![(
-            interner().get_or_intern("a"),
-            Val::new(Expr::Integer(0))
-          )])),]
-        )
+
+        let a = program
+          .scopes
+          .last()
+          .unwrap()
+          .get_val(interner().get_or_intern("a"))
+          .unwrap();
+
+        assert_eq!(a, Expr::Integer(0));
       }
 
       #[test]
@@ -1808,13 +1816,14 @@ mod tests {
           )
           .unwrap();
 
-        assert_eq!(
-          program.scopes,
-          vec![Scope::from(HashMap::from_iter(vec![(
-            interner().get_or_intern("a"),
-            Val::new(Expr::Integer(1))
-          )])),]
-        )
+        let a = program
+          .scopes
+          .last()
+          .unwrap()
+          .get_val(interner().get_or_intern("a"))
+          .unwrap();
+
+        assert_eq!(a, Expr::Integer(1));
       }
 
       #[test]
@@ -1827,13 +1836,14 @@ mod tests {
           )
           .unwrap();
 
-        assert_eq!(
-          program.scopes,
-          vec![Scope::from(HashMap::from_iter(vec![(
-            interner().get_or_intern("a"),
-            Val::new(Expr::Integer(0))
-          )])),]
-        );
+        let a = program
+          .scopes
+          .last()
+          .unwrap()
+          .get_val(interner().get_or_intern("a"))
+          .unwrap();
+
+        assert_eq!(a, Expr::Integer(0));
         assert_eq!(program.stack, vec![Expr::Integer(1), Expr::Integer(0)])
       }
     }
