@@ -1,4 +1,4 @@
 # Summary
 
-- [Introduction](introduction.md)
 - [Installation](installation.md)
+- [Introduction](introduction.md)
