@@ -61,6 +61,90 @@ where
   pub fn unlink(&self) {
     self.unlink_with(|chain| RefCell::borrow(&chain.root()).clone())
   }
+
+  #[inline]
+  pub fn val(&self) -> T {
+    RefCell::borrow(&self.root()).clone()
+  }
 }
 
 // TODO: Add tests
+#[cfg(test)]
+mod tests {
+  use super::*;
+
+  #[test]
+  fn create_chain() {
+    let chain = Chain::new(1);
+    assert_eq!(chain.val(), 1);
+  }
+
+  #[test]
+  fn link_chain() {
+    let chain = Chain::new(1);
+    let link = chain.link();
+
+    assert_eq!(chain.val(), 1);
+    assert_eq!(link.val(), 1);
+  }
+
+  #[test]
+  fn change_root_value() {
+    let chain = Chain::new(1);
+    let link = chain.link();
+    *chain.root().borrow_mut() = 2;
+
+    assert_eq!(chain.val(), 2);
+    assert_eq!(link.val(), 2);
+  }
+
+  #[test]
+  fn change_value_with_link() {
+    let chain = Chain::new(1);
+    let link = chain.link();
+    *link.root().borrow_mut() = 2;
+
+    assert_eq!(chain.val(), 2);
+    assert_eq!(link.val(), 2);
+  }
+
+  #[test]
+  fn unlink_chain() {
+    let a = Chain::new(1);
+    let b = a.link();
+    let c = b.link();
+
+    assert_eq!(a.val(), 1);
+    assert_eq!(b.val(), 1);
+    assert_eq!(c.val(), 1);
+
+    b.unlink_with(|_| 2);
+
+    assert_eq!(a.val(), 1);
+    assert_eq!(b.val(), 2);
+    assert_eq!(c.val(), 2);
+  }
+
+  #[test]
+  fn cloned_chains_are_links() {
+    let a = Chain::new(1);
+    let b = a.link();
+    let clone = b.clone();
+
+    assert_eq!(a.val(), 1);
+    assert_eq!(b.val(), 1);
+    assert_eq!(clone.val(), 1);
+
+    *b.root().borrow_mut() = 2;
+
+    assert_eq!(a.val(), 2);
+    assert_eq!(b.val(), 2);
+    assert_eq!(clone.val(), 2);
+
+    b.unlink_with(|_| 3);
+
+    assert_eq!(a.val(), 2);
+    assert_eq!(b.val(), 3);
+    assert_eq!(clone.val(), 3);
+  }
+}
