@@ -1,4 +1,3 @@
-"std/linux-x86_64.stack" import
 "std/assert.stack" import
 
 0 'var def
@@ -55,9 +54,9 @@ i 0 "closures are isolated" assert-eq
 
 '(fn
   0 'b def
-  
+
   '(fn! 1 'b def) call
-  
+
   b
 ) call
 

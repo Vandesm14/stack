@@ -4,7 +4,7 @@ use crate::{
 
 pub fn module(program: &mut Program) {
   program.funcs.insert(
-    interner().get_or_intern_static("eval"),
+    interner().get_or_intern_static("parse"),
     |program, trace_expr| {
       let item = program.pop(trace_expr)?;
 

@@ -1,4 +1,4 @@
-use crate::{interner::interner, Chain, Expr, FnSymbol};
+use crate::{interner::interner, Chain, Expr, FnSymbol, Func};
 use core::fmt;
 use lasso::Spur;
 use std::{cell::RefCell, collections::HashMap, fmt::Formatter, rc::Rc};
@@ -120,14 +120,15 @@ impl Scope {
   }
 }
 
-#[derive(Default, Debug)]
-pub struct Scanner {
+#[derive(Debug)]
+pub struct Scanner<'a> {
   pub scope: Scope,
+  pub funcs: &'a HashMap<Spur, Func>,
 }
 
-impl Scanner {
-  pub fn new(scope: Scope) -> Self {
-    Self { scope }
+impl<'a> Scanner<'a> {
+  pub fn new(scope: Scope, funcs: &'a HashMap<Spur, Func>) -> Self {
+    Self { scope, funcs }
   }
 
   pub fn scan(&mut self, expr: Expr) -> Result<Expr, String> {
@@ -139,14 +140,11 @@ impl Scanner {
 
       for item in fn_body.iter_mut() {
         if let Expr::Call(call) = item.unlazy() {
-          // if Intrinsic::try_from(interner().resolve(call)).is_err() {
-          //   if !self.scope.has(*call) {
-          //     self.scope.define(*call, Expr::Nil).unwrap();
-          //   }
-          // }
-          todo!()
+          if self.funcs.contains_key(call) && !self.scope.has(*call) {
+            self.scope.define(*call, Expr::Nil).unwrap();
+          }
         } else if item.unlazy().is_function() {
-          let mut scanner = Scanner::new(self.scope.clone());
+          let mut scanner = Scanner::new(self.scope.clone(), self.funcs);
           let unlazied_mut = item.unlazy_mut();
           *unlazied_mut = scanner.scan(unlazied_mut.clone()).unwrap();
         }

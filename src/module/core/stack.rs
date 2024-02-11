@@ -87,8 +87,10 @@ pub fn module(program: &mut Program) {
         // TODO: Get this working again.
         item @ Expr::List(_) => match item.is_function() {
           true => {
-            let mut scanner =
-              Scanner::new(program.scopes.last().unwrap().duplicate());
+            let mut scanner = Scanner::new(
+              program.scopes.last().unwrap().duplicate(),
+              &program.funcs,
+            );
             let item = scanner.scan(item.clone());
 
             match item {
