@@ -147,14 +147,16 @@ impl Program {
       let mut scanner =
         Scanner::new(self.scopes.last().unwrap().duplicate(), &self.funcs);
 
-      return match scanner.scan(expr.clone()) {
-        Ok(_) => Ok(()),
-        Err(message) => Err(EvalError {
-          expr: Expr::Nil,
-          program: self.clone(),
-          message,
-        }),
-      };
+      match scanner.scan(expr.clone()) {
+        Ok(expr) => expr,
+        Err(message) => {
+          return Err(EvalError {
+            expr: Expr::Nil,
+            program: self.clone(),
+            message,
+          })
+        }
+      }
     } else {
       expr
     };
