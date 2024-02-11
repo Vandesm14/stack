@@ -81,3 +81,30 @@ call
 ## Scopes
 
 See [Scopes](/introduction/scopes.html) for more information on how scoping works and how it relates to functions.
+
+### Scopeless functions
+
+Scopeless functions are an addition to Stack that allow for many metaprogramming aspects. Because functions have their own isolated scope, it is not possible to define variables outside of the function's scope.
+
+Scopeless functions aren't isolated in scope and **run in the scope that they are called in**. This allows them to define or redefine variables directly in their parent scope.
+
+```clojure
+'(fn! 0 'a def) call
+
+a
+
+;; Pushes 0 to the stack
+;; [] -> [0]
+```
+
+This is a powerful feature that allows for more dynamic programming.
+
+In normal functions, the variable `a` would be defined in the function's scope and would not be accessible from the parent scope.
+
+```clojure
+'(fn 0 'a def) call
+
+a
+
+;; Throws an error
+```
