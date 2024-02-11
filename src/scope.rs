@@ -173,5 +173,120 @@ impl<'a> Scanner<'a> {
 
 #[cfg(test)]
 mod tests {
-  // TODO: Write tests
+  use crate::{
+    interner::{self, interner},
+    Expr, Program,
+  };
+
+  #[test]
+  fn top_level_scopes() {
+    let mut program = Program::new().with_core().unwrap();
+    program.eval_string("0 'a def").unwrap();
+
+    assert_eq!(
+      program
+        .scopes
+        .last()
+        .unwrap()
+        .get_val(interner().get_or_intern("a")),
+      Some(Expr::Integer(0))
+    );
+  }
+
+  #[test]
+  fn function_scopes_are_isolated() {
+    let mut program = Program::new().with_core().unwrap();
+    program.eval_string("'(fn 0 'a def) call").unwrap();
+
+    assert_eq!(
+      program
+        .scopes
+        .last()
+        .unwrap()
+        .get_val(interner().get_or_intern("a")),
+      None
+    );
+  }
+
+  #[test]
+  fn functions_can_set_to_outer() {
+    let mut program = Program::new().with_core().unwrap();
+    program.eval_string("0 'a def '(fn 1 'a set) call").unwrap();
+
+    assert_eq!(
+      program
+        .scopes
+        .last()
+        .unwrap()
+        .get_val(interner().get_or_intern("a")),
+      Some(Expr::Integer(1))
+    );
+  }
+
+  #[test]
+  fn functions_can_shadow_outer() {
+    let mut program = Program::new().with_core().unwrap();
+    program.eval_string("0 'a def '(fn 1 'a def) call").unwrap();
+
+    assert_eq!(
+      program
+        .scopes
+        .last()
+        .unwrap()
+        .get_val(interner().get_or_intern("a")),
+      Some(Expr::Integer(0))
+    );
+  }
+
+  #[test]
+  fn closures_can_access_vars() {
+    let mut program = Program::new().with_core().unwrap();
+    program
+      .eval_string("0 'a def '(fn 1 'a def '(fn a)) call call")
+      .unwrap();
+
+    assert_eq!(program.stack, vec![Expr::Integer(1)]);
+  }
+
+  #[test]
+  fn closures_can_mutate_vars() {
+    let mut program = Program::new().with_core().unwrap();
+    program
+      .eval_string("0 'a def '(fn 1 'a def '(fn 2 'a set a)) call call")
+      .unwrap();
+
+    assert_eq!(program.stack, vec![Expr::Integer(2)],);
+  }
+
+  #[test]
+  fn scopeless_functions_can_def_outer() {
+    let mut program = Program::new().with_core().unwrap();
+    program.eval_string("'(fn! 0 'a def) call").unwrap();
+
+    assert_eq!(
+      program
+        .scopes
+        .last()
+        .unwrap()
+        .get_val(interner().get_or_intern("a")),
+      Some(Expr::Integer(0))
+    );
+  }
+
+  #[test]
+  fn scopeless_function_macro_test() {
+    let mut program = Program::new().with_core().unwrap();
+    program
+      .eval_string("'(fn! def) 'define def 0 'a define")
+      .unwrap();
+
+    assert_eq!(
+      program
+        .scopes
+        .last()
+        .unwrap()
+        .get_val(interner().get_or_intern("a")),
+      Some(Expr::Integer(0))
+    );
+  }
 }
