@@ -1,4 +1,4 @@
-use crate::{interner::interner, EvalError, Expr, Program, Scanner, Type};
+use crate::{interner::interner, EvalError, Expr, Program, Type};
 
 pub fn module(program: &mut Program) -> Result<(), EvalError> {
   program.funcs.insert(
