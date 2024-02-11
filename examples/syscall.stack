@@ -1,6 +1,0 @@
-"std/linux-x86_64.stack" import
-
-(0 0 0 0 0) tou8list stdin read
-pop eprintln
-
-;; exit-ok

@@ -1,4 +1,4 @@
-use crate::{interner::interner, Chain, Expr, FnSymbol, Intrinsic};
+use crate::{interner::interner, Chain, Expr, FnSymbol, Func};
 use core::fmt;
 use lasso::Spur;
 use std::{cell::RefCell, collections::HashMap, fmt::Formatter, rc::Rc};
@@ -43,7 +43,7 @@ impl Scope {
 
   pub fn define(&mut self, name: Spur, item: Expr) -> Result<(), String> {
     if let Some(chain) = self.items.get(&name) {
-      let mut chain = RefCell::borrow_mut(&chain);
+      let mut chain = RefCell::borrow_mut(chain);
       match chain.is_root() {
         // Chain::Link(_) => {
         //   val.unlink_with(|_| item);
@@ -69,7 +69,7 @@ impl Scope {
 
   pub fn set(&mut self, name: Spur, item: Expr) -> Result<(), String> {
     if let Some(chain) = self.items.get_mut(&name) {
-      let mut chain = RefCell::borrow_mut(&chain);
+      let mut chain = RefCell::borrow_mut(chain);
       chain.set(item);
       Ok(())
     } else {
@@ -78,7 +78,7 @@ impl Scope {
   }
 
   pub fn remove(&mut self, name: Spur) -> Result<(), String> {
-    if let None = self.items.get(&name) {
+    if self.items.get(&name).is_none() {
       return Err("Cannot remove a nonexistent variable".to_owned());
     }
 
@@ -112,7 +112,7 @@ impl Scope {
     let mut items = HashMap::new();
 
     for (name, item) in self.items.iter() {
-      let mut item = RefCell::borrow_mut(&item);
+      let mut item = RefCell::borrow_mut(item);
       items.insert(*name, item.link());
     }
 
@@ -120,14 +120,15 @@ impl Scope {
   }
 }
 
-#[derive(Default, Debug)]
-pub struct Scanner {
+#[derive(Debug)]
+pub struct Scanner<'a> {
   pub scope: Scope,
+  pub funcs: &'a HashMap<Spur, Func>,
 }
 
-impl Scanner {
-  pub fn new(scope: Scope) -> Self {
-    Self { scope }
+impl<'a> Scanner<'a> {
+  pub fn new(scope: Scope, funcs: &'a HashMap<Spur, Func>) -> Self {
+    Self { scope, funcs }
   }
 
   pub fn scan(&mut self, expr: Expr) -> Result<Expr, String> {
@@ -139,13 +140,11 @@ impl Scanner {
 
       for item in fn_body.iter_mut() {
         if let Expr::Call(call) = item.unlazy() {
-          if Intrinsic::try_from(interner().resolve(call)).is_err() {
-            if !self.scope.has(*call) {
-              self.scope.define(*call, Expr::Nil).unwrap();
-            }
+          if !self.funcs.contains_key(call) && !self.scope.has(*call) {
+            self.scope.define(*call, Expr::Nil).unwrap();
           }
         } else if item.unlazy().is_function() {
-          let mut scanner = Scanner::new(self.scope.clone());
+          let mut scanner = Scanner::new(self.scope.clone(), self.funcs);
           let unlazied_mut = item.unlazy_mut();
           *unlazied_mut = scanner.scan(unlazied_mut.clone()).unwrap();
         }
