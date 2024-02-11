@@ -211,11 +211,21 @@ impl Program {
     }
   }
 
-  // TODO: Make this return a result
-  pub fn remove_scope_item(&mut self, symbol: &str) {
+  pub fn remove_scope_item(&mut self, symbol: &str) -> Result<(), EvalError> {
     if let Some(layer) = self.scopes.last_mut() {
-      layer.remove(interner().get_or_intern(symbol)).unwrap();
+      match layer.remove(interner().get_or_intern(symbol)) {
+        Ok(_) => {}
+        Err(message) => {
+          return Err(EvalError {
+            expr: Expr::Nil,
+            program: self.clone(),
+            message,
+          })
+        }
+      }
     }
+
+    Ok(())
   }
 
   pub fn push_scope(&mut self, scope: Scope) {
@@ -313,8 +323,6 @@ impl Program {
 
     match result {
       Ok(x) => {
-        // TODO: Store each operation in an append-only operations list, and
-        //       rollback if there is an error.
         self.stack = clone.stack;
         self.scopes = clone.scopes;
         self.debug_trace = clone.debug_trace;

@@ -46,9 +46,10 @@ pub fn module(program: &mut Program) -> Result<(), EvalError> {
       match item {
         Expr::Call(key) => {
           let key_str = interner().resolve(&key).to_owned();
-          program.remove_scope_item(&key_str);
-
-          Ok(())
+          match program.remove_scope_item(&key_str) {
+            Ok(_) => Ok(()),
+            Err(err) => Err(err),
+          }
         }
         item => Err(EvalError {
           expr: trace_expr.clone(),
