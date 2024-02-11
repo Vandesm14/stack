@@ -1,12 +1,12 @@
 use criterion::{criterion_group, criterion_main, Criterion};
 use stack::Program;
 
-fn cold_start_with_core() {
-  let mut program = Program::new().with_core().unwrap();
-  program.eval_string("(2 2 + 'result def result)").unwrap();
+fn cold_start_no_core() {
+  let mut program = Program::new();
+  program.eval_string("(2 2)").unwrap();
 }
 
-fn cold_start_no_core() {
+fn cold_start_with_core() {
   let mut program = Program::new().with_core().unwrap();
   program.eval_string("(2 2 + 'result def result)").unwrap();
 }
@@ -42,9 +42,9 @@ fn running_complex_code() {
 }
 
 fn criterion_benchmark(c: &mut Criterion) {
-  c.bench_function("cold start with core", |b| b.iter(cold_start_with_core));
-
   c.bench_function("cold start no core", |b| b.iter(cold_start_no_core));
+
+  c.bench_function("cold start with core", |b| b.iter(cold_start_with_core));
 
   c.bench_function("running code", |b| b.iter(running_complex_code));
 }
