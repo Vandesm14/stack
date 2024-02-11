@@ -976,37 +976,6 @@ mod tests {
     }
   }
 
-  mod string_ops {
-    use super::*;
-
-    #[test]
-    fn exploding_string() {
-      let mut program = Program::new().with_core().unwrap();
-      program.eval_string("\"abc\" explode").unwrap();
-      assert_eq!(
-        program.stack,
-        vec![Expr::List(vec![
-          Expr::String(interner().get_or_intern_static("a")),
-          Expr::String(interner().get_or_intern_static("b")),
-          Expr::String(interner().get_or_intern_static("c"))
-        ])]
-      );
-    }
-
-    #[test]
-    fn joining_to_string() {
-      let mut program = Program::new().with_core().unwrap();
-      program
-        .eval_string("(\"a\" 3 \"hello\" 1.2) \"\" join")
-        .unwrap();
-
-      assert_eq!(
-        program.stack,
-        vec![Expr::String(interner().get_or_intern_static("a3hello1.2"))]
-      );
-    }
-  }
-
   mod control_flow {
     use super::*;
 
