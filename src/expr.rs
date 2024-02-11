@@ -1,4 +1,5 @@
-use core::{cmp::Ordering, fmt, iter, num::FpCategory};
+use core::{any::Any, cmp::Ordering, fmt, iter, num::FpCategory};
+use std::rc::Rc;
 
 use lasso::Spur;
 
@@ -34,6 +35,8 @@ pub enum Expr {
 
   /// Boolean denotes whether to create a new scope.
   Fn(FnSymbol),
+
+  UserData(Rc<dyn Any>),
 }
 
 impl Expr {
@@ -110,6 +113,8 @@ impl Expr {
       Self::Call(_) => Type::Call,
 
       Self::Fn(_) => Type::FnScope,
+
+      Self::UserData(_) => Type::UserData,
     }
   }
 
@@ -337,6 +342,8 @@ impl fmt::Display for Expr {
       Self::Call(x) => f.write_str(interner().resolve(x)),
 
       Self::Fn(_) => f.write_str("fn"),
+
+      Self::UserData(_) => f.write_str("userdata"),
     }
   }
 }
@@ -363,6 +370,8 @@ pub enum Type {
 
   Any,
   Set(Vec<Self>),
+
+  UserData,
 }
 
 impl fmt::Display for Type {
@@ -412,6 +421,8 @@ impl fmt::Display for Type {
 
         f.write_str("]")
       }
+
+      Self::UserData => f.write_str("userdata"),
     }
   }
 }
