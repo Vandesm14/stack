@@ -12,7 +12,7 @@ use notify::{
 
 use rustyline::error::ReadlineError;
 use rustyline::DefaultEditor;
-use stack::{EvalError, Program};
+use stack::{map, EvalError, Program};
 
 #[derive(Parser)]
 #[command(author, version, about, long_about = None)]
@@ -52,7 +52,7 @@ fn repl(with_core: bool) -> rustyline::Result<()> {
   let mut program = Program::new();
 
   if with_core {
-    program = program.with_core().unwrap();
+    program = program.with_core().unwrap().with_module(map::module).unwrap();
   }
 
   loop {
@@ -100,7 +100,7 @@ fn eval_file(
       }
 
       if with_core {
-        program = program.with_core().unwrap();
+        program = program.with_core().unwrap().with_module(map::module).unwrap();
       }
 
       if watcher.is_some() {

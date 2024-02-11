@@ -1,4 +1,5 @@
-use core::{cmp::Ordering, fmt, iter, num::FpCategory};
+use core::{any::Any, cell::RefCell, cmp::Ordering, fmt, iter, num::FpCategory};
+use std::rc::Rc;
 
 use lasso::Spur;
 
@@ -34,6 +35,8 @@ pub enum Expr {
 
   /// Boolean denotes whether to create a new scope.
   Fn(FnSymbol),
+
+  UserData(Rc<RefCell<dyn Any>>),
 }
 
 impl Expr {
@@ -110,6 +113,8 @@ impl Expr {
       Self::Call(_) => Type::Call,
 
       Self::Fn(_) => Type::FnScope,
+
+      Self::UserData(_) => Type::UserData,
     }
   }
 
@@ -243,6 +248,8 @@ impl PartialEq for Expr {
       // Though, I think there's a better solution than removing comparability.
       (Self::Fn(lhs), Self::Fn(rhs)) => lhs.scoped == rhs.scoped,
 
+      (Self::UserData(lhs), Self::UserData(rhs)) => core::ptr::addr_eq(Rc::as_ptr(lhs), Rc::as_ptr(rhs)),
+
       // Different types.
       (lhs @ Self::Boolean(_), rhs) => match rhs.to_boolean() {
         Some(rhs) => *lhs == rhs,
@@ -337,6 +344,8 @@ impl fmt::Display for Expr {
       Self::Call(x) => f.write_str(interner().resolve(x)),
 
       Self::Fn(_) => f.write_str("fn"),
+
+      Self::UserData(_) => f.write_str("userdata"),
     }
   }
 }
@@ -363,6 +372,8 @@ pub enum Type {
 
   Any,
   Set(Vec<Self>),
+
+  UserData,
 }
 
 impl fmt::Display for Type {
@@ -412,6 +423,8 @@ impl fmt::Display for Type {
 
         f.write_str("]")
       }
+
+      Self::UserData => f.write_str("userdata"),
     }
   }
 }

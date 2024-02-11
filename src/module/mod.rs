@@ -1,4 +1,5 @@
 pub mod core;
+pub mod map;
 
 use crate::{EvalError, Expr, Program};
 

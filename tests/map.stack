@@ -1,9 +1,19 @@
-;; "std/assert.stack" import
-;; ["std/map.stack" import use-all]
+"std/assert.stack" import
 
-;; '()
-;; ['a 1 map/pair] map/insert
-;; ['b 2 map/pair] map/insert
+map/new
 
-;; [dup 'a map/has] ["map has a" assert]
-;; ['c map/has] [not "map doesn't have c" assert]
+'a map/get nil "new" assert-eq
+
+1 'a map/insert
+'a map/get 1 "inserted a 1" assert-eq
+
+2 'b map/insert
+'b map/get 2 "inserted b 2" assert-eq
+
+'a map/remove
+'a map/get nil "removed a" assert-eq
+'b map/get 2 "exists b" assert-eq
+
+drop
+
+collect len 0 "stuff left over" assert-eq
