@@ -7,6 +7,7 @@
 
 - [Syntax](introduction/syntax.md)
 - [Stack](introduction/stack.md)
+- [Variables](introduction/variables.md)
 
 # Appendix
 
