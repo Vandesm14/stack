@@ -1,4 +1,4 @@
-use crate::{Module, Program};
+use crate::{EvalError, Module, Program};
 
 pub mod cast;
 pub mod compare;
@@ -17,18 +17,23 @@ pub struct Core {
 }
 
 impl Module for Core {
-  fn link(&self, program: &mut Program) {
-    stack::module(program);
-    scope::module(program);
-    math::module(program);
-    compare::module(program);
-    logical::module(program);
-    list::module(program);
-    cast::module(program);
-    debug::module(program);
-    control_flow::module(program);
-    io::module(program);
-    eval::module(program);
+  fn link(&self, program: &mut Program) -> Result<(), EvalError> {
+    stack::module(program)?;
+    scope::module(program)?;
+    math::module(program)?;
+    compare::module(program)?;
+    logical::module(program)?;
+    list::module(program)?;
+    cast::module(program)?;
+    debug::module(program)?;
+    control_flow::module(program)?;
+    io::module(program)?;
+    eval::module(program)?;
+
+    let core_lib = include_str!("./core.stack");
+    program.eval_string(core_lib)?;
+
+    Ok(())
   }
 }
 

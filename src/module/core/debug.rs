@@ -1,6 +1,6 @@
 use crate::{interner::interner, EvalError, Program};
 
-pub fn module(program: &mut Program) {
+pub fn module(program: &mut Program) -> Result<(), EvalError> {
   program.funcs.insert(
     interner().get_or_intern_static("panic"),
     |program, trace_expr| {
@@ -22,4 +22,6 @@ pub fn module(program: &mut Program) {
       Ok(())
     },
   );
+
+  Ok(())
 }

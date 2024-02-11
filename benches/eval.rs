@@ -7,7 +7,7 @@ fn cold_start_with_core() {
 }
 
 fn cold_start_no_core() {
-  let mut program = Program::new();
+  let mut program = Program::new().with_core().unwrap();
   program.eval_string("(2 2 + 'result def result)").unwrap();
 }
 

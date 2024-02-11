@@ -107,11 +107,7 @@ impl Program {
   }
 
   pub fn with_core(mut self) -> Result<Self, EvalError> {
-    module::core::Core::default().link(&mut self);
-
-    let core_lib = include_str!("./core.stack");
-    self.eval_string(core_lib)?;
-
+    module::core::Core::default().link(&mut self)?;
     Ok(self)
   }
 
