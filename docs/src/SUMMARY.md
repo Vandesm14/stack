@@ -3,6 +3,11 @@
 - [Installation](installation.md)
 - [Introduction](introduction.md)
 
-# Features
+# Introduction
 
-- [Scopes](features/scopes.md)
+- [Syntax](introduction/syntax.md)
+- [Stack](introduction/stack.md)
+
+# Appendix
+
+- [Glossary](glossary.md)
