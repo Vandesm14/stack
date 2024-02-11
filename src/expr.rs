@@ -1,4 +1,4 @@
-use core::{any::Any, cmp::Ordering, fmt, iter, num::FpCategory};
+use core::{any::Any, cell::RefCell, cmp::Ordering, fmt, iter, num::FpCategory};
 use std::rc::Rc;
 
 use lasso::Spur;
@@ -36,7 +36,7 @@ pub enum Expr {
   /// Boolean denotes whether to create a new scope.
   Fn(FnSymbol),
 
-  UserData(Rc<dyn Any>),
+  UserData(Rc<RefCell<dyn Any>>),
 }
 
 impl Expr {
