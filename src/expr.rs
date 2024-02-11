@@ -27,9 +27,7 @@ pub enum Expr {
   Float(f64),
 
   String(Spur),
-
   List(Vec<Expr>),
-  U8List(Vec<u8>),
 
   Lazy(Box<Expr>),
   Call(Spur),
@@ -54,10 +52,7 @@ impl Expr {
     match self {
       Expr::List(list) => list
         .first()
-        .and_then(|x| match x {
-          Expr::Fn(_) => Some(true),
-          _ => Some(false),
-        })
+        .map(|x| matches!(x, Expr::Fn(_)))
         .unwrap_or(false),
       _ => false,
     }
@@ -110,7 +105,6 @@ impl Expr {
       Self::List(list) => {
         Type::List(list.iter().map(|expr| expr.type_of()).collect::<Vec<_>>())
       }
-      Self::U8List(_) => Type::U8List,
 
       Self::Lazy(x) => x.type_of(),
       Self::Call(_) => Type::Call,
@@ -240,7 +234,6 @@ impl PartialEq for Expr {
       (Self::String(lhs), Self::String(rhs)) => lhs == rhs,
 
       (Self::List(lhs), Self::List(rhs)) => lhs == rhs,
-      (Self::U8List(lhs), Self::U8List(rhs)) => lhs == rhs,
 
       (Self::Lazy(lhs), Self::Lazy(rhs)) => lhs == rhs,
       (Self::Call(lhs), Self::Call(rhs)) => lhs == rhs,
@@ -335,19 +328,6 @@ impl fmt::Display for Expr {
 
         f.write_str(")")
       }
-      Self::U8List(x) => {
-        f.write_str("(")?;
-
-        iter::once("")
-          .chain(iter::repeat(" "))
-          .zip(x.iter())
-          .try_for_each(|(s, x)| {
-            f.write_str(s)?;
-            fmt::Display::fmt(x, f)
-          })?;
-
-        f.write_str(")")
-      }
 
       Self::Lazy(x) => {
         f.write_str("'")?;
@@ -373,7 +353,6 @@ pub enum Type {
   String,
 
   List(Vec<Self>),
-  U8List,
 
   Call,
 
@@ -411,7 +390,6 @@ impl fmt::Display for Type {
 
         f.write_str(")")
       }
-      Self::U8List => f.write_str("u8_list"),
 
       Self::Call => f.write_str("call"),
 

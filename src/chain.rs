@@ -173,14 +173,14 @@ mod tests {
     let b = a.link();
     let c = RefCell::borrow_mut(&b).link();
 
-    assert_eq!(a.root, true);
-    assert_eq!(b.borrow().root, false);
-    assert_eq!(c.borrow().root, false);
+    assert!(a.root);
+    assert!(!b.borrow().root);
+    assert!(!c.borrow().root);
 
     RefCell::borrow_mut(&b).unlink_with(2);
 
-    assert_eq!(a.root, true);
-    assert_eq!(b.borrow().root, true);
-    assert_eq!(c.borrow().root, false);
+    assert!(a.root);
+    assert!(b.borrow().root);
+    assert!(!c.borrow().root);
   }
 }
