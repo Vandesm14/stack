@@ -248,6 +248,8 @@ impl PartialEq for Expr {
       // Though, I think there's a better solution than removing comparability.
       (Self::Fn(lhs), Self::Fn(rhs)) => lhs.scoped == rhs.scoped,
 
+      (Self::UserData(lhs), Self::UserData(rhs)) => core::ptr::addr_eq(Rc::as_ptr(lhs), Rc::as_ptr(rhs)),
+
       // Different types.
       (lhs @ Self::Boolean(_), rhs) => match rhs.to_boolean() {
         Some(rhs) => *lhs == rhs,
