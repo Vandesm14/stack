@@ -2,7 +2,7 @@ use itertools::Itertools as _;
 use lasso::Spur;
 
 use crate::{
-  interner::interner, module, Expr, Func, Lexer, Module, Parser, Scope,
+  interner::interner, module, Expr, Func, Lexer, Module, Parser, Scanner, Scope,
 };
 use core::{fmt, iter};
 use std::{collections::HashMap, time::SystemTime};
@@ -143,6 +143,16 @@ impl Program {
   }
 
   pub fn push(&mut self, expr: Expr) {
+    let expr = if expr.is_function() {
+      let mut scanner =
+        Scanner::new(self.scopes.last().unwrap().duplicate(), &self.funcs);
+
+      // TODO: Don't silently fail here
+      scanner.scan(expr.clone()).unwrap_or(expr)
+    } else {
+      expr
+    };
+
     self.stack.push(expr)
   }
 

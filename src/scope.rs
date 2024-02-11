@@ -105,7 +105,9 @@ impl Scope {
   /// Merges another scope into this one, not overwriting any existing variables
   pub fn merge(&mut self, other: Scope) {
     for (name, item) in other.items {
-      if !self.has(name) {
+      if !self.has(name)
+        || (self.get_val(name).is_none() && item.borrow().val().is_some())
+      {
         self.items.insert(name, item);
       }
     }
@@ -304,5 +306,13 @@ mod tests {
     let result = program.eval_string("'(fn a) call").unwrap_err();
 
     assert_eq!(result.message, "unknown call a");
+  }
+
+  #[test]
+  fn variables_defined_from_scopeless_should_be_usable() {
+    let mut program = Program::new().with_core().unwrap();
+    program
+      .eval_string("'(fn! 0 'a def) '(fn call '(fn a)) call call")
+      .unwrap();
   }
 }

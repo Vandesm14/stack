@@ -87,36 +87,21 @@ pub fn module(program: &mut Program) -> Result<(), EvalError> {
         // TODO: Get this working again.
         item @ Expr::List(_) => match item.is_function() {
           true => {
-            let mut scanner = Scanner::new(
-              program.scopes.last().unwrap().duplicate(),
-              &program.funcs,
-            );
-            let item = scanner.scan(item.clone());
+            let fn_symbol = item.fn_symbol().unwrap();
+            let fn_body = item.fn_body().unwrap();
 
-            match item {
-              Ok(item) => {
-                let fn_symbol = item.fn_symbol().unwrap();
-                let fn_body = item.fn_body().unwrap();
+            if fn_symbol.scoped {
+              program.push_scope(fn_symbol.scope.clone());
+            }
 
+            match program.eval(fn_body.to_vec()) {
+              Ok(_) => {
                 if fn_symbol.scoped {
-                  program.push_scope(fn_symbol.scope.clone());
+                  program.pop_scope();
                 }
-
-                match program.eval(fn_body.to_vec()) {
-                  Ok(_) => {
-                    if fn_symbol.scoped {
-                      program.pop_scope();
-                    }
-                    Ok(())
-                  }
-                  Err(err) => Err(err),
-                }
+                Ok(())
               }
-              Err(message) => Err(EvalError {
-                expr: trace_expr.clone(),
-                program: program.clone(),
-                message,
-              }),
+              Err(err) => Err(err),
             }
           }
           false => {
