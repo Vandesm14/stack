@@ -6,6 +6,8 @@ Stack is an RPN stack-based language built in Rust. It is designed to be simple 
 
 Though Stack is built to be simple at the top-level, it does not sacrifice power. Here is a quick introduction to the base features of the language:
 
+<!-- TODO: split these into the features sections -->
+
 ### Stack Ops
 
 All functions in Stack are built for the stack, meaning that they take their arguments from the stack and return their results to the stack. This allows for a simple and consistent syntax.
