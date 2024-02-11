@@ -3,6 +3,7 @@ use crate::{EvalError, Module, Program};
 pub mod cast;
 pub mod compare;
 pub mod control_flow;
+pub mod core;
 pub mod debug;
 pub mod eval;
 pub mod io;
@@ -18,6 +19,7 @@ pub struct Core {
 
 impl Module for Core {
   fn link(&self, program: &mut Program) -> Result<(), EvalError> {
+    // Native Intrinsics
     stack::module(program)?;
     scope::module(program)?;
     math::module(program)?;
@@ -30,8 +32,8 @@ impl Module for Core {
     io::module(program)?;
     eval::module(program)?;
 
-    let core_lib = include_str!("./core.stack");
-    program.eval_string(core_lib)?;
+    // In-Language Definitions
+    core::module(program)?;
 
     Ok(())
   }
