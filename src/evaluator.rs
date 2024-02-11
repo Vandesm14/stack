@@ -881,29 +881,30 @@ mod tests {
       );
     }
 
-    // TODO: wtf is this? do we still need this test??
-    // #[test]
-    // fn collect_and_unwrap() {
-    //   let mut program = Program::new().with_core().unwrap();
-    //   program
-    //     .eval_string("1 2 3 collect 'a set 'a get unwrap")
-    //     .unwrap();
-    //   assert_eq!(
-    //     program.stack,
-    //     vec![Expr::Integer(1), Expr::Integer(2), Expr::Integer(3)]
-    //   );
-    //   assert_eq!(
-    //     program.scopes,
-    //     vec![HashMap::from_iter(vec![(
-    //       "a".to_string(),
-    //       Expr::List(vec![
-    //         Expr::Integer(1),
-    //         Expr::Integer(2),
-    //         Expr::Integer(3)
-    //       ])
-    //     )])]
-    //   );
-    // }
+    #[test]
+    fn collect_and_unwrap() {
+      let mut program = Program::new().with_core().unwrap();
+      program
+        .eval_string("1 2 3 collect 'a def 'a get unwrap")
+        .unwrap();
+
+      assert_eq!(
+        program.stack,
+        vec![Expr::Integer(1), Expr::Integer(2), Expr::Integer(3)]
+      );
+
+      let a = program
+        .scopes
+        .last()
+        .unwrap()
+        .get_val(interner().get_or_intern("a"))
+        .unwrap();
+
+      assert_eq!(
+        a,
+        Expr::List(vec![Expr::Integer(1), Expr::Integer(2), Expr::Integer(3)])
+      );
+    }
   }
 
   mod list_ops {
@@ -973,37 +974,36 @@ mod tests {
     }
   }
 
-  // TODO: Make this a test again
-  // mod string_ops {
-  //   use super::*;
+  mod string_ops {
+    use super::*;
 
-  //   // #[test]
-  //   // fn exploding_string() {
-  //   //   let mut program = Program::new().with_core().unwrap();
-  //   //   program.eval_string("\"abc\" explode").unwrap();
-  //   //   assert_eq!(
-  //   //     program.stack,
-  //   //     vec![Expr::List(vec![
-  //   //       Expr::String(interner().get_or_intern_static("a")),
-  //   //       Expr::String(interner().get_or_intern_static("b")),
-  //   //       Expr::String(interner().get_or_intern_static("c"))
-  //   //     ])]
-  //   //   );
-  //   // }
+    #[test]
+    fn exploding_string() {
+      let mut program = Program::new().with_core().unwrap();
+      program.eval_string("\"abc\" explode").unwrap();
+      assert_eq!(
+        program.stack,
+        vec![Expr::List(vec![
+          Expr::String(interner().get_or_intern_static("a")),
+          Expr::String(interner().get_or_intern_static("b")),
+          Expr::String(interner().get_or_intern_static("c"))
+        ])]
+      );
+    }
 
-  //   // #[test]
-  //   // fn joining_to_string() {
-  //   //   let mut program = Program::new().with_core().unwrap();
-  //   //   program
-  //   //     .eval_string("(\"a\" 3 \"hello\" 1.2) \"\" join")
-  //   //     .unwrap();
+    #[test]
+    fn joining_to_string() {
+      let mut program = Program::new().with_core().unwrap();
+      program
+        .eval_string("(\"a\" 3 \"hello\" 1.2) \"\" join")
+        .unwrap();
 
-  //   //   assert_eq!(
-  //   //     program.stack,
-  //   //     vec![Expr::String(interner().get_or_intern_static("a3hello1.2"))]
-  //   //   );
-  //   // }
-  // }
+      assert_eq!(
+        program.stack,
+        vec![Expr::String(interner().get_or_intern_static("a3hello1.2"))]
+      );
+    }
+  }
 
   mod control_flow {
     use super::*;
