@@ -94,7 +94,7 @@ In this case, the first item in the list is kept as a lazy symbol, while the sec
 
 ### Functions
 
-Functions are the primary way to define new operations in Stack. Uniquely, Stack doesn't have a special data type for functions. Instead, functions are just lists of operations. Heres what they look like:
+Functions are the primary way to define new operations in Stack. Uniquely, Functions are simply marked lists that contain operations. Here is what they look like:
 
 ```clojure
 ;; Push a function (a lazy list) to the stack () -> ('(...))
