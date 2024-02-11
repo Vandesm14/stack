@@ -3,7 +3,7 @@ use core::fmt;
 use lasso::Spur;
 use std::{cell::RefCell, collections::HashMap, fmt::Formatter, rc::Rc};
 
-pub type Val = Rc<RefCell<Chain<Expr>>>;
+pub type Val = Rc<RefCell<Chain<Option<Expr>>>>;
 
 #[derive(Default, PartialEq)]
 pub struct Scope {
@@ -45,32 +45,35 @@ impl Scope {
     if let Some(chain) = self.items.get(&name) {
       let mut chain = RefCell::borrow_mut(chain);
       match chain.is_root() {
-        // Chain::Link(_) => {
-        //   val.unlink_with(|_| item);
-        // }
-        // Chain::Root(root) => {
-        //   let mut root = root.borrow_mut();
-        //   *root = item;
-        // }
         true => {
-          chain.set(item);
+          chain.set(Some(item));
         }
         false => {
-          chain.unlink_with(item);
+          chain.unlink_with(Some(item));
         }
       }
     } else {
-      let val = Rc::new(RefCell::new(Chain::new(item)));
+      let val = Rc::new(RefCell::new(Chain::new(Some(item))));
       self.items.insert(name, val);
     }
 
     Ok(())
   }
 
+  pub fn reserve(&mut self, name: Spur) -> Result<(), String> {
+    if self.items.get(&name).is_none() {
+      let val = Rc::new(RefCell::new(Chain::new(None)));
+      self.items.insert(name, val);
+      Ok(())
+    } else {
+      Err("Cannot reserve an already existing variable".to_owned())
+    }
+  }
+
   pub fn set(&mut self, name: Spur, item: Expr) -> Result<(), String> {
     if let Some(chain) = self.items.get_mut(&name) {
       let mut chain = RefCell::borrow_mut(chain);
-      chain.set(item);
+      chain.set(Some(item));
       Ok(())
     } else {
       Err("Cannot set to a nonexistent variable".to_owned())
@@ -92,7 +95,7 @@ impl Scope {
   }
 
   pub fn get_val(&self, name: Spur) -> Option<Expr> {
-    self.items.get(&name).map(|item| item.borrow().val())
+    self.items.get(&name).and_then(|item| item.borrow().val())
   }
 
   pub fn get_ref(&self, name: Spur) -> Option<&Val> {
@@ -141,7 +144,7 @@ impl<'a> Scanner<'a> {
       for item in fn_body.iter_mut() {
         if let Expr::Call(call) = item.unlazy() {
           if !self.funcs.contains_key(call) && !self.scope.has(*call) {
-            self.scope.define(*call, Expr::Nil).unwrap();
+            self.scope.reserve(*call).unwrap();
           }
         } else if item.unlazy().is_function() {
           let mut scanner = Scanner::new(self.scope.clone(), self.funcs);
@@ -173,5 +176,133 @@ impl<'a> Scanner<'a> {
 
 #[cfg(test)]
 mod tests {
-  // TODO: Write tests
+  use crate::{interner::interner, Expr, Program};
+
+  #[test]
+  fn top_level_scopes() {
+    let mut program = Program::new().with_core().unwrap();
+    program.eval_string("0 'a def").unwrap();
+
+    assert_eq!(
+      program
+        .scopes
+        .last()
+        .unwrap()
+        .get_val(interner().get_or_intern("a")),
+      Some(Expr::Integer(0))
+    );
+  }
+
+  #[test]
+  fn function_scopes_are_isolated() {
+    let mut program = Program::new().with_core().unwrap();
+    program.eval_string("'(fn 0 'a def) call").unwrap();
+
+    assert_eq!(
+      program
+        .scopes
+        .last()
+        .unwrap()
+        .get_val(interner().get_or_intern("a")),
+      None
+    );
+  }
+
+  #[test]
+  fn functions_can_set_to_outer() {
+    let mut program = Program::new().with_core().unwrap();
+    program.eval_string("0 'a def '(fn 1 'a set) call").unwrap();
+
+    assert_eq!(
+      program
+        .scopes
+        .last()
+        .unwrap()
+        .get_val(interner().get_or_intern("a")),
+      Some(Expr::Integer(1))
+    );
+  }
+
+  #[test]
+  fn functions_can_shadow_outer() {
+    let mut program = Program::new().with_core().unwrap();
+    program.eval_string("0 'a def '(fn 1 'a def) call").unwrap();
+
+    assert_eq!(
+      program
+        .scopes
+        .last()
+        .unwrap()
+        .get_val(interner().get_or_intern("a")),
+      Some(Expr::Integer(0))
+    );
+  }
+
+  #[test]
+  fn closures_can_access_vars() {
+    let mut program = Program::new().with_core().unwrap();
+    program
+      .eval_string("0 'a def '(fn 1 'a def '(fn a)) call call")
+      .unwrap();
+
+    assert_eq!(program.stack, vec![Expr::Integer(1)]);
+  }
+
+  #[test]
+  fn closures_can_mutate_vars() {
+    let mut program = Program::new().with_core().unwrap();
+    program
+      .eval_string("0 'a def '(fn 1 'a def '(fn 2 'a set a)) call call")
+      .unwrap();
+
+    assert_eq!(program.stack, vec![Expr::Integer(2)],);
+  }
+
+  #[test]
+  fn scopeless_functions_can_def_outer() {
+    let mut program = Program::new().with_core().unwrap();
+    program.eval_string("'(fn! 0 'a def) call").unwrap();
+
+    assert_eq!(
+      program
+        .scopes
+        .last()
+        .unwrap()
+        .get_val(interner().get_or_intern("a")),
+      Some(Expr::Integer(0))
+    );
+  }
+
+  #[test]
+  fn scopeless_function_macro_test() {
+    let mut program = Program::new().with_core().unwrap();
+    program
+      .eval_string("'(fn! def) 'define def 0 'a define")
+      .unwrap();
+
+    assert_eq!(
+      program
+        .scopes
+        .last()
+        .unwrap()
+        .get_val(interner().get_or_intern("a")),
+      Some(Expr::Integer(0))
+    );
+  }
+
+  #[test]
+  fn should_fail_on_invalid_symbol() {
+    let mut program = Program::new().with_core().unwrap();
+    let result = program.eval_string("a").unwrap_err();
+
+    assert_eq!(result.message, "unknown call a");
+  }
+
+  #[test]
+  fn should_fail_on_invalid_symbol_in_fn() {
+    let mut program = Program::new().with_core().unwrap();
+    let result = program.eval_string("'(fn a) call").unwrap_err();
+
+    assert_eq!(result.message, "unknown call a");
+  }
 }

@@ -61,14 +61,20 @@ impl fmt::Display for Program {
             f,
             " + {}: {}",
             interner().resolve(key),
-            value.borrow().val()
+            match value.borrow().val() {
+              Some(expr) => expr.to_string(),
+              None => "None".to_owned(),
+            }
           )?;
         } else {
           writeln!(
             f,
             " + {}: {}",
             interner().resolve(key),
-            value.borrow().val()
+            match value.borrow().val() {
+              Some(expr) => expr.to_string(),
+              None => "None".to_owned(),
+            }
           )?;
         }
       }

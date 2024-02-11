@@ -1,0 +1,24 @@
+"std/assert.stack" import
+
+'(fn
+  0 'i def
+
+  '(fn
+    i 1 + 'i set
+  ) 'inc def
+
+  '(fn i) 'value def
+
+  '()
+  'inc export
+  'value export
+) 'counter def
+
+counter 'my-counter use
+
+my-counter/inc
+my-counter/inc
+my-counter/inc
+my-counter/value
+
+3 "closures and objects should be mutable" assert-eq
