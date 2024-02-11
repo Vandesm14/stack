@@ -2,22 +2,6 @@
 
 Stack includes a scoping mechanism that is used by functions. They are created when a new function is called. Whenever a function is pushed to the stack, its scope is scanned and set up for when it needs to run.
 
-## Isolation
-
-All variables created within a function scope are isolated. Once the function has executed, its scope will be dropped, and all variables will be removed.
-
-```clojure
-'(fn
-  ;; Define a variable
-  0 'a def
-
-  ;; a is defined here
-  a debug  
-) call
-
-;; a is no longer defined
-```
-
 ## Referencing
 
 Scopes control the behavior of `def` and `set`. When a new scope is created, all variables from the previous scope will be referenced to the new scope. Any changes (via `set`) to the variables will be reflected in the previous scope.
@@ -32,6 +16,22 @@ Scopes control the behavior of `def` and `set`. When a new scope is created, all
 '(fn 1 'a set) call
 
 ;; a == 1
+```
+
+## Isolation
+
+All variables created within a function scope are isolated. Once the function has executed, its scope will be dropped, and all variables will be removed.
+
+```clojure
+'(fn
+  ;; Define a variable
+  0 'a def
+
+  ;; a is defined here
+  a debug  
+) call
+
+;; a is no longer defined
 ```
 
 ## Shadowing
