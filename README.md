@@ -8,7 +8,7 @@ An RPN stack machine built with Rust
 
 ## Documentation
 
-All documentation, the who, what, when, where, and why, can be found in the [docs](./docs) directory.
+All of our documentation can be found in the [docs](./docs) directory or hosted via [GitHub Pages](https://vandesm14.github.io/stack/).
 
 ### Running with mdbook
 
