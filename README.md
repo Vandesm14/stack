@@ -2,7 +2,7 @@
 
 [![Tests](https://github.com/Vandesm14/stack/actions/workflows/tests.yml/badge.svg)](https://github.com/Vandesm14/stack/actions/workflows/tests.yml)
 
-<!-- [![Checks](https://github.com/Vandesm14/stack/actions/workflows/check.yml/badge.svg)](https://github.com/Vandesm14/stack/actions/workflows/check.yml) -->
+[![Docs](https://github.com/Vandesm14/stack/actions/workflows/deploy_book.yml/badge.svg)](https://github.com/Vandesm14/stack/actions/workflows/deploy_book.yml)
 
 An RPN stack machine built with Rust
 
