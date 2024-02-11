@@ -2,8 +2,7 @@ name: Deploy Book
 on:
   push:
     branches:
-      # TODO: switch this to main after testing
-      - '**'
+      - 'main'
 
 jobs:
   deploy:
