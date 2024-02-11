@@ -142,18 +142,26 @@ impl Program {
     })
   }
 
-  pub fn push(&mut self, expr: Expr) {
+  pub fn push(&mut self, expr: Expr) -> Result<(), EvalError> {
     let expr = if expr.is_function() {
       let mut scanner =
         Scanner::new(self.scopes.last().unwrap().duplicate(), &self.funcs);
 
-      // TODO: Don't silently fail here
-      scanner.scan(expr.clone()).unwrap_or(expr)
+      return match scanner.scan(expr.clone()) {
+        Ok(_) => Ok(()),
+        Err(message) => Err(EvalError {
+          expr: Expr::Nil,
+          program: self.clone(),
+          message,
+        }),
+      };
     } else {
       expr
     };
 
-    self.stack.push(expr)
+    self.stack.push(expr);
+
+    Ok(())
   }
 
   pub fn scope_item(&self, symbol: &str) -> Option<Expr> {
@@ -255,8 +263,7 @@ impl Program {
 
         Ok(())
       } else {
-        self.push(self.scope_item(call_str).unwrap_or(Expr::Nil));
-        Ok(())
+        self.push(self.scope_item(call_str).unwrap_or(Expr::Nil))
       }
     } else {
       Err(EvalError {
@@ -274,10 +281,7 @@ impl Program {
 
     match expr.clone() {
       Expr::Call(call) => self.eval_call(&expr, call),
-      Expr::Lazy(block) => {
-        self.push(*block);
-        Ok(())
-      }
+      Expr::Lazy(block) => self.push(*block),
       Expr::List(list) => {
         let stack_len = self.stack.len();
 
@@ -290,15 +294,10 @@ impl Program {
           .collect::<Vec<_>>();
         list.reverse();
 
-        self.push(Expr::List(list));
-
-        Ok(())
+        self.push(Expr::List(list))
       }
       Expr::Fn(_) => Ok(()),
-      expr => {
-        self.push(expr);
-        Ok(())
-      }
+      expr => self.push(expr),
     }
   }
 

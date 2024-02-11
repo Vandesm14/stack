@@ -9,12 +9,10 @@ pub fn module(program: &mut Program) -> Result<(), EvalError> {
 
       match lhs.coerce_same_float(&rhs) {
         Some((Expr::Integer(lhs), Expr::Integer(rhs))) => {
-          program.push(Expr::Integer(lhs + rhs));
-          Ok(())
+          program.push(Expr::Integer(lhs + rhs))
         }
         Some((Expr::Float(lhs), Expr::Float(rhs))) => {
-          program.push(Expr::Float(lhs + rhs));
-          Ok(())
+          program.push(Expr::Float(lhs + rhs))
         }
         _ => Err(EvalError {
           expr: trace_expr.clone(),
@@ -40,12 +38,10 @@ pub fn module(program: &mut Program) -> Result<(), EvalError> {
 
       match lhs.coerce_same_float(&rhs) {
         Some((Expr::Integer(lhs), Expr::Integer(rhs))) => {
-          program.push(Expr::Integer(lhs - rhs));
-          Ok(())
+          program.push(Expr::Integer(lhs - rhs))
         }
         Some((Expr::Float(lhs), Expr::Float(rhs))) => {
-          program.push(Expr::Float(lhs - rhs));
-          Ok(())
+          program.push(Expr::Float(lhs - rhs))
         }
         _ => Err(EvalError {
           expr: trace_expr.clone(),
@@ -71,12 +67,10 @@ pub fn module(program: &mut Program) -> Result<(), EvalError> {
 
       match lhs.coerce_same_float(&rhs) {
         Some((Expr::Integer(lhs), Expr::Integer(rhs))) => {
-          program.push(Expr::Integer(lhs * rhs));
-          Ok(())
+          program.push(Expr::Integer(lhs * rhs))
         }
         Some((Expr::Float(lhs), Expr::Float(rhs))) => {
-          program.push(Expr::Float(lhs * rhs));
-          Ok(())
+          program.push(Expr::Float(lhs * rhs))
         }
         _ => Err(EvalError {
           expr: trace_expr.clone(),
@@ -102,12 +96,10 @@ pub fn module(program: &mut Program) -> Result<(), EvalError> {
 
       match lhs.coerce_same_float(&rhs) {
         Some((Expr::Integer(lhs), Expr::Integer(rhs))) => {
-          program.push(Expr::Integer(lhs / rhs));
-          Ok(())
+          program.push(Expr::Integer(lhs / rhs))
         }
         Some((Expr::Float(lhs), Expr::Float(rhs))) => {
-          program.push(Expr::Float(lhs / rhs));
-          Ok(())
+          program.push(Expr::Float(lhs / rhs))
         }
         _ => Err(EvalError {
           expr: trace_expr.clone(),
@@ -133,12 +125,10 @@ pub fn module(program: &mut Program) -> Result<(), EvalError> {
 
       match lhs.coerce_same_float(&rhs) {
         Some((Expr::Integer(lhs), Expr::Integer(rhs))) => {
-          program.push(Expr::Integer(lhs % rhs));
-          Ok(())
+          program.push(Expr::Integer(lhs % rhs))
         }
         Some((Expr::Float(lhs), Expr::Float(rhs))) => {
-          program.push(Expr::Float(lhs % rhs));
-          Ok(())
+          program.push(Expr::Float(lhs % rhs))
         }
         _ => Err(EvalError {
           expr: trace_expr.clone(),

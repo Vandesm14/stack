@@ -19,8 +19,6 @@ pub fn module(program: &mut Program) -> Result<(), EvalError> {
         },
         _ => program.push(Expr::Nil),
       }
-
-      Ok(())
     },
   );
 
@@ -46,8 +44,6 @@ pub fn module(program: &mut Program) -> Result<(), EvalError> {
         },
         _ => program.push(Expr::Nil),
       }
-
-      Ok(())
     },
   );
 
@@ -63,10 +59,10 @@ pub fn module(program: &mut Program) -> Result<(), EvalError> {
             Expr::List(mut list) => {
               if i <= list.len() {
                 let rest = list.split_off(i);
-                program.push(Expr::List(list));
-                program.push(Expr::List(rest));
+                program.push(Expr::List(list))?;
+                program.push(Expr::List(rest))
               } else {
-                program.push(Expr::Nil);
+                program.push(Expr::Nil)
               }
             }
             _ => program.push(Expr::Nil),
@@ -75,8 +71,6 @@ pub fn module(program: &mut Program) -> Result<(), EvalError> {
         },
         _ => program.push(Expr::Nil),
       }
-
-      Ok(())
     },
   );
 
@@ -98,9 +92,7 @@ pub fn module(program: &mut Program) -> Result<(), EvalError> {
             })
             .join(delimiter_str);
           let string = Expr::String(interner().get_or_intern(string));
-          program.push(string);
-
-          Ok(())
+          program.push(string)
         }
         (delimiter, list) => Err(EvalError {
           expr: trace_expr.clone(),
@@ -124,12 +116,10 @@ pub fn module(program: &mut Program) -> Result<(), EvalError> {
       match (list_lhs, list_rhs) {
         (Expr::List(mut list_lhs), Expr::List(list_rhs)) => {
           list_lhs.extend(list_rhs);
-          program.push(Expr::List(list_lhs));
+          program.push(Expr::List(list_lhs))
         }
         _ => program.push(Expr::Nil),
       }
-
-      Ok(())
     },
   );
 
@@ -139,11 +129,12 @@ pub fn module(program: &mut Program) -> Result<(), EvalError> {
       let list = program.pop(trace_expr)?;
 
       match list {
-        Expr::List(list) => program.stack.extend(list),
+        Expr::List(list) => {
+          program.stack.extend(list);
+          Ok(())
+        }
         list => program.push(list),
       }
-
-      Ok(())
     },
   );
 
@@ -151,8 +142,7 @@ pub fn module(program: &mut Program) -> Result<(), EvalError> {
     interner().get_or_intern_static("wrap"),
     |program, trace_expr| {
       let any = program.pop(trace_expr)?;
-      program.push(Expr::List(vec![any]));
-      Ok(())
+      program.push(Expr::List(vec![any]))
     },
   );
 

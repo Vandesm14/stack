@@ -32,9 +32,7 @@ pub fn module(program: &mut Program) -> Result<(), EvalError> {
                       .unwrap(),
                   },
                 );
-                program.push(Expr::String(content));
-
-                Ok(())
+                program.push(Expr::String(content))
               }
               Err(e) => Err(EvalError {
                 expr: trace_expr.clone(),
@@ -44,9 +42,7 @@ pub fn module(program: &mut Program) -> Result<(), EvalError> {
             }
           } else {
             let contents = program.loaded_files.get(path_str).unwrap().contents;
-            program.push(Expr::String(contents));
-
-            Ok(())
+            program.push(Expr::String(contents))
           }
         }
         _ => Err(EvalError {
