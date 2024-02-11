@@ -111,6 +111,14 @@ impl Program {
     Ok(self)
   }
 
+  pub fn with_module<M>(mut self, module: M) -> Result<Self, EvalError>
+  where
+    M: Module,
+  {
+    module.link(&mut self)?;
+    Ok(self)
+  }
+
   pub fn with_debug(mut self) -> Self {
     self.debug_trace = Some(vec![]);
     self
