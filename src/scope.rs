@@ -140,7 +140,7 @@ impl<'a> Scanner<'a> {
 
       for item in fn_body.iter_mut() {
         if let Expr::Call(call) = item.unlazy() {
-          if self.funcs.contains_key(call) && !self.scope.has(*call) {
+          if !self.funcs.contains_key(call) && !self.scope.has(*call) {
             self.scope.define(*call, Expr::Nil).unwrap();
           }
         } else if item.unlazy().is_function() {
