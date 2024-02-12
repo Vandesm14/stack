@@ -1,34 +1,28 @@
 # Stack
 
 [![Tests](https://github.com/Vandesm14/stack/actions/workflows/tests.yml/badge.svg)](https://github.com/Vandesm14/stack/actions/workflows/tests.yml)
-
-<!-- [![Checks](https://github.com/Vandesm14/stack/actions/workflows/check.yml/badge.svg)](https://github.com/Vandesm14/stack/actions/workflows/check.yml) -->
+[![Docs](https://github.com/Vandesm14/stack/actions/workflows/deploy_book.yml/badge.svg?branch=main)](https://vandesm14.github.io/stack/)
 
 An RPN stack machine built with Rust
 
-## Installation
+## Documentation
 
-```bash
-# After cloning the repo
-cargo install --path .
+All of our documentation can be found in the [docs](./docs) directory or hosted via [GitHub Pages](https://vandesm14.github.io/stack/).
 
-# Now Stack should be installed
-stack --version
+### Running with mdbook
+
+To run the documentation locally, you can use `mdbook`. To install `mdbook`, you can use `cargo`:
+
+```sh
+cargo install mdbook
 ```
 
-## Usage
+Then, to run the documentation, you can use the following command:
 
-### Run a file
+```sh
+# Enter the docs directory
+cd docs
 
-```bash
-stack run <file>
-
-# or, to watch the file for changes
-stack run <file> --watch
-```
-
-### REPL
-
-```bash
-stack
+# Run mdbook
+mdbook serve --open
 ```

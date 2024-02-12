@@ -1,0 +1,17 @@
+hidden = ["target", ".cargo"]
+modules = ["rust-1.72:v1-20230911-f253fb1"]
+# run = "cargo run --release"
+run = "cd docs; mdbook serve --hostname 0.0.0.0"
+
+[nix]
+channel = "stable-23_05"
+
+[gitHubImport]
+requiredFiles = [".replit"]
+
+[deployment]
+run = ["sh", "-c", "cargo run"]
+
+[[ports]]
+localPort = 3000
+externalPort = 80
