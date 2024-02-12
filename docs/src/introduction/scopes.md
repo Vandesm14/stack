@@ -1,5 +1,7 @@
 # Scopes
 
+<!-- TODO: Maybe prefer referencing scopes as outer and inner -->
+
 Scopes might be the most important concept in Stack. We have put a ton of thought into how they work and how they should be used. Scopes are the backbone of Stack, and they are akin to applicative languages that most people are familiar with.
 
 ## What is a Scope?
