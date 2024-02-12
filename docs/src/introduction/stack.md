@@ -6,6 +6,8 @@ The stack is your workspace. It works as a place to push and pop values, and to 
 
 All expressions are implicitly pushed to the stack.
 
+<!-- TODO: Explain that symbols are caught by the evaluator and never pushed to the stack (unless they are lazy). Further, code and stack are separated in certain cases. -->
+
 ```clojure
 2 ;; Pushes 2
 
