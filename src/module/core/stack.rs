@@ -5,8 +5,7 @@ pub fn module(program: &mut Program) -> Result<(), EvalError> {
     interner().get_or_intern_static("collect"),
     |program, _| {
       let list = core::mem::take(&mut program.stack);
-      program.push(Expr::List(list));
-      Ok(())
+      program.push(Expr::List(list))
     },
   );
 
@@ -31,10 +30,8 @@ pub fn module(program: &mut Program) -> Result<(), EvalError> {
     |program, trace_expr| {
       let item = program.pop(trace_expr)?;
 
-      program.push(item.clone());
-      program.push(item);
-
-      Ok(())
+      program.push(item.clone())?;
+      program.push(item)
     },
   );
 
@@ -44,10 +41,8 @@ pub fn module(program: &mut Program) -> Result<(), EvalError> {
       let rhs = program.pop(trace_expr)?;
       let lhs = program.pop(trace_expr)?;
 
-      program.push(rhs);
-      program.push(lhs);
-
-      Ok(())
+      program.push(rhs)?;
+      program.push(lhs)
     },
   );
 
@@ -58,11 +53,9 @@ pub fn module(program: &mut Program) -> Result<(), EvalError> {
       let mid = program.pop(trace_expr)?;
       let lhs = program.pop(trace_expr)?;
 
-      program.push(rhs);
-      program.push(lhs);
-      program.push(mid);
-
-      Ok(())
+      program.push(rhs)?;
+      program.push(lhs)?;
+      program.push(mid)
     },
   );
 
@@ -70,8 +63,7 @@ pub fn module(program: &mut Program) -> Result<(), EvalError> {
     interner().get_or_intern_static("lazy"),
     |program, trace_expr| {
       let item = program.pop(trace_expr)?;
-      program.push(Expr::Lazy(Box::new(item)));
-      Ok(())
+      program.push(Expr::Lazy(Box::new(item)))
     },
   );
 

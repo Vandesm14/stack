@@ -16,9 +16,7 @@ pub fn module(program: &mut Program) -> Result<(), EvalError> {
           let parser = Parser::new(lexer);
           let expr = parser.parse().ok().map(Expr::List).unwrap_or(Expr::Nil);
 
-          program.push(expr);
-
-          Ok(())
+          program.push(expr)
         }
         _ => Err(EvalError {
           expr: trace_expr.clone(),

@@ -16,12 +16,10 @@ pub fn module(program: &mut Program) -> Result<(), EvalError> {
               .ok()
               .map(Expr::Boolean)
               .unwrap_or(Expr::Nil),
-          );
+          )
         }
         found => program.push(found.to_boolean().unwrap_or(Expr::Nil)),
       }
-
-      Ok(())
     },
   );
 
@@ -40,12 +38,10 @@ pub fn module(program: &mut Program) -> Result<(), EvalError> {
               .ok()
               .map(Expr::Integer)
               .unwrap_or(Expr::Nil),
-          );
+          )
         }
         found => program.push(found.to_integer().unwrap_or(Expr::Nil)),
       }
-
-      Ok(())
     },
   );
 
@@ -64,12 +60,10 @@ pub fn module(program: &mut Program) -> Result<(), EvalError> {
               .ok()
               .map(Expr::Float)
               .unwrap_or(Expr::Nil),
-          );
+          )
         }
         found => program.push(found.to_float().unwrap_or(Expr::Nil)),
       }
-
-      Ok(())
     },
   );
 
@@ -79,16 +73,11 @@ pub fn module(program: &mut Program) -> Result<(), EvalError> {
       let item = program.pop(trace_expr)?;
 
       match item {
-        string @ Expr::String(_) => {
-          program.push(string);
-          Ok(())
-        }
+        string @ Expr::String(_) => program.push(string),
         found => {
           let string =
             Expr::String(interner().get_or_intern(found.to_string()));
-          program.push(string);
-
-          Ok(())
+          program.push(string)
         }
       }
     },
@@ -100,9 +89,7 @@ pub fn module(program: &mut Program) -> Result<(), EvalError> {
       let item = program.pop(trace_expr)?;
 
       match item {
-        list @ Expr::List(_) => {
-          program.push(list);
-        }
+        list @ Expr::List(_) => program.push(list),
         Expr::String(s) => {
           let str = interner().resolve(&s).to_owned();
           program.push(Expr::List(
@@ -110,14 +97,10 @@ pub fn module(program: &mut Program) -> Result<(), EvalError> {
               .chars()
               .map(|c| Expr::String(interner().get_or_intern(c.to_string())))
               .collect::<Vec<_>>(),
-          ));
+          ))
         }
-        found => {
-          program.push(Expr::List(vec![found]));
-        }
+        found => program.push(Expr::List(vec![found])),
       }
-
-      Ok(())
     },
   );
 
@@ -127,19 +110,11 @@ pub fn module(program: &mut Program) -> Result<(), EvalError> {
       let item = program.pop(trace_expr)?;
 
       match item {
-        call @ Expr::Call(_) => {
-          program.push(call);
-          Ok(())
-        }
-        Expr::String(string) => {
-          program.push(Expr::Call(string));
-          Ok(())
-        }
+        call @ Expr::Call(_) => program.push(call),
+        Expr::String(string) => program.push(Expr::Call(string)),
         found => {
           let call = Expr::Call(interner().get_or_intern(found.to_string()));
-          program.push(call);
-
-          Ok(())
+          program.push(call)
         }
       }
     },
@@ -151,9 +126,7 @@ pub fn module(program: &mut Program) -> Result<(), EvalError> {
       let item = program.pop(trace_expr)?;
       let string =
         Expr::String(interner().get_or_intern(item.type_of().to_string()));
-      program.push(string);
-
-      Ok(())
+      program.push(string)
     },
   );
 

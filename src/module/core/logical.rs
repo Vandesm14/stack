@@ -7,9 +7,7 @@ pub fn module(program: &mut Program) -> Result<(), EvalError> {
       let rhs = program.pop(trace_expr)?;
       let lhs = program.pop(trace_expr)?;
 
-      program.push(Expr::Boolean(lhs.is_truthy() || rhs.is_truthy()));
-
-      Ok(())
+      program.push(Expr::Boolean(lhs.is_truthy() || rhs.is_truthy()))
     },
   );
 
@@ -19,9 +17,7 @@ pub fn module(program: &mut Program) -> Result<(), EvalError> {
       let rhs = program.pop(trace_expr)?;
       let lhs = program.pop(trace_expr)?;
 
-      program.push(Expr::Boolean(lhs.is_truthy() && rhs.is_truthy()));
-
-      Ok(())
+      program.push(Expr::Boolean(lhs.is_truthy() && rhs.is_truthy()))
     },
   );
 

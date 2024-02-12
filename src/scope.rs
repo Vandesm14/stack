@@ -140,8 +140,14 @@ impl<'a> Scanner<'a> {
     if expr.is_function() {
       let expr = expr;
       // We can unwrap here because we know the expression is a function
-      let fn_symbol = expr.fn_symbol().unwrap();
-      let mut fn_body = expr.fn_body().unwrap().to_vec();
+      let fn_symbol = match expr.fn_symbol() {
+        Some(fn_symbol) => fn_symbol,
+        None => return Err("Invalid function".to_owned()),
+      };
+      let mut fn_body = match expr.fn_body() {
+        Some(fn_body) => fn_body.to_vec(),
+        None => return Err("Invalid function".to_owned()),
+      };
 
       for item in fn_body.iter_mut() {
         if let Expr::Call(call) = item.unlazy() {

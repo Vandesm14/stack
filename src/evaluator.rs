@@ -142,18 +142,28 @@ impl Program {
     })
   }
 
-  pub fn push(&mut self, expr: Expr) {
+  pub fn push(&mut self, expr: Expr) -> Result<(), EvalError> {
     let expr = if expr.is_function() {
       let mut scanner =
         Scanner::new(self.scopes.last().unwrap().duplicate(), &self.funcs);
 
-      // TODO: Don't silently fail here
-      scanner.scan(expr.clone()).unwrap_or(expr)
+      match scanner.scan(expr.clone()) {
+        Ok(expr) => expr,
+        Err(message) => {
+          return Err(EvalError {
+            expr: Expr::Nil,
+            program: self.clone(),
+            message,
+          })
+        }
+      }
     } else {
       expr
     };
 
-    self.stack.push(expr)
+    self.stack.push(expr);
+
+    Ok(())
   }
 
   pub fn scope_item(&self, symbol: &str) -> Option<Expr> {
@@ -211,11 +221,21 @@ impl Program {
     }
   }
 
-  // TODO: Make this return a result
-  pub fn remove_scope_item(&mut self, symbol: &str) {
+  pub fn remove_scope_item(&mut self, symbol: &str) -> Result<(), EvalError> {
     if let Some(layer) = self.scopes.last_mut() {
-      layer.remove(interner().get_or_intern(symbol)).unwrap();
+      match layer.remove(interner().get_or_intern(symbol)) {
+        Ok(_) => {}
+        Err(message) => {
+          return Err(EvalError {
+            expr: Expr::Nil,
+            program: self.clone(),
+            message,
+          })
+        }
+      }
     }
+
+    Ok(())
   }
 
   pub fn push_scope(&mut self, scope: Scope) {
@@ -245,8 +265,7 @@ impl Program {
 
         Ok(())
       } else {
-        self.push(self.scope_item(call_str).unwrap_or(Expr::Nil));
-        Ok(())
+        self.push(self.scope_item(call_str).unwrap_or(Expr::Nil))
       }
     } else {
       Err(EvalError {
@@ -264,10 +283,7 @@ impl Program {
 
     match expr.clone() {
       Expr::Call(call) => self.eval_call(&expr, call),
-      Expr::Lazy(block) => {
-        self.push(*block);
-        Ok(())
-      }
+      Expr::Lazy(block) => self.push(*block),
       Expr::List(list) => {
         let stack_len = self.stack.len();
 
@@ -280,15 +296,10 @@ impl Program {
           .collect::<Vec<_>>();
         list.reverse();
 
-        self.push(Expr::List(list));
-
-        Ok(())
+        self.push(Expr::List(list))
       }
       Expr::Fn(_) => Ok(()),
-      expr => {
-        self.push(expr);
-        Ok(())
-      }
+      expr => self.push(expr),
     }
   }
 
@@ -313,8 +324,6 @@ impl Program {
 
     match result {
       Ok(x) => {
-        // TODO: Store each operation in an append-only operations list, and
-        //       rollback if there is an error.
         self.stack = clone.stack;
         self.scopes = clone.scopes;
         self.debug_trace = clone.debug_trace;
@@ -874,29 +883,30 @@ mod tests {
       );
     }
 
-    // TODO: wtf is this? do we still need this test??
-    // #[test]
-    // fn collect_and_unwrap() {
-    //   let mut program = Program::new().with_core().unwrap();
-    //   program
-    //     .eval_string("1 2 3 collect 'a set 'a get unwrap")
-    //     .unwrap();
-    //   assert_eq!(
-    //     program.stack,
-    //     vec![Expr::Integer(1), Expr::Integer(2), Expr::Integer(3)]
-    //   );
-    //   assert_eq!(
-    //     program.scopes,
-    //     vec![HashMap::from_iter(vec![(
-    //       "a".to_string(),
-    //       Expr::List(vec![
-    //         Expr::Integer(1),
-    //         Expr::Integer(2),
-    //         Expr::Integer(3)
-    //       ])
-    //     )])]
-    //   );
-    // }
+    #[test]
+    fn collect_and_unwrap() {
+      let mut program = Program::new().with_core().unwrap();
+      program
+        .eval_string("1 2 3 collect 'a def 'a get unwrap")
+        .unwrap();
+
+      assert_eq!(
+        program.stack,
+        vec![Expr::Integer(1), Expr::Integer(2), Expr::Integer(3)]
+      );
+
+      let a = program
+        .scopes
+        .last()
+        .unwrap()
+        .get_val(interner().get_or_intern("a"))
+        .unwrap();
+
+      assert_eq!(
+        a,
+        Expr::List(vec![Expr::Integer(1), Expr::Integer(2), Expr::Integer(3)])
+      );
+    }
   }
 
   mod list_ops {
@@ -965,38 +975,6 @@ mod tests {
       );
     }
   }
-
-  // TODO: Make this a test again
-  // mod string_ops {
-  //   use super::*;
-
-  //   // #[test]
-  //   // fn exploding_string() {
-  //   //   let mut program = Program::new().with_core().unwrap();
-  //   //   program.eval_string("\"abc\" explode").unwrap();
-  //   //   assert_eq!(
-  //   //     program.stack,
-  //   //     vec![Expr::List(vec![
-  //   //       Expr::String(interner().get_or_intern_static("a")),
-  //   //       Expr::String(interner().get_or_intern_static("b")),
-  //   //       Expr::String(interner().get_or_intern_static("c"))
-  //   //     ])]
-  //   //   );
-  //   // }
-
-  //   // #[test]
-  //   // fn joining_to_string() {
-  //   //   let mut program = Program::new().with_core().unwrap();
-  //   //   program
-  //   //     .eval_string("(\"a\" 3 \"hello\" 1.2) \"\" join")
-  //   //     .unwrap();
-
-  //   //   assert_eq!(
-  //   //     program.stack,
-  //   //     vec![Expr::String(interner().get_or_intern_static("a3hello1.2"))]
-  //   //   );
-  //   // }
-  // }
 
   mod control_flow {
     use super::*;

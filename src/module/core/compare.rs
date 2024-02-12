@@ -7,9 +7,7 @@ pub fn module(program: &mut Program) -> Result<(), EvalError> {
       let rhs = program.pop(trace_expr)?;
       let lhs = program.pop(trace_expr)?;
 
-      program.push(Expr::Boolean(lhs == rhs));
-
-      Ok(())
+      program.push(Expr::Boolean(lhs == rhs))
     },
   );
 
@@ -19,9 +17,7 @@ pub fn module(program: &mut Program) -> Result<(), EvalError> {
       let rhs = program.pop(trace_expr)?;
       let lhs = program.pop(trace_expr)?;
 
-      program.push(Expr::Boolean(lhs != rhs));
-
-      Ok(())
+      program.push(Expr::Boolean(lhs != rhs))
     },
   );
 
@@ -31,9 +27,7 @@ pub fn module(program: &mut Program) -> Result<(), EvalError> {
       let rhs = program.pop(trace_expr)?;
       let lhs = program.pop(trace_expr)?;
 
-      program.push(Expr::Boolean(lhs < rhs));
-
-      Ok(())
+      program.push(Expr::Boolean(lhs < rhs))
     },
   );
 
@@ -43,9 +37,7 @@ pub fn module(program: &mut Program) -> Result<(), EvalError> {
       let rhs = program.pop(trace_expr)?;
       let lhs = program.pop(trace_expr)?;
 
-      program.push(Expr::Boolean(lhs > rhs));
-
-      Ok(())
+      program.push(Expr::Boolean(lhs > rhs))
     },
   );
 
@@ -55,9 +47,7 @@ pub fn module(program: &mut Program) -> Result<(), EvalError> {
       let rhs = program.pop(trace_expr)?;
       let lhs = program.pop(trace_expr)?;
 
-      program.push(Expr::Boolean(lhs <= rhs));
-
-      Ok(())
+      program.push(Expr::Boolean(lhs <= rhs))
     },
   );
 
@@ -67,9 +57,7 @@ pub fn module(program: &mut Program) -> Result<(), EvalError> {
       let rhs = program.pop(trace_expr)?;
       let lhs = program.pop(trace_expr)?;
 
-      program.push(Expr::Boolean(lhs >= rhs));
-
-      Ok(())
+      program.push(Expr::Boolean(lhs >= rhs))
     },
   );
 

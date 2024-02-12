@@ -46,9 +46,10 @@ pub fn module(program: &mut Program) -> Result<(), EvalError> {
       match item {
         Expr::Call(key) => {
           let key_str = interner().resolve(&key).to_owned();
-          program.remove_scope_item(&key_str);
-
-          Ok(())
+          match program.remove_scope_item(&key_str) {
+            Ok(_) => Ok(()),
+            Err(err) => Err(err),
+          }
         }
         item => Err(EvalError {
           expr: trace_expr.clone(),
@@ -108,16 +109,14 @@ pub fn module(program: &mut Program) -> Result<(), EvalError> {
       match item {
         Expr::Call(ref key) => {
           if let Some(func) = program.funcs.get(key) {
-            func(program, trace_expr)?;
+            func(program, trace_expr)
           } else {
             let key_str = interner().resolve(key);
 
             // Always push something, otherwise it can get tricky to manage the
             // stack in-langauge.
-            program.push(program.scope_item(key_str).unwrap_or(Expr::Nil));
+            program.push(program.scope_item(key_str).unwrap_or(Expr::Nil))
           }
-
-          Ok(())
         }
         item => Err(EvalError {
           expr: trace_expr.clone(),
