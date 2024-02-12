@@ -21,6 +21,17 @@ When lists are pushed to the stack, the items inside of the list are evaluated i
 ;; [] -> [(2 2 +)] -> [4]
 ```
 
+You can also use symbols (variables) in non-lazy lists, which will evaluate to their values.
+
+```clojure
+2 'var def
+
+(var)
+
+;; Results in `(2)`
+;; [] -> [(var)] -> [(2)]
+```
+
 ## Laziness
 
 ### Lazy Lists
@@ -47,7 +58,7 @@ Alternatively, you can make specific items inside of a list lazy by prefixing `'
 
 ## Calling Lists
 
-Lists can be called just like any other symbol, though they have a different behavior. When called, each expression a list will be evaluated in order (left to right). This allows code to be bundled in a list, and evaluated later.
+Lists can also be called, though they have a different behavior than calling symbols. When called, each expression a list will be evaluated in order (left to right). This allows code to be bundled in a list, and evaluated later.
 
 ```clojure
 '(2 2 +) call
@@ -60,6 +71,13 @@ Notice that the list was made lazy using the `'` prefix so we can call it manual
 
 **Note: Running `call` on a list doesn't provide the same behavior as the [purification](/introduction/stack.html#purification) step. It evaluates the items in the list, and doesn't keep the items inside the bounds of the list. To keep the items inside the bounds of the list, you can use the `call-list` operator.**
 
-## `call-list` Operator
+## The `call-list` Operator
 
-<!-- TODO: once we add call-list handler, document it -->
+To perform the same behavior as pushing a non-lazy list to the stack, to a lazy list, you can use the `call-list` operator. This works differently than `call`, which evaluates and unwraps the results onto the stack.
+
+```clojure
+'(2 2 +) call-list
+
+;; Results in `(4)` being pushed to the stack
+;; [] -> [(4)]
+```
