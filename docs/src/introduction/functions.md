@@ -78,6 +78,19 @@ call
 ;; [(fn 2 2 +)] -> [4]
 ```
 
+### The `get` Operator
+
+To get the function itself from the scope, to bypass auto-calling, you can use the `get` operator.
+
+```clojure
+'(fn a) 'my-fn def
+
+'my-fn get
+
+;; Results in (fn a) being pushed to the stack
+;; [] -> [(fn a)]
+```
+
 ## Scopeless Functions
 
 Scopeless functions are an addition to Stack that allow for many metaprogramming aspects. Because functions have their own isolated scope, it is not possible to define variables outside of the function's scope.
