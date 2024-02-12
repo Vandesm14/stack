@@ -39,6 +39,7 @@ Because functions are just marked lists, you can still use them as lists. This m
 'fn push
 1 push
 '+ push
+;; [] -> [(fn 1 +)]
 
 'add-one def
 
@@ -93,9 +94,9 @@ To get the function itself from the scope, to bypass auto-calling, you can use t
 
 ## Scopeless Functions
 
-Scopeless functions are an addition to Stack that allow for many metaprogramming aspects. Because functions have their own isolated scope, it is not possible to define variables outside of the function's scope.
+Scopeless functions are an addition to Stack that allow for many metaprogramming aspects. Because normal functions have their own isolated scope, it is not possible to define variables outside of the function's scope.
 
-Scopeless functions aren't isolated in scope and **run in the scope that they are called in**. This allows them to define or redefine variables directly in their parent scope.
+However, scopeless functions don't have their own isolated scope and **run in the scope that they are called in**. This allows them to define or redefine variables directly in their parent scope.
 
 ```clojure
 '(fn! 0 'a def) call
@@ -104,6 +105,23 @@ a
 
 ;; Pushes 0 to the stack
 ;; [] -> [0]
+```
+
+```clojure
+;; Create a scopeless function
+'(fn! 0 'a def)
+
+;; Create a normal function that calls the scopeless function
+'(fn
+  call
+
+  ;; `a` is 0
+)
+
+;; Call the normal function
+call
+
+;; `a` doesn't exist here, since it was part of the previous function's scope
 ```
 
 This is a powerful feature that allows for more dynamic programming.
