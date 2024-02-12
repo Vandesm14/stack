@@ -5,8 +5,8 @@ on:
     branches: ['main']
   pull_request:
     branches:
-      ignore: ['docs/**']
-      include: ['**']
+      - '**'
+      - '!docs/**'
 
 env:
   CARGO_TERM_COLOR: always
