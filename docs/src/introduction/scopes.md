@@ -1,10 +1,10 @@
 # Scopes
 
-Scopes might be the most important concept in Stack. We have put a ton of thought into how they work and how they should be used. Scopes are the backbone of Stack, and they are what make it just like any other programming language.
+Scopes might be the most important concept in Stack. We have put a ton of thought into how they work and how they should be used. Scopes are the backbone of Stack, and they are akin to applicative languages that most people are familiar with.
 
 ## What is a Scope?
 
-Similar to other languages, a scope is a collection of variables. In Stack, a scope defines a variable as a key-value pair: symbol and expression. When a variable is defined, it is added to the current scope. When a variable is called, it is looked up in the current scope (by the [purification](/glossary.html#purification) step).
+Similar to other languages, a scope is a collection of symbol-expression pairs. When a variable is defined, it is added to the current scope. When a variable is called, it is looked up in the current scope (by the [purification](/glossary.html#purification) step).
 
 ## The Main Scope
 
@@ -12,11 +12,9 @@ The main scope is the top-level of your program. It is the first scope that is c
 
 In the [variable](/introduction/variables.html) section, all examples were in the main scope. Though, the behavior shouldn't change when inside of a scope other than main (such as when executing from within a function).
 
-<!-- TODO: fact-check the statement on the behavior expectation of other scopes -->
-
 ## Creating Scopes
 
-Scopes are only created when a function is called. When a function is called, a new scope is created for as long as the function is running. When the function is done, the scope is destroyed.
+When a function is called, a new scope is created for as long as the function is running. When the function is done, the scope is destroyed.
 
 ## Scoping Rules
 
@@ -35,7 +33,7 @@ a
 
 This newly created scope has access to the parent scope. It can read and write to the existing variables in the parent scope. However, if a variable is defined in a child scope, is will not be accessible from within the parent scope.
 
-In this sense, variables have full access to **existing** variables of the parent scope, but cannot introduce **new** variables into that scope.
+Therefore, child scopes have full access to **existing** variables of the parent scope, but cannot introduce **new** variables into that (parent) scope.
 
 **Getting:**
 
@@ -62,9 +60,7 @@ a
 
 ### Shadowing
 
-When a variable is defined in a child scope with the same name as a variable in the parent scope, the child scope's variable will "shadow" the parent scope's variable. This means that the child scope's variable will be used instead of the parent scope's variable.
-
-To the function, it will have access to its own variable while the parent scope's variable is still accessible from within the parent scope.
+When a variable is defined in a child scope with the same name as a variable in the parent scope, the child scope's variable will "shadow" the parent scope's variable. This means that the child scope's variable will be used instead of the parent scope's variable. So, the child scope has access to its own variable while the parent scope's variable is still accessible from within the parent scope.
 
 ```clojure
 0 'a def
@@ -103,12 +99,12 @@ As you can see, the child function still has access to the parent scope's variab
 
 #### Implementation
 
-Closures are implemented by a scanning system. The scanner is triggered whenever a function is pushed to the stack and recursively scans all symbols that the function contains. However, the scanner is dumb and doesn't know how a function will use its symbols. Because of this, the scanner makes decisions based on whether a symbol in the function exists in the parent scope.
+Closures are enabled by an internal scanning system. The scanner is triggered whenever a function is pushed to the stack and recursively scans all symbols that the function contains. However, the scanner is dumb and doesn't know how a function will use its symbols. Because of this, the scanner makes decisions based on whether a symbol in the function exists in the parent scope.
 
 - If the parent scope has the symbol, the symbol's value is referenced in the function's scope.
 - If the parent scope does not have the symbol, the symbol is reserved in the function's scope (defined with no value, erroring if called before defining).
 
-When a function is called, the scope of the function is set to the current scope. The function can shadow values in its scope, which will propagate to any child functions.
+When a function is called, the scope of the function is set as the current scope. The function can shadow values in its scope, which will propagate to any child functions.
 
 **Closures with State:**
 
