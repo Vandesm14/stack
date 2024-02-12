@@ -7,7 +7,10 @@ In Stack, there are a few basic types of data, and a few basic ways to structure
 
 ```clojure
 ;; Integers
-1 1.0 -1 -1.0
+1 -1
+
+;; Floats
+1.0 -1.0
 
 ;; Strings
 "Hello, World!" "Hello, \"World!\""
@@ -30,7 +33,7 @@ true false
 ;; Comments
 ;; This is a comment
 
-;; Do-Nothing brackets (they do nothing! good for visual structure)
+;; Do-Nothing brackets (they do nothing! good for visual structuring.)
 [0 'a def] [a 2 +]
 ```
 
