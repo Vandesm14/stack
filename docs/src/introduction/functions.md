@@ -26,7 +26,7 @@ For this reason, Stack provides the `fn` expression to mark lists as functions. 
 ;; [1] -> [2]
 ```
 
-Notice how we didn't need to call the list manually? That's because the `fn` expression tells Stack to call the list automatically. This is known as [auto-calling](/glossary.html#auto-calling).
+Notice how we didn't need to call the list manually? That's because the `fn` expression tells Stack to call the list automatically. This is known as [auto-calling](../glossary#auto-calling).
 
 *Note: The evaluation pattern of functions is the same as lists: left to right, evaluating each expression and pushing it to the stack.*
 
@@ -48,15 +48,15 @@ Because functions are just marked lists, you can still use them as lists. This m
 ;; [1] -> [2]
 ```
 
-*Note: The `fn` expression needs to be [lazied](/glossary.html#laziness) in order for it to not be evaluated. The evaluator **does** evaluate the `fn` expression, but it does nothing on its own (without being wrapped in a list).*
+*Note: The `fn` expression needs to be [lazied](../glossary#laziness) in order for it to not be evaluated. The evaluator **does** evaluate the `fn` expression, but it does nothing on its own (without being wrapped in a list).*
 
 ## Function Calling Behavior
 
 When a function is pulled from scope, it will be auto-called when pushed to the stack. This is the behavior observed above, where `add-one` called the variable from scope, which Stack evaluated and called the function automatically.
 
-*Fun Fact: All [auto-call](/glossary.html#auto-calling) does is simply append the `call` operator after the a function expression if it detects that a function is being pulled from scope and onto the stack.*
+*Fun Fact: All [auto-call](../glossary#auto-calling) does is simply append the `call` operator after the a function expression if it detects that a function is being pulled from scope and onto the stack.*
 
-Functions can also be called manually, producing the same behavior that [auto-calling](/glossary.html#auto-calling) does.
+Functions can also be called manually, producing the same behavior that [auto-calling](../glossary#auto-calling) does.
 
 **For anonymous functions:**
 ```clojure
@@ -130,4 +130,4 @@ In normal functions, the variable `a` would be defined in the function's scope a
 
 ### Normal Functions
 
-See [Scopes](/introduction/scopes.html) for more information on how scoping works and how it relates to normal functions.
+See [Scopes](../introduction/scopes) for more information on how scoping works and how it relates to normal functions.

@@ -4,13 +4,13 @@ Scopes might be the most important concept in Stack. We have put a ton of though
 
 ## What is a Scope?
 
-Similar to other languages, a scope is a collection of symbol-expression pairs. When a variable is defined, it is added to the current scope. When a variable is called, it is looked up in the current scope (by the [purification](/glossary.html#purification) step).
+Similar to other languages, a scope is a collection of symbol-expression pairs. When a variable is defined, it is added to the current scope. When a variable is called, it is looked up in the current scope (by the [purification](../glossary#purification) step).
 
 ## The Main Scope
 
 The main scope is the top-level of your program. It is the first scope that is created when you start Stack. It is the parent of all subsequent scopes. It acts as a global scope, though some behavior is isolated when inside of a function (more on that later).
 
-In the [variable](/introduction/variables.html) section, all examples were in the main scope. Though, the behavior shouldn't change when inside of a scope other than main (such as when executing from within a function).
+In the [variable](../introduction/variables) section, all examples were in the main scope. Though, the behavior shouldn't change when inside of a scope other than main (such as when executing from within a function).
 
 ## Creating Scopes
 

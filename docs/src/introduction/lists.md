@@ -12,7 +12,7 @@ Lists are defined using the `()` syntax. The items inside of a list are separate
 
 ## Eager Evaluation
 
-When lists are pushed to the stack, the items inside of the list are evaluated in-order and kept inside the bounds of the list (due to the [purification](/introduction/stack.html#purification) step).
+When lists are pushed to the stack, the items inside of the list are evaluated in-order and kept inside the bounds of the list (due to the [purification](../introduction/stack#purification) step).
 
 ```clojure
 (2 2 +)
@@ -69,7 +69,7 @@ Lists can also be called, though they have a different behavior than calling sym
 
 Notice that the list was made lazy using the `'` prefix so we can call it manually.
 
-**Note: Running `call` on a list doesn't provide the same behavior as the [purification](/introduction/stack.html#purification) step. It evaluates the items in the list, and doesn't keep the items inside the bounds of the list. To keep the items inside the bounds of the list, you can use the `call-list` operator.**
+**Note: Running `call` on a list doesn't provide the same behavior as the [purification](../introduction/stack#purification) step. It evaluates the items in the list, and doesn't keep the items inside the bounds of the list. To keep the items inside the bounds of the list, you can use the `call-list` operator.**
 
 ## The `call-list` Operator
 
