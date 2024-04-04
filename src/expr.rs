@@ -1,4 +1,6 @@
-use core::{any::Any, cell::RefCell, cmp::Ordering, fmt, iter, num::FpCategory};
+use core::{
+  any::Any, cell::RefCell, cmp::Ordering, fmt, iter, num::FpCategory,
+};
 use std::rc::Rc;
 
 use lasso::Spur;
@@ -19,6 +21,8 @@ impl fmt::Debug for FnSymbol {
   }
 }
 
+type AstIndex = usize;
+
 #[derive(Debug, Clone)]
 pub enum Expr {
   Nil,
@@ -28,9 +32,9 @@ pub enum Expr {
   Float(f64),
 
   String(Spur),
-  List(Vec<Expr>),
+  List(Vec<AstIndex>),
 
-  Lazy(Box<Expr>),
+  Lazy(AstIndex),
   Call(Spur),
 
   /// Boolean denotes whether to create a new scope.
@@ -40,84 +44,6 @@ pub enum Expr {
 }
 
 impl Expr {
-  pub fn is_truthy(&self) -> bool {
-    match self.to_boolean() {
-      Some(Self::Boolean(x)) => x,
-      _ => false,
-    }
-  }
-
-  pub const fn is_nil(&self) -> bool {
-    matches!(*self, Expr::Nil)
-  }
-
-  pub fn is_function(&self) -> bool {
-    match self {
-      Expr::List(list) => list
-        .first()
-        .map(|x| matches!(x, Expr::Fn(_)))
-        .unwrap_or(false),
-      _ => false,
-    }
-  }
-
-  pub fn fn_symbol(&self) -> Option<&FnSymbol> {
-    match self {
-      Expr::List(list) => list.first().and_then(|x| match x {
-        Expr::Fn(scope) => Some(scope),
-        _ => None,
-      }),
-      _ => None,
-    }
-  }
-
-  pub fn fn_body(&self) -> Option<&[Expr]> {
-    match self {
-      Expr::List(list) => list.first().and_then(|x| match x {
-        Expr::Fn(_) => Some(&list[1..]),
-        _ => None,
-      }),
-      _ => None,
-    }
-  }
-
-  pub fn unlazy(&self) -> &Self {
-    match self {
-      Self::Lazy(x) => x.unlazy(),
-      x => x,
-    }
-  }
-
-  pub fn unlazy_mut(&mut self) -> &mut Self {
-    match self {
-      Self::Lazy(x) => x.unlazy_mut(),
-      x => x,
-    }
-  }
-
-  pub fn type_of(&self) -> Type {
-    match self {
-      Self::Nil => Type::Nil,
-
-      Self::Boolean(_) => Type::Boolean,
-      Self::Integer(_) => Type::Integer,
-      Self::Float(_) => Type::Float,
-
-      Self::String(_) => Type::String,
-
-      Self::List(list) => {
-        Type::List(list.iter().map(|expr| expr.type_of()).collect::<Vec<_>>())
-      }
-
-      Self::Lazy(x) => x.type_of(),
-      Self::Call(_) => Type::Call,
-
-      Self::Fn(_) => Type::FnScope,
-
-      Self::UserData(_) => Type::UserData,
-    }
-  }
-
   pub fn coerce_same(&self, other: &Self) -> Option<(Self, Self)> {
     match self {
       x @ Self::Boolean(_) => Some(x.clone()).zip(other.to_boolean()),
@@ -179,6 +105,144 @@ impl Expr {
       // Self::String(x) => x.parse().ok().map(Self::Float),
       _ => None,
     }
+  }
+}
+
+#[derive(Debug, Clone)]
+struct Ast {
+  exprs: Vec<Expr>,
+}
+
+impl Ast {
+  pub fn is_truthy(&self, index: AstIndex) -> Option<bool> {
+    match self.expr(index)?.to_boolean() {
+      Some(Expr::Boolean(x)) => Some(x),
+      _ => Some(false),
+    }
+  }
+
+  pub fn expr(&self, index: AstIndex) -> Option<&Expr> {
+    self.exprs.get(index)
+  }
+
+  pub fn expr_mut(&self, index: AstIndex) -> Option<&mut Expr> {
+    self.exprs.get_mut(index)
+  }
+
+  pub const fn is_nil(&self, index: AstIndex) -> bool {
+    matches!(self.expr(index), Some(Expr::Nil))
+  }
+
+  pub fn is_function(&self, index: AstIndex) -> bool {
+    match self.expr(index) {
+      Some(Expr::List(list)) => list
+        .first()
+        .map(|x| matches!(self.expr(*x), Some(Expr::Fn(_))))
+        .unwrap_or(false),
+      _ => false,
+    }
+  }
+
+  pub fn fn_symbol(&self, index: AstIndex) -> Option<&FnSymbol> {
+    match self.expr(index) {
+      Some(Expr::List(list)) => {
+        list.first().and_then(|x| match self.expr(*x) {
+          Some(Expr::Fn(scope)) => Some(scope),
+          _ => None,
+        })
+      }
+      _ => None,
+    }
+  }
+
+  pub fn fn_body(&self, index: AstIndex) -> Option<&[Expr]> {
+    // TODO: Convert the list of usizes into exprs?
+    // match self.expr(index) {
+    //   Some(Expr::List(list)) => list.first().and_then(|x| match self.expr(x) {
+    //     Some(Expr::Fn(_)) => Some(&list[1..]),
+    //     _ => None,
+    //   }),
+    //   _ => None,
+    // }
+
+    todo!()
+  }
+
+  pub fn unlazy(&self, index: AstIndex) -> Option<&Expr> {
+    match self.expr(index) {
+      Some(Expr::Lazy(x)) => self.unlazy(*x),
+      x => x,
+    }
+  }
+
+  pub fn unlazy_mut(&mut self, index: AstIndex) -> Option<&mut Expr> {
+    match self.expr_mut(index) {
+      Some(Expr::Lazy(x)) => self.unlazy_mut(*x),
+      x => x,
+    }
+  }
+
+  pub fn type_of(&self, index: AstIndex) -> Option<Type> {
+    match self.expr(index)? {
+      Expr::Nil => Some(Type::Nil),
+
+      Expr::Boolean(_) => Some(Type::Boolean),
+      Expr::Integer(_) => Some(Type::Integer),
+      Expr::Float(_) => Some(Type::Float),
+
+      Expr::String(_) => Some(Type::String),
+
+      Expr::List(list) => {
+        // Some(Type::List(
+        //   list.iter().map(|expr| expr.type_of()).collect::<Vec<_>>(),
+        // ))
+
+        // TODO: reimplement
+        todo!()
+      }
+
+      Expr::Lazy(x) => self.type_of(*x),
+      Expr::Call(_) => Some(Type::Call),
+
+      Expr::Fn(_) => Some(Type::FnScope),
+
+      Expr::UserData(_) => Some(Type::UserData),
+    }
+  }
+
+  pub fn coerce_same(
+    &self,
+    index: AstIndex,
+    other: AstIndex,
+  ) -> Option<(Expr, Expr)> {
+    let first = self.expr(index)?;
+    let second = self.expr(other)?;
+    first.coerce_same(second)
+  }
+
+  pub fn coerce_same_float(
+    &self,
+    index: AstIndex,
+    other: AstIndex,
+  ) -> Option<(Expr, Expr)> {
+    let first = self.expr(index)?;
+    let second = self.expr(other)?;
+    first.coerce_same_float(second)
+  }
+
+  pub fn to_boolean(&self, index: AstIndex) -> Option<Expr> {
+    let index = self.expr(index)?;
+    index.to_boolean()
+  }
+
+  pub fn to_integer(&self, index: AstIndex) -> Option<Expr> {
+    let index = self.expr(index)?;
+    index.to_integer()
+  }
+
+  pub fn to_float(&self, index: AstIndex) -> Option<Expr> {
+    let index = self.expr(index)?;
+    index.to_float()
   }
 
   // TODO: These might make more sense as intrinsics, since they might be too
@@ -248,7 +312,9 @@ impl PartialEq for Expr {
       // Though, I think there's a better solution than removing comparability.
       (Self::Fn(lhs), Self::Fn(rhs)) => lhs.scoped == rhs.scoped,
 
-      (Self::UserData(lhs), Self::UserData(rhs)) => core::ptr::addr_eq(Rc::as_ptr(lhs), Rc::as_ptr(rhs)),
+      (Self::UserData(lhs), Self::UserData(rhs)) => {
+        core::ptr::addr_eq(Rc::as_ptr(lhs), Rc::as_ptr(rhs))
+      }
 
       // Different types.
       (lhs @ Self::Boolean(_), rhs) => match rhs.to_boolean() {
