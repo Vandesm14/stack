@@ -1,7 +1,5 @@
 use std::iter;
 
-use itertools::Itertools as _;
-
 use crate::{interner::interner, Ast, EvalError, Expr, Program, Type};
 
 pub fn module(program: &mut Program) -> Result<(), EvalError> {
@@ -14,18 +12,15 @@ pub fn module(program: &mut Program) -> Result<(), EvalError> {
         Expr::List(list) => match i64::try_from(list.len()) {
           Ok(i) => {
             program.push_expr(Expr::Integer(i))?;
-
             Ok(())
           }
           Err(_) => {
             program.push_expr(Expr::Nil)?;
-
             Ok(())
           }
         },
         _ => {
           program.push_expr(Expr::Nil)?;
-
           Ok(())
         }
       }
@@ -46,19 +41,16 @@ pub fn module(program: &mut Program) -> Result<(), EvalError> {
             }
             _ => {
               program.push_expr(Expr::Nil)?;
-
               Ok(())
             }
           },
           Err(_) => {
             program.push_expr(Expr::Nil)?;
-
             Ok(())
           }
         },
         _ => {
           program.push_expr(Expr::Nil)?;
-
           Ok(())
         }
       }
@@ -79,29 +71,24 @@ pub fn module(program: &mut Program) -> Result<(), EvalError> {
                 let rest = list.split_off(i);
                 program.push_expr(Expr::List(list))?;
                 program.push_expr(Expr::List(rest))?;
-
                 Ok(())
               } else {
                 program.push_expr(Expr::Nil)?;
-
                 Ok(())
               }
             }
             _ => {
               program.push_expr(Expr::Nil)?;
-
               Ok(())
             }
           },
           Err(_) => {
             program.push_expr(Expr::Nil)?;
-
             Ok(())
           }
         },
         _ => {
           program.push_expr(Expr::Nil)?;
-
           Ok(())
         }
       }
@@ -118,15 +105,21 @@ pub fn module(program: &mut Program) -> Result<(), EvalError> {
         (Expr::String(delimiter), Expr::List(list)) => {
           let delimiter_str = interner().resolve(&delimiter);
 
-          let string = list
-            .into_iter()
-            .map(|expr| match expr {
-              Expr::String(string) => interner().resolve(&string).to_string(),
-              _ => expr.to_string(),
-            })
-            .join(delimiter_str);
-          let string = Expr::String(interner().get_or_intern(string));
-          program.push_expr(string)
+          let mut collected_str = String::new();
+          for expr in list.into_iter() {
+            match program.ast_expr(trace_expr, *expr) {
+              Ok(Expr::String(string)) => {
+                collected_str.push_str(&interner().resolve(&string).to_string())
+              }
+              Ok(_) => collected_str.push_str(&expr.to_string()),
+              Err(e) => {
+                return Err(e);
+              }
+            }
+          }
+          let string = Expr::String(interner().get_or_intern(collected_str));
+          program.push_expr(string)?;
+          Ok(())
         }
         (delimiter, list) => Err(EvalError {
           expr: trace_expr.clone(),
@@ -134,7 +127,10 @@ pub fn module(program: &mut Program) -> Result<(), EvalError> {
           message: format!(
             "expected {}, found {}",
             Type::List(vec![Type::List(vec![]), Type::String]),
-            Type::List(vec![list.type_of(), delimiter.type_of()]),
+            Type::List(vec![
+              list.type_of(&program.ast),
+              delimiter.type_of(&program.ast)
+            ]),
           ),
         }),
       }
@@ -144,15 +140,19 @@ pub fn module(program: &mut Program) -> Result<(), EvalError> {
   program.funcs.insert(
     interner().get_or_intern_static("concat"),
     |program, trace_expr| {
-      let list_rhs = program.pop(trace_expr)?;
-      let list_lhs = program.pop(trace_expr)?;
+      let list_rhs = program.pop_expr(trace_expr)?;
+      let list_lhs = program.pop_expr(trace_expr)?;
 
       match (list_lhs, list_rhs) {
         (Expr::List(mut list_lhs), Expr::List(list_rhs)) => {
           list_lhs.extend(list_rhs);
-          program.push_expr(Expr::List(list_lhs))
+          program.push_expr(Expr::List(list_lhs))?;
+          Ok(())
         }
-        _ => program.push_expr(Expr::Nil),
+        _ => {
+          program.push_expr(Expr::Nil)?;
+          Ok(())
+        }
       }
     },
   );
@@ -160,14 +160,17 @@ pub fn module(program: &mut Program) -> Result<(), EvalError> {
   program.funcs.insert(
     interner().get_or_intern_static("unwrap"),
     |program, trace_expr| {
-      let list = program.pop(trace_expr)?;
+      let (list, index) = program.pop_with_index(trace_expr)?;
 
       match list {
         Expr::List(list) => {
           program.stack.extend(list);
           Ok(())
         }
-        list => program.push_expr(list),
+        list => {
+          program.push(index)?;
+          Ok(())
+        }
       }
     },
   );
@@ -176,29 +179,32 @@ pub fn module(program: &mut Program) -> Result<(), EvalError> {
     interner().get_or_intern_static("wrap"),
     |program, trace_expr| {
       let any = program.pop(trace_expr)?;
-      program.push_expr(Expr::List(vec![any]))
+      program.push_expr(Expr::List(vec![any]))?;
+      Ok(())
     },
   );
 
   program.funcs.insert(
     interner().get_or_intern_static("call-list"),
     |program, trace_expr| {
-      let item = program.pop(trace_expr)?;
+      let item = program.pop_expr(trace_expr)?;
 
       match item.clone() {
         Expr::List(list) => {
           let stack_len = program.stack.len();
+          let list = program.ast.expr_many(list);
 
           program.eval(list)?;
 
           let list_len = program.stack.len() - stack_len;
 
-          let mut list = iter::repeat_with(|| program.pop(&item).unwrap())
+          let mut list = iter::repeat_with(|| program.pop(trace_expr).unwrap())
             .take(list_len)
             .collect::<Vec<_>>();
           list.reverse();
 
-          program.push_expr(Expr::List(list))
+          program.push_expr(Expr::List(list))?;
+          Ok(())
         }
         _ => Err(EvalError {
           expr: trace_expr.clone(),
@@ -206,7 +212,7 @@ pub fn module(program: &mut Program) -> Result<(), EvalError> {
           message: format!(
             "expected {}, found {}",
             Type::List(vec![Type::FnScope, Type::Any]),
-            item.type_of(),
+            item.type_of(&program.ast),
           ),
         }),
       }
