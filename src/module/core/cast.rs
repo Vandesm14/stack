@@ -1,24 +1,32 @@
 use crate::{interner::interner, EvalError, Expr, Program};
 
 pub fn module(program: &mut Program) -> Result<(), EvalError> {
+  // TODO: For primitives, if we are taking the item and placing it back on the stack (casting to the same type),
+  // optimize by using program.push and program.pop so we're not creating a new entry in the AST
   program.funcs.insert(
     interner().get_or_intern_static("toboolean"),
     |program, trace_expr| {
-      let item = program.pop(trace_expr)?;
+      let item = program.pop_expr(trace_expr)?;
 
       match item {
         Expr::String(string) => {
           let string_str = interner().resolve(&string);
 
-          program.push(
+          program.push_expr(
             string_str
               .parse()
               .ok()
               .map(Expr::Boolean)
               .unwrap_or(Expr::Nil),
-          )
+          )?;
+
+          Ok(())
         }
-        found => program.push(found.to_boolean().unwrap_or(Expr::Nil)),
+        found => {
+          program.push_expr(found.to_boolean().unwrap_or(Expr::Nil))?;
+
+          Ok(())
+        }
       }
     },
   );
@@ -26,21 +34,27 @@ pub fn module(program: &mut Program) -> Result<(), EvalError> {
   program.funcs.insert(
     interner().get_or_intern_static("tointeger"),
     |program, trace_expr| {
-      let item = program.pop(trace_expr)?;
+      let item = program.pop_expr(trace_expr)?;
 
       match item {
         Expr::String(string) => {
           let string_str = interner().resolve(&string);
 
-          program.push(
+          program.push_expr(
             string_str
               .parse()
               .ok()
               .map(Expr::Integer)
               .unwrap_or(Expr::Nil),
-          )
+          )?;
+
+          Ok(())
         }
-        found => program.push(found.to_integer().unwrap_or(Expr::Nil)),
+        found => {
+          program.push_expr(found.to_integer().unwrap_or(Expr::Nil))?;
+
+          Ok(())
+        }
       }
     },
   );
@@ -48,21 +62,27 @@ pub fn module(program: &mut Program) -> Result<(), EvalError> {
   program.funcs.insert(
     interner().get_or_intern_static("tofloat"),
     |program, trace_expr| {
-      let item = program.pop(trace_expr)?;
+      let item = program.pop_expr(trace_expr)?;
 
       match item {
         Expr::String(string) => {
           let string_str = interner().resolve(&string);
 
-          program.push(
+          program.push_expr(
             string_str
               .parse()
               .ok()
               .map(Expr::Float)
               .unwrap_or(Expr::Nil),
-          )
+          )?;
+
+          Ok(())
         }
-        found => program.push(found.to_float().unwrap_or(Expr::Nil)),
+        found => {
+          program.push_expr(found.to_float().unwrap_or(Expr::Nil))?;
+
+          Ok(())
+        }
       }
     },
   );
@@ -70,14 +90,21 @@ pub fn module(program: &mut Program) -> Result<(), EvalError> {
   program.funcs.insert(
     interner().get_or_intern_static("tostring"),
     |program, trace_expr| {
-      let item = program.pop(trace_expr)?;
+      let index = program.pop(trace_expr)?;
+      let item = program.ast_expr(trace_expr, index)?;
 
       match item {
-        string @ Expr::String(_) => program.push(string),
+        string @ Expr::String(_) => {
+          program.push(index)?;
+
+          Ok(())
+        }
         found => {
           let string =
             Expr::String(interner().get_or_intern(found.to_string()));
-          program.push(string)
+          program.push_expr(string)?;
+
+          Ok(())
         }
       }
     },
@@ -86,20 +113,30 @@ pub fn module(program: &mut Program) -> Result<(), EvalError> {
   program.funcs.insert(
     interner().get_or_intern_static("tolist"),
     |program, trace_expr| {
-      let item = program.pop(trace_expr)?;
+      let index = program.pop(trace_expr)?;
+      let item = program.ast_expr(trace_expr, index)?;
 
       match item {
-        list @ Expr::List(_) => program.push(list),
-        Expr::String(s) => {
-          let str = interner().resolve(&s).to_owned();
-          program.push(Expr::List(
-            str
-              .chars()
-              .map(|c| Expr::String(interner().get_or_intern(c.to_string())))
-              .collect::<Vec<_>>(),
-          ))
+        list @ Expr::List(_) => program.push(index),
+
+        // TODO: reimplement (can't figure out how to handle errors for push_expr while within the map)
+        // Expr::String(s) => {
+        //   let str = interner().resolve(&s).to_owned();
+        //   program.push_expr(Expr::List(
+        //     str
+        //       .chars()
+        //       .map(|c| Expr::String(interner().get_or_intern(c.to_string())))
+        //       .map(|expr| program.push_expr(expr))
+        //       .collect::<Vec<_>>(),
+        //   ))?;
+
+        //   Ok(())
+        // }
+        found => {
+          program.push_expr(Expr::List(vec![index]))?;
+
+          Ok(())
         }
-        found => program.push(Expr::List(vec![found])),
       }
     },
   );
@@ -107,14 +144,24 @@ pub fn module(program: &mut Program) -> Result<(), EvalError> {
   program.funcs.insert(
     interner().get_or_intern_static("tocall"),
     |program, trace_expr| {
-      let item = program.pop(trace_expr)?;
+      let index = program.pop(trace_expr)?;
+      let item = program.ast_expr(trace_expr, index)?;
 
       match item {
-        call @ Expr::Call(_) => program.push(call),
-        Expr::String(string) => program.push(Expr::Call(string)),
+        call @ Expr::Call(_) => {
+          program.push(index);
+          Ok(())
+        }
+        Expr::String(string) => {
+          program.push_expr(Expr::Call(*string))?;
+
+          Ok(())
+        }
         found => {
           let call = Expr::Call(interner().get_or_intern(found.to_string()));
-          program.push(call)
+          program.push_expr(call)?;
+
+          Ok(())
         }
       }
     },
@@ -123,10 +170,18 @@ pub fn module(program: &mut Program) -> Result<(), EvalError> {
   program.funcs.insert(
     interner().get_or_intern_static("typeof"),
     |program, trace_expr| {
-      let item = program.pop(trace_expr)?;
-      let string =
-        Expr::String(interner().get_or_intern(item.type_of().to_string()));
-      program.push(string)
+      // TODO: Reimplement. Need to either standardize errors created when ast functions such as type_of don't work,
+      // or something else
+
+      // let index = program.pop(trace_expr)?;
+      // let item = program.ast_expr(trace_expr, index)?;
+
+      // let string = Expr::String(
+      //   interner().get_or_intern(program.ast.type_of(index).to_string()),
+      // );
+      // program.push_expr(string)?;
+
+      Ok(())
     },
   );
 

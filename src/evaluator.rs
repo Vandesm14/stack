@@ -137,12 +137,43 @@ impl Program {
     self.loaded_files.keys().map(|s| s.as_str())
   }
 
+  pub fn ast_expr(
+    &self,
+    trace_expr: AstIndex,
+    index: AstIndex,
+  ) -> Result<&Expr, EvalError> {
+    match self.ast.expr(index) {
+      Some(expr) => Ok(expr),
+      None => Err(EvalError {
+        expr: trace_expr,
+        program: self.clone(),
+        message: "Failed to find expr in AST".into(),
+      }),
+    }
+  }
+
   pub fn pop(&mut self, trace_expr: AstIndex) -> Result<AstIndex, EvalError> {
     self.stack.pop().ok_or_else(|| EvalError {
       expr: trace_expr,
       program: self.clone(),
       message: "Stack underflow".into(),
     })
+  }
+
+  pub fn pop_expr(&mut self, trace_expr: AstIndex) -> Result<&Expr, EvalError> {
+    let expr = self.pop(trace_expr)?;
+
+    self.ast_expr(trace_expr, expr)
+  }
+
+  pub fn pop_with_index(
+    &mut self,
+    trace_expr: AstIndex,
+  ) -> Result<(&Expr, AstIndex), EvalError> {
+    let index = self.pop(trace_expr)?;
+    let expr = self.ast_expr(trace_expr, index)?;
+
+    Ok((expr, index))
   }
 
   pub fn push(&mut self, expr: AstIndex) -> Result<(), EvalError> {
@@ -167,6 +198,14 @@ impl Program {
     self.stack.push(expr);
 
     Ok(())
+  }
+
+  pub fn push_expr(&mut self, expr: Expr) -> Result<AstIndex, EvalError> {
+    let index = self.ast.push_expr(expr);
+
+    self.push(index)?;
+
+    Ok(index)
   }
 
   pub fn scope_item(&self, symbol: &str) -> Option<AstIndex> {

@@ -1,11 +1,11 @@
 pub mod core;
 pub mod map;
 
-use crate::{EvalError, Expr, Program};
+use crate::{AstIndex, EvalError, Program};
 
 // TODO: Check for name collisions with other modules.
 
-pub type Func = fn(&mut Program, &Expr) -> Result<(), EvalError>;
+pub type Func = fn(&mut Program, AstIndex) -> Result<(), EvalError>;
 
 pub trait Module {
   fn link(&self, program: &mut Program) -> Result<(), EvalError>;
