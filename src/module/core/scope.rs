@@ -1,11 +1,11 @@
-use crate::{interner::interner, EvalError, Expr, Program, Type};
+use crate::{interner::interner, Ast, EvalError, Expr, Program, Type};
 
 pub fn module(program: &mut Program) -> Result<(), EvalError> {
   program.funcs.insert(
     interner().get_or_intern_static("def"),
     |program, trace_expr| {
-      let key = program.pop(trace_expr)?;
-      let val = program.pop(trace_expr)?;
+      let key = program.pop_expr(trace_expr)?;
+      let (val, val_index) = program.pop_with_index(trace_expr)?;
 
       match key {
         Expr::Call(ref key) => match program.funcs.contains_key(key) {
@@ -17,9 +17,11 @@ pub fn module(program: &mut Program) -> Result<(), EvalError> {
               interner().resolve(key)
             ),
           }),
-          false => {
-            program.def_scope_item(trace_expr, interner().resolve(key), val)
-          }
+          false => program.def_scope_item(
+            trace_expr,
+            interner().resolve(key),
+            val_index,
+          ),
         },
         key => Err(EvalError {
           expr: trace_expr.clone(),
@@ -31,7 +33,10 @@ pub fn module(program: &mut Program) -> Result<(), EvalError> {
               Type::Any,
               Type::Call,
             ]),
-            Type::List(vec![val.type_of(), key.type_of(),]),
+            Type::List(vec![
+              val.type_of(&program.ast),
+              key.type_of(&program.ast),
+            ]),
           ),
         }),
       }
@@ -41,7 +46,7 @@ pub fn module(program: &mut Program) -> Result<(), EvalError> {
   program.funcs.insert(
     interner().get_or_intern_static("undef"),
     |program, trace_expr| {
-      let item = program.pop(trace_expr)?;
+      let item = program.pop_expr(trace_expr)?;
 
       match item {
         Expr::Call(key) => {
@@ -57,18 +62,18 @@ pub fn module(program: &mut Program) -> Result<(), EvalError> {
           message: format!(
             "expected {}, found {}",
             Type::Call,
-            item.type_of(),
+            item.type_of(&program.ast),
           ),
         }),
       }
-    }
+    },
   );
 
   program.funcs.insert(
     interner().get_or_intern_static("set"),
     |program, trace_expr| {
-      let key = program.pop(trace_expr)?;
-      let val = program.pop(trace_expr)?;
+      let key = program.pop_expr(trace_expr)?;
+      let (val, val_index) = program.pop_with_index(trace_expr)?;
 
       match key {
         Expr::Call(ref key) => match program.funcs.contains_key(key) {
@@ -80,9 +85,11 @@ pub fn module(program: &mut Program) -> Result<(), EvalError> {
               interner().resolve(key)
             ),
           }),
-          false => {
-            program.set_scope_item(trace_expr, interner().resolve(key), val)
-          }
+          false => program.set_scope_item(
+            trace_expr,
+            interner().resolve(key),
+            val_index,
+          ),
         },
         key => Err(EvalError {
           expr: trace_expr.clone(),
@@ -94,7 +101,10 @@ pub fn module(program: &mut Program) -> Result<(), EvalError> {
               Type::Any,
               Type::Call,
             ]),
-            Type::List(vec![val.type_of(), key.type_of(),]),
+            Type::List(vec![
+              val.type_of(&program.ast),
+              key.type_of(&program.ast),
+            ]),
           ),
         }),
       }
@@ -104,7 +114,7 @@ pub fn module(program: &mut Program) -> Result<(), EvalError> {
   program.funcs.insert(
     interner().get_or_intern_static("get"),
     |program, trace_expr| {
-      let item = program.pop(trace_expr)?;
+      let item = program.pop_expr(trace_expr)?;
 
       match item {
         Expr::Call(ref key) => {
@@ -115,7 +125,7 @@ pub fn module(program: &mut Program) -> Result<(), EvalError> {
 
             // Always push something, otherwise it can get tricky to manage the
             // stack in-langauge.
-            program.push(program.scope_item(key_str).unwrap_or(Expr::Nil))
+            program.push(program.scope_item(key_str).unwrap_or(Ast::NIL))
           }
         }
         item => Err(EvalError {
@@ -124,11 +134,11 @@ pub fn module(program: &mut Program) -> Result<(), EvalError> {
           message: format!(
             "expected {}, found {}",
             Type::Call,
-            item.type_of(),
+            item.type_of(&program.ast),
           ),
         }),
       }
-    }
+    },
   );
 
   Ok(())
