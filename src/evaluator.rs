@@ -21,7 +21,7 @@ pub struct Program {
   pub scopes: Vec<Scope>,
   pub funcs: HashMap<Spur, Func>,
   pub loaded_files: HashMap<String, LoadedFile>,
-  pub debug_trace: Option<Vec<Expr>>,
+  pub debug_trace: Option<Vec<AstIndex>>,
 }
 
 impl Default for Program {
@@ -325,14 +325,18 @@ impl Program {
   }
 
   pub fn eval_expr(&mut self, expr: Expr) -> Result<(), EvalError> {
-    let expr_index = self.ast.push_expr(expr);
+    let index = self.ast.push_expr(expr);
+    self.eval_index(index)
+  }
 
+  pub fn eval_index(&mut self, index: AstIndex) -> Result<(), EvalError> {
     if let Some(trace) = &mut self.debug_trace {
-      trace.push(expr.clone());
+      trace.push(index);
     }
 
-    match expr {
-      Expr::Call(call) => self.eval_call(expr_index, call),
+    let expr = self.ast_expr(index, index)?;
+    match *expr {
+      Expr::Call(call) => self.eval_call(index, call),
       Expr::Lazy(block) => self.push(block),
       Expr::List(list) => {
         let stack_len = self.stack.len();
@@ -341,7 +345,7 @@ impl Program {
 
         let list_len = self.stack.len() - stack_len;
 
-        let mut list = iter::repeat_with(|| self.pop(expr_index).unwrap())
+        let mut list = iter::repeat_with(|| self.pop(index).unwrap())
           .take(list_len)
           .collect::<Vec<_>>();
         list.reverse();
@@ -351,7 +355,7 @@ impl Program {
         self.push(list)
       }
       Expr::Fn(_) => Ok(()),
-      expr => self.push(expr_index),
+      expr => self.push(index),
     }
   }
 
@@ -384,6 +388,29 @@ impl Program {
   pub fn eval(&mut self, exprs: Vec<Expr>) -> Result<(), EvalError> {
     let mut clone = self.clone();
     let result = exprs.into_iter().try_for_each(|expr| clone.eval_expr(expr));
+
+    self.loaded_files = clone.loaded_files;
+
+    match result {
+      Ok(x) => {
+        self.stack = clone.stack;
+        self.scopes = clone.scopes;
+        self.debug_trace = clone.debug_trace;
+
+        Ok(x)
+      }
+      Err(e) => Err(e),
+    }
+  }
+
+  pub fn eval_indicies<I>(&mut self, indicies: I) -> Result<(), EvalError>
+  where
+    I: IntoIterator<Item = AstIndex>,
+  {
+    let mut clone = self.clone();
+    let result = indicies
+      .into_iter()
+      .try_for_each(|expr| clone.eval_index(expr));
 
     self.loaded_files = clone.loaded_files;
 

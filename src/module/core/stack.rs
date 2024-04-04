@@ -5,7 +5,8 @@ pub fn module(program: &mut Program) -> Result<(), EvalError> {
     interner().get_or_intern_static("collect"),
     |program, _| {
       let list = core::mem::take(&mut program.stack);
-      program.push(Expr::List(list))
+      program.push_expr(Expr::List(list))?;
+      Ok(())
     },
   );
 
@@ -63,24 +64,25 @@ pub fn module(program: &mut Program) -> Result<(), EvalError> {
     interner().get_or_intern_static("lazy"),
     |program, trace_expr| {
       let item = program.pop(trace_expr)?;
-      program.push(Expr::Lazy(Box::new(item)))
+      program.push_expr(Expr::Lazy(item))?;
+      Ok(())
     },
   );
 
   program.funcs.insert(
     interner().get_or_intern_static("call"),
     |program, trace_expr| {
-      let item = program.pop(trace_expr)?;
+      let (item, item_index) = program.pop_with_index(trace_expr)?;
 
       match item {
-        call @ Expr::Call(_) => program.eval_expr(call),
+        call @ Expr::Call(_) => program.eval_index(item_index),
         // This is where auto-call is defined and functions are evaluated when
         // they are called via an identifier
         // TODO: Get this working again.
-        item @ Expr::List(_) => match item.is_function() {
+        item @ Expr::List(_) => match item.is_function(&program.ast) {
           true => {
-            let fn_symbol = item.fn_symbol().unwrap();
-            let fn_body = item.fn_body().unwrap();
+            let fn_symbol = item.fn_symbol(&program.ast).unwrap();
+            let fn_body = item.fn_body(&program.ast).unwrap();
 
             if fn_symbol.scoped {
               program.push_scope(fn_symbol.scope.clone());
@@ -100,7 +102,7 @@ pub fn module(program: &mut Program) -> Result<(), EvalError> {
             let Expr::List(list) = item else {
               unreachable!()
             };
-            program.eval(list)
+            program.eval_indicies(list.clone())
           }
         },
         _ => Err(EvalError {
@@ -112,7 +114,7 @@ pub fn module(program: &mut Program) -> Result<(), EvalError> {
               Type::Call,
               Type::List(vec![Type::FnScope, Type::Any])
             ]),
-            item.type_of(),
+            item.type_of(&program.ast),
           ),
         }),
       }
