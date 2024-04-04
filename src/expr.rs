@@ -76,27 +76,13 @@ impl Expr {
     }
   }
 
-  pub fn fn_body(&self, ast: &Ast) -> Option<Vec<Expr>> {
+  pub fn fn_body(&self, ast: &Ast) -> Option<&[AstIndex]> {
     match self {
       Expr::List(list) => list.first().and_then(|x| match ast.expr(*x) {
-        Some(Expr::Fn(_)) => Some(ast.expr_many(list[1..].to_vec())),
+        Some(Expr::Fn(_)) => Some(&list[1..]),
         _ => None,
       }),
       _ => None,
-    }
-  }
-
-  pub fn unlazy(&self, ast: &Ast) -> &Self {
-    match self {
-      Self::Lazy(x) => ast.expr(*x).unwrap().unlazy(ast),
-      x => x,
-    }
-  }
-
-  pub fn unlazy_mut(&mut self, ast: &Ast) -> &mut Self {
-    match self {
-      Self::Lazy(x) => ast.expr(*x).unwrap().unlazy_mut(ast),
-      x => x,
     }
   }
 
@@ -308,6 +294,23 @@ impl Ast {
       false
     }
   }
+
+  pub fn unlazy(&self, index: AstIndex) -> Option<AstIndex> {
+    match self.expr(index) {
+      Some(Expr::Lazy(x)) => self.unlazy(*x),
+      Some(_) => Some(index),
+      None => None,
+    }
+  }
+
+  // TODO: reimplement... if we need this
+  // pub fn unlazy_mut(&mut self, index: AstIndex) -> Option<&mut Expr> {
+  //   match self.expr(index) {
+  //     Some(Expr::Lazy(x)) => self.unlazy_mut(*x),
+  //     Some(_) => Some(index),
+  //     None => None,
+  //   }
+  // }
 
   // TODO: These might make more sense as intrinsics, since they might be too
   //       complicated for coercions.

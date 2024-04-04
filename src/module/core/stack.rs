@@ -88,7 +88,7 @@ pub fn module(program: &mut Program) -> Result<(), EvalError> {
               program.push_scope(fn_symbol.scope.clone());
             }
 
-            match program.eval(fn_body.to_vec()) {
+            match program.eval(program.ast.expr_many(fn_body.to_vec())) {
               Ok(_) => {
                 if fn_symbol.scoped {
                   program.pop_scope();

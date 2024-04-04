@@ -181,7 +181,7 @@ impl Program {
       let mut scanner =
         Scanner::new(self.scopes.last().unwrap().duplicate(), &self.funcs);
 
-      match scanner.scan(self.ast, expr) {
+      match scanner.scan(&self.ast, expr) {
         Ok(expr) => expr,
         Err(message) => {
           return Err(EvalError {
