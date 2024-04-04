@@ -134,7 +134,7 @@ pub fn module(program: &mut Program) -> Result<(), EvalError> {
 }
 
 #[cfg(test)]
-mod type_ops {
+mod tests {
   use super::*;
 
   #[test]
