@@ -1,25 +1,29 @@
 use thiserror::Error;
 
-use crate::{Expr, FnSymbol, Lexer, Scope, Span, TokenKind, TokenVec};
+use crate::{
+  Ast, AstIndex, Expr, FnSymbol, Lexer, Scope, Span, TokenKind, TokenVec,
+};
 
 /// Converts a stream of [`Token`]s into a stream of [`Expr`]s.
 ///
 /// [`Token`]: crate::Token
-#[derive(Debug, Clone, PartialEq)]
-pub struct Parser<'source> {
+#[derive(Debug)]
+pub struct Parser<'source, 'ast> {
   tokens: TokenVec<'source>,
   cursor: usize,
+  ast: &'ast mut Ast,
 }
 
-impl<'source> Parser<'source> {
+impl<'source, 'ast> Parser<'source, 'ast> {
   /// Creates a new [`Parser`].
   ///
   /// Prefer [`Parser::reuse`] where possible.
   #[inline]
-  pub const fn new(lexer: Lexer<'source>) -> Self {
+  pub const fn new(lexer: Lexer<'source>, ast: &'ast mut Ast) -> Self {
     Self {
       tokens: TokenVec::new(lexer),
       cursor: 0,
+      ast,
     }
   }
 
@@ -29,21 +33,21 @@ impl<'source> Parser<'source> {
     self.tokens.reuse(lexer);
   }
 
-  /// Parses all of the available [`Expr`]s into a [`Vec`].
+  /// Parses all of the available [`Expr`]s into an [`Ast`].
   ///
   /// If a [`ParseError`] is encountered, the whole collect fails.
   #[inline]
-  pub fn parse(mut self) -> Result<Vec<Expr>, ParseError> {
+  pub fn parse(mut self) -> Result<(), ParseError> {
     let mut exprs = Vec::new();
 
     while let Some(result) = self.next().transpose() {
       exprs.push(result?);
     }
 
-    Ok(exprs)
+    Ok(())
   }
 
-  /// Returns the next [`Expr`].
+  /// Returns the next [`AstIndex`].
   ///
   /// Once the first <code>[Ok]\([None]\)</code> has been returned, it will
   /// continue to return them thereafter, akin to a [`FusedIterator`].
@@ -51,7 +55,7 @@ impl<'source> Parser<'source> {
   /// [`FusedIterator`]: core::iter::FusedIterator
   #[allow(clippy::should_implement_trait)]
   // ^ This is fine. If it acts like an iterator, it's an iterator.
-  pub fn next(&mut self) -> Result<Option<Expr>, ParseError> {
+  pub fn next(&mut self) -> Result<Option<AstIndex>, ParseError> {
     loop {
       let token = self.tokens.token(self.cursor);
       self.cursor += 1;
@@ -72,25 +76,25 @@ impl<'source> Parser<'source> {
         }
 
         TokenKind::Boolean(x) => {
-          break Ok(Some(Expr::Boolean(x)));
+          break Ok(Some(self.ast.push_expr(Expr::Boolean(x))));
         }
         TokenKind::Integer(x) => {
-          break Ok(Some(Expr::Integer(x)));
+          break Ok(Some(self.ast.push_expr(Expr::Integer(x))));
         }
         TokenKind::Float(x) => {
-          break Ok(Some(Expr::Float(x)));
+          break Ok(Some(self.ast.push_expr(Expr::Float(x))));
         }
         TokenKind::String(x) => {
-          break Ok(Some(Expr::String(x)));
+          break Ok(Some(self.ast.push_expr(Expr::String(x))));
         }
 
         TokenKind::Ident(x) => {
-          break Ok(Some(Expr::Call(x)));
+          break Ok(Some(self.ast.push_expr(Expr::Call(x))));
         }
 
         TokenKind::Apostrophe => {
           break match self.next() {
-            Ok(Some(expr)) => Ok(Some(Expr::Lazy(Box::new(expr)))),
+            Ok(Some(expr)) => Ok(Some(self.ast.push_expr(Expr::Lazy(expr)))),
             Ok(None) => Err(ParseError {
               reason: ParseErrorReason::UnexpectedToken { kind: token.kind },
               span: token.span,
@@ -111,7 +115,7 @@ impl<'source> Parser<'source> {
               }
               TokenKind::ParenClose => {
                 self.cursor += 1;
-                break Ok(Some(Expr::List(list)));
+                break Ok(Some(self.ast.push_expr(Expr::List(list))));
               }
               _ => match self.next()? {
                 Some(expr) => list.push(expr),
@@ -132,19 +136,19 @@ impl<'source> Parser<'source> {
         //   continue;
         // }
         TokenKind::Nil => {
-          break Ok(Some(Expr::Nil));
+          break Ok(Some(self.ast.push_expr(Expr::Nil)));
         }
         TokenKind::Fn => {
-          break Ok(Some(Expr::Fn(FnSymbol {
+          break Ok(Some(self.ast.push_expr(Expr::Fn(FnSymbol {
             scoped: true,
             scope: Scope::new(),
-          })));
+          }))));
         }
         TokenKind::FnExclamation => {
-          break Ok(Some(Expr::Fn(FnSymbol {
+          break Ok(Some(self.ast.push_expr(Expr::Fn(FnSymbol {
             scoped: false,
             scope: Scope::new(),
-          })));
+          }))));
         }
       }
     }

@@ -316,7 +316,10 @@ impl Program {
 
   pub fn eval_string(&mut self, line: &str) -> Result<(), EvalError> {
     let lexer = Lexer::new(line);
-    let parser = Parser::new(lexer);
+    let parser = Parser::new(lexer, &mut self.ast);
+
+    let old_ast_size = self.ast.len();
+
     // TODO: It might be time to add a proper EvalError enum.
     let exprs = parser.parse().map_err(|e| EvalError {
       program: self.clone(),
@@ -324,7 +327,17 @@ impl Program {
       expr: Ast::NIL,
     })?;
 
-    self.eval(exprs)
+    let new_exprs = old_ast_size..self.ast.len();
+
+    if let Some(new_exprs) = self.ast.expr_range(new_exprs) {
+      self.eval(new_exprs.to_vec())
+    } else {
+      Err(EvalError {
+        program: self.clone(),
+        message: "Failed to find parsed exprs".into(),
+        expr: Ast::NIL,
+      })
+    }
   }
 
   pub fn eval(&mut self, exprs: Vec<Expr>) -> Result<(), EvalError> {

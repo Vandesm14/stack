@@ -1,7 +1,7 @@
 use core::{
   any::Any, cell::RefCell, cmp::Ordering, fmt, iter, num::FpCategory,
 };
-use std::rc::Rc;
+use std::{ops::Range, rc::Rc, slice::SliceIndex};
 
 use itertools::Itertools;
 use lasso::Spur;
@@ -129,6 +129,10 @@ impl Ast {
     }
   }
 
+  pub fn len(&self) -> usize {
+    self.exprs.len()
+  }
+
   pub fn is_truthy(&self, index: AstIndex) -> Option<bool> {
     match self.expr(index)?.to_boolean() {
       Some(Expr::Boolean(x)) => Some(x),
@@ -149,6 +153,10 @@ impl Ast {
       .iter()
       .filter_map(|&index| self.expr(index).cloned())
       .collect()
+  }
+
+  pub fn expr_range(&self, range: Range<AstIndex>) -> Option<&[Expr]> {
+    self.exprs.get(range)
   }
 
   pub fn push_expr(&self, expr: Expr) -> AstIndex {
