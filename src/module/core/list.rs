@@ -1,3 +1,5 @@
+use std::iter;
+
 use itertools::Itertools as _;
 
 use crate::{interner::interner, EvalError, Expr, Program, Type};
@@ -143,6 +145,39 @@ pub fn module(program: &mut Program) -> Result<(), EvalError> {
     |program, trace_expr| {
       let any = program.pop(trace_expr)?;
       program.push(Expr::List(vec![any]))
+    },
+  );
+
+  program.funcs.insert(
+    interner().get_or_intern_static("call-list"),
+    |program, trace_expr| {
+      let item = program.pop(trace_expr)?;
+
+      match item.clone() {
+        Expr::List(list) => {
+          let stack_len = program.stack.len();
+
+          program.eval(list)?;
+
+          let list_len = program.stack.len() - stack_len;
+
+          let mut list = iter::repeat_with(|| program.pop(&item).unwrap())
+            .take(list_len)
+            .collect::<Vec<_>>();
+          list.reverse();
+
+          program.push(Expr::List(list))
+        }
+        _ => Err(EvalError {
+          expr: trace_expr.clone(),
+          program: program.clone(),
+          message: format!(
+            "expected {}, found {}",
+            Type::List(vec![Type::FnScope, Type::Any]),
+            item.type_of(),
+          ),
+        }),
+      }
     },
   );
 

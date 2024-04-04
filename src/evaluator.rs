@@ -974,6 +974,20 @@ mod tests {
         ]
       );
     }
+
+    #[test]
+    fn calling_lists() {
+      let mut program = Program::new().with_core().unwrap();
+      program.eval_string("'(2 2 +) call").unwrap();
+      assert_eq!(program.stack, vec![Expr::Integer(4)]);
+    }
+
+    #[test]
+    fn calling_lists_special() {
+      let mut program = Program::new().with_core().unwrap();
+      program.eval_string("'(2 2 +) call-list").unwrap();
+      assert_eq!(program.stack, vec![Expr::List(vec![Expr::Integer(4)])]);
+    }
   }
 
   mod control_flow {
