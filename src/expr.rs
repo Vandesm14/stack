@@ -21,7 +21,7 @@ impl fmt::Debug for FnSymbol {
   }
 }
 
-type AstIndex = usize;
+pub type AstIndex = usize;
 
 #[derive(Debug, Clone)]
 pub enum Expr {
@@ -109,8 +109,8 @@ impl Expr {
 }
 
 #[derive(Debug, Clone)]
-struct Ast {
-  exprs: Vec<Expr>,
+pub struct Ast {
+  pub exprs: Vec<Expr>,
 }
 
 impl Ast {
@@ -127,6 +127,28 @@ impl Ast {
 
   pub fn expr_mut(&self, index: AstIndex) -> Option<&mut Expr> {
     self.exprs.get_mut(index)
+  }
+
+  pub fn expr_many(&self, indicies: Vec<AstIndex>) -> Vec<Expr> {
+    indicies
+      .iter()
+      .filter_map(|&index| self.expr(index).cloned())
+      .collect()
+  }
+
+  pub fn push_expr(&self, expr: Expr) -> AstIndex {
+    self.exprs.push(expr);
+
+    self.exprs.len() - 1
+  }
+
+  pub fn set_expr(&mut self, index: AstIndex, expr: Expr) -> bool {
+    if let Some(mut stored) = self.expr_mut(index) {
+      *stored = expr;
+      true
+    } else {
+      false
+    }
   }
 
   pub const fn is_nil(&self, index: AstIndex) -> bool {
@@ -155,30 +177,22 @@ impl Ast {
     }
   }
 
-  pub fn fn_body(&self, index: AstIndex) -> Option<&[Expr]> {
-    // TODO: Convert the list of usizes into exprs?
-    // match self.expr(index) {
-    //   Some(Expr::List(list)) => list.first().and_then(|x| match self.expr(x) {
-    //     Some(Expr::Fn(_)) => Some(&list[1..]),
-    //     _ => None,
-    //   }),
-    //   _ => None,
-    // }
-
-    todo!()
-  }
-
-  pub fn unlazy(&self, index: AstIndex) -> Option<&Expr> {
+  pub fn fn_body(&self, index: AstIndex) -> Option<&[usize]> {
     match self.expr(index) {
-      Some(Expr::Lazy(x)) => self.unlazy(*x),
-      x => x,
+      Some(Expr::List(list)) => {
+        list.first().and_then(|x| match self.expr(*x) {
+          Some(Expr::Fn(_)) => Some(&list[1..]),
+          _ => None,
+        })
+      }
+      _ => None,
     }
   }
 
-  pub fn unlazy_mut(&mut self, index: AstIndex) -> Option<&mut Expr> {
-    match self.expr_mut(index) {
-      Some(Expr::Lazy(x)) => self.unlazy_mut(*x),
-      x => x,
+  pub fn unlazy(&self, index: AstIndex) -> Option<usize> {
+    match self.expr(index)? {
+      Expr::Lazy(x) => self.unlazy(*x),
+      _ => Some(index),
     }
   }
 

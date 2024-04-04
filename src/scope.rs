@@ -1,9 +1,9 @@
-use crate::{interner::interner, Chain, Expr, FnSymbol, Func};
+use crate::{interner::interner, Ast, AstIndex, Chain, Expr, FnSymbol, Func};
 use core::fmt;
 use lasso::Spur;
 use std::{cell::RefCell, collections::HashMap, fmt::Formatter, rc::Rc};
 
-pub type Val = Rc<RefCell<Chain<Option<Expr>>>>;
+pub type Val = Rc<RefCell<Chain<Option<AstIndex>>>>;
 
 #[derive(Default, PartialEq)]
 pub struct Scope {
@@ -41,7 +41,7 @@ impl Scope {
     Self { items }
   }
 
-  pub fn define(&mut self, name: Spur, item: Expr) -> Result<(), String> {
+  pub fn define(&mut self, name: Spur, item: usize) -> Result<(), String> {
     if let Some(chain) = self.items.get(&name) {
       let mut chain = RefCell::borrow_mut(chain);
       match chain.is_root() {
@@ -70,7 +70,7 @@ impl Scope {
     }
   }
 
-  pub fn set(&mut self, name: Spur, item: Expr) -> Result<(), String> {
+  pub fn set(&mut self, name: Spur, item: usize) -> Result<(), String> {
     if let Some(chain) = self.items.get_mut(&name) {
       let mut chain = RefCell::borrow_mut(chain);
       chain.set(Some(item));
@@ -94,7 +94,7 @@ impl Scope {
     self.items.contains_key(&name)
   }
 
-  pub fn get_val(&self, name: Spur) -> Option<Expr> {
+  pub fn get_val(&self, name: Spur) -> Option<usize> {
     self.items.get(&name).and_then(|item| item.borrow().val())
   }
 
@@ -136,48 +136,51 @@ impl<'a> Scanner<'a> {
     Self { scope, funcs }
   }
 
-  pub fn scan(&mut self, expr: Expr) -> Result<Expr, String> {
-    if expr.is_function() {
-      let expr = expr;
+  pub fn scan(&mut self, ast: Ast, index: AstIndex) -> Result<usize, String> {
+    if ast.is_function(index) {
       // We can unwrap here because we know the expression is a function
-      let fn_symbol = match expr.fn_symbol() {
+      let fn_symbol = match ast.fn_symbol(index) {
         Some(fn_symbol) => fn_symbol,
         None => return Err("Invalid function".to_owned()),
       };
-      let mut fn_body = match expr.fn_body() {
+      let mut fn_body = match ast.fn_body(index) {
         Some(fn_body) => fn_body.to_vec(),
         None => return Err("Invalid function".to_owned()),
       };
 
-      for item in fn_body.iter_mut() {
-        if let Expr::Call(call) = item.unlazy() {
-          if !self.funcs.contains_key(call) && !self.scope.has(*call) {
-            self.scope.reserve(*call).unwrap();
+      for item in fn_body.iter().copied() {
+        if let Some(unlazied) = ast.unlazy(item) {
+          if let Some(Expr::Call(call)) = ast.expr(unlazied) {
+            if !self.funcs.contains_key(call) && !self.scope.has(*call) {
+              self.scope.reserve(*call)?;
+            }
+          } else if ast.is_function(unlazied) {
+            let mut scanner = Scanner::new(self.scope.clone(), self.funcs);
+            // if let Some(unlazied_mut) = ast.expr_mut(unlazied) {
+            //   *unlazied_mut = scanner.scan(ast, unlazied).unwrap();
+            // }
+            scanner.scan(ast, unlazied)?;
           }
-        } else if item.unlazy().is_function() {
-          let mut scanner = Scanner::new(self.scope.clone(), self.funcs);
-          let unlazied_mut = item.unlazy_mut();
-          *unlazied_mut = scanner.scan(unlazied_mut.clone()).unwrap();
         }
       }
 
       let mut fn_scope = fn_symbol.scope.clone();
       fn_scope.merge(self.scope.clone());
 
-      let fn_symbol = Expr::Fn(FnSymbol {
+      let fn_symbol = ast.push_expr(Expr::Fn(FnSymbol {
         scope: fn_scope,
         scoped: fn_symbol.scoped,
-      });
+      }));
 
       let mut list_items = vec![fn_symbol];
       list_items.extend(fn_body);
 
-      let expr = Expr::List(list_items);
+      let expr = ast.push_expr(Expr::List(list_items));
 
       Ok(expr)
     } else {
       // If the expression is not a function, we just return it
-      Ok(expr)
+      Ok(index)
     }
   }
 }
