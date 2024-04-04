@@ -144,7 +144,7 @@ impl<'a> Scanner<'a> {
     let expr = ast.expr(index).unwrap();
     if expr.is_function(ast) {
       // We can unwrap here because we know the expression is a function
-      let fn_symbol = match expr.fn_symbol(ast) {
+      let fn_symbol = match expr.fn_symbol() {
         Some(fn_symbol) => fn_symbol,
         None => return Err("Invalid function".to_owned()),
       };
