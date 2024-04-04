@@ -19,12 +19,10 @@ pub fn module(program: &mut Program) -> Result<(), EvalError> {
               .map(Expr::Boolean)
               .unwrap_or(Expr::Nil),
           )?;
-
           Ok(())
         }
         found => {
           program.push_expr(found.to_boolean().unwrap_or(Expr::Nil))?;
-
           Ok(())
         }
       }
@@ -47,12 +45,10 @@ pub fn module(program: &mut Program) -> Result<(), EvalError> {
               .map(Expr::Integer)
               .unwrap_or(Expr::Nil),
           )?;
-
           Ok(())
         }
         found => {
           program.push_expr(found.to_integer().unwrap_or(Expr::Nil))?;
-
           Ok(())
         }
       }
@@ -75,12 +71,10 @@ pub fn module(program: &mut Program) -> Result<(), EvalError> {
               .map(Expr::Float)
               .unwrap_or(Expr::Nil),
           )?;
-
           Ok(())
         }
         found => {
           program.push_expr(found.to_float().unwrap_or(Expr::Nil))?;
-
           Ok(())
         }
       }
@@ -96,14 +90,12 @@ pub fn module(program: &mut Program) -> Result<(), EvalError> {
       match item {
         string @ Expr::String(_) => {
           program.push(index)?;
-
           Ok(())
         }
         found => {
           let string =
             Expr::String(interner().get_or_intern(found.to_string()));
           program.push_expr(string)?;
-
           Ok(())
         }
       }
@@ -134,7 +126,6 @@ pub fn module(program: &mut Program) -> Result<(), EvalError> {
         // }
         found => {
           program.push_expr(Expr::List(vec![index]))?;
-
           Ok(())
         }
       }
@@ -154,13 +145,11 @@ pub fn module(program: &mut Program) -> Result<(), EvalError> {
         }
         Expr::String(string) => {
           program.push_expr(Expr::Call(*string))?;
-
           Ok(())
         }
         found => {
           let call = Expr::Call(interner().get_or_intern(found.to_string()));
           program.push_expr(call)?;
-
           Ok(())
         }
       }
@@ -180,7 +169,6 @@ pub fn module(program: &mut Program) -> Result<(), EvalError> {
       //   interner().get_or_intern(program.ast.type_of(index).to_string()),
       // );
       // program.push_expr(string)?;
-
       Ok(())
     },
   );

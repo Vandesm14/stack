@@ -5,6 +5,5 @@ use crate::{EvalError, Program};
 pub fn module(program: &mut Program) -> Result<(), EvalError> {
   let core_lib = include_str!("./core.stack");
   program.eval_string(core_lib)?;
-
   Ok(())
 }

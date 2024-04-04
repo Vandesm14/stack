@@ -33,7 +33,6 @@ pub fn module(program: &mut Program) -> Result<(), EvalError> {
                   },
                 );
                 program.push_expr(Expr::String(content))?;
-
                 Ok(())
               }
               Err(e) => Err(EvalError {
@@ -45,7 +44,6 @@ pub fn module(program: &mut Program) -> Result<(), EvalError> {
           } else {
             let contents = program.loaded_files.get(path_str).unwrap().contents;
             program.push_expr(Expr::String(contents))?;
-
             Ok(())
           }
         }
