@@ -183,3 +183,77 @@ pub fn module(program: &mut Program) -> Result<(), EvalError> {
 
   Ok(())
 }
+
+#[cfg(test)]
+mod tests {
+  use super::*;
+
+  #[test]
+  fn concatenating_lists() {
+    let mut program = Program::new().with_core().unwrap();
+    program.eval_string("(1 2) (3 \"4\") concat").unwrap();
+    assert_eq!(
+      program.stack,
+      vec![Expr::List(vec![
+        Expr::Integer(1),
+        Expr::Integer(2),
+        Expr::Integer(3),
+        Expr::String(interner().get_or_intern_static("4"))
+      ])]
+    );
+  }
+
+  #[test]
+  fn concatenating_blocks() {
+    let mut program = Program::new().with_core().unwrap();
+    program.eval_string("(1 2) ('+) concat").unwrap();
+    assert_eq!(
+      program.stack,
+      vec![Expr::List(vec![
+        Expr::Integer(1),
+        Expr::Integer(2),
+        Expr::Call(interner().get_or_intern_static("+"))
+      ])]
+    );
+  }
+
+  #[test]
+  fn getting_length_of_list() {
+    let mut program = Program::new().with_core().unwrap();
+    program.eval_string("(1 2 3) len").unwrap();
+    assert_eq!(
+      program.stack,
+      vec![
+        Expr::List(vec![Expr::Integer(1), Expr::Integer(2), Expr::Integer(3)]),
+        Expr::Integer(3)
+      ]
+    );
+  }
+
+  #[test]
+  fn getting_indexed_item_of_list() {
+    let mut program = Program::new().with_core().unwrap();
+    program.eval_string("(1 2 3) 1 index").unwrap();
+    assert_eq!(
+      program.stack,
+      vec![
+        Expr::List(vec![Expr::Integer(1), Expr::Integer(2), Expr::Integer(3)]),
+        Expr::Integer(2)
+      ]
+    );
+  }
+
+  #[test]
+  fn calling_lists() {
+    let mut program = Program::new().with_core().unwrap();
+    program.eval_string("'(2 2 +) call").unwrap();
+    assert_eq!(program.stack, vec![Expr::Integer(4)]);
+  }
+
+  #[test]
+  fn calling_lists_special() {
+    let mut program = Program::new().with_core().unwrap();
+    program.eval_string("'(2 2 +) call-list").unwrap();
+    assert_eq!(program.stack, vec![Expr::List(vec![Expr::Integer(4)])]);
+  }
+}

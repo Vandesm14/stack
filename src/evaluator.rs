@@ -337,823 +337,100 @@ impl Program {
 
 #[cfg(test)]
 mod tests {
-  use crate::FnSymbol;
-
   use super::*;
 
-  mod eval {
-    use super::*;
-
-    #[test]
-    fn implicitly_adds_to_stack() {
-      let mut program = Program::new().with_core().unwrap();
-      program.eval_string("1 2").unwrap();
-      assert_eq!(program.stack, vec![Expr::Integer(1), Expr::Integer(2)]);
-    }
-
-    #[test]
-    fn add_two_numbers() {
-      let mut program = Program::new().with_core().unwrap();
-      program.eval_string("1 2 +").unwrap();
-      assert_eq!(program.stack, vec![Expr::Integer(3)]);
-    }
-
-    #[test]
-    fn subtract_two_numbers() {
-      let mut program = Program::new().with_core().unwrap();
-      program.eval_string("1 2 -").unwrap();
-      assert_eq!(program.stack, vec![Expr::Integer(-1)]);
-    }
-
-    #[test]
-    fn multiply_two_numbers() {
-      let mut program = Program::new().with_core().unwrap();
-      program.eval_string("1 2 *").unwrap();
-      assert_eq!(program.stack, vec![Expr::Integer(2)]);
-    }
-
-    #[test]
-    fn divide_two_numbers() {
-      let mut program = Program::new().with_core().unwrap();
-      program.eval_string("1 2 /").unwrap();
-      assert_eq!(program.stack, vec![Expr::Integer(0)]);
-
-      let mut program = Program::new().with_core().unwrap();
-      program.eval_string("1.0 2.0 /").unwrap();
-      assert_eq!(program.stack, vec![Expr::Float(0.5)]);
-    }
-
-    #[test]
-    fn modulo_two_numbers() {
-      let mut program = Program::new().with_core().unwrap();
-      program.eval_string("10 5 %").unwrap();
-      assert_eq!(program.stack, vec![Expr::Integer(0)]);
-
-      let mut program = Program::new().with_core().unwrap();
-      program.eval_string("11 5 %").unwrap();
-      assert_eq!(program.stack, vec![Expr::Integer(1)]);
-    }
-
-    #[test]
-    fn complex_operations() {
-      let mut program = Program::new().with_core().unwrap();
-      program.eval_string("1 2 + 3 *").unwrap();
-      assert_eq!(program.stack, vec![Expr::Integer(9)]);
-    }
-
-    #[test]
-    fn eval_from_stack() {
-      let mut program = Program::new().with_core().unwrap();
-      program.eval_string("'(1 2 +) unwrap call").unwrap();
-      assert_eq!(program.stack, vec![Expr::Integer(3)]);
-    }
-
-    #[test]
-    fn dont_eval_skips() {
-      let mut program = Program::new().with_core().unwrap();
-      program.eval_string("6 'var def 'var").unwrap();
-      assert_eq!(
-        program.stack,
-        vec![Expr::Call(interner().get_or_intern_static("var"))]
-      );
-    }
-
-    #[test]
-    fn eval_lists() {
-      let mut program = Program::new().with_core().unwrap();
-      program.eval_string("(1 2 3)").unwrap();
-      assert_eq!(
-        program.stack,
-        vec![Expr::List(vec![
-          Expr::Integer(1),
-          Expr::Integer(2),
-          Expr::Integer(3)
-        ])]
-      );
-    }
-
-    #[test]
-    fn eval_lists_eagerly() {
-      let mut program = Program::new().with_core().unwrap();
-      program.eval_string("6 'var def (var)").unwrap();
-      assert_eq!(program.stack, vec![Expr::List(vec![Expr::Integer(6)])]);
-    }
+  #[test]
+  fn implicitly_adds_to_stack() {
+    let mut program = Program::new().with_core().unwrap();
+    program.eval_string("1 2").unwrap();
+    assert_eq!(program.stack, vec![Expr::Integer(1), Expr::Integer(2)]);
   }
 
-  mod comparison {
-    use super::*;
-
-    mod greater_than {
-      use super::*;
-
-      #[test]
-      fn greater_than_int() {
-        let mut program = Program::new().with_core().unwrap();
-        program.eval_string("1 1 >").unwrap();
-        assert_eq!(program.stack, vec![Expr::Boolean(false)]);
-
-        let mut program = Program::new().with_core().unwrap();
-        program.eval_string("1 2 >").unwrap();
-        assert_eq!(program.stack, vec![Expr::Boolean(false)]);
-
-        let mut program = Program::new().with_core().unwrap();
-        program.eval_string("2 1 >").unwrap();
-        assert_eq!(program.stack, vec![Expr::Boolean(true)]);
-      }
-
-      #[test]
-      fn greater_than_float() {
-        let mut program = Program::new().with_core().unwrap();
-        program.eval_string("1.0 1.0 >").unwrap();
-        assert_eq!(program.stack, vec![Expr::Boolean(false)]);
-
-        let mut program = Program::new().with_core().unwrap();
-        program.eval_string("1.0 1.1 >").unwrap();
-        assert_eq!(program.stack, vec![Expr::Boolean(false)]);
-
-        let mut program = Program::new().with_core().unwrap();
-        program.eval_string("1.1 1.0 >").unwrap();
-        assert_eq!(program.stack, vec![Expr::Boolean(true)]);
-      }
-
-      #[test]
-      fn greater_than_int_and_float() {
-        // Int first
-        let mut program = Program::new().with_core().unwrap();
-        program.eval_string("1 1.0 >").unwrap();
-        assert_eq!(program.stack, vec![Expr::Boolean(false)]);
-
-        let mut program = Program::new().with_core().unwrap();
-        program.eval_string("1 1.1 >").unwrap();
-        assert_eq!(program.stack, vec![Expr::Boolean(false)]);
-
-        let mut program = Program::new().with_core().unwrap();
-        program.eval_string("2 1.0 >").unwrap();
-        assert_eq!(program.stack, vec![Expr::Boolean(true)]);
-
-        // Float first
-        let mut program = Program::new().with_core().unwrap();
-        program.eval_string("1.0 1 >").unwrap();
-        assert_eq!(program.stack, vec![Expr::Boolean(false)]);
-
-        let mut program = Program::new().with_core().unwrap();
-        program.eval_string("1.0 1 >").unwrap();
-        assert_eq!(program.stack, vec![Expr::Boolean(false)]);
-
-        let mut program = Program::new().with_core().unwrap();
-        program.eval_string("1.1 1 >").unwrap();
-        assert_eq!(program.stack, vec![Expr::Boolean(true)]);
-      }
-    }
-
-    mod less_than {
-      use super::*;
-
-      #[test]
-      fn less_than_int() {
-        let mut program = Program::new().with_core().unwrap();
-        program.eval_string("1 1 <").unwrap();
-        assert_eq!(program.stack, vec![Expr::Boolean(false)]);
-
-        let mut program = Program::new().with_core().unwrap();
-        program.eval_string("1 2 <").unwrap();
-        assert_eq!(program.stack, vec![Expr::Boolean(true)]);
-
-        let mut program = Program::new().with_core().unwrap();
-        program.eval_string("2 1 <").unwrap();
-        assert_eq!(program.stack, vec![Expr::Boolean(false)]);
-      }
-
-      #[test]
-      fn less_than_float() {
-        let mut program = Program::new().with_core().unwrap();
-        program.eval_string("1.0 1.0 <").unwrap();
-        assert_eq!(program.stack, vec![Expr::Boolean(false)]);
-
-        let mut program = Program::new().with_core().unwrap();
-        program.eval_string("1.0 1.1 <").unwrap();
-        assert_eq!(program.stack, vec![Expr::Boolean(true)]);
-
-        let mut program = Program::new().with_core().unwrap();
-        program.eval_string("1.1 1.0 <").unwrap();
-        assert_eq!(program.stack, vec![Expr::Boolean(false)]);
-      }
-
-      #[test]
-      fn less_than_int_and_float() {
-        // Int first
-        let mut program = Program::new().with_core().unwrap();
-        program.eval_string("1 1.0 <").unwrap();
-        assert_eq!(program.stack, vec![Expr::Boolean(false)]);
-
-        let mut program = Program::new().with_core().unwrap();
-        program.eval_string("1 1.1 <").unwrap();
-        assert_eq!(program.stack, vec![Expr::Boolean(true)]);
-
-        let mut program = Program::new().with_core().unwrap();
-        program.eval_string("2 1.0 <").unwrap();
-        assert_eq!(program.stack, vec![Expr::Boolean(false)]);
-
-        // Float first
-        let mut program = Program::new().with_core().unwrap();
-        program.eval_string("1.0 1 <").unwrap();
-        assert_eq!(program.stack, vec![Expr::Boolean(false)]);
-
-        let mut program = Program::new().with_core().unwrap();
-        program.eval_string("0.9 1 <").unwrap();
-        assert_eq!(program.stack, vec![Expr::Boolean(true)]);
-
-        let mut program = Program::new().with_core().unwrap();
-        program.eval_string("1.1 1 <").unwrap();
-        assert_eq!(program.stack, vec![Expr::Boolean(false)]);
-      }
-    }
-
-    mod bitwise {
-      use super::*;
-
-      #[test]
-      fn and_int() {
-        let mut program = Program::new().with_core().unwrap();
-        program.eval_string("1 1 and").unwrap();
-        assert_eq!(program.stack, vec![Expr::Boolean(true)]);
-
-        let mut program = Program::new().with_core().unwrap();
-        program.eval_string("1 0 and").unwrap();
-        assert_eq!(program.stack, vec![Expr::Boolean(false)]);
-
-        let mut program = Program::new().with_core().unwrap();
-        program.eval_string("0 1 and").unwrap();
-        assert_eq!(program.stack, vec![Expr::Boolean(false)]);
-
-        let mut program = Program::new().with_core().unwrap();
-        program.eval_string("0 0 and").unwrap();
-        assert_eq!(program.stack, vec![Expr::Boolean(false)]);
-      }
-
-      #[test]
-      fn and_bool() {
-        let mut program = Program::new().with_core().unwrap();
-        program.eval_string("true true and").unwrap();
-        assert_eq!(program.stack, vec![Expr::Boolean(true)]);
-
-        let mut program = Program::new().with_core().unwrap();
-        program.eval_string("true false and").unwrap();
-        assert_eq!(program.stack, vec![Expr::Boolean(false)]);
-
-        let mut program = Program::new().with_core().unwrap();
-        program.eval_string("false true and").unwrap();
-        assert_eq!(program.stack, vec![Expr::Boolean(false)]);
-
-        let mut program = Program::new().with_core().unwrap();
-        program.eval_string("false false and").unwrap();
-        assert_eq!(program.stack, vec![Expr::Boolean(false)]);
-      }
-
-      #[test]
-      fn or_int() {
-        let mut program = Program::new().with_core().unwrap();
-        program.eval_string("1 1 or").unwrap();
-        assert_eq!(program.stack, vec![Expr::Boolean(true)]);
-
-        let mut program = Program::new().with_core().unwrap();
-        program.eval_string("1 0 or").unwrap();
-        assert_eq!(program.stack, vec![Expr::Boolean(true)]);
-
-        let mut program = Program::new().with_core().unwrap();
-        program.eval_string("0 1 or").unwrap();
-        assert_eq!(program.stack, vec![Expr::Boolean(true)]);
-
-        let mut program = Program::new().with_core().unwrap();
-        program.eval_string("0 0 or").unwrap();
-        assert_eq!(program.stack, vec![Expr::Boolean(false)]);
-      }
-
-      #[test]
-      fn or_bool() {
-        let mut program = Program::new().with_core().unwrap();
-        program.eval_string("true true or").unwrap();
-        assert_eq!(program.stack, vec![Expr::Boolean(true)]);
-
-        let mut program = Program::new().with_core().unwrap();
-        program.eval_string("true false or").unwrap();
-        assert_eq!(program.stack, vec![Expr::Boolean(true)]);
-
-        let mut program = Program::new().with_core().unwrap();
-        program.eval_string("false true or").unwrap();
-        assert_eq!(program.stack, vec![Expr::Boolean(true)]);
-
-        let mut program = Program::new().with_core().unwrap();
-        program.eval_string("false false or").unwrap();
-        assert_eq!(program.stack, vec![Expr::Boolean(false)]);
-      }
-    }
+  #[test]
+  fn add_two_numbers() {
+    let mut program = Program::new().with_core().unwrap();
+    program.eval_string("1 2 +").unwrap();
+    assert_eq!(program.stack, vec![Expr::Integer(3)]);
   }
 
-  mod variables {
-    use super::*;
-
-    #[test]
-    fn storing_variables() {
-      let mut program = Program::new().with_core().unwrap();
-      program.eval_string("1 'a def").unwrap();
-
-      let a = program
-        .scopes
-        .last()
-        .unwrap()
-        .get_val(interner().get_or_intern("a"))
-        .unwrap();
-
-      assert_eq!(a, Expr::Integer(1));
-    }
-
-    #[test]
-    fn retrieving_variables() {
-      let mut program = Program::new().with_core().unwrap();
-      program.eval_string("1 'a def a").unwrap();
-      assert_eq!(program.stack, vec![Expr::Integer(1)]);
-    }
-
-    #[test]
-    fn evaluating_variables() {
-      let mut program = Program::new().with_core().unwrap();
-      program.eval_string("1 'a def a 2 +").unwrap();
-      assert_eq!(program.stack, vec![Expr::Integer(3)]);
-    }
-
-    #[test]
-    fn removing_variables() {
-      let mut program = Program::new().with_core().unwrap();
-      program.eval_string("1 'a def 'a undef").unwrap();
-      assert!(!program
-        .scopes
-        .iter()
-        .any(|scope| scope.has(interner().get_or_intern_static("a"))))
-    }
-
-    #[test]
-    fn auto_calling_functions() {
-      let mut program = Program::new().with_core().unwrap();
-      program
-        .eval_string("'(fn 1 2 +) 'is-three def is-three")
-        .unwrap();
-      assert_eq!(program.stack, vec![Expr::Integer(3)]);
-    }
-
-    #[test]
-    fn only_auto_call_functions() {
-      let mut program = Program::new().with_core().unwrap();
-      program
-        .eval_string("'(1 2 +) 'is-three def is-three")
-        .unwrap();
-      assert_eq!(
-        program.stack,
-        vec![Expr::List(vec![
-          Expr::Integer(1),
-          Expr::Integer(2),
-          Expr::Call(interner().get_or_intern_static("+"))
-        ])]
-      );
-    }
-
-    #[test]
-    fn getting_function_body() {
-      let mut program = Program::new().with_core().unwrap();
-      program
-        .eval_string("'(fn 1 2 +) 'is-three def 'is-three get")
-        .unwrap();
-      assert_eq!(
-        program.stack,
-        vec![Expr::List(vec![
-          Expr::Fn(FnSymbol {
-            scoped: true,
-            scope: Scope::new(),
-          }),
-          Expr::Integer(1),
-          Expr::Integer(2),
-          Expr::Call(interner().get_or_intern_static("+"))
-        ])]
-      );
-    }
-
-    #[test]
-    fn assembling_functions_in_code() {
-      let mut program = Program::new().with_core().unwrap();
-      program
-        .eval_string("'() 'fn tolist concat 1 tolist concat 2 tolist concat '+ tolist concat dup call")
-        .unwrap();
-      assert_eq!(
-        program.stack,
-        vec![
-          Expr::List(vec![
-            Expr::Fn(FnSymbol {
-              scoped: true,
-              scope: Scope::new(),
-            }),
-            Expr::Integer(1),
-            Expr::Integer(2),
-            Expr::Call(interner().get_or_intern_static("+"))
-          ]),
-          Expr::Integer(3)
-        ]
-      );
-    }
-
-    mod scope {
-      use super::*;
-
-      #[test]
-      fn functions_are_isolated() {
-        let mut program = Program::new().with_core().unwrap();
-        program
-          .eval_string(
-            "0 'a def
-            '(fn 5 'a def)
-
-            '(fn 1 'a def call) call",
-          )
-          .unwrap();
-
-        let a = program
-          .scopes
-          .last()
-          .unwrap()
-          .get_val(interner().get_or_intern("a"))
-          .unwrap();
-
-        assert_eq!(a, Expr::Integer(0));
-      }
-
-      #[test]
-      fn functions_can_use_same_scope() {
-        let mut program = Program::new().with_core().unwrap();
-        program
-          .eval_string(
-            "0 'a def
-            '(fn! 1 'a def) call",
-          )
-          .unwrap();
-
-        let a = program
-          .scopes
-          .last()
-          .unwrap()
-          .get_val(interner().get_or_intern("a"))
-          .unwrap();
-
-        assert_eq!(a, Expr::Integer(1));
-      }
-
-      #[test]
-      fn functions_can_shadow_vars() {
-        let mut program = Program::new().with_core().unwrap();
-        program
-          .eval_string(
-            "0 'a def
-            '(fn 1 'a def a) call a",
-          )
-          .unwrap();
-
-        let a = program
-          .scopes
-          .last()
-          .unwrap()
-          .get_val(interner().get_or_intern("a"))
-          .unwrap();
-
-        assert_eq!(a, Expr::Integer(0));
-        assert_eq!(program.stack, vec![Expr::Integer(1), Expr::Integer(0)])
-      }
-    }
+  #[test]
+  fn subtract_two_numbers() {
+    let mut program = Program::new().with_core().unwrap();
+    program.eval_string("1 2 -").unwrap();
+    assert_eq!(program.stack, vec![Expr::Integer(-1)]);
   }
 
-  mod stack_ops {
-    use super::*;
-
-    #[test]
-    fn clearing_stack() {
-      let mut program = Program::new().with_core().unwrap();
-      program.eval_string("1 2 clear").unwrap();
-      assert_eq!(program.stack, vec![]);
-    }
-
-    #[test]
-    fn dropping_from_stack() {
-      let mut program = Program::new().with_core().unwrap();
-      program.eval_string("1 2 drop").unwrap();
-      assert_eq!(program.stack, vec![Expr::Integer(1)]);
-    }
-
-    #[test]
-    fn duplicating() {
-      let mut program = Program::new().with_core().unwrap();
-      program.eval_string("1 dup").unwrap();
-      assert_eq!(program.stack, vec![Expr::Integer(1), Expr::Integer(1)]);
-    }
-
-    #[test]
-    fn swapping() {
-      let mut program = Program::new().with_core().unwrap();
-      program.eval_string("1 2 swap").unwrap();
-      assert_eq!(program.stack, vec![Expr::Integer(2), Expr::Integer(1)]);
-    }
-
-    #[test]
-    fn rotating() {
-      let mut program = Program::new().with_core().unwrap();
-      program.eval_string("1 2 3 rot").unwrap();
-      assert_eq!(
-        program.stack,
-        vec![Expr::Integer(3), Expr::Integer(1), Expr::Integer(2)]
-      );
-    }
-
-    #[test]
-    fn collect() {
-      let mut program = Program::new().with_core().unwrap();
-      program.eval_string("1 2 3 collect").unwrap();
-      assert_eq!(
-        program.stack,
-        vec![Expr::List(vec![
-          Expr::Integer(1),
-          Expr::Integer(2),
-          Expr::Integer(3)
-        ])]
-      );
-    }
-
-    #[test]
-    fn collect_and_unwrap() {
-      let mut program = Program::new().with_core().unwrap();
-      program
-        .eval_string("1 2 3 collect 'a def 'a get unwrap")
-        .unwrap();
-
-      assert_eq!(
-        program.stack,
-        vec![Expr::Integer(1), Expr::Integer(2), Expr::Integer(3)]
-      );
-
-      let a = program
-        .scopes
-        .last()
-        .unwrap()
-        .get_val(interner().get_or_intern("a"))
-        .unwrap();
-
-      assert_eq!(
-        a,
-        Expr::List(vec![Expr::Integer(1), Expr::Integer(2), Expr::Integer(3)])
-      );
-    }
+  #[test]
+  fn multiply_two_numbers() {
+    let mut program = Program::new().with_core().unwrap();
+    program.eval_string("1 2 *").unwrap();
+    assert_eq!(program.stack, vec![Expr::Integer(2)]);
   }
 
-  mod list_ops {
-    use super::*;
+  #[test]
+  fn divide_two_numbers() {
+    let mut program = Program::new().with_core().unwrap();
+    program.eval_string("1 2 /").unwrap();
+    assert_eq!(program.stack, vec![Expr::Integer(0)]);
 
-    #[test]
-    fn concatenating_lists() {
-      let mut program = Program::new().with_core().unwrap();
-      program.eval_string("(1 2) (3 \"4\") concat").unwrap();
-      assert_eq!(
-        program.stack,
-        vec![Expr::List(vec![
-          Expr::Integer(1),
-          Expr::Integer(2),
-          Expr::Integer(3),
-          Expr::String(interner().get_or_intern_static("4"))
-        ])]
-      );
-    }
-
-    #[test]
-    fn concatenating_blocks() {
-      let mut program = Program::new().with_core().unwrap();
-      program.eval_string("(1 2) ('+) concat").unwrap();
-      assert_eq!(
-        program.stack,
-        vec![Expr::List(vec![
-          Expr::Integer(1),
-          Expr::Integer(2),
-          Expr::Call(interner().get_or_intern_static("+"))
-        ])]
-      );
-    }
-
-    #[test]
-    fn getting_length_of_list() {
-      let mut program = Program::new().with_core().unwrap();
-      program.eval_string("(1 2 3) len").unwrap();
-      assert_eq!(
-        program.stack,
-        vec![
-          Expr::List(vec![
-            Expr::Integer(1),
-            Expr::Integer(2),
-            Expr::Integer(3)
-          ]),
-          Expr::Integer(3)
-        ]
-      );
-    }
-
-    #[test]
-    fn getting_indexed_item_of_list() {
-      let mut program = Program::new().with_core().unwrap();
-      program.eval_string("(1 2 3) 1 index").unwrap();
-      assert_eq!(
-        program.stack,
-        vec![
-          Expr::List(vec![
-            Expr::Integer(1),
-            Expr::Integer(2),
-            Expr::Integer(3)
-          ]),
-          Expr::Integer(2)
-        ]
-      );
-    }
-
-    #[test]
-    fn calling_lists() {
-      let mut program = Program::new().with_core().unwrap();
-      program.eval_string("'(2 2 +) call").unwrap();
-      assert_eq!(program.stack, vec![Expr::Integer(4)]);
-    }
-
-    #[test]
-    fn calling_lists_special() {
-      let mut program = Program::new().with_core().unwrap();
-      program.eval_string("'(2 2 +) call-list").unwrap();
-      assert_eq!(program.stack, vec![Expr::List(vec![Expr::Integer(4)])]);
-    }
+    let mut program = Program::new().with_core().unwrap();
+    program.eval_string("1.0 2.0 /").unwrap();
+    assert_eq!(program.stack, vec![Expr::Float(0.5)]);
   }
 
-  mod control_flow {
-    use super::*;
+  #[test]
+  fn modulo_two_numbers() {
+    let mut program = Program::new().with_core().unwrap();
+    program.eval_string("10 5 %").unwrap();
+    assert_eq!(program.stack, vec![Expr::Integer(0)]);
 
-    #[test]
-    fn if_true() {
-      let mut program = Program::new().with_core().unwrap();
-      program
-        .eval_string("1 2 + '(\"correct\") '(3 =) if")
-        .unwrap();
-      assert_eq!(
-        program.stack,
-        vec![Expr::String(interner().get_or_intern_static("correct"))]
-      );
-    }
-
-    #[test]
-    fn if_empty_condition() {
-      let mut program = Program::new().with_core().unwrap();
-      program
-        .eval_string("1 2 + 3 = '(\"correct\") '() if")
-        .unwrap();
-      assert_eq!(
-        program.stack,
-        vec![Expr::String(interner().get_or_intern_static("correct"))]
-      );
-    }
-
-    #[test]
-    fn if_else_true() {
-      let mut program = Program::new().with_core().unwrap();
-      program
-        .eval_string("1 2 + 3 = '(\"incorrect\") '(\"correct\") '() ifelse")
-        .unwrap();
-      assert_eq!(
-        program.stack,
-        vec![Expr::String(interner().get_or_intern_static("correct"))]
-      );
-    }
-
-    #[test]
-    fn if_else_false() {
-      let mut program = Program::new().with_core().unwrap();
-      program
-        .eval_string("1 2 + 2 = '(\"incorrect\") '(\"correct\") '() ifelse")
-        .unwrap();
-      assert_eq!(
-        program.stack,
-        vec![Expr::String(interner().get_or_intern_static("incorrect"))]
-      );
-    }
+    let mut program = Program::new().with_core().unwrap();
+    program.eval_string("11 5 %").unwrap();
+    assert_eq!(program.stack, vec![Expr::Integer(1)]);
   }
 
-  mod loops {
-    use super::*;
-
-    #[test]
-    fn while_loop() {
-      let mut program = Program::new().with_core().unwrap();
-      program
-        .eval_string(
-          ";; Set i to 3
-           3 'i def
-
-           '(
-             ;; Decrement i by 1
-             i 1 -
-             ;; Set i
-             'i set
-
-             i
-           ) '(
-             ;; If i is 0, break
-             i 0 !=
-           ) while",
-        )
-        .unwrap();
-      assert_eq!(
-        program.stack,
-        vec![Expr::Integer(2), Expr::Integer(1), Expr::Integer(0)]
-      );
-    }
+  #[test]
+  fn complex_operations() {
+    let mut program = Program::new().with_core().unwrap();
+    program.eval_string("1 2 + 3 *").unwrap();
+    assert_eq!(program.stack, vec![Expr::Integer(9)]);
   }
 
-  mod type_ops {
-    use super::*;
+  #[test]
+  fn eval_from_stack() {
+    let mut program = Program::new().with_core().unwrap();
+    program.eval_string("'(1 2 +) unwrap call").unwrap();
+    assert_eq!(program.stack, vec![Expr::Integer(3)]);
+  }
 
-    #[test]
-    fn to_string() {
-      let mut program = Program::new().with_core().unwrap();
-      program.eval_string("1 tostring").unwrap();
-      assert_eq!(
-        program.stack,
-        vec![Expr::String(interner().get_or_intern_static("1"))]
-      );
-    }
+  #[test]
+  fn dont_eval_skips() {
+    let mut program = Program::new().with_core().unwrap();
+    program.eval_string("6 'var def 'var").unwrap();
+    assert_eq!(
+      program.stack,
+      vec![Expr::Call(interner().get_or_intern_static("var"))]
+    );
+  }
 
-    #[test]
-    fn to_call() {
-      let mut program = Program::new().with_core().unwrap();
-      program.eval_string("\"a\" tocall").unwrap();
-      assert_eq!(
-        program.stack,
-        vec![Expr::Call(interner().get_or_intern_static("a"))]
-      );
-    }
+  #[test]
+  fn eval_lists() {
+    let mut program = Program::new().with_core().unwrap();
+    program.eval_string("(1 2 3)").unwrap();
+    assert_eq!(
+      program.stack,
+      vec![Expr::List(vec![
+        Expr::Integer(1),
+        Expr::Integer(2),
+        Expr::Integer(3)
+      ])]
+    );
+  }
 
-    #[test]
-    fn to_integer() {
-      let mut program = Program::new().with_core().unwrap();
-      program.eval_string("\"1\" tointeger").unwrap();
-      assert_eq!(program.stack, vec![Expr::Integer(1)]);
-    }
-
-    #[test]
-    fn type_of() {
-      let mut program = Program::new().with_core().unwrap();
-      program.eval_string("1 typeof").unwrap();
-      assert_eq!(
-        program.stack,
-        vec![Expr::String(interner().get_or_intern_static("integer"))]
-      );
-    }
-
-    #[test]
-    fn list_to_list() {
-      let mut program = Program::new().with_core().unwrap();
-      program.eval_string("(1 2 3) tolist").unwrap();
-      assert_eq!(
-        program.stack,
-        vec![Expr::List(vec![
-          Expr::Integer(1),
-          Expr::Integer(2),
-          Expr::Integer(3)
-        ])]
-      );
-    }
-
-    #[test]
-    fn list_into_lazy() {
-      let mut program = Program::new().with_core().unwrap();
-      program.eval_string("(1 2 3) lazy").unwrap();
-      assert_eq!(
-        program.stack,
-        vec![Expr::Lazy(
-          Expr::List(vec![
-            Expr::Integer(1),
-            Expr::Integer(2),
-            Expr::Integer(3)
-          ])
-          .into()
-        )]
-      );
-    }
-
-    #[test]
-    fn call_into_lazy() {
-      let mut program = Program::new().with_core().unwrap();
-      program.eval_string("'set lazy").unwrap();
-      assert_eq!(
-        program.stack,
-        vec![Expr::Lazy(
-          Expr::Call(interner().get_or_intern_static("set")).into()
-        )]
-      );
-    }
+  #[test]
+  fn eval_lists_eagerly() {
+    let mut program = Program::new().with_core().unwrap();
+    program.eval_string("6 'var def (var)").unwrap();
+    assert_eq!(program.stack, vec![Expr::List(vec![Expr::Integer(6)])]);
   }
 }
