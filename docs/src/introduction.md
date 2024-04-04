@@ -12,4 +12,4 @@ With a native module system, it is possible to **extend the runtime** with nativ
 
 ## Getting Started
 
-To get started with Stack, head over to the first introductory section on [the syntax](introduction/syntax.md).
+Head over to the first introductory section on [the syntax](introduction/syntax.md) to get started with Stack.
