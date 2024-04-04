@@ -138,38 +138,36 @@ impl<'a> Scanner<'a> {
 
   pub fn scan(
     &mut self,
-    ast: &Ast,
+    ast: &mut Ast,
     index: AstIndex,
   ) -> Result<AstIndex, String> {
-    let expr = ast.expr(index).unwrap();
+    let expr = ast.expr(index).unwrap().clone();
     if expr.is_function(ast) {
       // We can unwrap here because we know the expression is a function
       let fn_symbol = match expr.fn_symbol() {
         Some(fn_symbol) => fn_symbol,
         None => return Err("Invalid function".to_owned()),
       };
-      let mut fn_body = match expr.fn_body(ast) {
+      let fn_body = match expr.fn_body(ast) {
         Some(fn_body) => fn_body.to_vec(),
         None => return Err("Invalid function".to_owned()),
       };
 
-      for index in fn_body.into_iter() {
-        if let Some(item) = ast.expr(index) {
-          if let Some(unlazied_index) = ast.unlazy(index) {
-            if let Some(unlazied) = ast.expr(unlazied_index) {
-              if let Expr::Call(call) = unlazied {
-                if !self.funcs.contains_key(call) && !self.scope.has(*call) {
-                  self.scope.reserve(*call)?;
-                }
-              } else if unlazied.is_function(ast) {
-                let mut scanner = Scanner::new(self.scope.clone(), self.funcs);
-                // Note: I don't think this is needed because we are setting new things in the AST, so no mutability needed (Copy-On-Write)
-                //
-                // if let Some(unlazied_mut) = ast.expr_mut(unlazied) {
-                //   *unlazied_mut = scanner.scan(ast, unlazied).unwrap();
-                // }
-                scanner.scan(ast, unlazied_index)?;
+      for index in fn_body.iter() {
+        if let Some(unlazied_index) = ast.unlazy(*index) {
+          if let Some(unlazied) = ast.expr(unlazied_index) {
+            if let Expr::Call(call) = unlazied {
+              if !self.funcs.contains_key(call) && !self.scope.has(*call) {
+                self.scope.reserve(*call)?;
               }
+            } else if unlazied.is_function(ast) {
+              let mut scanner = Scanner::new(self.scope.clone(), self.funcs);
+              // Note: I don't think this is needed because we are setting new things in the AST, so no mutability needed (Copy-On-Write)
+              //
+              // if let Some(unlazied_mut) = ast.expr_mut(unlazied) {
+              //   *unlazied_mut = scanner.scan(ast, unlazied).unwrap();
+              // }
+              scanner.scan(ast, unlazied_index)?;
             }
           }
         }

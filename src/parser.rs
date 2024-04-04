@@ -19,7 +19,7 @@ impl<'source, 'ast> Parser<'source, 'ast> {
   ///
   /// Prefer [`Parser::reuse`] where possible.
   #[inline]
-  pub const fn new(lexer: Lexer<'source>, ast: &'ast mut Ast) -> Self {
+  pub fn new(lexer: Lexer<'source>, ast: &'ast mut Ast) -> Self {
     Self {
       tokens: TokenVec::new(lexer),
       cursor: 0,

@@ -181,7 +181,7 @@ impl Program {
       let mut scanner =
         Scanner::new(self.scopes.last().unwrap().duplicate(), &self.funcs);
 
-      match scanner.scan(&self.ast, expr) {
+      match scanner.scan(&mut self.ast, expr) {
         Ok(expr) => expr,
         Err(message) => {
           return Err(EvalError {
@@ -335,13 +335,13 @@ impl Program {
     }
 
     let expr = self.ast_expr(index, index)?;
-    match *expr {
-      Expr::Call(call) => self.eval_call(index, call),
-      Expr::Lazy(block) => self.push(block),
+    match expr {
+      Expr::Call(call) => self.eval_call(index, *call),
+      Expr::Lazy(block) => self.push(*block),
       Expr::List(list) => {
         let stack_len = self.stack.len();
 
-        self.eval(self.ast.expr_many(list))?;
+        self.eval(self.ast.expr_many(list.iter().copied()))?;
 
         let list_len = self.stack.len() - stack_len;
 
@@ -355,18 +355,17 @@ impl Program {
         self.push(list)
       }
       Expr::Fn(_) => Ok(()),
-      expr => self.push(index),
+      _ => self.push(index),
     }
   }
 
   pub fn eval_string(&mut self, line: &str) -> Result<(), EvalError> {
     let lexer = Lexer::new(line);
+    let old_ast_size = self.ast.len();
     let parser = Parser::new(lexer, &mut self.ast);
 
-    let old_ast_size = self.ast.len();
-
     // TODO: It might be time to add a proper EvalError enum.
-    let exprs = parser.parse().map_err(|e| EvalError {
+    parser.parse().map_err(|e| EvalError {
       program: self.clone(),
       message: e.to_string(),
       expr: Ast::NIL,
