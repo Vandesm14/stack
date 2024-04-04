@@ -4,19 +4,23 @@ pub fn module(program: &mut Program) -> Result<(), EvalError> {
   program.funcs.insert(
     interner().get_or_intern_static("ifelse"),
     |program, trace_expr| {
-      let cond = program.pop(trace_expr)?;
-      let then = program.pop(trace_expr)?;
-      let r#else = program.pop(trace_expr)?;
+      let (cond, cond_index) = program.pop_with_index(trace_expr)?;
+      let (then, then_index) = program.pop_with_index(trace_expr)?;
+      let (r#else, else_index) = program.pop_with_index(trace_expr)?;
 
       match (cond, then, r#else) {
         (Expr::List(cond), Expr::List(then), Expr::List(r#else)) => {
-          program.eval(cond)?;
-          let cond = program.pop(trace_expr)?;
+          // FIXME: Cloning the vec probably isn't the best option here.
+          program.eval(program.ast.expr_many(cond.clone()))?;
+          let cond = program.pop_expr(trace_expr)?;
 
-          if cond.is_truthy() {
-            program.eval(then)
+          // if cond.is_truthy() {
+          if matches!(program.ast.is_truthy(cond_index), Some(true)) {
+            // FIXME: Cloning the vec probably isn't the best option here.
+            program.eval(program.ast.expr_many(then.clone()))
           } else {
-            program.eval(r#else)
+            // FIXME: Cloning the vec probably isn't the best option here.
+            program.eval(program.ast.expr_many(r#else.clone()))
           }
         }
         (cond, then, r#else) => Err(EvalError {
@@ -25,12 +29,17 @@ pub fn module(program: &mut Program) -> Result<(), EvalError> {
           message: format!(
             "expected {}, found {}",
             Type::List(vec![
-              // TODO: A type to represent functions.
               Type::List(vec![Type::Boolean]),
               Type::List(vec![]),
               Type::List(vec![]),
             ]),
-            Type::List(vec![cond.type_of(), then.type_of(), r#else.type_of(),]),
+            Type::List(vec![
+              // FIXME: Maybe unwrapping the type_of call isn't great, but this should be fine?
+              // TODO: refactor the AST stuff to hopefully remove the fact that EVERYTHING is always an option
+              program.ast.type_of(cond_index).unwrap(),
+              program.ast.type_of(then_index).unwrap(),
+              program.ast.type_of(else_index).unwrap()
+            ]),
           ),
         }),
       }
@@ -40,16 +49,16 @@ pub fn module(program: &mut Program) -> Result<(), EvalError> {
   program.funcs.insert(
     interner().get_or_intern_static("if"),
     |program, trace_expr| {
-      let cond = program.pop(trace_expr)?;
-      let then = program.pop(trace_expr)?;
+      let (cond, cond_index) = program.pop_with_index(trace_expr)?;
+      let (then, then_index) = program.pop_with_index(trace_expr)?;
 
       match (cond, then) {
         (Expr::List(cond), Expr::List(then)) => {
-          program.eval(cond)?;
-          let cond = program.pop(trace_expr)?;
+          program.eval(program.ast.expr_many(cond.clone()))?;
+          let cond = program.pop_expr(trace_expr)?;
 
-          if cond.is_truthy() {
-            program.eval(then)
+          if matches!(program.ast.is_truthy(cond_index), Some(true)) {
+            program.eval(program.ast.expr_many(then.clone()))
           } else {
             Ok(())
           }
@@ -64,29 +73,29 @@ pub fn module(program: &mut Program) -> Result<(), EvalError> {
               Type::List(vec![Type::Boolean]),
               Type::List(vec![]),
             ]),
-            Type::List(vec![cond.type_of(), then.type_of(),]),
+            Type::List(vec![
+              program.ast.type_of(cond_index).unwrap(),
+              program.ast.type_of(then_index).unwrap(),
+            ]),
           ),
         }),
       }
-
-      // program.push(Expr::List(vec![]));
-      // program.eval_intrinsic(trace_expr, Intrinsic::IfElse)
     },
   );
 
   program.funcs.insert(
     interner().get_or_intern_static("while"),
     |program, trace_expr| {
-      let cond = program.pop(trace_expr)?;
-      let block = program.pop(trace_expr)?;
+      let (cond, cond_index) = program.pop_with_index(trace_expr)?;
+      let (block, block_index) = program.pop_with_index(trace_expr)?;
 
       match (cond, block) {
         (Expr::List(cond), Expr::List(block)) => loop {
-          program.eval(cond.clone())?;
-          let cond = program.pop(trace_expr)?;
+          program.eval(program.ast.expr_many(cond.clone()))?;
+          let cond = program.pop_expr(trace_expr)?;
 
-          if cond.is_truthy() {
-            program.eval(block.clone())?;
+          if matches!(program.ast.is_truthy(cond_index), Some(true)) {
+            program.eval(program.ast.expr_many(block.clone()))?;
           } else {
             break Ok(());
           }
@@ -97,11 +106,13 @@ pub fn module(program: &mut Program) -> Result<(), EvalError> {
           message: format!(
             "expected {}, found {}",
             Type::List(vec![
-              // TODO: A type to represent functions.
               Type::List(vec![Type::Boolean]),
               Type::List(vec![]),
             ]),
-            Type::List(vec![cond.type_of(), block.type_of(),]),
+            Type::List(vec![
+              program.ast.type_of(cond_index).unwrap(),
+              program.ast.type_of(block_index).unwrap(),
+            ]),
           ),
         }),
       }
