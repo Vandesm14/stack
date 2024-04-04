@@ -36,9 +36,9 @@ pub fn module(program: &mut Program) -> Result<(), EvalError> {
             Type::List(vec![
               // FIXME: Maybe unwrapping the type_of call isn't great, but this should be fine?
               // TODO: refactor the AST stuff to hopefully remove the fact that EVERYTHING is always an option
-              program.ast.type_of(cond_index).unwrap(),
-              program.ast.type_of(then_index).unwrap(),
-              program.ast.type_of(else_index).unwrap()
+              cond.type_of(&program.ast),
+              then.type_of(&program.ast),
+              r#else.type_of(&program.ast)
             ]),
           ),
         }),
@@ -74,8 +74,8 @@ pub fn module(program: &mut Program) -> Result<(), EvalError> {
               Type::List(vec![]),
             ]),
             Type::List(vec![
-              program.ast.type_of(cond_index).unwrap(),
-              program.ast.type_of(then_index).unwrap(),
+              cond.type_of(&program.ast),
+              then.type_of(&program.ast),
             ]),
           ),
         }),
@@ -110,8 +110,8 @@ pub fn module(program: &mut Program) -> Result<(), EvalError> {
               Type::List(vec![]),
             ]),
             Type::List(vec![
-              program.ast.type_of(cond_index).unwrap(),
-              program.ast.type_of(block_index).unwrap(),
+              cond.type_of(&program.ast),
+              block.type_of(&program.ast),
             ]),
           ),
         }),

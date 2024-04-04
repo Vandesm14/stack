@@ -46,7 +46,7 @@ pub fn module(program: &mut Program) -> Result<(), EvalError> {
           message: format!(
             "expected {}, found {}",
             Type::String,
-            program.ast.type_of(index).unwrap(),
+            item.type_of(&program.ast),
           ),
         }),
       }
