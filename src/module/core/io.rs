@@ -4,7 +4,7 @@ pub fn module(program: &mut Program) -> Result<(), EvalError> {
   program.funcs.insert(
     interner().get_or_intern_static("read-file"),
     |program, trace_expr| {
-      let item = program.pop(trace_expr)?;
+      let (item, index) = program.pop_with_index(trace_expr)?;
 
       match item {
         Expr::String(path) => {
@@ -32,7 +32,9 @@ pub fn module(program: &mut Program) -> Result<(), EvalError> {
                       .unwrap(),
                   },
                 );
-                program.push(Expr::String(content))
+                program.push_expr(Expr::String(content))?;
+
+                Ok(())
               }
               Err(e) => Err(EvalError {
                 expr: trace_expr.clone(),
@@ -42,7 +44,9 @@ pub fn module(program: &mut Program) -> Result<(), EvalError> {
             }
           } else {
             let contents = program.loaded_files.get(path_str).unwrap().contents;
-            program.push(Expr::String(contents))
+            program.push_expr(Expr::String(contents))?;
+
+            Ok(())
           }
         }
         _ => Err(EvalError {
@@ -51,7 +55,7 @@ pub fn module(program: &mut Program) -> Result<(), EvalError> {
           message: format!(
             "expected {}, found {}",
             Type::String,
-            item.type_of(),
+            program.ast.type_of(index).unwrap(),
           ),
         }),
       }
