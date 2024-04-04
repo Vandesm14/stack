@@ -1,7 +1,7 @@
 use core::{
   any::Any, cell::RefCell, cmp::Ordering, fmt, iter, num::FpCategory,
 };
-use std::{ops::Range, rc::Rc, slice::SliceIndex};
+use std::{ops::Range, rc::Rc};
 
 use itertools::Itertools;
 use lasso::Spur;
@@ -66,12 +66,9 @@ impl Expr {
     }
   }
 
-  pub fn fn_symbol(&self, ast: &Ast) -> Option<&FnSymbol> {
+  pub fn fn_symbol(&self) -> Option<&AstIndex> {
     match self {
-      Expr::List(list) => list.first().and_then(|x| match ast.expr(*x) {
-        Some(Expr::Fn(scope)) => Some(scope),
-        _ => None,
-      }),
+      Expr::List(list) => list.first(),
       _ => None,
     }
   }
@@ -255,7 +252,7 @@ impl Ast {
     self.exprs.get(index)
   }
 
-  pub fn expr_mut(&self, index: AstIndex) -> Option<&mut Expr> {
+  pub fn expr_mut(&mut self, index: AstIndex) -> Option<&mut Expr> {
     self.exprs.get_mut(index)
   }
 
@@ -273,7 +270,7 @@ impl Ast {
     self.exprs.get(range)
   }
 
-  pub fn push_expr(&self, expr: Expr) -> AstIndex {
+  pub fn push_expr(&mut self, expr: Expr) -> AstIndex {
     self.exprs.push(expr);
 
     self.exprs.len() - 1

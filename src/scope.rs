@@ -175,20 +175,24 @@ impl<'a> Scanner<'a> {
         }
       }
 
-      let mut fn_scope = fn_symbol.scope.clone();
-      fn_scope.merge(self.scope.clone());
+      if let Some(Expr::Fn(fn_symbol)) = ast.expr(*fn_symbol) {
+        let mut fn_scope = fn_symbol.scope.clone();
+        fn_scope.merge(self.scope.clone());
 
-      let fn_symbol = ast.push_expr(Expr::Fn(FnSymbol {
-        scope: fn_scope,
-        scoped: fn_symbol.scoped,
-      }));
+        let fn_symbol = ast.push_expr(Expr::Fn(FnSymbol {
+          scope: fn_scope,
+          scoped: fn_symbol.scoped,
+        }));
 
-      let mut list_items = vec![fn_symbol];
-      list_items.extend(fn_body);
+        let mut list_items = vec![fn_symbol];
+        list_items.extend(fn_body);
 
-      let expr = ast.push_expr(Expr::List(list_items));
+        let expr = ast.push_expr(Expr::List(list_items));
 
-      Ok(expr)
+        Ok(expr)
+      } else {
+        Err("Could not find function symbol".into())
+      }
     } else {
       // If the expression is not a function, we just return it
       Ok(index)

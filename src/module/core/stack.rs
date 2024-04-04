@@ -81,21 +81,31 @@ pub fn module(program: &mut Program) -> Result<(), EvalError> {
         // TODO: Get this working again.
         item @ Expr::List(_) => match item.is_function(&program.ast) {
           true => {
-            let fn_symbol = item.fn_symbol(&program.ast).unwrap();
+            let fn_symbol = item
+              .fn_symbol(&program.ast)
+              .and_then(|index| program.ast.expr(*index));
             let fn_body = item.fn_body(&program.ast).unwrap();
 
-            if fn_symbol.scoped {
-              program.push_scope(fn_symbol.scope.clone());
-            }
-
-            match program.eval(program.ast.expr_many(fn_body.to_vec())) {
-              Ok(_) => {
-                if fn_symbol.scoped {
-                  program.pop_scope();
-                }
-                Ok(())
+            if let Some(Expr::Fn(fn_symbol)) = fn_symbol {
+              if fn_symbol.scoped {
+                program.push_scope(fn_symbol.scope.clone());
               }
-              Err(err) => Err(err),
+
+              match program.eval(program.ast.expr_many(fn_body.to_vec())) {
+                Ok(_) => {
+                  if fn_symbol.scoped {
+                    program.pop_scope();
+                  }
+                  Ok(())
+                }
+                Err(err) => Err(err),
+              }
+            } else {
+              Err(EvalError {
+                expr: trace_expr,
+                program: program.clone(),
+                message: "Could not locate function symbol".into(),
+              })
             }
           }
           false => {
