@@ -160,20 +160,23 @@ impl Program {
     })
   }
 
-  pub fn pop_expr(&mut self, trace_expr: AstIndex) -> Result<&Expr, EvalError> {
+  pub fn pop_expr(&mut self, trace_expr: AstIndex) -> Result<Expr, EvalError> {
     let expr = self.pop(trace_expr)?;
 
-    self.ast_expr(trace_expr, expr)
+    match self.ast_expr(trace_expr, expr) {
+      Ok(expr) => Ok(expr.clone()),
+      Err(err) => Err(err),
+    }
   }
 
   pub fn pop_with_index(
     &mut self,
     trace_expr: AstIndex,
-  ) -> Result<(&Expr, AstIndex), EvalError> {
+  ) -> Result<(Expr, AstIndex), EvalError> {
     let index = self.pop(trace_expr)?;
     let expr = self.ast_expr(trace_expr, index)?;
 
-    Ok((expr, index))
+    Ok((expr.clone(), index))
   }
 
   pub fn push(&mut self, expr: AstIndex) -> Result<(), EvalError> {

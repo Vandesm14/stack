@@ -31,7 +31,7 @@ pub fn module(program: &mut Program) -> Result<(), EvalError> {
     |program, trace_expr| {
       let item = program.pop(trace_expr)?;
 
-      program.push(item.clone())?;
+      program.push(item)?;
       program.push(item)
     },
   );
@@ -75,18 +75,18 @@ pub fn module(program: &mut Program) -> Result<(), EvalError> {
       let (item, item_index) = program.pop_with_index(trace_expr)?;
 
       match item {
-        call @ Expr::Call(_) => program.eval_index(item_index),
+        Expr::Call(_) => program.eval_index(item_index),
         // This is where auto-call is defined and functions are evaluated when
         // they are called via an identifier
         // TODO: Get this working again.
         item @ Expr::List(_) => match item.is_function(&program.ast) {
           true => {
-            let fn_symbol = item
-              .fn_symbol(&program.ast)
-              .and_then(|index| program.ast.expr(*index));
+            let fn_symbol =
+              item.fn_symbol().and_then(|index| program.ast.expr(*index));
             let fn_body = item.fn_body(&program.ast).unwrap();
 
             if let Some(Expr::Fn(fn_symbol)) = fn_symbol {
+              let fn_symbol = fn_symbol.clone();
               if fn_symbol.scoped {
                 program.push_scope(fn_symbol.scope.clone());
               }
@@ -116,7 +116,7 @@ pub fn module(program: &mut Program) -> Result<(), EvalError> {
           }
         },
         _ => Err(EvalError {
-          expr: trace_expr.clone(),
+          expr: trace_expr,
           program: program.clone(),
           message: format!(
             "expected {}, found {}",

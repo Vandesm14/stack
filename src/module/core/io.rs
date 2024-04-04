@@ -4,7 +4,7 @@ pub fn module(program: &mut Program) -> Result<(), EvalError> {
   program.funcs.insert(
     interner().get_or_intern_static("read-file"),
     |program, trace_expr| {
-      let (item, index) = program.pop_with_index(trace_expr)?;
+      let item = program.pop_expr(trace_expr)?;
 
       match item {
         Expr::String(path) => {
@@ -36,7 +36,7 @@ pub fn module(program: &mut Program) -> Result<(), EvalError> {
                 Ok(())
               }
               Err(e) => Err(EvalError {
-                expr: trace_expr.clone(),
+                expr: trace_expr,
                 program: program.clone(),
                 message: format!("unable to read {path_str}: {e}"),
               }),
@@ -48,7 +48,7 @@ pub fn module(program: &mut Program) -> Result<(), EvalError> {
           }
         }
         _ => Err(EvalError {
-          expr: trace_expr.clone(),
+          expr: trace_expr,
           program: program.clone(),
           message: format!(
             "expected {}, found {}",

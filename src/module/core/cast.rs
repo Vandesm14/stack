@@ -88,7 +88,7 @@ pub fn module(program: &mut Program) -> Result<(), EvalError> {
       let item = program.ast_expr(trace_expr, index)?;
 
       match item {
-        string @ Expr::String(_) => {
+        Expr::String(_) => {
           program.push(index)?;
           Ok(())
         }
@@ -109,7 +109,7 @@ pub fn module(program: &mut Program) -> Result<(), EvalError> {
       let item = program.ast_expr(trace_expr, index)?;
 
       match item {
-        list @ Expr::List(_) => program.push(index),
+        Expr::List(_) => program.push(index),
 
         // TODO: reimplement (can't figure out how to handle errors for push_expr while within the map)
         // Expr::String(s) => {
@@ -124,7 +124,7 @@ pub fn module(program: &mut Program) -> Result<(), EvalError> {
 
         //   Ok(())
         // }
-        found => {
+        _ => {
           program.push_expr(Expr::List(vec![index]))?;
           Ok(())
         }
@@ -139,8 +139,8 @@ pub fn module(program: &mut Program) -> Result<(), EvalError> {
       let item = program.ast_expr(trace_expr, index)?;
 
       match item {
-        call @ Expr::Call(_) => {
-          program.push(index);
+        Expr::Call(_) => {
+          program.push(index)?;
           Ok(())
         }
         Expr::String(string) => {
@@ -159,16 +159,12 @@ pub fn module(program: &mut Program) -> Result<(), EvalError> {
   program.funcs.insert(
     interner().get_or_intern_static("typeof"),
     |program, trace_expr| {
-      // TODO: Reimplement. Need to either standardize errors created when ast functions such as type_of don't work,
-      // or something else
+      let index = program.pop(trace_expr)?;
+      let item = program.ast_expr(trace_expr, index)?;
+      let type_of = item.type_of(&program.ast);
 
-      // let index = program.pop(trace_expr)?;
-      // let item = program.ast_expr(trace_expr, index)?;
-
-      // let string = Expr::String(
-      //   interner().get_or_intern(program.ast.type_of(index).to_string()),
-      // );
-      // program.push_expr(string)?;
+      let string = Expr::String(interner().get_or_intern(type_of.to_string()));
+      program.push_expr(string)?;
       Ok(())
     },
   );

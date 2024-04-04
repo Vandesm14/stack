@@ -10,7 +10,7 @@ pub fn module(program: &mut Program) -> Result<(), EvalError> {
       match key {
         Expr::Call(ref key) => match program.funcs.contains_key(key) {
           true => Err(EvalError {
-            expr: trace_expr.clone(),
+            expr: trace_expr,
             program: program.clone(),
             message: format!(
               "cannot shadow a native function {}",
@@ -24,7 +24,7 @@ pub fn module(program: &mut Program) -> Result<(), EvalError> {
           ),
         },
         key => Err(EvalError {
-          expr: trace_expr.clone(),
+          expr: trace_expr,
           program: program.clone(),
           message: format!(
             "expected {}, found {}",
@@ -57,7 +57,7 @@ pub fn module(program: &mut Program) -> Result<(), EvalError> {
           }
         }
         item => Err(EvalError {
-          expr: trace_expr.clone(),
+          expr: trace_expr,
           program: program.clone(),
           message: format!(
             "expected {}, found {}",
@@ -78,7 +78,7 @@ pub fn module(program: &mut Program) -> Result<(), EvalError> {
       match key {
         Expr::Call(ref key) => match program.funcs.contains_key(key) {
           true => Err(EvalError {
-            expr: trace_expr.clone(),
+            expr: trace_expr,
             program: program.clone(),
             message: format!(
               "cannot shadow a native function {}",
@@ -92,7 +92,7 @@ pub fn module(program: &mut Program) -> Result<(), EvalError> {
           ),
         },
         key => Err(EvalError {
-          expr: trace_expr.clone(),
+          expr: trace_expr,
           program: program.clone(),
           message: format!(
             "expected {}, found {}",
@@ -129,7 +129,7 @@ pub fn module(program: &mut Program) -> Result<(), EvalError> {
           }
         }
         item => Err(EvalError {
-          expr: trace_expr.clone(),
+          expr: trace_expr,
           program: program.clone(),
           message: format!(
             "expected {}, found {}",

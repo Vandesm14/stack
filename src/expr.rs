@@ -171,50 +171,6 @@ impl Expr {
       _ => None,
     }
   }
-
-  // TODO: These might make more sense as intrinsics, since they might be too
-  //       complicated for coercions.
-
-  // pub const fn to_list(&self) -> Option<Self> {
-  //   match self {
-  //     x @ Self::List(_) => Some(x.clone()),
-  //     // TODO: Implement a way to convert a string into a list of its characters
-  //     //       in the language itself.
-  //     Self::String(x) => Some(Self::List(
-  //       x.bytes()
-  //         .map(|x| x as i64)
-  //         .map(Self::Integer)
-  //         .map(Expr::new)
-  //         .collect_vec()
-  //         .into(),
-  //     )),
-
-  //     x => Some(Self::List([Expr::new(x.clone())].into())),
-  //   }
-  // }
-
-  // pub const fn to_string(&self) -> Option<Self> {
-  //   match self {
-  //     Self::List(x) => {
-  //       x.iter()
-  //         .map(|Expr(expr)| expr.borrow())
-  //         .map(|expr| match *expr {
-  //           Self::Integer(x) => if x >= u8::MIN as i64 && x <= u8::MAX as i64 {
-  //             Ok(x as u8)
-  //           } else {
-  //             Err(())
-  //           },
-  //           _ => Err(()),
-  //         })
-  //         .try_collect::<_, Vec<_>, _>()
-  //         .ok()
-  //         .and_then(|bytes| core::str::from_utf8(&bytes).ok())
-  //         .map(|x| ExprKind::String(x.into()))
-  //     },
-
-  //     _ => None,
-  //   }
-  // }
 }
 
 #[derive(Debug, Clone)]

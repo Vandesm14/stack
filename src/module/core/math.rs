@@ -17,7 +17,7 @@ pub fn module(program: &mut Program) -> Result<(), EvalError> {
           Ok(())
         }
         _ => Err(EvalError {
-          expr: trace_expr.clone(),
+          expr: trace_expr,
           program: program.clone(),
           message: format!(
             "expected {}, found {}",
@@ -51,7 +51,7 @@ pub fn module(program: &mut Program) -> Result<(), EvalError> {
           Ok(())
         }
         _ => Err(EvalError {
-          expr: trace_expr.clone(),
+          expr: trace_expr,
           program: program.clone(),
           message: format!(
             "expected {}, found {}",
@@ -85,7 +85,7 @@ pub fn module(program: &mut Program) -> Result<(), EvalError> {
           Ok(())
         }
         _ => Err(EvalError {
-          expr: trace_expr.clone(),
+          expr: trace_expr,
           program: program.clone(),
           message: format!(
             "expected {}, found {}",
@@ -119,7 +119,7 @@ pub fn module(program: &mut Program) -> Result<(), EvalError> {
           Ok(())
         }
         _ => Err(EvalError {
-          expr: trace_expr.clone(),
+          expr: trace_expr,
           program: program.clone(),
           message: format!(
             "expected {}, found {}",
@@ -153,7 +153,7 @@ pub fn module(program: &mut Program) -> Result<(), EvalError> {
           Ok(())
         }
         _ => Err(EvalError {
-          expr: trace_expr.clone(),
+          expr: trace_expr,
           program: program.clone(),
           message: format!(
             "expected {}, found {}",

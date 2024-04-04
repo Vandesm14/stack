@@ -7,15 +7,15 @@ pub fn module(program: &mut Program) -> Result<(), EvalError> {
   program.funcs.insert(
     interner().get_or_intern_static("parse"),
     |program, trace_expr| {
-      let (item, index) = program.pop_with_index(trace_expr)?;
+      let item = program.pop_expr(trace_expr)?;
 
       match item {
         Expr::String(string) => {
           let source = interner().resolve(&string).to_string();
 
           let lexer = Lexer::new(&source);
-          let parser = Parser::new(lexer, &mut program.ast);
           let old_ast_size = program.ast.len();
+          let parser = Parser::new(lexer, &mut program.ast);
 
           let result = parser.parse();
 
@@ -34,14 +34,14 @@ pub fn module(program: &mut Program) -> Result<(), EvalError> {
               }
             }
             Err(parse_error) => Err(EvalError {
-              expr: trace_expr.clone(),
+              expr: trace_expr,
               program: program.clone(),
               message: format!("failed to parse {}, {}", item, parse_error,),
             }),
           }
         }
         _ => Err(EvalError {
-          expr: trace_expr.clone(),
+          expr: trace_expr,
           program: program.clone(),
           message: format!(
             "expected {}, found {}",

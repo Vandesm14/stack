@@ -4,27 +4,23 @@ pub fn module(program: &mut Program) -> Result<(), EvalError> {
   program.funcs.insert(
     interner().get_or_intern_static("ifelse"),
     |program, trace_expr| {
-      let (cond, cond_index) = program.pop_with_index(trace_expr)?;
-      let (then, then_index) = program.pop_with_index(trace_expr)?;
-      let (r#else, else_index) = program.pop_with_index(trace_expr)?;
+      let cond = program.pop_expr(trace_expr)?;
+      let then = program.pop_expr(trace_expr)?;
+      let r#else = program.pop_expr(trace_expr)?;
 
       match (cond, then, r#else) {
         (Expr::List(cond), Expr::List(then), Expr::List(r#else)) => {
-          // FIXME: Cloning the vec probably isn't the best option here.
-          program.eval(program.ast.expr_many(cond.clone()))?;
-          let cond = program.pop_expr(trace_expr)?;
+          program.eval(program.ast.expr_many(cond))?;
+          let result = program.pop_expr(trace_expr)?;
 
-          // if cond.is_truthy() {
-          if matches!(program.ast.is_truthy(cond_index), Some(true)) {
-            // FIXME: Cloning the vec probably isn't the best option here.
-            program.eval(program.ast.expr_many(then.clone()))
+          if result.is_truthy() {
+            program.eval(program.ast.expr_many(then))
           } else {
-            // FIXME: Cloning the vec probably isn't the best option here.
-            program.eval(program.ast.expr_many(r#else.clone()))
+            program.eval(program.ast.expr_many(r#else))
           }
         }
         (cond, then, r#else) => Err(EvalError {
-          expr: trace_expr.clone(),
+          expr: trace_expr,
           program: program.clone(),
           message: format!(
             "expected {}, found {}",
@@ -49,22 +45,22 @@ pub fn module(program: &mut Program) -> Result<(), EvalError> {
   program.funcs.insert(
     interner().get_or_intern_static("if"),
     |program, trace_expr| {
-      let (cond, cond_index) = program.pop_with_index(trace_expr)?;
-      let (then, then_index) = program.pop_with_index(trace_expr)?;
+      let cond = program.pop_expr(trace_expr)?;
+      let then = program.pop_expr(trace_expr)?;
 
       match (cond, then) {
         (Expr::List(cond), Expr::List(then)) => {
-          program.eval(program.ast.expr_many(cond.clone()))?;
-          let cond = program.pop_expr(trace_expr)?;
+          program.eval(program.ast.expr_many(cond))?;
+          let result = program.pop_expr(trace_expr)?;
 
-          if matches!(program.ast.is_truthy(cond_index), Some(true)) {
-            program.eval(program.ast.expr_many(then.clone()))
+          if result.is_truthy() {
+            program.eval(program.ast.expr_many(then))
           } else {
             Ok(())
           }
         }
         (cond, then) => Err(EvalError {
-          expr: trace_expr.clone(),
+          expr: trace_expr,
           program: program.clone(),
           message: format!(
             "expected {}, found {}",
@@ -86,22 +82,22 @@ pub fn module(program: &mut Program) -> Result<(), EvalError> {
   program.funcs.insert(
     interner().get_or_intern_static("while"),
     |program, trace_expr| {
-      let (cond, cond_index) = program.pop_with_index(trace_expr)?;
-      let (block, block_index) = program.pop_with_index(trace_expr)?;
+      let cond = program.pop_expr(trace_expr)?;
+      let block = program.pop_expr(trace_expr)?;
 
       match (cond, block) {
         (Expr::List(cond), Expr::List(block)) => loop {
           program.eval(program.ast.expr_many(cond.clone()))?;
-          let cond = program.pop_expr(trace_expr)?;
+          let result = program.pop_expr(trace_expr)?;
 
-          if matches!(program.ast.is_truthy(cond_index), Some(true)) {
+          if result.is_truthy() {
             program.eval(program.ast.expr_many(block.clone()))?;
           } else {
             break Ok(());
           }
         },
         (cond, block) => Err(EvalError {
-          expr: trace_expr.clone(),
+          expr: trace_expr,
           program: program.clone(),
           message: format!(
             "expected {}, found {}",
@@ -123,7 +119,7 @@ pub fn module(program: &mut Program) -> Result<(), EvalError> {
     interner().get_or_intern_static("halt"),
     |program, trace_expr| {
       Err(EvalError {
-        expr: trace_expr.clone(),
+        expr: trace_expr,
         program: program.clone(),
         message: "halt".to_string(),
       })

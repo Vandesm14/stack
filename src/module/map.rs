@@ -32,12 +32,12 @@ pub fn module(program: &mut Program) -> Result<(), EvalError> {
           match map.borrow_mut().downcast_mut::<HashMap<Spur, AstIndex>>() {
             Some(map) => match key {
               Expr::Call(key) | Expr::String(key) => {
-                map.insert(*key, item);
+                map.insert(key, item);
               }
               found => {
                 return Err(EvalError {
                   program: program.clone(),
-                  expr: trace_expr.clone(),
+                  expr: trace_expr,
                   message: format!(
                     "expected call or string, found {}",
                     found.type_of(&program.ast)
@@ -48,7 +48,7 @@ pub fn module(program: &mut Program) -> Result<(), EvalError> {
             None => {
               return Err(EvalError {
                 program: program.clone(),
-                expr: trace_expr.clone(),
+                expr: trace_expr,
                 message: "unable to downcast userdata into map".into(),
               })
             }
@@ -57,7 +57,7 @@ pub fn module(program: &mut Program) -> Result<(), EvalError> {
         found => {
           return Err(EvalError {
             program: program.clone(),
-            expr: trace_expr.clone(),
+            expr: trace_expr,
             message: format!(
               "expected userdata, found {}",
               found.type_of(&program.ast)
@@ -88,7 +88,7 @@ pub fn module(program: &mut Program) -> Result<(), EvalError> {
               found => {
                 return Err(EvalError {
                   program: program.clone(),
-                  expr: trace_expr.clone(),
+                  expr: trace_expr,
                   message: format!(
                     "expected call or string, found {}",
                     found.type_of(&program.ast)
@@ -99,7 +99,7 @@ pub fn module(program: &mut Program) -> Result<(), EvalError> {
             None => {
               return Err(EvalError {
                 program: program.clone(),
-                expr: trace_expr.clone(),
+                expr: trace_expr,
                 message: "unable to downcast userdata into map".into(),
               })
             }
@@ -108,7 +108,7 @@ pub fn module(program: &mut Program) -> Result<(), EvalError> {
         found => {
           return Err(EvalError {
             program: program.clone(),
-            expr: trace_expr.clone(),
+            expr: trace_expr,
             message: format!(
               "expected userdata, found {}",
               found.type_of(&program.ast)
@@ -139,7 +139,7 @@ pub fn module(program: &mut Program) -> Result<(), EvalError> {
               found => {
                 return Err(EvalError {
                   program: program.clone(),
-                  expr: trace_expr.clone(),
+                  expr: trace_expr,
                   message: format!(
                     "expected call or string, found {}",
                     found.type_of(&program.ast)
@@ -150,7 +150,7 @@ pub fn module(program: &mut Program) -> Result<(), EvalError> {
             None => {
               return Err(EvalError {
                 program: program.clone(),
-                expr: trace_expr.clone(),
+                expr: trace_expr,
                 message: "unable to downcast userdata into map".into(),
               })
             }
@@ -159,7 +159,7 @@ pub fn module(program: &mut Program) -> Result<(), EvalError> {
         found => {
           return Err(EvalError {
             program: program.clone(),
-            expr: trace_expr.clone(),
+            expr: trace_expr,
             message: format!(
               "expected userdata, found {}",
               found.type_of(&program.ast)

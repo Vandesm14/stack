@@ -34,7 +34,7 @@ pub fn module(program: &mut Program) -> Result<(), EvalError> {
       let list = program.pop_expr(trace_expr)?;
 
       match index {
-        Expr::Integer(index) => match usize::try_from(index.clone()) {
+        Expr::Integer(index) => match usize::try_from(index) {
           Ok(i) => match list {
             Expr::List(list) => {
               program.push(list.get(i).cloned().unwrap_or(Ast::NIL))
@@ -64,7 +64,7 @@ pub fn module(program: &mut Program) -> Result<(), EvalError> {
       let list = program.pop_expr(trace_expr)?;
 
       match index {
-        Expr::Integer(index) => match usize::try_from(index.clone()) {
+        Expr::Integer(index) => match usize::try_from(index) {
           Ok(i) => match list {
             Expr::List(mut list) => {
               if i <= list.len() {
@@ -105,24 +105,34 @@ pub fn module(program: &mut Program) -> Result<(), EvalError> {
         (Expr::String(delimiter), Expr::List(list)) => {
           let delimiter_str = interner().resolve(&delimiter);
 
-          let mut collected_str = String::new();
-          for expr in list.into_iter() {
-            match program.ast_expr(trace_expr, *expr) {
+          let string = list
+            .into_iter()
+            .map(|expr| match program.ast_expr(trace_expr, expr) {
               Ok(Expr::String(string)) => {
-                collected_str.push_str(&interner().resolve(&string).to_string())
+                Ok(interner().resolve(string).to_string())
               }
-              Ok(_) => collected_str.push_str(&expr.to_string()),
-              Err(e) => {
-                return Err(e);
+              Ok(expr) => Ok(expr.to_string()),
+              Err(err) => Err(err),
+            })
+            .enumerate()
+            .try_fold(String::new(), |mut string, (i, result)| {
+              if i > 0 {
+                string.push_str(delimiter_str);
               }
-            }
-          }
-          let string = Expr::String(interner().get_or_intern(collected_str));
+
+              match result {
+                Ok(chunk) => string.push_str(&chunk),
+                Err(err) => return Err(err),
+              }
+
+              Ok(string)
+            })?;
+          let string = Expr::String(interner().get_or_intern(string));
           program.push_expr(string)?;
           Ok(())
         }
         (delimiter, list) => Err(EvalError {
-          expr: trace_expr.clone(),
+          expr: trace_expr,
           program: program.clone(),
           message: format!(
             "expected {}, found {}",
@@ -167,7 +177,7 @@ pub fn module(program: &mut Program) -> Result<(), EvalError> {
           program.stack.extend(list);
           Ok(())
         }
-        list => {
+        _ => {
           program.push(index)?;
           Ok(())
         }
@@ -207,7 +217,7 @@ pub fn module(program: &mut Program) -> Result<(), EvalError> {
           Ok(())
         }
         _ => Err(EvalError {
-          expr: trace_expr.clone(),
+          expr: trace_expr,
           program: program.clone(),
           message: format!(
             "expected {}, found {}",
