@@ -296,10 +296,8 @@ impl Program {
     let call_str = interner().resolve(&call);
 
     // Intrinsics; Calls native Rust functions
-    if let Some(expr) = self.ast.expr(trace_expr) {
-      if let Some(func) = self.funcs.get(&call) {
-        return func(self, expr);
-      }
+    if let Some(func) = self.funcs.get(&call) {
+      return func(self, trace_expr);
     }
 
     // Calls runtime values from scope
