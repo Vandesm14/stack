@@ -3,6 +3,7 @@ use core::{
 };
 use std::rc::Rc;
 
+use itertools::Itertools;
 use lasso::Spur;
 
 use crate::{interner::interner, Scope};
@@ -113,7 +114,21 @@ pub struct Ast {
   pub exprs: Vec<Expr>,
 }
 
+impl Default for Ast {
+  fn default() -> Self {
+    Self::new()
+  }
+}
+
 impl Ast {
+  pub const NIL: AstIndex = 0;
+
+  pub fn new() -> Self {
+    Self {
+      exprs: vec![Expr::Nil],
+    }
+  }
+
   pub fn is_truthy(&self, index: AstIndex) -> Option<bool> {
     match self.expr(index)?.to_boolean() {
       Some(Expr::Boolean(x)) => Some(x),
@@ -140,6 +155,13 @@ impl Ast {
     self.exprs.push(expr);
 
     self.exprs.len() - 1
+  }
+
+  pub fn push_many(&mut self, exprs: Vec<Expr>) -> Vec<AstIndex> {
+    exprs
+      .into_iter()
+      .map(|expr| self.push_expr(expr))
+      .collect_vec()
   }
 
   pub fn set_expr(&mut self, index: AstIndex, expr: Expr) -> bool {

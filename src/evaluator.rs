@@ -2,7 +2,8 @@ use itertools::Itertools as _;
 use lasso::Spur;
 
 use crate::{
-  interner::interner, module, Expr, Func, Lexer, Module, Parser, Scanner, Scope,
+  interner::interner, module, Ast, AstIndex, Expr, Func, Lexer, Module, Parser,
+  Scanner, Scope,
 };
 use core::{fmt, iter};
 use std::{collections::HashMap, time::SystemTime};
@@ -15,7 +16,8 @@ pub struct LoadedFile {
 
 #[derive(Debug, Clone)]
 pub struct Program {
-  pub stack: Vec<Expr>,
+  pub stack: Vec<AstIndex>,
+  pub ast: Ast,
   pub scopes: Vec<Scope>,
   pub funcs: HashMap<Spur, Func>,
   pub loaded_files: HashMap<String, LoadedFile>,
@@ -88,7 +90,7 @@ impl fmt::Display for Program {
 pub struct EvalError {
   pub program: Program,
   pub message: String,
-  pub expr: Expr,
+  pub expr: AstIndex,
 }
 
 impl fmt::Display for EvalError {
@@ -105,6 +107,7 @@ impl Program {
   pub fn new() -> Self {
     Self {
       stack: vec![],
+      ast: Ast::new(),
       scopes: vec![Scope::new()],
       funcs: HashMap::new(),
       loaded_files: HashMap::new(),
@@ -134,24 +137,24 @@ impl Program {
     self.loaded_files.keys().map(|s| s.as_str())
   }
 
-  pub fn pop(&mut self, trace_expr: &Expr) -> Result<Expr, EvalError> {
+  pub fn pop(&mut self, trace_expr: AstIndex) -> Result<AstIndex, EvalError> {
     self.stack.pop().ok_or_else(|| EvalError {
-      expr: trace_expr.clone(),
+      expr: trace_expr,
       program: self.clone(),
       message: "Stack underflow".into(),
     })
   }
 
-  pub fn push(&mut self, expr: Expr) -> Result<(), EvalError> {
-    let expr = if expr.is_function() {
+  pub fn push(&mut self, expr: AstIndex) -> Result<(), EvalError> {
+    let expr = if self.ast.is_function(expr) {
       let mut scanner =
         Scanner::new(self.scopes.last().unwrap().duplicate(), &self.funcs);
 
-      match scanner.scan(expr.clone()) {
+      match scanner.scan(self.ast, expr) {
         Ok(expr) => expr,
         Err(message) => {
           return Err(EvalError {
-            expr: Expr::Nil,
+            expr: Ast::NIL,
             program: self.clone(),
             message,
           })
@@ -166,7 +169,7 @@ impl Program {
     Ok(())
   }
 
-  pub fn scope_item(&self, symbol: &str) -> Option<Expr> {
+  pub fn scope_item(&self, symbol: &str) -> Option<AstIndex> {
     self
       .scopes
       .last()
@@ -175,15 +178,15 @@ impl Program {
 
   pub fn def_scope_item(
     &mut self,
-    trace_expr: &Expr,
+    trace_expr: AstIndex,
     symbol: &str,
-    value: Expr,
+    value: AstIndex,
   ) -> Result<(), EvalError> {
     if let Some(layer) = self.scopes.last_mut() {
       match layer.define(interner().get_or_intern(symbol), value) {
         Ok(_) => Ok(()),
         Err(message) => Err(EvalError {
-          expr: trace_expr.clone(),
+          expr: trace_expr,
           program: self.clone(),
           message,
         }),
@@ -199,15 +202,15 @@ impl Program {
 
   pub fn set_scope_item(
     &mut self,
-    trace_expr: &Expr,
+    trace_expr: AstIndex,
     symbol: &str,
-    value: Expr,
+    value: AstIndex,
   ) -> Result<(), EvalError> {
     if let Some(layer) = self.scopes.last_mut() {
       match layer.set(interner().get_or_intern(symbol), value) {
         Ok(_) => Ok(()),
         Err(message) => Err(EvalError {
-          expr: trace_expr.clone(),
+          expr: trace_expr,
           program: self.clone(),
           message,
         }),
@@ -227,7 +230,7 @@ impl Program {
         Ok(_) => {}
         Err(message) => {
           return Err(EvalError {
-            expr: Expr::Nil,
+            expr: Ast::NIL,
             program: self.clone(),
             message,
           })
@@ -248,28 +251,32 @@ impl Program {
 
   fn eval_call(
     &mut self,
-    trace_expr: &Expr,
+    trace_expr: AstIndex,
     call: Spur,
   ) -> Result<(), EvalError> {
     let call_str = interner().resolve(&call);
 
-    if let Some(func) = self.funcs.get(&call) {
-      return func(self, trace_expr);
+    // Intrinsics; Calls native Rust functions
+    if let Some(expr) = self.ast.expr(trace_expr) {
+      if let Some(func) = self.funcs.get(&call) {
+        return func(self, expr);
+      }
     }
 
+    // Calls runtime values from scope
     if let Some(value) = self.scope_item(call_str) {
-      if value.is_function() {
-        self.eval_expr(Expr::Lazy(Box::new(Expr::Call(call))))?;
+      if self.ast.is_function(value) {
+        self.eval_expr(Expr::Lazy(trace_expr))?;
         self.eval_call(trace_expr, interner().get_or_intern_static("get"))?;
         self.eval_call(trace_expr, interner().get_or_intern_static("call"))?;
 
         Ok(())
       } else {
-        self.push(self.scope_item(call_str).unwrap_or(Expr::Nil))
+        self.push(self.scope_item(call_str).unwrap_or(Ast::NIL))
       }
     } else {
       Err(EvalError {
-        expr: trace_expr.clone(),
+        expr: trace_expr,
         program: self.clone(),
         message: format!("unknown call {call_str}"),
       })
@@ -277,29 +284,33 @@ impl Program {
   }
 
   pub fn eval_expr(&mut self, expr: Expr) -> Result<(), EvalError> {
+    let expr_index = self.ast.push_expr(expr);
+
     if let Some(trace) = &mut self.debug_trace {
       trace.push(expr.clone());
     }
 
-    match expr.clone() {
-      Expr::Call(call) => self.eval_call(&expr, call),
-      Expr::Lazy(block) => self.push(*block),
+    match expr {
+      Expr::Call(call) => self.eval_call(expr_index, call),
+      Expr::Lazy(block) => self.push(block),
       Expr::List(list) => {
         let stack_len = self.stack.len();
 
-        self.eval(list)?;
+        self.eval(self.ast.expr_many(list))?;
 
         let list_len = self.stack.len() - stack_len;
 
-        let mut list = iter::repeat_with(|| self.pop(&expr).unwrap())
+        let mut list = iter::repeat_with(|| self.pop(expr_index).unwrap())
           .take(list_len)
           .collect::<Vec<_>>();
         list.reverse();
 
-        self.push(Expr::List(list))
+        let list = self.ast.push_expr(Expr::List(list));
+
+        self.push(list)
       }
       Expr::Fn(_) => Ok(()),
-      expr => self.push(expr),
+      expr => self.push(expr_index),
     }
   }
 
@@ -310,7 +321,7 @@ impl Program {
     let exprs = parser.parse().map_err(|e| EvalError {
       program: self.clone(),
       message: e.to_string(),
-      expr: Expr::Nil,
+      expr: Ast::NIL,
     })?;
 
     self.eval(exprs)
