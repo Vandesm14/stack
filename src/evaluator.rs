@@ -177,7 +177,7 @@ impl Program {
   }
 
   pub fn push(&mut self, expr: AstIndex) -> Result<(), EvalError> {
-    let expr = if self.ast.is_function(expr) {
+    let expr = if self.ast_expr(expr, expr).unwrap().is_function(&self.ast) {
       let mut scanner =
         Scanner::new(self.scopes.last().unwrap().duplicate(), &self.funcs);
 
@@ -302,7 +302,11 @@ impl Program {
 
     // Calls runtime values from scope
     if let Some(value) = self.scope_item(call_str) {
-      if self.ast.is_function(value) {
+      if self
+        .ast_expr(trace_expr, value)
+        .unwrap()
+        .is_function(&self.ast)
+      {
         self.eval_expr(Expr::Lazy(trace_expr))?;
         self.eval_call(trace_expr, interner().get_or_intern_static("get"))?;
         self.eval_call(trace_expr, interner().get_or_intern_static("call"))?;
