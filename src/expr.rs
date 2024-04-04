@@ -255,9 +255,10 @@ impl Ast {
   }
 
   pub fn push_expr(&mut self, expr: Expr) -> AstIndex {
+    let last_index = self.exprs.len();
     self.exprs.push(expr);
 
-    self.exprs.len() - 1
+    last_index
   }
 
   pub fn push_many(&mut self, exprs: Vec<Expr>) -> Vec<AstIndex> {

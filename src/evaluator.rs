@@ -35,13 +35,17 @@ impl fmt::Display for Program {
   fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
     write!(f, "Stack: [")?;
 
-    self.stack.iter().enumerate().try_for_each(|(i, expr)| {
-      if i == self.stack.len() - 1 {
-        write!(f, "{}", expr)
-      } else {
-        write!(f, "{}, ", expr)
-      }
-    })?;
+    self
+      .stack_exprs()
+      .iter()
+      .enumerate()
+      .try_for_each(|(i, expr)| {
+        if i == self.stack.len() - 1 {
+          write!(f, "{}", expr)
+        } else {
+          write!(f, "{}, ", expr)
+        }
+      })?;
     write!(f, "]")?;
 
     writeln!(f,)?;
@@ -376,15 +380,8 @@ impl Program {
 
     let new_exprs = old_ast_size..self.ast.len();
 
-    if let Some(new_exprs) = self.ast.expr_range(new_exprs) {
-      self.eval(new_exprs.to_vec())
-    } else {
-      Err(EvalError {
-        program: self.clone(),
-        message: "Failed to find parsed exprs".into(),
-        expr: Ast::NIL,
-      })
-    }
+    let indicies = new_exprs.into_iter();
+    self.eval_indicies(indicies)
   }
 
   pub fn eval(&mut self, exprs: Vec<Expr>) -> Result<(), EvalError> {
