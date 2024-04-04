@@ -129,17 +129,13 @@ impl<'source> Lexer<'source> {
           | '+'
           | '*'
           | '/'
+          | ':'
           | '%'
-          | '='
           | '!'
-          | '&'
-          | '|'
+          | '='
           | '<'
           | '>'
-          | '?'
-          | '$'
-          | '~'
-          | '^' => state = State::Ident,
+          | '?' => state = State::Ident,
           '\'' => {
             self.cursor += char_width;
 
