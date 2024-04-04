@@ -200,21 +200,23 @@ impl<'a> Scanner<'a> {
 
 #[cfg(test)]
 mod tests {
-  use crate::{interner::interner, Expr, Program};
+  use super::*;
+  use crate::{ExprTree, Program};
 
   #[test]
   fn top_level_scopes() {
     let mut program = Program::new().with_core().unwrap();
     program.eval_string("0 'a def").unwrap();
 
-    assert_eq!(
-      program
-        .scopes
-        .last()
-        .unwrap()
-        .get_val(interner().get_or_intern("a")),
-      Some(Expr::Integer(0))
-    );
+    let a = program
+      .scopes
+      .last()
+      .unwrap()
+      .get_val(interner().get_or_intern("a"))
+      .unwrap();
+    let a = program.ast.expr(a).unwrap().into_expr_tree(&program.ast);
+
+    assert_eq!(a, ExprTree::Integer(0));
   }
 
   #[test]
@@ -237,14 +239,15 @@ mod tests {
     let mut program = Program::new().with_core().unwrap();
     program.eval_string("0 'a def '(fn 1 'a set) call").unwrap();
 
-    assert_eq!(
-      program
-        .scopes
-        .last()
-        .unwrap()
-        .get_val(interner().get_or_intern("a")),
-      Some(Expr::Integer(1))
-    );
+    let a = program
+      .scopes
+      .last()
+      .unwrap()
+      .get_val(interner().get_or_intern("a"))
+      .unwrap();
+    let a = program.ast.expr(a).unwrap().into_expr_tree(&program.ast);
+
+    assert_eq!(a, ExprTree::Integer(1));
   }
 
   #[test]
@@ -252,14 +255,15 @@ mod tests {
     let mut program = Program::new().with_core().unwrap();
     program.eval_string("0 'a def '(fn 1 'a def) call").unwrap();
 
-    assert_eq!(
-      program
-        .scopes
-        .last()
-        .unwrap()
-        .get_val(interner().get_or_intern("a")),
-      Some(Expr::Integer(0))
-    );
+    let a = program
+      .scopes
+      .last()
+      .unwrap()
+      .get_val(interner().get_or_intern("a"))
+      .unwrap();
+    let a = program.ast.expr(a).unwrap().into_expr_tree(&program.ast);
+
+    assert_eq!(a, ExprTree::Integer(0));
   }
 
   #[test]
@@ -269,7 +273,7 @@ mod tests {
       .eval_string("0 'a def '(fn 1 'a def '(fn a)) call call")
       .unwrap();
 
-    assert_eq!(program.stack, vec![Expr::Integer(1)]);
+    assert_eq!(program.stack_exprs(), vec![ExprTree::Integer(1)]);
   }
 
   #[test]
@@ -279,7 +283,7 @@ mod tests {
       .eval_string("0 'a def '(fn 1 'a def '(fn 2 'a set a)) call call")
       .unwrap();
 
-    assert_eq!(program.stack, vec![Expr::Integer(2)],);
+    assert_eq!(program.stack_exprs(), vec![ExprTree::Integer(2)],);
   }
 
   #[test]
@@ -287,14 +291,15 @@ mod tests {
     let mut program = Program::new().with_core().unwrap();
     program.eval_string("'(fn! 0 'a def) call").unwrap();
 
-    assert_eq!(
-      program
-        .scopes
-        .last()
-        .unwrap()
-        .get_val(interner().get_or_intern("a")),
-      Some(Expr::Integer(0))
-    );
+    let a = program
+      .scopes
+      .last()
+      .unwrap()
+      .get_val(interner().get_or_intern("a"))
+      .unwrap();
+    let a = program.ast.expr(a).unwrap().into_expr_tree(&program.ast);
+
+    assert_eq!(a, ExprTree::Integer(0));
   }
 
   #[test]
@@ -304,14 +309,15 @@ mod tests {
       .eval_string("'(fn! def) 'define def 0 'a define")
       .unwrap();
 
-    assert_eq!(
-      program
-        .scopes
-        .last()
-        .unwrap()
-        .get_val(interner().get_or_intern("a")),
-      Some(Expr::Integer(0))
-    );
+    let a = program
+      .scopes
+      .last()
+      .unwrap()
+      .get_val(interner().get_or_intern("a"))
+      .unwrap();
+    let a = program.ast.expr(a).unwrap().into_expr_tree(&program.ast);
+
+    assert_eq!(a, ExprTree::Integer(0));
   }
 
   #[test]

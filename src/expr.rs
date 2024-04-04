@@ -6,7 +6,7 @@ use std::{ops::Range, rc::Rc};
 use itertools::Itertools;
 use lasso::Spur;
 
-use crate::{interner::interner, Scope};
+use crate::{interner::interner, ExprTree, Scope};
 
 #[derive(Clone)]
 pub struct FnSymbol {
@@ -45,6 +45,34 @@ pub enum Expr {
 }
 
 impl Expr {
+  pub fn into_expr_tree(&self, ast: &Ast) -> ExprTree {
+    match self {
+      Self::Nil => ExprTree::Nil,
+
+      Self::Boolean(bool) => ExprTree::Boolean(*bool),
+      Self::Integer(int) => ExprTree::Integer(*int),
+      Self::Float(f64) => ExprTree::Float(*f64),
+
+      Self::String(spur) => ExprTree::String(*spur),
+      Self::List(indicies) => ExprTree::List(
+        ast
+          .expr_many(indicies.clone())
+          .into_iter()
+          .map(|expr| expr.into_expr_tree(ast))
+          .collect_vec(),
+      ),
+
+      Self::Lazy(index) => {
+        ExprTree::Lazy(Box::new(ast.expr(*index).unwrap().into_expr_tree(ast)))
+      }
+      Self::Call(spur) => ExprTree::Call(*spur),
+
+      Self::Fn(symbol) => ExprTree::Fn(symbol.clone()),
+
+      Self::UserData(data) => ExprTree::UserData(data.clone()),
+    }
+  }
+
   pub fn is_truthy(&self) -> bool {
     match self.to_boolean() {
       Some(Self::Boolean(x)) => x,

@@ -138,6 +138,7 @@ pub fn module(program: &mut Program) -> Result<(), EvalError> {
 
 mod tests {
   use super::*;
+  use crate::ExprTree;
 
   #[test]
   fn clearing_stack() {
@@ -150,21 +151,27 @@ mod tests {
   fn dropping_from_stack() {
     let mut program = Program::new().with_core().unwrap();
     program.eval_string("1 2 drop").unwrap();
-    assert_eq!(program.stack, vec![Expr::Integer(1)]);
+    assert_eq!(program.stack_exprs(), vec![ExprTree::Integer(1)]);
   }
 
   #[test]
   fn duplicating() {
     let mut program = Program::new().with_core().unwrap();
     program.eval_string("1 dup").unwrap();
-    assert_eq!(program.stack, vec![Expr::Integer(1), Expr::Integer(1)]);
+    assert_eq!(
+      program.stack_exprs(),
+      vec![ExprTree::Integer(1), ExprTree::Integer(1)]
+    );
   }
 
   #[test]
   fn swapping() {
     let mut program = Program::new().with_core().unwrap();
     program.eval_string("1 2 swap").unwrap();
-    assert_eq!(program.stack, vec![Expr::Integer(2), Expr::Integer(1)]);
+    assert_eq!(
+      program.stack_exprs(),
+      vec![ExprTree::Integer(2), ExprTree::Integer(1)]
+    );
   }
 
   #[test]
@@ -172,8 +179,12 @@ mod tests {
     let mut program = Program::new().with_core().unwrap();
     program.eval_string("1 2 3 rot").unwrap();
     assert_eq!(
-      program.stack,
-      vec![Expr::Integer(3), Expr::Integer(1), Expr::Integer(2)]
+      program.stack_exprs(),
+      vec![
+        ExprTree::Integer(3),
+        ExprTree::Integer(1),
+        ExprTree::Integer(2)
+      ]
     );
   }
 
@@ -182,11 +193,11 @@ mod tests {
     let mut program = Program::new().with_core().unwrap();
     program.eval_string("1 2 3 collect").unwrap();
     assert_eq!(
-      program.stack,
-      vec![Expr::List(vec![
-        Expr::Integer(1),
-        Expr::Integer(2),
-        Expr::Integer(3)
+      program.stack_exprs(),
+      vec![ExprTree::List(vec![
+        ExprTree::Integer(1),
+        ExprTree::Integer(2),
+        ExprTree::Integer(3)
       ])]
     );
   }
@@ -199,8 +210,12 @@ mod tests {
       .unwrap();
 
     assert_eq!(
-      program.stack,
-      vec![Expr::Integer(1), Expr::Integer(2), Expr::Integer(3)]
+      program.stack_exprs(),
+      vec![
+        ExprTree::Integer(1),
+        ExprTree::Integer(2),
+        ExprTree::Integer(3)
+      ]
     );
 
     let a = program
@@ -209,10 +224,15 @@ mod tests {
       .unwrap()
       .get_val(interner().get_or_intern("a"))
       .unwrap();
+    let a = program.ast.expr(a).unwrap().into_expr_tree(&program.ast);
 
     assert_eq!(
       a,
-      Expr::List(vec![Expr::Integer(1), Expr::Integer(2), Expr::Integer(3)])
+      ExprTree::List(vec![
+        ExprTree::Integer(1),
+        ExprTree::Integer(2),
+        ExprTree::Integer(3)
+      ])
     );
   }
 }

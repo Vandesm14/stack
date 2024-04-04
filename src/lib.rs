@@ -1,6 +1,7 @@
 mod chain;
 mod evaluator;
 mod expr;
+mod expr_tree;
 mod interner;
 mod lexer;
 mod module;
@@ -10,6 +11,7 @@ mod scope;
 pub use chain::*;
 pub use evaluator::*;
 pub use expr::*;
+pub use expr_tree::*;
 pub use lexer::*;
 pub use module::*;
 pub use parser::*;

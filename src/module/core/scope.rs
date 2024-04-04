@@ -147,7 +147,7 @@ pub fn module(program: &mut Program) -> Result<(), EvalError> {
 #[cfg(test)]
 
 mod tests {
-  use crate::{FnSymbol, Scope};
+  use crate::{ExprTree, FnSymbol, Scope};
 
   use super::*;
 
@@ -162,22 +162,23 @@ mod tests {
       .unwrap()
       .get_val(interner().get_or_intern("a"))
       .unwrap();
+    let a = program.ast.expr(a).unwrap().into_expr_tree(&program.ast);
 
-    assert_eq!(a, Expr::Integer(1));
+    assert_eq!(a, ExprTree::Integer(1));
   }
 
   #[test]
   fn retrieving_variables() {
     let mut program = Program::new().with_core().unwrap();
     program.eval_string("1 'a def a").unwrap();
-    assert_eq!(program.stack, vec![Expr::Integer(1)]);
+    assert_eq!(program.stack_exprs(), vec![ExprTree::Integer(1)]);
   }
 
   #[test]
   fn evaluating_variables() {
     let mut program = Program::new().with_core().unwrap();
     program.eval_string("1 'a def a 2 +").unwrap();
-    assert_eq!(program.stack, vec![Expr::Integer(3)]);
+    assert_eq!(program.stack_exprs(), vec![ExprTree::Integer(3)]);
   }
 
   #[test]
@@ -196,7 +197,7 @@ mod tests {
     program
       .eval_string("'(fn 1 2 +) 'is-three def is-three")
       .unwrap();
-    assert_eq!(program.stack, vec![Expr::Integer(3)]);
+    assert_eq!(program.stack_exprs(), vec![ExprTree::Integer(3)]);
   }
 
   #[test]
@@ -206,11 +207,11 @@ mod tests {
       .eval_string("'(1 2 +) 'is-three def is-three")
       .unwrap();
     assert_eq!(
-      program.stack,
-      vec![Expr::List(vec![
-        Expr::Integer(1),
-        Expr::Integer(2),
-        Expr::Call(interner().get_or_intern_static("+"))
+      program.stack_exprs(),
+      vec![ExprTree::List(vec![
+        ExprTree::Integer(1),
+        ExprTree::Integer(2),
+        ExprTree::Call(interner().get_or_intern_static("+"))
       ])]
     );
   }
@@ -222,15 +223,15 @@ mod tests {
       .eval_string("'(fn 1 2 +) 'is-three def 'is-three get")
       .unwrap();
     assert_eq!(
-      program.stack,
-      vec![Expr::List(vec![
-        Expr::Fn(FnSymbol {
+      program.stack_exprs(),
+      vec![ExprTree::List(vec![
+        ExprTree::Fn(FnSymbol {
           scoped: true,
           scope: Scope::new(),
         }),
-        Expr::Integer(1),
-        Expr::Integer(2),
-        Expr::Call(interner().get_or_intern_static("+"))
+        ExprTree::Integer(1),
+        ExprTree::Integer(2),
+        ExprTree::Call(interner().get_or_intern_static("+"))
       ])]
     );
   }
@@ -242,18 +243,18 @@ mod tests {
       .eval_string("'() 'fn tolist concat 1 tolist concat 2 tolist concat '+ tolist concat dup call")
       .unwrap();
     assert_eq!(
-      program.stack,
+      program.stack_exprs(),
       vec![
-        Expr::List(vec![
-          Expr::Fn(FnSymbol {
+        ExprTree::List(vec![
+          ExprTree::Fn(FnSymbol {
             scoped: true,
             scope: Scope::new(),
           }),
-          Expr::Integer(1),
-          Expr::Integer(2),
-          Expr::Call(interner().get_or_intern_static("+"))
+          ExprTree::Integer(1),
+          ExprTree::Integer(2),
+          ExprTree::Call(interner().get_or_intern_static("+"))
         ]),
-        Expr::Integer(3)
+        ExprTree::Integer(3)
       ]
     );
   }
@@ -279,8 +280,9 @@ mod tests {
         .unwrap()
         .get_val(interner().get_or_intern("a"))
         .unwrap();
+      let a = program.ast.expr(a).unwrap().into_expr_tree(&program.ast);
 
-      assert_eq!(a, Expr::Integer(0));
+      assert_eq!(a, ExprTree::Integer(0));
     }
 
     #[test]
@@ -299,8 +301,9 @@ mod tests {
         .unwrap()
         .get_val(interner().get_or_intern("a"))
         .unwrap();
+      let a = program.ast.expr(a).unwrap().into_expr_tree(&program.ast);
 
-      assert_eq!(a, Expr::Integer(1));
+      assert_eq!(a, ExprTree::Integer(1));
     }
 
     #[test]
@@ -319,9 +322,13 @@ mod tests {
         .unwrap()
         .get_val(interner().get_or_intern("a"))
         .unwrap();
+      let a = program.ast.expr(a).unwrap().into_expr_tree(&program.ast);
 
-      assert_eq!(a, Expr::Integer(0));
-      assert_eq!(program.stack, vec![Expr::Integer(1), Expr::Integer(0)])
+      assert_eq!(a, ExprTree::Integer(0));
+      assert_eq!(
+        program.stack_exprs(),
+        vec![ExprTree::Integer(1), ExprTree::Integer(0)]
+      )
     }
   }
 }

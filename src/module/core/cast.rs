@@ -175,14 +175,15 @@ pub fn module(program: &mut Program) -> Result<(), EvalError> {
 #[cfg(test)]
 mod tests {
   use super::*;
+  use crate::ExprTree;
 
   #[test]
   fn to_string() {
     let mut program = Program::new().with_core().unwrap();
     program.eval_string("1 tostring").unwrap();
     assert_eq!(
-      program.stack,
-      vec![Expr::String(interner().get_or_intern_static("1"))]
+      program.stack_exprs(),
+      vec![ExprTree::String(interner().get_or_intern_static("1"))]
     );
   }
 
@@ -191,8 +192,8 @@ mod tests {
     let mut program = Program::new().with_core().unwrap();
     program.eval_string("\"a\" tocall").unwrap();
     assert_eq!(
-      program.stack,
-      vec![Expr::Call(interner().get_or_intern_static("a"))]
+      program.stack_exprs(),
+      vec![ExprTree::Call(interner().get_or_intern_static("a"))]
     );
   }
 
@@ -200,7 +201,7 @@ mod tests {
   fn to_integer() {
     let mut program = Program::new().with_core().unwrap();
     program.eval_string("\"1\" tointeger").unwrap();
-    assert_eq!(program.stack, vec![Expr::Integer(1)]);
+    assert_eq!(program.stack_exprs(), vec![ExprTree::Integer(1)]);
   }
 
   #[test]
@@ -208,8 +209,8 @@ mod tests {
     let mut program = Program::new().with_core().unwrap();
     program.eval_string("1 typeof").unwrap();
     assert_eq!(
-      program.stack,
-      vec![Expr::String(interner().get_or_intern_static("integer"))]
+      program.stack_exprs(),
+      vec![ExprTree::String(interner().get_or_intern_static("integer"))]
     );
   }
 
@@ -218,11 +219,11 @@ mod tests {
     let mut program = Program::new().with_core().unwrap();
     program.eval_string("(1 2 3) tolist").unwrap();
     assert_eq!(
-      program.stack,
-      vec![Expr::List(vec![
-        Expr::Integer(1),
-        Expr::Integer(2),
-        Expr::Integer(3)
+      program.stack_exprs(),
+      vec![ExprTree::List(vec![
+        ExprTree::Integer(1),
+        ExprTree::Integer(2),
+        ExprTree::Integer(3)
       ])]
     );
   }
@@ -232,10 +233,14 @@ mod tests {
     let mut program = Program::new().with_core().unwrap();
     program.eval_string("(1 2 3) lazy").unwrap();
     assert_eq!(
-      program.stack,
-      vec![Expr::Lazy(
-        Expr::List(vec![Expr::Integer(1), Expr::Integer(2), Expr::Integer(3)])
-          .into()
+      program.stack_exprs(),
+      vec![ExprTree::Lazy(
+        ExprTree::List(vec![
+          ExprTree::Integer(1),
+          ExprTree::Integer(2),
+          ExprTree::Integer(3)
+        ])
+        .into()
       )]
     );
   }
@@ -245,9 +250,9 @@ mod tests {
     let mut program = Program::new().with_core().unwrap();
     program.eval_string("'set lazy").unwrap();
     assert_eq!(
-      program.stack,
-      vec![Expr::Lazy(
-        Expr::Call(interner().get_or_intern_static("set")).into()
+      program.stack_exprs(),
+      vec![ExprTree::Lazy(
+        ExprTree::Call(interner().get_or_intern_static("set")).into()
       )]
     );
   }

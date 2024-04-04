@@ -235,18 +235,19 @@ pub fn module(program: &mut Program) -> Result<(), EvalError> {
 #[cfg(test)]
 mod tests {
   use super::*;
+  use crate::ExprTree;
 
   #[test]
   fn concatenating_lists() {
     let mut program = Program::new().with_core().unwrap();
     program.eval_string("(1 2) (3 \"4\") concat").unwrap();
     assert_eq!(
-      program.stack,
-      vec![Expr::List(vec![
-        Expr::Integer(1),
-        Expr::Integer(2),
-        Expr::Integer(3),
-        Expr::String(interner().get_or_intern_static("4"))
+      program.stack_exprs(),
+      vec![ExprTree::List(vec![
+        ExprTree::Integer(1),
+        ExprTree::Integer(2),
+        ExprTree::Integer(3),
+        ExprTree::String(interner().get_or_intern_static("4"))
       ])]
     );
   }
@@ -256,11 +257,11 @@ mod tests {
     let mut program = Program::new().with_core().unwrap();
     program.eval_string("(1 2) ('+) concat").unwrap();
     assert_eq!(
-      program.stack,
-      vec![Expr::List(vec![
-        Expr::Integer(1),
-        Expr::Integer(2),
-        Expr::Call(interner().get_or_intern_static("+"))
+      program.stack_exprs(),
+      vec![ExprTree::List(vec![
+        ExprTree::Integer(1),
+        ExprTree::Integer(2),
+        ExprTree::Call(interner().get_or_intern_static("+"))
       ])]
     );
   }
@@ -270,10 +271,14 @@ mod tests {
     let mut program = Program::new().with_core().unwrap();
     program.eval_string("(1 2 3) len").unwrap();
     assert_eq!(
-      program.stack,
+      program.stack_exprs(),
       vec![
-        Expr::List(vec![Expr::Integer(1), Expr::Integer(2), Expr::Integer(3)]),
-        Expr::Integer(3)
+        ExprTree::List(vec![
+          ExprTree::Integer(1),
+          ExprTree::Integer(2),
+          ExprTree::Integer(3)
+        ]),
+        ExprTree::Integer(3)
       ]
     );
   }
@@ -283,10 +288,14 @@ mod tests {
     let mut program = Program::new().with_core().unwrap();
     program.eval_string("(1 2 3) 1 index").unwrap();
     assert_eq!(
-      program.stack,
+      program.stack_exprs(),
       vec![
-        Expr::List(vec![Expr::Integer(1), Expr::Integer(2), Expr::Integer(3)]),
-        Expr::Integer(2)
+        ExprTree::List(vec![
+          ExprTree::Integer(1),
+          ExprTree::Integer(2),
+          ExprTree::Integer(3)
+        ]),
+        ExprTree::Integer(2)
       ]
     );
   }
@@ -295,13 +304,16 @@ mod tests {
   fn calling_lists() {
     let mut program = Program::new().with_core().unwrap();
     program.eval_string("'(2 2 +) call").unwrap();
-    assert_eq!(program.stack, vec![Expr::Integer(4)]);
+    assert_eq!(program.stack_exprs(), vec![ExprTree::Integer(4)]);
   }
 
   #[test]
   fn calling_lists_special() {
     let mut program = Program::new().with_core().unwrap();
     program.eval_string("'(2 2 +) call-list").unwrap();
-    assert_eq!(program.stack, vec![Expr::List(vec![Expr::Integer(4)])]);
+    assert_eq!(
+      program.stack_exprs(),
+      vec![ExprTree::List(vec![ExprTree::Integer(4)])]
+    );
   }
 }

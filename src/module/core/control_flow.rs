@@ -132,6 +132,7 @@ pub fn module(program: &mut Program) -> Result<(), EvalError> {
 #[cfg(test)]
 mod tests {
   use super::*;
+  use crate::ExprTree;
 
   mod control_flow {
     use super::*;
@@ -143,8 +144,8 @@ mod tests {
         .eval_string("1 2 + '(\"correct\") '(3 =) if")
         .unwrap();
       assert_eq!(
-        program.stack,
-        vec![Expr::String(interner().get_or_intern_static("correct"))]
+        program.stack_exprs(),
+        vec![ExprTree::String(interner().get_or_intern_static("correct"))]
       );
     }
 
@@ -155,8 +156,8 @@ mod tests {
         .eval_string("1 2 + 3 = '(\"correct\") '() if")
         .unwrap();
       assert_eq!(
-        program.stack,
-        vec![Expr::String(interner().get_or_intern_static("correct"))]
+        program.stack_exprs(),
+        vec![ExprTree::String(interner().get_or_intern_static("correct"))]
       );
     }
 
@@ -167,8 +168,8 @@ mod tests {
         .eval_string("1 2 + 3 = '(\"incorrect\") '(\"correct\") '() ifelse")
         .unwrap();
       assert_eq!(
-        program.stack,
-        vec![Expr::String(interner().get_or_intern_static("correct"))]
+        program.stack_exprs(),
+        vec![ExprTree::String(interner().get_or_intern_static("correct"))]
       );
     }
 
@@ -179,8 +180,10 @@ mod tests {
         .eval_string("1 2 + 2 = '(\"incorrect\") '(\"correct\") '() ifelse")
         .unwrap();
       assert_eq!(
-        program.stack,
-        vec![Expr::String(interner().get_or_intern_static("incorrect"))]
+        program.stack_exprs(),
+        vec![ExprTree::String(
+          interner().get_or_intern_static("incorrect")
+        )]
       );
     }
   }
@@ -210,8 +213,12 @@ mod tests {
         )
         .unwrap();
       assert_eq!(
-        program.stack,
-        vec![Expr::Integer(2), Expr::Integer(1), Expr::Integer(0)]
+        program.stack_exprs(),
+        vec![
+          ExprTree::Integer(2),
+          ExprTree::Integer(1),
+          ExprTree::Integer(0)
+        ]
       );
     }
   }

@@ -2,8 +2,8 @@ use itertools::Itertools as _;
 use lasso::Spur;
 
 use crate::{
-  interner::interner, module, Ast, AstIndex, Expr, Func, Lexer, Module, Parser,
-  Scanner, Scope,
+  interner::interner, module, Ast, AstIndex, Expr, ExprTree, Func, Lexer,
+  Module, Parser, Scanner, Scope,
 };
 use core::{fmt, iter};
 use std::{collections::HashMap, time::SystemTime};
@@ -427,74 +427,87 @@ impl Program {
       Err(e) => Err(e),
     }
   }
+
+  pub fn stack_exprs(&self) -> Vec<ExprTree> {
+    self
+      .stack
+      .iter()
+      .filter_map(|index| self.ast.expr(*index))
+      .map(|expr| expr.into_expr_tree(&self.ast))
+      .collect_vec()
+  }
 }
 
 #[cfg(test)]
 mod tests {
   use super::*;
+  use crate::ExprTree;
 
   #[test]
   fn implicitly_adds_to_stack() {
     let mut program = Program::new().with_core().unwrap();
     program.eval_string("1 2").unwrap();
-    assert_eq!(program.stack, vec![Expr::Integer(1), Expr::Integer(2)]);
+    assert_eq!(
+      program.stack_exprs(),
+      vec![ExprTree::Integer(1), ExprTree::Integer(2)]
+    );
   }
 
   #[test]
   fn add_two_numbers() {
     let mut program = Program::new().with_core().unwrap();
     program.eval_string("1 2 +").unwrap();
-    assert_eq!(program.stack, vec![Expr::Integer(3)]);
+    assert_eq!(program.stack_exprs(), vec![ExprTree::Integer(3)]);
   }
 
   #[test]
   fn subtract_two_numbers() {
     let mut program = Program::new().with_core().unwrap();
     program.eval_string("1 2 -").unwrap();
-    assert_eq!(program.stack, vec![Expr::Integer(-1)]);
+    assert_eq!(program.stack_exprs(), vec![ExprTree::Integer(-1)]);
   }
 
   #[test]
   fn multiply_two_numbers() {
     let mut program = Program::new().with_core().unwrap();
     program.eval_string("1 2 *").unwrap();
-    assert_eq!(program.stack, vec![Expr::Integer(2)]);
+    assert_eq!(program.stack_exprs(), vec![ExprTree::Integer(2)]);
   }
 
   #[test]
   fn divide_two_numbers() {
     let mut program = Program::new().with_core().unwrap();
     program.eval_string("1 2 /").unwrap();
-    assert_eq!(program.stack, vec![Expr::Integer(0)]);
+    assert_eq!(program.stack_exprs(), vec![ExprTree::Integer(0)]);
 
     let mut program = Program::new().with_core().unwrap();
     program.eval_string("1.0 2.0 /").unwrap();
-    assert_eq!(program.stack, vec![Expr::Float(0.5)]);
+    assert_eq!(program.stack_exprs(), vec![ExprTree::Float(0.5)]);
   }
 
   #[test]
   fn modulo_two_numbers() {
     let mut program = Program::new().with_core().unwrap();
     program.eval_string("10 5 %").unwrap();
-    assert_eq!(program.stack, vec![Expr::Integer(0)]);
+    assert_eq!(program.stack_exprs(), vec![ExprTree::Integer(0)]);
 
     let mut program = Program::new().with_core().unwrap();
     program.eval_string("11 5 %").unwrap();
-    assert_eq!(program.stack, vec![Expr::Integer(1)]);
+    assert_eq!(program.stack_exprs(), vec![ExprTree::Integer(1)]);
   }
 
   #[test]
   fn complex_operations() {
     let mut program = Program::new().with_core().unwrap();
     program.eval_string("1 2 + 3 *").unwrap();
-    assert_eq!(program.stack, vec![Expr::Integer(9)]);
+    assert_eq!(program.stack_exprs(), vec![ExprTree::Integer(9)]);
   }
 
   #[test]
   fn eval_from_stack() {
     let mut program = Program::new().with_core().unwrap();
     program.eval_string("'(1 2 +) unwrap call").unwrap();
-    assert_eq!(program.stack, vec![Expr::Integer(3)]);
+    assert_eq!(program.stack_exprs(), vec![ExprTree::Integer(3)]);
   }
 
   #[test]
@@ -502,8 +515,8 @@ mod tests {
     let mut program = Program::new().with_core().unwrap();
     program.eval_string("6 'var def 'var").unwrap();
     assert_eq!(
-      program.stack,
-      vec![Expr::Call(interner().get_or_intern_static("var"))]
+      program.stack_exprs(),
+      vec![ExprTree::Call(interner().get_or_intern_static("var"))]
     );
   }
 
@@ -512,11 +525,11 @@ mod tests {
     let mut program = Program::new().with_core().unwrap();
     program.eval_string("(1 2 3)").unwrap();
     assert_eq!(
-      program.stack,
-      vec![Expr::List(vec![
-        Expr::Integer(1),
-        Expr::Integer(2),
-        Expr::Integer(3)
+      program.stack_exprs(),
+      vec![ExprTree::List(vec![
+        ExprTree::Integer(1),
+        ExprTree::Integer(2),
+        ExprTree::Integer(3)
       ])]
     );
   }
@@ -525,6 +538,9 @@ mod tests {
   fn eval_lists_eagerly() {
     let mut program = Program::new().with_core().unwrap();
     program.eval_string("6 'var def (var)").unwrap();
-    assert_eq!(program.stack, vec![Expr::List(vec![Expr::Integer(6)])]);
+    assert_eq!(
+      program.stack_exprs(),
+      vec![ExprTree::List(vec![ExprTree::Integer(6)])]
+    );
   }
 }
