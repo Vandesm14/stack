@@ -319,6 +319,18 @@ mod tests {
     );
   }
 
+  #[test]
+  fn push_item_to_list() {
+    let mut program = Program::new().with_core().unwrap();
+    program.eval_string("'() 'a push").unwrap();
+    assert_eq!(
+      program.stack_exprs(),
+      vec![ExprTree::List(vec![ExprTree::Call(
+        interner().get_or_intern("a")
+      )])]
+    );
+  }
+
   mod wrap {
     use super::*;
     use crate::{ExprTree, Program};
