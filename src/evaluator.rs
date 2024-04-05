@@ -78,7 +78,7 @@ impl fmt::Display for Program {
             interner().resolve(key),
             match value.borrow().val() {
               Some(index) => match self.ast.expr(index) {
-                Some(expr) => expr.to_string(),
+                Some(expr) => expr.into_expr_tree(&self.ast).to_string(),
                 None => "None".to_owned(),
               },
               None => "None".to_owned(),
@@ -91,7 +91,7 @@ impl fmt::Display for Program {
             interner().resolve(key),
             match value.borrow().val() {
               Some(index) => match self.ast.expr(index) {
-                Some(expr) => expr.to_string(),
+                Some(expr) => expr.into_expr_tree(&self.ast).to_string(),
                 None => "None".to_owned(),
               },
               None => "None".to_owned(),
@@ -115,7 +115,11 @@ pub struct EvalError {
 impl fmt::Display for EvalError {
   fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
     writeln!(f, "Error: {}", self.message)?;
-    writeln!(f, "Expr: {}", self.expr)?;
+    writeln!(
+      f,
+      "Expr: {}",
+      self.program.ast.expr(self.expr).unwrap_or(&Expr::Nil)
+    )?;
     writeln!(f,)?;
     write!(f, "{}", self.program)
   }
@@ -391,6 +395,9 @@ impl Program {
       message: e.to_string(),
       expr: Ast::NIL,
     })?;
+
+    // dbg!(new_exprs.clone());
+    // dbg!(self.ast.clone());
 
     self.eval_indicies(new_exprs)
   }
