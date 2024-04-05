@@ -318,4 +318,55 @@ mod tests {
       vec![ExprTree::List(vec![ExprTree::Integer(4)])]
     );
   }
+
+  mod wrap {
+    use super::*;
+    use crate::{ExprTree, Program};
+
+    #[test]
+    fn wrap_integer() {
+      let mut program = Program::new().with_core().unwrap();
+      program.eval_string("42 wrap").unwrap();
+      assert_eq!(
+        program.stack_exprs(),
+        vec![ExprTree::List(vec![ExprTree::Integer(42)])]
+      );
+    }
+
+    #[test]
+    fn wrap_string() {
+      let mut program = Program::new().with_core().unwrap();
+      program.eval_string("\"hello\" wrap").unwrap();
+      assert_eq!(
+        program.stack_exprs(),
+        vec![ExprTree::List(vec![ExprTree::String(
+          interner().get_or_intern_static("hello")
+        )])]
+      );
+    }
+
+    #[test]
+    fn wrap_list() {
+      let mut program = Program::new().with_core().unwrap();
+      program.eval_string("(1 2 3) wrap").unwrap();
+      assert_eq!(
+        program.stack_exprs(),
+        vec![ExprTree::List(vec![ExprTree::List(vec![
+          ExprTree::Integer(1),
+          ExprTree::Integer(2),
+          ExprTree::Integer(3)
+        ])])]
+      );
+    }
+
+    #[test]
+    fn wrap_boolean() {
+      let mut program = Program::new().with_core().unwrap();
+      program.eval_string("true wrap").unwrap();
+      assert_eq!(
+        program.stack_exprs(),
+        vec![ExprTree::List(vec![ExprTree::Boolean(true)])]
+      );
+    }
+  }
 }

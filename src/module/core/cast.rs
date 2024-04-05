@@ -257,4 +257,45 @@ mod tests {
       )]
     );
   }
+
+  #[test]
+  fn to_boolean_from_string_true() {
+    let mut program = Program::new().with_core().unwrap();
+    program.eval_string("\"true\" toboolean").unwrap();
+    assert_eq!(program.stack_exprs(), vec![ExprTree::Boolean(true)]);
+  }
+
+  #[test]
+  fn to_boolean_from_string_false() {
+    let mut program = Program::new().with_core().unwrap();
+    program.eval_string("\"false\" toboolean").unwrap();
+    assert_eq!(program.stack_exprs(), vec![ExprTree::Boolean(false)]);
+  }
+
+  #[test]
+  fn to_float_from_string() {
+    let mut program = Program::new().with_core().unwrap();
+    program.eval_string("\"1.23\" tofloat").unwrap();
+    assert_eq!(program.stack_exprs(), vec![ExprTree::Float(1.23)]);
+  }
+
+  #[test]
+  fn to_list_from_integer() {
+    let mut program = Program::new().with_core().unwrap();
+    program.eval_string("42 tolist").unwrap();
+    assert_eq!(
+      program.stack_exprs(),
+      vec![ExprTree::List(vec![ExprTree::Integer(42)])]
+    );
+  }
+
+  #[test]
+  fn to_call_from_integer() {
+    let mut program = Program::new().with_core().unwrap();
+    program.eval_string("42 tocall").unwrap();
+    assert_eq!(
+      program.stack_exprs(),
+      vec![ExprTree::Call(interner().get_or_intern_static("42"))]
+    );
+  }
 }

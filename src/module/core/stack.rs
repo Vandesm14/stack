@@ -235,4 +235,43 @@ mod tests {
       ])
     );
   }
+
+  mod call {
+    use super::*;
+
+    #[test]
+    fn call_with_function() {
+      let mut program = Program::new().with_core().unwrap();
+      program.eval_string("'(1 2 +) call").unwrap();
+      assert_eq!(program.stack_exprs(), vec![ExprTree::Integer(3)]);
+    }
+
+    #[test]
+    fn call_with_non_function() {
+      let mut program = Program::new().with_core().unwrap();
+      let result = program.eval_string("'a call");
+      assert!(result.is_err());
+    }
+
+    #[test]
+    fn call_with_auto_call_function() {
+      let mut program = Program::new().with_core().unwrap();
+      program.eval_string("'(fn 1 2 +) 'f def f").unwrap();
+      assert_eq!(program.stack_exprs(), vec![ExprTree::Integer(3)]);
+    }
+
+    #[test]
+    fn call_with_list_not_function() {
+      let mut program = Program::new().with_core().unwrap();
+      let result = program.eval_string("'(1 2 3) call");
+      assert_eq!(
+        program.stack_exprs(),
+        vec![
+          ExprTree::Integer(1),
+          ExprTree::Integer(2),
+          ExprTree::Integer(3)
+        ]
+      );
+    }
+  }
 }

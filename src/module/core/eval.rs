@@ -45,3 +45,42 @@ pub fn module(program: &mut Program) -> Result<(), EvalError> {
 
   Ok(())
 }
+
+#[cfg(test)]
+mod tests {
+  use crate::{interner::interner, ExprTree, FnSymbol, Program, Scope};
+
+  #[test]
+  fn parse_valid_string() {
+    let mut program = Program::new().with_core().unwrap();
+    program.eval_string("\"1 2 +\" parse").unwrap();
+    assert_eq!(
+      program.stack_exprs(),
+      vec![ExprTree::List(vec![
+        ExprTree::Integer(1),
+        ExprTree::Integer(2),
+        ExprTree::Call(interner().get_or_intern_static("+")),
+      ])]
+    );
+  }
+
+  #[test]
+  fn parse_lazy_list() {
+    let mut program = Program::new().with_core().unwrap();
+    program.eval_string("\"'(fn 'a)\" parse").unwrap();
+    assert_eq!(
+      program.stack_exprs(),
+      vec![ExprTree::List(vec![ExprTree::Lazy(Box::new(
+        ExprTree::List(vec![
+          ExprTree::Fn(FnSymbol {
+            scoped: true,
+            scope: Scope::new(),
+          }),
+          ExprTree::Lazy(Box::new(ExprTree::Call(
+            interner().get_or_intern_static("a")
+          ))),
+        ])
+      ),)])]
+    );
+  }
+}
