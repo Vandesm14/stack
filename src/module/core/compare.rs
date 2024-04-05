@@ -1,3 +1,5 @@
+use std::cmp::Ordering;
+
 use crate::{interner::interner, EvalError, Expr, Program};
 
 pub fn module(program: &mut Program) -> Result<(), EvalError> {
@@ -7,7 +9,9 @@ pub fn module(program: &mut Program) -> Result<(), EvalError> {
       let rhs = program.pop_expr(trace_expr)?;
       let lhs = program.pop_expr(trace_expr)?;
 
-      program.push_expr(Expr::Boolean(lhs == rhs))?;
+      program.push_expr(Expr::Boolean(
+        lhs.recursive_partial_eq(&rhs, &program.ast),
+      ))?;
       Ok(())
     },
   );
@@ -18,7 +22,9 @@ pub fn module(program: &mut Program) -> Result<(), EvalError> {
       let rhs = program.pop_expr(trace_expr)?;
       let lhs = program.pop_expr(trace_expr)?;
 
-      program.push_expr(Expr::Boolean(lhs != rhs))?;
+      program.push_expr(Expr::Boolean(
+        !lhs.recursive_partial_eq(&rhs, &program.ast),
+      ))?;
       Ok(())
     },
   );
@@ -29,7 +35,9 @@ pub fn module(program: &mut Program) -> Result<(), EvalError> {
       let rhs = program.pop_expr(trace_expr)?;
       let lhs = program.pop_expr(trace_expr)?;
 
-      program.push_expr(Expr::Boolean(lhs < rhs))?;
+      program.push_expr(Expr::Boolean(
+        lhs.recursive_partial_ord(&rhs, &program.ast) == Some(Ordering::Less),
+      ))?;
       Ok(())
     },
   );
@@ -40,7 +48,10 @@ pub fn module(program: &mut Program) -> Result<(), EvalError> {
       let rhs = program.pop_expr(trace_expr)?;
       let lhs = program.pop_expr(trace_expr)?;
 
-      program.push_expr(Expr::Boolean(lhs > rhs))?;
+      program.push_expr(Expr::Boolean(
+        lhs.recursive_partial_ord(&rhs, &program.ast)
+          == Some(Ordering::Greater),
+      ))?;
       Ok(())
     },
   );
@@ -51,7 +62,10 @@ pub fn module(program: &mut Program) -> Result<(), EvalError> {
       let rhs = program.pop_expr(trace_expr)?;
       let lhs = program.pop_expr(trace_expr)?;
 
-      program.push_expr(Expr::Boolean(lhs <= rhs))?;
+      program.push_expr(Expr::Boolean(matches!(
+        lhs.recursive_partial_ord(&rhs, &program.ast),
+        Some(Ordering::Less) | Some(Ordering::Equal)
+      )))?;
       Ok(())
     },
   );
@@ -62,7 +76,10 @@ pub fn module(program: &mut Program) -> Result<(), EvalError> {
       let rhs = program.pop_expr(trace_expr)?;
       let lhs = program.pop_expr(trace_expr)?;
 
-      program.push_expr(Expr::Boolean(lhs >= rhs))?;
+      program.push_expr(Expr::Boolean(matches!(
+        lhs.recursive_partial_ord(&rhs, &program.ast),
+        Some(Ordering::Greater) | Some(Ordering::Equal)
+      )))?;
       Ok(())
     },
   );

@@ -199,6 +199,54 @@ impl Expr {
       _ => None,
     }
   }
+
+  pub fn recursive_partial_eq(&self, other: &Self, ast: &Ast) -> bool {
+    match (self, other) {
+      // Same types.
+      (Self::List(lhs), Self::List(rhs)) => {
+        if lhs.len() == rhs.len() {
+          lhs.iter().zip(rhs.iter()).all(|(a, b)| {
+            if let (Some(a), Some(b)) = (ast.expr(*a), ast.expr(*b)) {
+              a.recursive_partial_eq(b, ast)
+            } else {
+              false
+            }
+          })
+        } else {
+          false
+        }
+      }
+
+      (Self::Lazy(lhs), Self::Lazy(rhs)) => {
+        if let (Some(lhs), Some(rhs)) = (ast.expr(*lhs), ast.expr(*rhs)) {
+          lhs.recursive_partial_eq(rhs, ast)
+        } else {
+          false
+        }
+      }
+
+      (a, b) => a == b,
+    }
+  }
+
+  pub fn recursive_partial_ord(
+    &self,
+    other: &Self,
+    ast: &Ast,
+  ) -> Option<Ordering> {
+    match (self, other) {
+      // Same types.
+      (Self::Lazy(lhs), Self::Lazy(rhs)) => {
+        if let (Some(lhs), Some(rhs)) = (ast.expr(*lhs), ast.expr(*rhs)) {
+          lhs.recursive_partial_ord(rhs, ast)
+        } else {
+          None
+        }
+      }
+
+      (a, b) => a.partial_cmp(b),
+    }
+  }
 }
 
 #[derive(Debug, Clone)]
