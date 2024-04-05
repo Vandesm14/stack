@@ -52,7 +52,11 @@ fn repl(with_core: bool) -> rustyline::Result<()> {
   let mut program = Program::new();
 
   if with_core {
-    program = program.with_core().unwrap().with_module(map::module).unwrap();
+    program = program
+      .with_core()
+      .unwrap()
+      .with_module(map::module)
+      .unwrap();
   }
 
   loop {
@@ -100,7 +104,11 @@ fn eval_file(
       }
 
       if with_core {
-        program = program.with_core().unwrap().with_module(map::module).unwrap();
+        program = program
+          .with_core()
+          .unwrap()
+          .with_module(map::module)
+          .unwrap();
       }
 
       if watcher.is_some() {
