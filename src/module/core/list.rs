@@ -11,7 +11,7 @@ pub fn module(program: &mut Program) -> Result<(), EvalError> {
       match list {
         Expr::List(list) => match i64::try_from(list.len()) {
           Ok(i) => {
-            program.push(list_index);
+            program.push(list_index)?;
             program.push_expr(Expr::Integer(i))?;
             Ok(())
           }
