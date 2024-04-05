@@ -9,7 +9,14 @@ pub fn module(program: &mut Program) -> Result<(), EvalError> {
       Err(EvalError {
         expr: trace_expr,
         program: program.clone(),
-        message: format!("panic: {}", string),
+        message: format!(
+          "panic: {}",
+          program
+            .ast
+            .expr(string)
+            .map(|expr| expr.to_string())
+            .unwrap_or("no error message".into())
+        ),
       })
     },
   );
