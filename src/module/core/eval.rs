@@ -19,7 +19,7 @@ pub fn module(program: &mut Program) -> Result<(), EvalError> {
           let result = parser.parse();
 
           match result {
-            Ok(new_exprs) => program.eval_indicies(new_exprs),
+            Ok(new_exprs) => program.eval_expr(Expr::List(new_exprs)),
             Err(parse_error) => Err(EvalError {
               expr: trace_expr,
               program: program.clone(),
