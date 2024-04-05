@@ -2,7 +2,8 @@ use itertools::Itertools as _;
 use lasso::Spur;
 
 use crate::{
-  interner::interner, module, Expr, Func, Lexer, Module, Parser, Scanner, Scope,
+  interner::interner, module, Expr, ExprKind, Func, Lexer, Module, Parser,
+  Scanner, Scope,
 };
 use core::{fmt, iter};
 use std::{collections::HashMap, time::SystemTime};
@@ -151,7 +152,7 @@ impl Program {
         Ok(expr) => expr,
         Err(message) => {
           return Err(EvalError {
-            expr: Expr::Nil,
+            expr: ExprKind::Nil.into(),
             program: self.clone(),
             message,
           })
@@ -227,7 +228,7 @@ impl Program {
         Ok(_) => {}
         Err(message) => {
           return Err(EvalError {
-            expr: Expr::Nil,
+            expr: ExprKind::Nil.into(),
             program: self.clone(),
             message,
           })
@@ -259,13 +260,16 @@ impl Program {
 
     if let Some(value) = self.scope_item(call_str) {
       if value.is_function() {
-        self.eval_expr(Expr::Lazy(Box::new(Expr::Call(call))))?;
+        self.eval_expr(
+          ExprKind::Lazy(Box::<Expr>::new(ExprKind::Call(call).into()).into())
+            .into(),
+        )?;
         self.eval_call(trace_expr, interner().get_or_intern_static("get"))?;
         self.eval_call(trace_expr, interner().get_or_intern_static("call"))?;
 
         Ok(())
       } else {
-        self.push(self.scope_item(call_str).unwrap_or(Expr::Nil))
+        self.push(self.scope_item(call_str).unwrap_or(ExprKind::Nil.into()))
       }
     } else {
       Err(EvalError {
@@ -281,10 +285,10 @@ impl Program {
       trace.push(expr.clone());
     }
 
-    match expr.clone() {
-      Expr::Call(call) => self.eval_call(&expr, call),
-      Expr::Lazy(block) => self.push(*block),
-      Expr::List(list) => {
+    match expr.clone().val {
+      ExprKind::Call(call) => self.eval_call(&expr, call),
+      ExprKind::Lazy(block) => self.push(*block),
+      ExprKind::List(list) => {
         let stack_len = self.stack.len();
 
         self.eval(list)?;
@@ -296,10 +300,10 @@ impl Program {
           .collect::<Vec<_>>();
         list.reverse();
 
-        self.push(Expr::List(list))
+        self.push(ExprKind::List(list).into())
       }
-      Expr::Fn(_) => Ok(()),
-      expr => self.push(expr),
+      ExprKind::Fn(_) => Ok(()),
+      _ => self.push(expr),
     }
   }
 
@@ -310,7 +314,7 @@ impl Program {
     let exprs = parser.parse().map_err(|e| EvalError {
       program: self.clone(),
       message: e.to_string(),
-      expr: Expr::Nil,
+      expr: ExprKind::Nil.into(),
     })?;
 
     self.eval(exprs)
