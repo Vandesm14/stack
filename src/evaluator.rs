@@ -368,20 +368,16 @@ impl Program {
 
   pub fn eval_string(&mut self, line: &str) -> Result<(), EvalError> {
     let lexer = Lexer::new(line);
-    let old_ast_size = self.ast.len();
     let parser = Parser::new(lexer, &mut self.ast);
 
     // TODO: It might be time to add a proper EvalError enum.
-    parser.parse().map_err(|e| EvalError {
+    let new_exprs = parser.parse().map_err(|e| EvalError {
       program: self.clone(),
       message: e.to_string(),
       expr: Ast::NIL,
     })?;
 
-    let new_exprs = old_ast_size..self.ast.len();
-
-    let indicies = new_exprs.into_iter();
-    self.eval_indicies(indicies)
+    self.eval_indicies(new_exprs)
   }
 
   pub fn eval(&mut self, exprs: Vec<Expr>) -> Result<(), EvalError> {
