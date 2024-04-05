@@ -392,6 +392,7 @@ impl Program {
 
     match result {
       Ok(x) => {
+        self.ast = clone.ast;
         self.stack = clone.stack;
         self.scopes = clone.scopes;
         self.debug_trace = clone.debug_trace;
@@ -415,6 +416,7 @@ impl Program {
 
     match result {
       Ok(x) => {
+        self.ast = clone.ast;
         self.stack = clone.stack;
         self.scopes = clone.scopes;
         self.debug_trace = clone.debug_trace;
