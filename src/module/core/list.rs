@@ -6,11 +6,12 @@ pub fn module(program: &mut Program) -> Result<(), EvalError> {
   program.funcs.insert(
     interner().get_or_intern_static("len"),
     |program, trace_expr| {
-      let list = program.pop_expr(trace_expr)?;
+      let (list, list_index) = program.pop_with_index(trace_expr)?;
 
       match list {
         Expr::List(list) => match i64::try_from(list.len()) {
           Ok(i) => {
+            program.push(list_index);
             program.push_expr(Expr::Integer(i))?;
             Ok(())
           }
@@ -31,12 +32,13 @@ pub fn module(program: &mut Program) -> Result<(), EvalError> {
     interner().get_or_intern_static("index"),
     |program, trace_expr| {
       let index = program.pop_expr(trace_expr)?;
-      let list = program.pop_expr(trace_expr)?;
+      let (list, list_index) = program.pop_with_index(trace_expr)?;
 
       match index {
         Expr::Integer(index) => match usize::try_from(index) {
           Ok(i) => match list {
             Expr::List(list) => {
+              program.push(list_index)?;
               program.push(list.get(i).cloned().unwrap_or(Ast::NIL))
             }
             _ => {
