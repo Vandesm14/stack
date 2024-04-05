@@ -51,7 +51,16 @@ impl fmt::Display for Program {
     writeln!(f,)?;
 
     if let Some(trace) = &self.debug_trace {
-      writeln!(f, "Trace:\n  {}", trace.iter().rev().take(20).join("\n  "))?;
+      writeln!(
+        f,
+        "Trace:\n  {}",
+        trace
+          .iter()
+          .rev()
+          .take(20)
+          .map(|index| self.ast.expr(*index).unwrap())
+          .join("\n  ")
+      )?;
     }
 
     if !self.scopes.is_empty() {
@@ -68,7 +77,10 @@ impl fmt::Display for Program {
             " + {}: {}",
             interner().resolve(key),
             match value.borrow().val() {
-              Some(expr) => expr.to_string(),
+              Some(index) => match self.ast.expr(index) {
+                Some(expr) => expr.to_string(),
+                None => "None".to_owned(),
+              },
               None => "None".to_owned(),
             }
           )?;
@@ -78,7 +90,10 @@ impl fmt::Display for Program {
             " + {}: {}",
             interner().resolve(key),
             match value.borrow().val() {
-              Some(expr) => expr.to_string(),
+              Some(index) => match self.ast.expr(index) {
+                Some(expr) => expr.to_string(),
+                None => "None".to_owned(),
+              },
               None => "None".to_owned(),
             }
           )?;

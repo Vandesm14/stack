@@ -17,8 +17,8 @@ pub fn module(program: &mut Program) -> Result<(), EvalError> {
   program.funcs.insert(
     interner().get_or_intern_static("debug"),
     |program, trace_expr| {
-      let item = program.pop(trace_expr)?;
-      println!("{}", item);
+      let expr = program.pop_expr(trace_expr)?;
+      println!("{}", expr);
       Ok(())
     },
   );
