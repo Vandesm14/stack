@@ -113,7 +113,7 @@ pub fn module(program: &mut Program) -> Result<(), EvalError> {
               Ok(Expr::String(string)) => {
                 Ok(interner().resolve(string).to_string())
               }
-              Ok(expr) => Ok(expr.to_string()),
+              Ok(expr) => Ok(expr.into_expr_tree(&program.ast).to_string()),
               Err(err) => Err(err),
             })
             .enumerate()
@@ -328,6 +328,16 @@ mod tests {
       vec![ExprTree::List(vec![ExprTree::Call(
         interner().get_or_intern("a")
       )])]
+    );
+  }
+
+  #[test]
+  fn join_exprs_as_string() {
+    let mut program = Program::new().with_core().unwrap();
+    program.eval_string("'((a)) \"\" join").unwrap();
+    assert_eq!(
+      program.stack_exprs(),
+      vec![ExprTree::String(interner().get_or_intern("(a)"))]
     );
   }
 
