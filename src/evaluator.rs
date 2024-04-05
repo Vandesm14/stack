@@ -58,7 +58,12 @@ impl fmt::Display for Program {
           .iter()
           .rev()
           .take(20)
-          .map(|index| self.ast.expr(*index).unwrap())
+          .map(|index| self
+            .ast
+            .expr(*index)
+            .unwrap()
+            .into_expr_tree(&self.ast)
+            .to_string())
           .join("\n  ")
       )?;
     }
