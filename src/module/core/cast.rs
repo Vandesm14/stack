@@ -1,3 +1,5 @@
+use itertools::Itertools;
+
 use crate::{interner::interner, EvalError, Expr, Program};
 
 pub fn module(program: &mut Program) -> Result<(), EvalError> {
@@ -110,20 +112,19 @@ pub fn module(program: &mut Program) -> Result<(), EvalError> {
 
       match item {
         Expr::List(_) => program.push(index),
+        Expr::String(s) => {
+          let str = interner().resolve(&s).to_owned();
+          let list = Expr::List(
+            str
+              .chars()
+              .map(|c| Expr::String(interner().get_or_intern(c.to_string())))
+              .map(|expr| program.ast.push_expr(expr))
+              .collect_vec(),
+          );
+          program.push_expr(list)?;
 
-        // TODO: reimplement (can't figure out how to handle errors for push_expr while within the map)
-        // Expr::String(s) => {
-        //   let str = interner().resolve(&s).to_owned();
-        //   program.push_expr(Expr::List(
-        //     str
-        //       .chars()
-        //       .map(|c| Expr::String(interner().get_or_intern(c.to_string())))
-        //       .map(|expr| program.push_expr(expr))
-        //       .collect::<Vec<_>>(),
-        //   ))?;
-
-        //   Ok(())
-        // }
+          Ok(())
+        }
         _ => {
           program.push_expr(Expr::List(vec![index]))?;
           Ok(())
