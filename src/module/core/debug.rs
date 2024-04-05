@@ -14,7 +14,7 @@ pub fn module(program: &mut Program) -> Result<(), EvalError> {
           program
             .ast
             .expr(string)
-            .map(|expr| expr.to_string())
+            .map(|expr| expr.into_expr_tree(&program.ast).to_string())
             .unwrap_or("no error message".into())
         ),
       })
