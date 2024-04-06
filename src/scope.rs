@@ -1,4 +1,4 @@
-use crate::{interner::interner, Chain, Expr, FnSymbol, Func};
+use crate::{interner::interner, Chain, Expr, ExprKind, FnSymbol, Func};
 use core::fmt;
 use lasso::Spur;
 use std::{cell::RefCell, collections::HashMap, fmt::Formatter, rc::Rc};
@@ -137,44 +137,47 @@ impl<'a> Scanner<'a> {
   }
 
   pub fn scan(&mut self, expr: Expr) -> Result<Expr, String> {
-    if expr.is_function() {
+    if expr.val.is_function() {
       let expr = expr;
       // We can unwrap here because we know the expression is a function
-      let fn_symbol = match expr.fn_symbol() {
+      let fn_symbol = match expr.val.fn_symbol() {
         Some(fn_symbol) => fn_symbol,
         None => return Err("Invalid function".to_owned()),
       };
-      let mut fn_body = match expr.fn_body() {
+      let mut fn_body = match expr.val.fn_body() {
         Some(fn_body) => fn_body.to_vec(),
         None => return Err("Invalid function".to_owned()),
       };
 
       for item in fn_body.iter_mut() {
-        if let Expr::Call(call) = item.unlazy() {
+        if let ExprKind::Call(call) = item.val.unlazy() {
           if !self.funcs.contains_key(call) && !self.scope.has(*call) {
             self.scope.reserve(*call).unwrap();
           }
-        } else if item.unlazy().is_function() {
+        } else if item.val.unlazy().is_function() {
           let mut scanner = Scanner::new(self.scope.clone(), self.funcs);
-          let unlazied_mut = item.unlazy_mut();
-          *unlazied_mut = scanner.scan(unlazied_mut.clone()).unwrap();
+          let unlazied_mut = item.val.unlazy_mut();
+          *unlazied_mut = scanner
+            .scan(unlazied_mut.clone().into_expr())
+            .unwrap()
+            .into_expr_kind();
         }
       }
 
       let mut fn_scope = fn_symbol.scope.clone();
       fn_scope.merge(self.scope.clone());
 
-      let fn_symbol = Expr::Fn(FnSymbol {
+      let fn_symbol = ExprKind::Fn(FnSymbol {
         scope: fn_scope,
         scoped: fn_symbol.scoped,
       });
 
-      let mut list_items = vec![fn_symbol];
+      let mut list_items = vec![fn_symbol.into_expr()];
       list_items.extend(fn_body);
 
-      let expr = Expr::List(list_items);
+      let expr = ExprKind::List(list_items);
 
-      Ok(expr)
+      Ok(expr.into_expr())
     } else {
       // If the expression is not a function, we just return it
       Ok(expr)
@@ -184,7 +187,7 @@ impl<'a> Scanner<'a> {
 
 #[cfg(test)]
 mod tests {
-  use crate::{interner::interner, Expr, Program};
+  use crate::{interner::interner, ExprKind, Program};
 
   #[test]
   fn top_level_scopes() {
@@ -197,7 +200,7 @@ mod tests {
         .last()
         .unwrap()
         .get_val(interner().get_or_intern("a")),
-      Some(Expr::Integer(0))
+      Some(ExprKind::Integer(0))
     );
   }
 
@@ -227,7 +230,7 @@ mod tests {
         .last()
         .unwrap()
         .get_val(interner().get_or_intern("a")),
-      Some(Expr::Integer(1))
+      Some(ExprKind::Integer(1))
     );
   }
 
@@ -242,7 +245,7 @@ mod tests {
         .last()
         .unwrap()
         .get_val(interner().get_or_intern("a")),
-      Some(Expr::Integer(0))
+      Some(ExprKind::Integer(0))
     );
   }
 
@@ -253,7 +256,7 @@ mod tests {
       .eval_string("0 'a def '(fn 1 'a def '(fn a)) call call")
       .unwrap();
 
-    assert_eq!(program.stack, vec![Expr::Integer(1)]);
+    assert_eq!(program.stack, vec![ExprKind::Integer(1)]);
   }
 
   #[test]
@@ -263,7 +266,7 @@ mod tests {
       .eval_string("0 'a def '(fn 1 'a def '(fn 2 'a set a)) call call")
       .unwrap();
 
-    assert_eq!(program.stack, vec![Expr::Integer(2)],);
+    assert_eq!(program.stack, vec![ExprKind::Integer(2)],);
   }
 
   #[test]
@@ -277,7 +280,7 @@ mod tests {
         .last()
         .unwrap()
         .get_val(interner().get_or_intern("a")),
-      Some(Expr::Integer(0))
+      Some(ExprKind::Integer(0))
     );
   }
 
@@ -294,7 +297,7 @@ mod tests {
         .last()
         .unwrap()
         .get_val(interner().get_or_intern("a")),
-      Some(Expr::Integer(0))
+      Some(ExprKind::Integer(0))
     );
   }
 
