@@ -2,7 +2,8 @@ use itertools::Itertools as _;
 use lasso::Spur;
 
 use crate::{
-  interner::interner, module, DebugData, Expr, ExprKind, Func, Lexer, Module, Parser, Scanner, Scope
+  interner::interner, module, DebugData, Expr, ExprKind, Func, Lexer, Module,
+  Parser, Scanner, Scope,
 };
 use core::{fmt, iter};
 use std::{collections::HashMap, time::SystemTime};
@@ -85,7 +86,7 @@ pub enum EvalErrorKind {
   Push,
   StackUnderflow,
   UnknownCall,
-  ParseError
+  ParseError,
   Message(String),
 }
 
@@ -280,7 +281,7 @@ impl Program {
             ingredients: Some(vec![expr]),
             source_file: expr.debug_data.source_file,
             span: expr.debug_data.span,
-          }
+          },
         })
       }
       ExprKind::Fn(_) => Ok(()),
