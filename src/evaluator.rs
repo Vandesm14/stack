@@ -9,7 +9,7 @@ use core::{fmt, iter};
 use std::{collections::HashMap, time::SystemTime};
 
 #[derive(Debug, Clone)]
-pub struct LoadedFile {
+pub struct SourceFile {
   pub contents: Spur,
   pub mtime: SystemTime,
 }
@@ -19,8 +19,8 @@ pub struct Program {
   pub stack: Vec<Expr>,
   pub scopes: Vec<Scope>,
   pub funcs: HashMap<Spur, Func>,
-  pub loaded_files: HashMap<String, LoadedFile>,
-  pub debug_trace: Option<Vec<Expr>>,
+  pub sources: HashMap<String, SourceFile>,
+  pub debug: bool,
 }
 
 impl Default for Program {
@@ -44,10 +44,6 @@ impl fmt::Display for Program {
     write!(f, "]")?;
 
     writeln!(f,)?;
-
-    if let Some(trace) = &self.debug_trace {
-      writeln!(f, "Trace:\n  {}", trace.iter().rev().take(20).join("\n  "))?;
-    }
 
     if !self.scopes.is_empty() {
       writeln!(f, "Scope:")?;
@@ -108,8 +104,8 @@ impl Program {
       stack: vec![],
       scopes: vec![Scope::new()],
       funcs: HashMap::new(),
-      loaded_files: HashMap::new(),
-      debug_trace: None,
+      sources: HashMap::new(),
+      debug: false,
     }
   }
 
@@ -127,12 +123,12 @@ impl Program {
   }
 
   pub fn with_debug(mut self) -> Self {
-    self.debug_trace = Some(vec![]);
+    self.debug = true;
     self
   }
 
   pub fn loaded_files(&self) -> impl Iterator<Item = &str> {
-    self.loaded_files.keys().map(|s| s.as_str())
+    self.sources.keys().map(|s| s.as_str())
   }
 
   pub fn pop(&mut self, trace_expr: &Expr) -> Result<Expr, EvalError> {
@@ -281,10 +277,6 @@ impl Program {
   }
 
   pub fn eval_expr(&mut self, expr: Expr) -> Result<(), EvalError> {
-    if let Some(trace) = &mut self.debug_trace {
-      trace.push(expr.clone());
-    }
-
     match expr.clone().val {
       ExprKind::Call(call) => self.eval_call(&expr, call),
       ExprKind::Lazy(block) => self.push(*block),
@@ -324,13 +316,16 @@ impl Program {
     let mut clone = self.clone();
     let result = exprs.into_iter().try_for_each(|expr| clone.eval_expr(expr));
 
-    self.loaded_files = clone.loaded_files;
+    self.sources = clone.sources;
 
+    // TODO: Why tf are we doing this again? This is so dumb and I hate that I made it work like this.
+    // We need to figure out a better way of reverting the state after an error instead of conditionally
+    // assigning if there isn't an error
     match result {
       Ok(x) => {
         self.stack = clone.stack;
         self.scopes = clone.scopes;
-        self.debug_trace = clone.debug_trace;
+        self.debug = clone.debug;
 
         Ok(x)
       }

@@ -1,7 +1,8 @@
+use lasso::Spur;
 use thiserror::Error;
 
 use crate::{
-  Expr, ExprKind, FnSymbol, Lexer, Scope, Span, TokenKind, TokenVec,
+  DebugData, Expr, ExprKind, FnSymbol, Lexer, Scope, Span, TokenKind, TokenVec,
 };
 
 /// Converts a stream of [`Token`]s into a stream of [`Expr`]s.
@@ -9,6 +10,7 @@ use crate::{
 /// [`Token`]: crate::Token
 #[derive(Debug, Clone, PartialEq)]
 pub struct Parser<'source> {
+  filename: Spur,
   tokens: TokenVec<'source>,
   cursor: usize,
 }
@@ -18,8 +20,9 @@ impl<'source> Parser<'source> {
   ///
   /// Prefer [`Parser::reuse`] where possible.
   #[inline]
-  pub const fn new(lexer: Lexer<'source>) -> Self {
+  pub const fn new(lexer: Lexer<'source>, filename: Spur) -> Self {
     Self {
+      filename,
       tokens: TokenVec::new(lexer),
       cursor: 0,
     }
@@ -74,26 +77,53 @@ impl<'source> Parser<'source> {
         }
 
         TokenKind::Boolean(x) => {
-          break Ok(Some(ExprKind::Boolean(x).into_expr()));
+          break Ok(Some(ExprKind::Boolean(x).into_expr(DebugData {
+            source_file: self.filename,
+            span: token.span,
+            ingredients: None,
+          })));
         }
         TokenKind::Integer(x) => {
-          break Ok(Some(ExprKind::Integer(x).into_expr()));
+          break Ok(Some(ExprKind::Integer(x).into_expr(DebugData {
+            source_file: self.filename,
+            span: token.span,
+            ingredients: None,
+          })));
         }
         TokenKind::Float(x) => {
-          break Ok(Some(ExprKind::Float(x).into_expr()));
+          break Ok(Some(ExprKind::Float(x).into_expr(DebugData {
+            source_file: self.filename,
+            span: token.span,
+            ingredients: None,
+          })));
         }
         TokenKind::String(x) => {
-          break Ok(Some(ExprKind::String(x).into_expr()));
+          break Ok(Some(ExprKind::String(x).into_expr(DebugData {
+            source_file: self.filename,
+            span: token.span,
+            ingredients: None,
+          })));
         }
 
         TokenKind::Ident(x) => {
-          break Ok(Some(ExprKind::Call(x).into_expr()));
+          break Ok(Some(ExprKind::Call(x).into_expr(DebugData {
+            source_file: self.filename,
+            span: token.span,
+            ingredients: None,
+          })));
         }
 
         TokenKind::Apostrophe => {
           break match self.next() {
             Ok(Some(expr)) => {
-              Ok(Some(ExprKind::Lazy(Box::new(expr)).into_expr()))
+              Ok(Some(ExprKind::Lazy(Box::new(expr)).into_expr(DebugData {
+                source_file: self.filename,
+                span: Span {
+                  start: token.span.start,
+                  end: expr.debug_data.span.end,
+                },
+                ingredients: None,
+              })))
             }
             Ok(None) => Err(ParseError {
               reason: ParseErrorReason::UnexpectedToken { kind: token.kind },
@@ -115,7 +145,17 @@ impl<'source> Parser<'source> {
               }
               TokenKind::ParenClose => {
                 self.cursor += 1;
-                break Ok(Some(ExprKind::List(list).into_expr()));
+                break Ok(Some(ExprKind::List(list).into_expr(DebugData {
+                  source_file: self.filename,
+                  span: Span {
+                    start: match list.first() {
+                      Some(expr) => expr.debug_data.span.start,
+                      None => token.span.start,
+                    } - 1,
+                    end: token.span.end,
+                  },
+                  ingredients: None,
+                })));
               }
               _ => match self.next()? {
                 Some(expr) => list.push(expr),
@@ -136,7 +176,11 @@ impl<'source> Parser<'source> {
         //   continue;
         // }
         TokenKind::Nil => {
-          break Ok(Some(ExprKind::Nil.into_expr()));
+          break Ok(Some(ExprKind::Nil.into_expr(DebugData {
+            source_file: self.filename,
+            span: token.span,
+            ingredients: None,
+          })));
         }
         TokenKind::Fn => {
           break Ok(Some(
@@ -144,7 +188,11 @@ impl<'source> Parser<'source> {
               scoped: true,
               scope: Scope::new(),
             })
-            .into_expr(),
+            .into_expr(DebugData {
+              source_file: self.filename,
+              span: token.span,
+              ingredients: None,
+            }),
           ));
         }
         TokenKind::FnExclamation => {
@@ -153,7 +201,11 @@ impl<'source> Parser<'source> {
               scoped: false,
               scope: Scope::new(),
             })
-            .into_expr(),
+            .into_expr(DebugData {
+              source_file: self.filename,
+              span: token.span,
+              ingredients: None,
+            }),
           ));
         }
       }

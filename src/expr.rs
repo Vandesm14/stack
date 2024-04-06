@@ -1,7 +1,7 @@
 use core::{
   any::Any, cell::RefCell, cmp::Ordering, fmt, iter, num::FpCategory,
 };
-use std::rc::Rc;
+use std::{fmt::Debug, rc::Rc};
 
 use lasso::Spur;
 
@@ -197,8 +197,11 @@ impl ExprKind {
     }
   }
 
-  pub fn into_expr(self) -> Expr {
-    self.into()
+  pub fn into_expr(self, debug_data: DebugData) -> Expr {
+    Expr {
+      val: self,
+      debug_data,
+    }
   }
 
   // TODO: These might make more sense as intrinsics, since they might be too
@@ -372,24 +375,22 @@ impl fmt::Display for ExprKind {
   }
 }
 
+#[derive(Debug, Clone, PartialEq, PartialOrd)]
+pub struct DebugData {
+  pub source_file: Spur,
+  pub span: Span,
+  pub ingredients: Option<Vec<Expr>>,
+}
+
 #[derive(Debug, Clone)]
 pub struct Expr {
   pub val: ExprKind,
-  pub span: Option<Span>,
+  pub debug_data: DebugData,
 }
 
 impl fmt::Display for Expr {
   fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
     write!(f, "{}", self.val)
-  }
-}
-
-impl From<ExprKind> for Expr {
-  fn from(value: ExprKind) -> Self {
-    Expr {
-      val: value,
-      span: None,
-    }
   }
 }
 
@@ -401,7 +402,7 @@ impl From<Expr> for ExprKind {
 
 impl PartialEq for Expr {
   fn eq(&self, other: &Self) -> bool {
-    self.val == other.val && self.span == other.span
+    self == other
   }
 }
 
