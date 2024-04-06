@@ -286,8 +286,8 @@ impl Program {
 
   /// Makes decisions for how to evaluate a symbol (calls) such as
   /// - Running an intrinsic
-  /// - Running a function's code
-  /// - Calling through [`Self::auto_call`]
+  /// - Getting the value from the scope
+  /// - Calling functions through [`Self::auto_call`]
   fn eval_symbol(
     &mut self,
     trace_expr: &Expr,
@@ -313,6 +313,10 @@ impl Program {
     }
   }
 
+  /// Evaluates an expression and makes decisions on how to evaluate it
+  /// - Lazy expressions don't get evaluated
+  /// - Lists get evaluated in order
+  /// - Calls get run through [`Self::eval_symbol`]
   pub fn eval_expr(&mut self, expr: Expr) -> Result<(), EvalError> {
     match expr.clone().val {
       ExprKind::Call(call) => self.eval_symbol(&expr, call),
@@ -343,6 +347,7 @@ impl Program {
     }
   }
 
+  /// Lexes, Parses, and Evaluates a string
   pub fn eval_string(&mut self, line: &str) -> Result<(), EvalError> {
     let lexer = Lexer::new(line);
     let parser = Parser::new(lexer, interner().get_or_intern("internal"));
@@ -355,6 +360,7 @@ impl Program {
     self.eval(exprs)
   }
 
+  /// Evaluates a vec of expressions
   pub fn eval(&mut self, exprs: Vec<Expr>) -> Result<(), EvalError> {
     let mut clone = self.clone();
     let result = exprs.into_iter().try_for_each(|expr| clone.eval_expr(expr));
