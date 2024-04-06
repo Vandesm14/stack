@@ -1,4 +1,4 @@
-use crate::{interner::interner, EvalError, Expr, Program};
+use crate::{interner::interner, EvalError, Expr, ExprKind, Program};
 
 pub fn module(program: &mut Program) -> Result<(), EvalError> {
   program.funcs.insert(
@@ -7,7 +7,10 @@ pub fn module(program: &mut Program) -> Result<(), EvalError> {
       let rhs = program.pop(trace_expr)?;
       let lhs = program.pop(trace_expr)?;
 
-      program.push(Expr::Boolean(lhs.is_truthy() || rhs.is_truthy()))
+      program.push(
+        ExprKind::Boolean(lhs.val.is_truthy() || rhs.val.is_truthy())
+          .into_expr(),
+      )
     },
   );
 
@@ -17,7 +20,10 @@ pub fn module(program: &mut Program) -> Result<(), EvalError> {
       let rhs = program.pop(trace_expr)?;
       let lhs = program.pop(trace_expr)?;
 
-      program.push(Expr::Boolean(lhs.is_truthy() && rhs.is_truthy()))
+      program.push(
+        ExprKind::Boolean(lhs.val.is_truthy() && rhs.val.is_truthy())
+          .into_expr(),
+      )
     },
   );
 

@@ -1,11 +1,11 @@
-use crate::{interner::interner, EvalError, Expr, Program, Type};
+use crate::{interner::interner, EvalError, Expr, ExprKind, Program, Type};
 
 pub fn module(program: &mut Program) -> Result<(), EvalError> {
   program.funcs.insert(
     interner().get_or_intern_static("collect"),
     |program, _| {
       let list = core::mem::take(&mut program.stack);
-      program.push(Expr::List(list))
+      program.push(ExprKind::List(list).into_expr())
     },
   );
 
@@ -63,7 +63,7 @@ pub fn module(program: &mut Program) -> Result<(), EvalError> {
     interner().get_or_intern_static("lazy"),
     |program, trace_expr| {
       let item = program.pop(trace_expr)?;
-      program.push(Expr::Lazy(Box::new(item)))
+      program.push(ExprKind::Lazy(Box::new(item)).into_expr())
     },
   );
 
@@ -72,12 +72,12 @@ pub fn module(program: &mut Program) -> Result<(), EvalError> {
     |program, trace_expr| {
       let item = program.pop(trace_expr)?;
 
-      match item {
-        call @ Expr::Call(_) => program.eval_expr(call),
+      match item.val {
+        call @ ExprKind::Call(_) => program.eval_expr(call.into_expr()),
         // This is where auto-call is defined and functions are evaluated when
         // they are called via an identifier
         // TODO: Get this working again.
-        item @ Expr::List(_) => match item.is_function() {
+        item @ ExprKind::List(_) => match item.is_function() {
           true => {
             let fn_symbol = item.fn_symbol().unwrap();
             let fn_body = item.fn_body().unwrap();
@@ -97,7 +97,7 @@ pub fn module(program: &mut Program) -> Result<(), EvalError> {
             }
           }
           false => {
-            let Expr::List(list) = item else {
+            let ExprKind::List(list) = item else {
               unreachable!()
             };
             program.eval(list)
@@ -112,7 +112,7 @@ pub fn module(program: &mut Program) -> Result<(), EvalError> {
               Type::Call,
               Type::List(vec![Type::FnScope, Type::Any])
             ]),
-            item.type_of(),
+            item.val.type_of(),
           ),
         }),
       }
@@ -138,21 +138,27 @@ mod tests {
   fn dropping_from_stack() {
     let mut program = Program::new().with_core().unwrap();
     program.eval_string("1 2 drop").unwrap();
-    assert_eq!(program.stack, vec![Expr::Integer(1)]);
+    assert_eq!(program.stack, vec![ExprKind::Integer(1)]);
   }
 
   #[test]
   fn duplicating() {
     let mut program = Program::new().with_core().unwrap();
     program.eval_string("1 dup").unwrap();
-    assert_eq!(program.stack, vec![Expr::Integer(1), Expr::Integer(1)]);
+    assert_eq!(
+      program.stack,
+      vec![ExprKind::Integer(1), ExprKind::Integer(1)]
+    );
   }
 
   #[test]
   fn swapping() {
     let mut program = Program::new().with_core().unwrap();
     program.eval_string("1 2 swap").unwrap();
-    assert_eq!(program.stack, vec![Expr::Integer(2), Expr::Integer(1)]);
+    assert_eq!(
+      program.stack,
+      vec![ExprKind::Integer(2), ExprKind::Integer(1)]
+    );
   }
 
   #[test]
@@ -161,7 +167,11 @@ mod tests {
     program.eval_string("1 2 3 rot").unwrap();
     assert_eq!(
       program.stack,
-      vec![Expr::Integer(3), Expr::Integer(1), Expr::Integer(2)]
+      vec![
+        ExprKind::Integer(3),
+        ExprKind::Integer(1),
+        ExprKind::Integer(2)
+      ]
     );
   }
 
@@ -171,10 +181,10 @@ mod tests {
     program.eval_string("1 2 3 collect").unwrap();
     assert_eq!(
       program.stack,
-      vec![Expr::List(vec![
-        Expr::Integer(1),
-        Expr::Integer(2),
-        Expr::Integer(3)
+      vec![ExprKind::List(vec![
+        ExprKind::Integer(1),
+        ExprKind::Integer(2),
+        ExprKind::Integer(3)
       ])]
     );
   }
@@ -188,7 +198,11 @@ mod tests {
 
     assert_eq!(
       program.stack,
-      vec![Expr::Integer(1), Expr::Integer(2), Expr::Integer(3)]
+      vec![
+        ExprKind::Integer(1),
+        ExprKind::Integer(2),
+        ExprKind::Integer(3)
+      ]
     );
 
     let a = program
@@ -200,7 +214,11 @@ mod tests {
 
     assert_eq!(
       a,
-      Expr::List(vec![Expr::Integer(1), Expr::Integer(2), Expr::Integer(3)])
+      ExprKind::List(vec![
+        ExprKind::Integer(1),
+        ExprKind::Integer(2),
+        ExprKind::Integer(3)
+      ])
     );
   }
 }

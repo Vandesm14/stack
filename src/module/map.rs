@@ -3,16 +3,16 @@ use std::{collections::HashMap, rc::Rc};
 
 use lasso::Spur;
 
-use crate::{interner::interner, EvalError, Expr, Program};
+use crate::{interner::interner, EvalError, Expr, ExprKind, Program};
 
 pub fn module(program: &mut Program) -> Result<(), EvalError> {
   program.funcs.insert(
     interner().get_or_intern_static("map/new"),
     |program, _| {
-      program
-        .push(Expr::UserData(Rc::new(RefCell::new(
-          HashMap::<Spur, Expr>::new(),
-        ))))?;
+      program.push(
+        ExprKind::UserData(Rc::new(RefCell::new(HashMap::<Spur, Expr>::new())))
+          .into_expr(),
+      )?;
       Ok(())
     },
   );
@@ -26,11 +26,11 @@ pub fn module(program: &mut Program) -> Result<(), EvalError> {
 
       program.push(map.clone())?;
 
-      match map {
-        Expr::UserData(map) => {
+      match map.val {
+        ExprKind::UserData(map) => {
           match map.borrow_mut().downcast_mut::<HashMap<Spur, Expr>>() {
-            Some(map) => match key {
-              Expr::Call(key) | Expr::String(key) => {
+            Some(map) => match key.val {
+              ExprKind::Call(key) | ExprKind::String(key) => {
                 map.insert(key, item);
               }
               found => {
@@ -74,11 +74,11 @@ pub fn module(program: &mut Program) -> Result<(), EvalError> {
 
       program.push(map.clone())?;
 
-      match map {
-        Expr::UserData(map) => {
+      match map.val {
+        ExprKind::UserData(map) => {
           match map.borrow_mut().downcast_mut::<HashMap<Spur, Expr>>() {
-            Some(map) => match key {
-              Expr::Call(ref key) | Expr::String(ref key) => {
+            Some(map) => match key.val {
+              ExprKind::Call(ref key) | ExprKind::String(ref key) => {
                 map.remove(key);
               }
               found => {
@@ -122,12 +122,14 @@ pub fn module(program: &mut Program) -> Result<(), EvalError> {
 
       program.push(map.clone())?;
 
-      match map {
-        Expr::UserData(map) => {
+      match map.val {
+        ExprKind::UserData(map) => {
           match map.borrow().downcast_ref::<HashMap<Spur, Expr>>() {
-            Some(map) => match key {
-              Expr::Call(ref key) | Expr::String(ref key) => {
-                program.push(map.get(key).cloned().unwrap_or(Expr::Nil))?;
+            Some(map) => match key.val {
+              ExprKind::Call(ref key) | ExprKind::String(ref key) => {
+                program.push(
+                  map.get(key).cloned().unwrap_or(ExprKind::Nil.into_expr()),
+                )?;
               }
               found => {
                 return Err(EvalError {

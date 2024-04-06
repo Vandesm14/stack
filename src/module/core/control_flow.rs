@@ -1,4 +1,4 @@
-use crate::{interner::interner, EvalError, Expr, Program, Type};
+use crate::{interner::interner, EvalError, Expr, ExprKind, Program, Type};
 
 pub fn module(program: &mut Program) -> Result<(), EvalError> {
   program.funcs.insert(
@@ -8,12 +8,16 @@ pub fn module(program: &mut Program) -> Result<(), EvalError> {
       let then = program.pop(trace_expr)?;
       let r#else = program.pop(trace_expr)?;
 
-      match (cond, then, r#else) {
-        (Expr::List(cond), Expr::List(then), Expr::List(r#else)) => {
+      match (cond.val, then.val, r#else.val) {
+        (
+          ExprKind::List(cond),
+          ExprKind::List(then),
+          ExprKind::List(r#else),
+        ) => {
           program.eval(cond)?;
           let cond = program.pop(trace_expr)?;
 
-          if cond.is_truthy() {
+          if cond.val.is_truthy() {
             program.eval(then)
           } else {
             program.eval(r#else)
@@ -43,12 +47,12 @@ pub fn module(program: &mut Program) -> Result<(), EvalError> {
       let cond = program.pop(trace_expr)?;
       let then = program.pop(trace_expr)?;
 
-      match (cond, then) {
-        (Expr::List(cond), Expr::List(then)) => {
+      match (cond.val, then.val) {
+        (ExprKind::List(cond), ExprKind::List(then)) => {
           program.eval(cond)?;
           let cond = program.pop(trace_expr)?;
 
-          if cond.is_truthy() {
+          if cond.val.is_truthy() {
             program.eval(then)
           } else {
             Ok(())
@@ -69,7 +73,7 @@ pub fn module(program: &mut Program) -> Result<(), EvalError> {
         }),
       }
 
-      // program.push(Expr::List(vec![]));
+      // program.push(ExprKind::List(vec![]));
       // program.eval_intrinsic(trace_expr, Intrinsic::IfElse)
     },
   );
@@ -80,12 +84,12 @@ pub fn module(program: &mut Program) -> Result<(), EvalError> {
       let cond = program.pop(trace_expr)?;
       let block = program.pop(trace_expr)?;
 
-      match (cond, block) {
-        (Expr::List(cond), Expr::List(block)) => loop {
+      match (cond.val, block.val) {
+        (ExprKind::List(cond), ExprKind::List(block)) => loop {
           program.eval(cond.clone())?;
           let cond = program.pop(trace_expr)?;
 
-          if cond.is_truthy() {
+          if cond.val.is_truthy() {
             program.eval(block.clone())?;
           } else {
             break Ok(());

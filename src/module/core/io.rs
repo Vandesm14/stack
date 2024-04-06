@@ -1,4 +1,6 @@
-use crate::{interner::interner, EvalError, Expr, LoadedFile, Program, Type};
+use crate::{
+  interner::interner, EvalError, Expr, ExprKind, LoadedFile, Program, Type,
+};
 
 pub fn module(program: &mut Program) -> Result<(), EvalError> {
   program.funcs.insert(
@@ -6,8 +8,8 @@ pub fn module(program: &mut Program) -> Result<(), EvalError> {
     |program, trace_expr| {
       let item = program.pop(trace_expr)?;
 
-      match item {
-        Expr::String(path) => {
+      match item.val {
+        ExprKind::String(path) => {
           let path_str = interner().resolve(&path);
           let file_is_newer =
             if let Some(loaded_file) = program.loaded_files.get(path_str) {
@@ -32,7 +34,7 @@ pub fn module(program: &mut Program) -> Result<(), EvalError> {
                       .unwrap(),
                   },
                 );
-                program.push(Expr::String(content))
+                program.push(ExprKind::String(content).into_expr())
               }
               Err(e) => Err(EvalError {
                 expr: trace_expr.clone(),
@@ -42,7 +44,7 @@ pub fn module(program: &mut Program) -> Result<(), EvalError> {
             }
           } else {
             let contents = program.loaded_files.get(path_str).unwrap().contents;
-            program.push(Expr::String(contents))
+            program.push(ExprKind::String(contents).into_expr())
           }
         }
         _ => Err(EvalError {
@@ -51,7 +53,7 @@ pub fn module(program: &mut Program) -> Result<(), EvalError> {
           message: format!(
             "expected {}, found {}",
             Type::String,
-            item.type_of(),
+            item.val.type_of(),
           ),
         }),
       }

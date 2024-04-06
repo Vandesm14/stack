@@ -1,8 +1,8 @@
 use std::iter;
 
-use itertools::Itertools as _;
+use itertools::Itertools;
 
-use crate::{interner::interner, EvalError, Expr, Program, Type};
+use crate::{interner::interner, EvalError, Expr, ExprKind, Program, Type};
 
 pub fn module(program: &mut Program) -> Result<(), EvalError> {
   program.funcs.insert(
@@ -14,12 +14,12 @@ pub fn module(program: &mut Program) -> Result<(), EvalError> {
         message: "Stack underflow".into(),
       })?;
 
-      match list {
-        Expr::List(list) => match i64::try_from(list.len()) {
-          Ok(i) => program.push(Expr::Integer(i)),
-          Err(_) => program.push(Expr::Nil),
+      match list.val {
+        ExprKind::List(list) => match i64::try_from(list.len()) {
+          Ok(i) => program.push(ExprKind::Integer(i).into_expr()),
+          Err(_) => program.push(ExprKind::Nil.into_expr()),
         },
-        _ => program.push(Expr::Nil),
+        _ => program.push(ExprKind::Nil.into_expr()),
       }
     },
   );
@@ -34,17 +34,16 @@ pub fn module(program: &mut Program) -> Result<(), EvalError> {
         message: "Stack underflow".into(),
       })?;
 
-      match index {
-        Expr::Integer(index) => match usize::try_from(index) {
-          Ok(i) => match list {
-            Expr::List(list) => {
-              program.push(list.get(i).cloned().unwrap_or(Expr::Nil))
-            }
-            _ => program.push(Expr::Nil),
+      match index.val {
+        ExprKind::Integer(index) => match usize::try_from(index) {
+          Ok(i) => match list.val {
+            ExprKind::List(list) => program
+              .push(list.get(i).cloned().unwrap_or(ExprKind::Nil.into_expr())),
+            _ => program.push(ExprKind::Nil.into_expr()),
           },
-          Err(_) => program.push(Expr::Nil),
+          Err(_) => program.push(ExprKind::Nil.into_expr()),
         },
-        _ => program.push(Expr::Nil),
+        _ => program.push(ExprKind::Nil.into_expr()),
       }
     },
   );
@@ -55,23 +54,23 @@ pub fn module(program: &mut Program) -> Result<(), EvalError> {
       let index = program.pop(trace_expr)?;
       let list = program.pop(trace_expr)?;
 
-      match index {
-        Expr::Integer(index) => match usize::try_from(index) {
-          Ok(i) => match list {
-            Expr::List(mut list) => {
+      match index.val {
+        ExprKind::Integer(index) => match usize::try_from(index) {
+          Ok(i) => match list.val {
+            ExprKind::List(mut list) => {
               if i <= list.len() {
                 let rest = list.split_off(i);
-                program.push(Expr::List(list))?;
-                program.push(Expr::List(rest))
+                program.push(ExprKind::List(list).into_expr())?;
+                program.push(ExprKind::List(rest).into_expr())
               } else {
-                program.push(Expr::Nil)
+                program.push(ExprKind::Nil.into_expr())
               }
             }
-            _ => program.push(Expr::Nil),
+            _ => program.push(ExprKind::Nil.into_expr()),
           },
-          Err(_) => program.push(Expr::Nil),
+          Err(_) => program.push(ExprKind::Nil.into_expr()),
         },
-        _ => program.push(Expr::Nil),
+        _ => program.push(ExprKind::Nil.into_expr()),
       }
     },
   );
@@ -82,19 +81,21 @@ pub fn module(program: &mut Program) -> Result<(), EvalError> {
       let delimiter = program.pop(trace_expr)?;
       let list = program.pop(trace_expr)?;
 
-      match (delimiter, list) {
-        (Expr::String(delimiter), Expr::List(list)) => {
+      match (delimiter.val, list.val) {
+        (ExprKind::String(delimiter), ExprKind::List(list)) => {
           let delimiter_str = interner().resolve(&delimiter);
 
           let string = list
             .into_iter()
-            .map(|expr| match expr {
-              Expr::String(string) => interner().resolve(&string).to_string(),
-              _ => expr.to_string(),
+            .map(|expr| match expr.val {
+              ExprKind::String(string) => {
+                interner().resolve(&string).to_string()
+              }
+              expr_kind => expr_kind.to_string(),
             })
             .join(delimiter_str);
-          let string = Expr::String(interner().get_or_intern(string));
-          program.push(string)
+          let string = ExprKind::String(interner().get_or_intern(string));
+          program.push(string.into_expr())
         }
         (delimiter, list) => Err(EvalError {
           expr: trace_expr.clone(),
@@ -115,12 +116,12 @@ pub fn module(program: &mut Program) -> Result<(), EvalError> {
       let list_rhs = program.pop(trace_expr)?;
       let list_lhs = program.pop(trace_expr)?;
 
-      match (list_lhs, list_rhs) {
-        (Expr::List(mut list_lhs), Expr::List(list_rhs)) => {
+      match (list_lhs.val, list_rhs.val) {
+        (ExprKind::List(mut list_lhs), ExprKind::List(list_rhs)) => {
           list_lhs.extend(list_rhs);
-          program.push(Expr::List(list_lhs))
+          program.push(ExprKind::List(list_lhs).into_expr())
         }
-        _ => program.push(Expr::Nil),
+        _ => program.push(ExprKind::Nil.into_expr()),
       }
     },
   );
@@ -130,12 +131,12 @@ pub fn module(program: &mut Program) -> Result<(), EvalError> {
     |program, trace_expr| {
       let list = program.pop(trace_expr)?;
 
-      match list {
-        Expr::List(list) => {
+      match list.val {
+        ExprKind::List(list) => {
           program.stack.extend(list);
           Ok(())
         }
-        list => program.push(list),
+        list => program.push(list.into_expr()),
       }
     },
   );
@@ -144,7 +145,7 @@ pub fn module(program: &mut Program) -> Result<(), EvalError> {
     interner().get_or_intern_static("wrap"),
     |program, trace_expr| {
       let any = program.pop(trace_expr)?;
-      program.push(Expr::List(vec![any]))
+      program.push(ExprKind::List(vec![any]).into_expr())
     },
   );
 
@@ -153,8 +154,8 @@ pub fn module(program: &mut Program) -> Result<(), EvalError> {
     |program, trace_expr| {
       let item = program.pop(trace_expr)?;
 
-      match item.clone() {
-        Expr::List(list) => {
+      match item.val {
+        ExprKind::List(list) => {
           let stack_len = program.stack.len();
 
           program.eval(list)?;
@@ -166,7 +167,7 @@ pub fn module(program: &mut Program) -> Result<(), EvalError> {
             .collect::<Vec<_>>();
           list.reverse();
 
-          program.push(Expr::List(list))
+          program.push(ExprKind::List(list).into_expr())
         }
         _ => Err(EvalError {
           expr: trace_expr.clone(),
@@ -174,7 +175,7 @@ pub fn module(program: &mut Program) -> Result<(), EvalError> {
           message: format!(
             "expected {}, found {}",
             Type::List(vec![Type::FnScope, Type::Any]),
-            item.type_of(),
+            item.val.type_of(),
           ),
         }),
       }
@@ -194,11 +195,11 @@ mod tests {
     program.eval_string("(1 2) (3 \"4\") concat").unwrap();
     assert_eq!(
       program.stack,
-      vec![Expr::List(vec![
-        Expr::Integer(1),
-        Expr::Integer(2),
-        Expr::Integer(3),
-        Expr::String(interner().get_or_intern_static("4"))
+      vec![ExprKind::List(vec![
+        ExprKind::Integer(1),
+        ExprKind::Integer(2),
+        ExprKind::Integer(3),
+        ExprKind::String(interner().get_or_intern_static("4"))
       ])]
     );
   }
@@ -209,10 +210,10 @@ mod tests {
     program.eval_string("(1 2) ('+) concat").unwrap();
     assert_eq!(
       program.stack,
-      vec![Expr::List(vec![
-        Expr::Integer(1),
-        Expr::Integer(2),
-        Expr::Call(interner().get_or_intern_static("+"))
+      vec![ExprKind::List(vec![
+        ExprKind::Integer(1),
+        ExprKind::Integer(2),
+        ExprKind::Call(interner().get_or_intern_static("+"))
       ])]
     );
   }
@@ -224,8 +225,12 @@ mod tests {
     assert_eq!(
       program.stack,
       vec![
-        Expr::List(vec![Expr::Integer(1), Expr::Integer(2), Expr::Integer(3)]),
-        Expr::Integer(3)
+        ExprKind::List(vec![
+          ExprKind::Integer(1),
+          ExprKind::Integer(2),
+          ExprKind::Integer(3)
+        ]),
+        ExprKind::Integer(3)
       ]
     );
   }
@@ -237,8 +242,12 @@ mod tests {
     assert_eq!(
       program.stack,
       vec![
-        Expr::List(vec![Expr::Integer(1), Expr::Integer(2), Expr::Integer(3)]),
-        Expr::Integer(2)
+        ExprKind::List(vec![
+          ExprKind::Integer(1),
+          ExprKind::Integer(2),
+          ExprKind::Integer(3)
+        ]),
+        ExprKind::Integer(2)
       ]
     );
   }
@@ -247,13 +256,16 @@ mod tests {
   fn calling_lists() {
     let mut program = Program::new().with_core().unwrap();
     program.eval_string("'(2 2 +) call").unwrap();
-    assert_eq!(program.stack, vec![Expr::Integer(4)]);
+    assert_eq!(program.stack, vec![ExprKind::Integer(4)]);
   }
 
   #[test]
   fn calling_lists_special() {
     let mut program = Program::new().with_core().unwrap();
     program.eval_string("'(2 2 +) call-list").unwrap();
-    assert_eq!(program.stack, vec![Expr::List(vec![Expr::Integer(4)])]);
+    assert_eq!(
+      program.stack,
+      vec![ExprKind::List(vec![ExprKind::Integer(4)])]
+    );
   }
 }

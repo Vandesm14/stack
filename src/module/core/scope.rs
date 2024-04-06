@@ -1,4 +1,4 @@
-use crate::{interner::interner, EvalError, Expr, Program, Type};
+use crate::{interner::interner, EvalError, Expr, ExprKind, Program, Type};
 
 pub fn module(program: &mut Program) -> Result<(), EvalError> {
   program.funcs.insert(
@@ -7,8 +7,8 @@ pub fn module(program: &mut Program) -> Result<(), EvalError> {
       let key = program.pop(trace_expr)?;
       let val = program.pop(trace_expr)?;
 
-      match key {
-        Expr::Call(ref key) => match program.funcs.contains_key(key) {
+      match key.val {
+        ExprKind::Call(ref key) => match program.funcs.contains_key(key) {
           true => Err(EvalError {
             expr: trace_expr.clone(),
             program: program.clone(),
@@ -31,7 +31,7 @@ pub fn module(program: &mut Program) -> Result<(), EvalError> {
               Type::Any,
               Type::Call,
             ]),
-            Type::List(vec![val.type_of(), key.type_of(),]),
+            Type::List(vec![val.val.type_of(), key.type_of(),]),
           ),
         }),
       }
@@ -43,8 +43,8 @@ pub fn module(program: &mut Program) -> Result<(), EvalError> {
     |program, trace_expr| {
       let item = program.pop(trace_expr)?;
 
-      match item {
-        Expr::Call(key) => {
+      match item.val {
+        ExprKind::Call(key) => {
           let key_str = interner().resolve(&key).to_owned();
           match program.remove_scope_item(&key_str) {
             Ok(_) => Ok(()),
@@ -70,8 +70,8 @@ pub fn module(program: &mut Program) -> Result<(), EvalError> {
       let key = program.pop(trace_expr)?;
       let val = program.pop(trace_expr)?;
 
-      match key {
-        Expr::Call(ref key) => match program.funcs.contains_key(key) {
+      match key.val {
+        ExprKind::Call(ref key) => match program.funcs.contains_key(key) {
           true => Err(EvalError {
             expr: trace_expr.clone(),
             program: program.clone(),
@@ -94,7 +94,7 @@ pub fn module(program: &mut Program) -> Result<(), EvalError> {
               Type::Any,
               Type::Call,
             ]),
-            Type::List(vec![val.type_of(), key.type_of(),]),
+            Type::List(vec![val.val.type_of(), key.type_of(),]),
           ),
         }),
       }
@@ -106,8 +106,8 @@ pub fn module(program: &mut Program) -> Result<(), EvalError> {
     |program, trace_expr| {
       let item = program.pop(trace_expr)?;
 
-      match item {
-        Expr::Call(ref key) => {
+      match item.val {
+        ExprKind::Call(ref key) => {
           if let Some(func) = program.funcs.get(key) {
             func(program, trace_expr)
           } else {
@@ -115,7 +115,7 @@ pub fn module(program: &mut Program) -> Result<(), EvalError> {
 
             // Always push something, otherwise it can get tricky to manage the
             // stack in-langauge.
-            program.push(program.scope_item(key_str).unwrap_or(Expr::Nil))
+            program.push(program.scope_item(key_str).unwrap_or(ExprKind::Nil.into_expr()))
           }
         }
         item => Err(EvalError {
@@ -153,21 +153,21 @@ mod tests {
       .get_val(interner().get_or_intern("a"))
       .unwrap();
 
-    assert_eq!(a, Expr::Integer(1));
+    assert_eq!(a, ExprKind::Integer(1));
   }
 
   #[test]
   fn retrieving_variables() {
     let mut program = Program::new().with_core().unwrap();
     program.eval_string("1 'a def a").unwrap();
-    assert_eq!(program.stack, vec![Expr::Integer(1)]);
+    assert_eq!(program.stack, vec![ExprKind::Integer(1)]);
   }
 
   #[test]
   fn evaluating_variables() {
     let mut program = Program::new().with_core().unwrap();
     program.eval_string("1 'a def a 2 +").unwrap();
-    assert_eq!(program.stack, vec![Expr::Integer(3)]);
+    assert_eq!(program.stack, vec![ExprKind::Integer(3)]);
   }
 
   #[test]
@@ -186,7 +186,7 @@ mod tests {
     program
       .eval_string("'(fn 1 2 +) 'is-three def is-three")
       .unwrap();
-    assert_eq!(program.stack, vec![Expr::Integer(3)]);
+    assert_eq!(program.stack, vec![ExprKind::Integer(3)]);
   }
 
   #[test]
@@ -197,10 +197,10 @@ mod tests {
       .unwrap();
     assert_eq!(
       program.stack,
-      vec![Expr::List(vec![
-        Expr::Integer(1),
-        Expr::Integer(2),
-        Expr::Call(interner().get_or_intern_static("+"))
+      vec![ExprKind::List(vec![
+        ExprKind::Integer(1),
+        ExprKind::Integer(2),
+        ExprKind::Call(interner().get_or_intern_static("+"))
       ])]
     );
   }
@@ -213,14 +213,14 @@ mod tests {
       .unwrap();
     assert_eq!(
       program.stack,
-      vec![Expr::List(vec![
-        Expr::Fn(FnSymbol {
+      vec![ExprKind::List(vec![
+        ExprKind::Fn(FnSymbol {
           scoped: true,
           scope: Scope::new(),
         }),
-        Expr::Integer(1),
-        Expr::Integer(2),
-        Expr::Call(interner().get_or_intern_static("+"))
+        ExprKind::Integer(1),
+        ExprKind::Integer(2),
+        ExprKind::Call(interner().get_or_intern_static("+"))
       ])]
     );
   }
@@ -234,16 +234,16 @@ mod tests {
     assert_eq!(
       program.stack,
       vec![
-        Expr::List(vec![
-          Expr::Fn(FnSymbol {
+        ExprKind::List(vec![
+          ExprKind::Fn(FnSymbol {
             scoped: true,
             scope: Scope::new(),
           }),
-          Expr::Integer(1),
-          Expr::Integer(2),
-          Expr::Call(interner().get_or_intern_static("+"))
+          ExprKind::Integer(1),
+          ExprKind::Integer(2),
+          ExprKind::Call(interner().get_or_intern_static("+"))
         ]),
-        Expr::Integer(3)
+        ExprKind::Integer(3)
       ]
     );
   }
@@ -270,7 +270,7 @@ mod tests {
         .get_val(interner().get_or_intern("a"))
         .unwrap();
 
-      assert_eq!(a, Expr::Integer(0));
+      assert_eq!(a, ExprKind::Integer(0));
     }
 
     #[test]
@@ -290,7 +290,7 @@ mod tests {
         .get_val(interner().get_or_intern("a"))
         .unwrap();
 
-      assert_eq!(a, Expr::Integer(1));
+      assert_eq!(a, ExprKind::Integer(1));
     }
 
     #[test]
@@ -310,8 +310,11 @@ mod tests {
         .get_val(interner().get_or_intern("a"))
         .unwrap();
 
-      assert_eq!(a, Expr::Integer(0));
-      assert_eq!(program.stack, vec![Expr::Integer(1), Expr::Integer(0)])
+      assert_eq!(a, ExprKind::Integer(0));
+      assert_eq!(
+        program.stack,
+        vec![ExprKind::Integer(1), ExprKind::Integer(0)]
+      )
     }
   }
 }
