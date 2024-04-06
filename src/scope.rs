@@ -158,7 +158,10 @@ impl<'a> Scanner<'a> {
           let mut scanner = Scanner::new(self.scope.clone(), self.funcs);
           let unlazied_mut = item.val.unlazy_mut();
           *unlazied_mut = scanner
-            .scan(unlazied_mut.clone().into_expr())
+            .scan(Expr {
+              val: unlazied_mut.clone(),
+              debug_data: item.debug_data,
+            })
             .unwrap()
             .into_expr_kind();
         }
@@ -172,12 +175,18 @@ impl<'a> Scanner<'a> {
         scoped: fn_symbol.scoped,
       });
 
-      let mut list_items = vec![fn_symbol.into_expr()];
+      let mut list_items = vec![Expr {
+        val: fn_symbol,
+        debug_data: expr.debug_data,
+      }];
       list_items.extend(fn_body);
 
-      let expr = ExprKind::List(list_items);
+      let new_expr = ExprKind::List(list_items);
 
-      Ok(expr.into_expr())
+      Ok(Expr {
+        val: new_expr,
+        debug_data: expr.debug_data,
+      })
     } else {
       // If the expression is not a function, we just return it
       Ok(expr)
