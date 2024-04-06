@@ -144,7 +144,7 @@ impl Program {
   }
 
   pub fn push(&mut self, expr: Expr) -> Result<(), EvalError> {
-    let expr = if expr.is_function() {
+    let expr = if expr.val.is_function() {
       let mut scanner =
         Scanner::new(self.scopes.last().unwrap().duplicate(), &self.funcs);
 
@@ -259,7 +259,7 @@ impl Program {
     }
 
     if let Some(value) = self.scope_item(call_str) {
-      if value.is_function() {
+      if value.val.is_function() {
         self.eval_expr(
           ExprKind::Lazy(Box::<Expr>::new(ExprKind::Call(call).into()).into())
             .into(),
