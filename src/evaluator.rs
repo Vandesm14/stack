@@ -3,7 +3,7 @@ use lasso::Spur;
 
 use crate::{
   interner::interner, module, DebugData, Expr, ExprKind, Func, Lexer, Module,
-  Parser, Scanner, Scope,
+  Parser, Scanner, Scope, Type,
 };
 use core::{fmt, iter};
 use std::{collections::HashMap, time::SystemTime};
@@ -81,13 +81,14 @@ impl fmt::Display for Program {
   }
 }
 
-#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
+#[derive(Debug, Clone, PartialEq)]
 pub enum EvalErrorKind {
   Push,
   StackUnderflow,
   UnknownCall,
   ParseError,
   Message(String),
+  ExpectedFound(Type, Type),
 }
 
 impl fmt::Display for EvalErrorKind {
@@ -97,12 +98,15 @@ impl fmt::Display for EvalErrorKind {
       Self::StackUnderflow => write!(f, "stack underflow"),
       Self::UnknownCall => write!(f, "unknown call"),
       Self::ParseError => write!(f, "parse error"),
+      Self::ExpectedFound(expected, found) => {
+        write!(f, "expected {}, found {}", expected, found)
+      }
       Self::Message(message) => write!(f, "{}", message),
     }
   }
 }
 
-#[derive(Debug, Clone, PartialEq, PartialOrd)]
+#[derive(Debug, Clone, PartialEq)]
 pub struct EvalError<'a> {
   kind: EvalErrorKind,
   expr: Option<&'a Expr>,
@@ -110,10 +114,15 @@ pub struct EvalError<'a> {
 
 impl<'a> fmt::Display for EvalError<'a> {
   fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-    // writeln!(f, "Error: {}", self.message)?;
-    // writeln!(f, "Expr: {}", self.expr)?;
-    // writeln!(f,)?;
-    // write!(f, "{}", self.program)
+    writeln!(f, "Error: {}", self.kind)?;
+    writeln!(
+      f,
+      "Expr: {}",
+      match self.expr {
+        Some(expr) => expr.to_string(),
+        None => "no expr to display".into(),
+      }
+    )?;
     todo!()
   }
 }
@@ -227,29 +236,74 @@ impl Program {
     self.scopes.pop();
   }
 
-  fn eval_call(
+  /// Handles auto-calling symbols (calls) when they're pushed to the stack
+  /// This is also triggered by the `call` keyword
+  pub fn auto_call(
     &mut self,
     trace_expr: &Expr,
-    call: Spur,
+    expr: Expr,
   ) -> Result<(), EvalError> {
-    let call_str = interner().resolve(&call);
+    match expr.val {
+      call @ ExprKind::Call(_) => self.eval_expr(expr),
+      item @ ExprKind::List(_) => match item.is_function() {
+        true => {
+          let fn_symbol = item.fn_symbol().unwrap();
+          let fn_body = item.fn_body().unwrap();
 
-    if let Some(func) = self.funcs.get(&call) {
+          if fn_symbol.scoped {
+            self.push_scope(fn_symbol.scope.clone());
+          }
+
+          match self.eval(fn_body.to_vec()) {
+            Ok(_) => {
+              if fn_symbol.scoped {
+                self.pop_scope();
+              }
+              Ok(())
+            }
+            Err(err) => Err(err),
+          }
+        }
+        false => {
+          let ExprKind::List(list) = item else {
+            unreachable!()
+          };
+          self.eval(list)
+        }
+      },
+      _ => Err(EvalError {
+        expr: Some(trace_expr),
+        kind: EvalErrorKind::ExpectedFound(
+          Type::Set(vec![
+            Type::Call,
+            Type::List(vec![Type::FnScope, Type::Any]),
+          ]),
+          expr.val.type_of(),
+        ),
+      }),
+    }
+  }
+
+  /// Makes decisions for how to evaluate a symbol (calls) such as
+  /// - Running an intrinsic
+  /// - Running a function's code
+  /// - Calling through [`Self::auto_call`]
+  fn eval_symbol(
+    &mut self,
+    trace_expr: &Expr,
+    symbol: Spur,
+  ) -> Result<(), EvalError> {
+    let symbol_str = interner().resolve(&symbol);
+
+    if let Some(func) = self.funcs.get(&symbol) {
       return func(self, trace_expr);
     }
 
-    if let Some(value) = self.scope_item(call_str) {
+    if let Some(value) = self.scope_item(symbol_str) {
       if value.val.is_function() {
-        self.eval_expr(
-          ExprKind::Lazy(Box::<Expr>::new(ExprKind::Call(call).into()).into())
-            .into(),
-        )?;
-        self.eval_call(trace_expr, interner().get_or_intern_static("get"))?;
-        self.eval_call(trace_expr, interner().get_or_intern_static("call"))?;
-
-        Ok(())
+        self.auto_call(trace_expr, value)
       } else {
-        self.push(self.scope_item(call_str).unwrap_or(ExprKind::Nil.into()))
+        self.push(value)
       }
     } else {
       Err(EvalError {
@@ -261,7 +315,7 @@ impl Program {
 
   pub fn eval_expr(&mut self, expr: Expr) -> Result<(), EvalError> {
     match expr.clone().val {
-      ExprKind::Call(call) => self.eval_call(&expr, call),
+      ExprKind::Call(call) => self.eval_symbol(&expr, call),
       ExprKind::Lazy(block) => self.push(*block),
       ExprKind::List(list) => {
         let stack_len = self.stack.len();

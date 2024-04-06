@@ -72,50 +72,7 @@ pub fn module(program: &mut Program) -> Result<(), EvalError> {
     |program, trace_expr| {
       let item = program.pop(trace_expr)?;
 
-      match item.val {
-        call @ ExprKind::Call(_) => program.eval_expr(call.into_expr()),
-        // This is where auto-call is defined and functions are evaluated when
-        // they are called via an identifier
-        // TODO: Get this working again.
-        item @ ExprKind::List(_) => match item.is_function() {
-          true => {
-            let fn_symbol = item.fn_symbol().unwrap();
-            let fn_body = item.fn_body().unwrap();
-
-            if fn_symbol.scoped {
-              program.push_scope(fn_symbol.scope.clone());
-            }
-
-            match program.eval(fn_body.to_vec()) {
-              Ok(_) => {
-                if fn_symbol.scoped {
-                  program.pop_scope();
-                }
-                Ok(())
-              }
-              Err(err) => Err(err),
-            }
-          }
-          false => {
-            let ExprKind::List(list) = item else {
-              unreachable!()
-            };
-            program.eval(list)
-          }
-        },
-        _ => Err(EvalError {
-          expr: trace_expr.clone(),
-          program: program.clone(),
-          message: format!(
-            "expected {}, found {}",
-            Type::Set(vec![
-              Type::Call,
-              Type::List(vec![Type::FnScope, Type::Any])
-            ]),
-            item.val.type_of(),
-          ),
-        }),
-      }
+      program.auto_call(trace_expr, item)
     },
   );
 
