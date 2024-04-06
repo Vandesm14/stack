@@ -1,5 +1,5 @@
 use crate::{
-  interner::interner, EvalError, Expr, ExprKind, LoadedFile, Program, Type,
+  interner::interner, EvalError, Expr, ExprKind, Program, SourceFile, Type,
 };
 
 pub fn module(program: &mut Program) -> Result<(), EvalError> {
@@ -12,7 +12,7 @@ pub fn module(program: &mut Program) -> Result<(), EvalError> {
         ExprKind::String(path) => {
           let path_str = interner().resolve(&path);
           let file_is_newer =
-            if let Some(loaded_file) = program.loaded_files.get(path_str) {
+            if let Some(loaded_file) = program.sources.get(path_str) {
               let metadata = std::fs::metadata(path_str).ok().unwrap();
               let mtime = metadata.modified().ok().unwrap();
               mtime > loaded_file.mtime
@@ -24,9 +24,9 @@ pub fn module(program: &mut Program) -> Result<(), EvalError> {
             match std::fs::read_to_string(path_str) {
               Ok(contents) => {
                 let content = interner().get_or_intern(contents);
-                program.loaded_files.insert(
+                program.sources.insert(
                   path_str.to_string(),
-                  LoadedFile {
+                  SourceFile {
                     contents: content,
                     mtime: std::fs::metadata(path_str)
                       .unwrap()
@@ -43,7 +43,7 @@ pub fn module(program: &mut Program) -> Result<(), EvalError> {
               }),
             }
           } else {
-            let contents = program.loaded_files.get(path_str).unwrap().contents;
+            let contents = program.sources.get(path_str).unwrap().contents;
             program.push(ExprKind::String(contents).into_expr())
           }
         }
