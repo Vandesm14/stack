@@ -25,6 +25,7 @@ pub enum EvalErrorKind {
   Halt,
   Panic(String),
   UnableToRead(String, String),
+  Cast(Type),
 }
 
 impl fmt::Display for EvalErrorKind {
@@ -42,6 +43,9 @@ impl fmt::Display for EvalErrorKind {
       Self::Panic(message) => write!(f, "panic: {}", message),
       Self::UnableToRead(filename, error) => {
         write!(f, "unable to read {}: {}", filename, error)
+      }
+      Self::Cast(t) => {
+        write!(f, "unable to cast into {}", t)
       }
     }
   }
