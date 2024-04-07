@@ -1,12 +1,14 @@
-use itertools::Itertools as _;
+use ariadne::{
+  Color, ColorGenerator, Config, Fmt, Label, Report, ReportKind, Source,
+};
 use lasso::Spur;
 
 use crate::{
   interner::interner, module, Expr, ExprKind, Func, Journal, JournalOp, Lexer,
-  Module, Parser, Scanner, Scope, Type,
+  Module, Parser, Scanner, Scope, Span, Type,
 };
 use core::{fmt, iter};
-use std::{collections::HashMap, time::SystemTime};
+use std::{collections::HashMap, fs, time::SystemTime};
 
 #[derive(Debug, Clone)]
 pub struct SourceFile {
@@ -68,6 +70,48 @@ impl fmt::Display for EvalError {
         None => "no expr to display".into(),
       }
     )
+  }
+}
+
+impl EvalError {
+  pub fn print_report(&self, program: &Program) {
+    let out = Color::Red;
+
+    let source_file: Option<&str> = self.expr.as_ref().and_then(|expr| {
+      expr
+        .debug_data
+        .source_file
+        .and_then(|spur| interner().try_resolve(&spur))
+    });
+    let file_name = source_file.unwrap_or("");
+
+    let span: Option<Span> =
+      self.expr.as_ref().and_then(|expr| expr.debug_data.span);
+    let span = match span {
+      Some(span) => span.start..span.end,
+      None => 0..0,
+    };
+
+    let source = match source_file {
+      Some(path) => fs::read_to_string(path).ok().unwrap_or("".into()),
+      None => "".into(),
+    };
+
+    Report::build(ReportKind::Error, file_name, 12)
+      .with_code(3)
+      .with_message(self.to_string())
+      .with_label(
+        Label::new((file_name, span))
+          .with_message("error occurs here")
+          .with_color(out),
+      )
+      // .with_note(format!(
+      //   "Outputs of {} expressions must coerce to the same type",
+      //   "match".fg(out)
+      // ))
+      .finish()
+      .print((file_name, Source::from(source)))
+      .unwrap();
   }
 }
 
@@ -273,7 +317,8 @@ impl Program {
   /// Lexes, Parses, and Evaluates a string
   pub fn eval_string(&mut self, line: &str) -> Result<(), EvalError> {
     let lexer = Lexer::new(line);
-    let parser = Parser::new(lexer, interner().get_or_intern("internal"));
+    let parser =
+      Parser::new(lexer, interner().get_or_intern("testing/test.stack"));
     // TODO: It might be time to add a proper EvalError enum.
     let exprs = parser.parse().map_err(|_| EvalError {
       expr: None,
