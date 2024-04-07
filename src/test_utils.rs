@@ -1,11 +1,11 @@
-use crate::{Expr, ExprKind, FnSymbol, Program};
+use crate::{Expr, ExprKind, FnSymbol};
 use core::{any::Any, cell::RefCell};
 use itertools::Itertools;
 use lasso::Spur;
 use std::{fmt::Debug, ops::Deref, rc::Rc};
 
 #[derive(Debug, Clone)]
-pub enum ExprSimple {
+pub enum TestExpr {
   Nil,
 
   Boolean(bool),
@@ -13,9 +13,9 @@ pub enum ExprSimple {
   Float(f64),
 
   String(Spur),
-  List(Vec<ExprSimple>),
+  List(Vec<TestExpr>),
 
-  Lazy(Box<ExprSimple>),
+  Lazy(Box<TestExpr>),
   Call(Spur),
 
   /// Boolean denotes whether to create a new scope.
@@ -24,7 +24,7 @@ pub enum ExprSimple {
   UserData(Rc<RefCell<dyn Any>>),
 }
 
-impl PartialEq for ExprSimple {
+impl PartialEq for TestExpr {
   fn eq(&self, other: &Self) -> bool {
     match (self, other) {
       // Same types.
@@ -55,43 +55,43 @@ impl PartialEq for ExprSimple {
   }
 }
 
-impl From<Expr> for ExprSimple {
+impl From<Expr> for TestExpr {
   fn from(value: Expr) -> Self {
     let val = value.val;
     match val {
-      ExprKind::Nil => ExprSimple::Nil,
+      ExprKind::Nil => TestExpr::Nil,
 
-      ExprKind::Boolean(bool) => ExprSimple::Boolean(bool),
-      ExprKind::Integer(int) => ExprSimple::Integer(int),
-      ExprKind::Float(float) => ExprSimple::Float(float),
+      ExprKind::Boolean(bool) => TestExpr::Boolean(bool),
+      ExprKind::Integer(int) => TestExpr::Integer(int),
+      ExprKind::Float(float) => TestExpr::Float(float),
 
-      ExprKind::String(string) => ExprSimple::String(string),
+      ExprKind::String(string) => TestExpr::String(string),
       ExprKind::List(list) => {
-        let mut items: Vec<ExprSimple> = Vec::new();
+        let mut items: Vec<TestExpr> = Vec::new();
         for item in list {
           items.push(item.into());
         }
 
-        ExprSimple::List(items)
+        TestExpr::List(items)
       }
 
       ExprKind::Lazy(lazy) => {
-        let inner: ExprSimple = lazy.deref().clone().into();
-        ExprSimple::Lazy(Box::new(inner))
+        let inner: TestExpr = lazy.deref().clone().into();
+        TestExpr::Lazy(Box::new(inner))
       }
-      ExprKind::Call(call) => ExprSimple::Call(call),
+      ExprKind::Call(call) => TestExpr::Call(call),
 
-      ExprKind::Fn(fn_symbol) => ExprSimple::Fn(fn_symbol),
+      ExprKind::Fn(fn_symbol) => TestExpr::Fn(fn_symbol),
 
-      ExprKind::UserData(data) => ExprSimple::UserData(data),
+      ExprKind::UserData(data) => TestExpr::UserData(data),
     }
   }
 }
 
-pub fn simple_expr(expr: Expr) -> ExprSimple {
+pub fn simple_expr(expr: Expr) -> TestExpr {
   expr.into()
 }
 
-pub fn simple_exprs(exprs: Vec<Expr>) -> Vec<ExprSimple> {
+pub fn simple_exprs(exprs: Vec<Expr>) -> Vec<TestExpr> {
   exprs.into_iter().map(simple_expr).collect_vec()
 }

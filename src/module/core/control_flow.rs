@@ -119,7 +119,7 @@ pub fn module(program: &mut Program) -> Result<(), EvalError> {
 #[cfg(test)]
 mod tests {
   use super::*;
-  use crate::{simple_exprs, ExprSimple};
+  use crate::{simple_exprs, TestExpr};
 
   mod control_flow {
     use super::*;
@@ -132,9 +132,7 @@ mod tests {
         .unwrap();
       assert_eq!(
         simple_exprs(program.stack),
-        vec![ExprSimple::String(
-          interner().get_or_intern_static("correct")
-        )]
+        vec![TestExpr::String(interner().get_or_intern_static("correct"))]
       );
     }
 
@@ -146,9 +144,7 @@ mod tests {
         .unwrap();
       assert_eq!(
         simple_exprs(program.stack),
-        vec![ExprSimple::String(
-          interner().get_or_intern_static("correct")
-        )]
+        vec![TestExpr::String(interner().get_or_intern_static("correct"))]
       );
     }
 
@@ -160,9 +156,7 @@ mod tests {
         .unwrap();
       assert_eq!(
         simple_exprs(program.stack),
-        vec![ExprSimple::String(
-          interner().get_or_intern_static("correct")
-        )]
+        vec![TestExpr::String(interner().get_or_intern_static("correct"))]
       );
     }
 
@@ -174,7 +168,7 @@ mod tests {
         .unwrap();
       assert_eq!(
         simple_exprs(program.stack),
-        vec![ExprSimple::String(
+        vec![TestExpr::String(
           interner().get_or_intern_static("incorrect")
         )]
       );
@@ -208,9 +202,9 @@ mod tests {
       assert_eq!(
         simple_exprs(program.stack),
         vec![
-          ExprSimple::Integer(2),
-          ExprSimple::Integer(1),
-          ExprSimple::Integer(0)
+          TestExpr::Integer(2),
+          TestExpr::Integer(1),
+          TestExpr::Integer(0)
         ]
       );
     }

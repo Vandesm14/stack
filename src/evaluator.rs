@@ -397,7 +397,7 @@ impl Program {
 #[cfg(test)]
 mod tests {
   use super::*;
-  use crate::{simple_exprs, ExprSimple};
+  use crate::{simple_exprs, TestExpr};
 
   #[test]
   fn implicitly_adds_to_stack() {
@@ -405,7 +405,7 @@ mod tests {
     program.eval_string("1 2").unwrap();
     assert_eq!(
       simple_exprs(program.stack),
-      vec![ExprSimple::Integer(1), ExprSimple::Integer(2)]
+      vec![TestExpr::Integer(1), TestExpr::Integer(2)]
     );
   }
 
@@ -413,57 +413,57 @@ mod tests {
   fn add_two_numbers() {
     let mut program = Program::new().with_core().unwrap();
     program.eval_string("1 2 +").unwrap();
-    assert_eq!(simple_exprs(program.stack), vec![ExprSimple::Integer(3)]);
+    assert_eq!(simple_exprs(program.stack), vec![TestExpr::Integer(3)]);
   }
 
   #[test]
   fn subtract_two_numbers() {
     let mut program = Program::new().with_core().unwrap();
     program.eval_string("1 2 -").unwrap();
-    assert_eq!(simple_exprs(program.stack), vec![ExprSimple::Integer(-1)]);
+    assert_eq!(simple_exprs(program.stack), vec![TestExpr::Integer(-1)]);
   }
 
   #[test]
   fn multiply_two_numbers() {
     let mut program = Program::new().with_core().unwrap();
     program.eval_string("1 2 *").unwrap();
-    assert_eq!(simple_exprs(program.stack), vec![ExprSimple::Integer(2)]);
+    assert_eq!(simple_exprs(program.stack), vec![TestExpr::Integer(2)]);
   }
 
   #[test]
   fn divide_two_numbers() {
     let mut program = Program::new().with_core().unwrap();
     program.eval_string("1 2 /").unwrap();
-    assert_eq!(simple_exprs(program.stack), vec![ExprSimple::Integer(0)]);
+    assert_eq!(simple_exprs(program.stack), vec![TestExpr::Integer(0)]);
 
     let mut program = Program::new().with_core().unwrap();
     program.eval_string("1.0 2.0 /").unwrap();
-    assert_eq!(simple_exprs(program.stack), vec![ExprSimple::Float(0.5)]);
+    assert_eq!(simple_exprs(program.stack), vec![TestExpr::Float(0.5)]);
   }
 
   #[test]
   fn modulo_two_numbers() {
     let mut program = Program::new().with_core().unwrap();
     program.eval_string("10 5 %").unwrap();
-    assert_eq!(simple_exprs(program.stack), vec![ExprSimple::Integer(0)]);
+    assert_eq!(simple_exprs(program.stack), vec![TestExpr::Integer(0)]);
 
     let mut program = Program::new().with_core().unwrap();
     program.eval_string("11 5 %").unwrap();
-    assert_eq!(simple_exprs(program.stack), vec![ExprSimple::Integer(1)]);
+    assert_eq!(simple_exprs(program.stack), vec![TestExpr::Integer(1)]);
   }
 
   #[test]
   fn complex_operations() {
     let mut program = Program::new().with_core().unwrap();
     program.eval_string("1 2 + 3 *").unwrap();
-    assert_eq!(simple_exprs(program.stack), vec![ExprSimple::Integer(9)]);
+    assert_eq!(simple_exprs(program.stack), vec![TestExpr::Integer(9)]);
   }
 
   #[test]
   fn eval_from_stack() {
     let mut program = Program::new().with_core().unwrap();
     program.eval_string("'(1 2 +) unwrap call").unwrap();
-    assert_eq!(simple_exprs(program.stack), vec![ExprSimple::Integer(3)]);
+    assert_eq!(simple_exprs(program.stack), vec![TestExpr::Integer(3)]);
   }
 
   #[test]
@@ -472,7 +472,7 @@ mod tests {
     program.eval_string("6 'var def 'var").unwrap();
     assert_eq!(
       simple_exprs(program.stack),
-      vec![ExprSimple::Call(interner().get_or_intern_static("var"))]
+      vec![TestExpr::Call(interner().get_or_intern_static("var"))]
     );
   }
 
@@ -482,10 +482,10 @@ mod tests {
     program.eval_string("(1 2 3)").unwrap();
     assert_eq!(
       simple_exprs(program.stack),
-      vec![ExprSimple::List(vec![
-        ExprSimple::Integer(1),
-        ExprSimple::Integer(2),
-        ExprSimple::Integer(3)
+      vec![TestExpr::List(vec![
+        TestExpr::Integer(1),
+        TestExpr::Integer(2),
+        TestExpr::Integer(3)
       ])]
     );
   }
@@ -496,7 +496,7 @@ mod tests {
     program.eval_string("6 'var def (var)").unwrap();
     assert_eq!(
       simple_exprs(program.stack),
-      vec![ExprSimple::List(vec![ExprSimple::Integer(6)])]
+      vec![TestExpr::List(vec![TestExpr::Integer(6)])]
     );
   }
 }

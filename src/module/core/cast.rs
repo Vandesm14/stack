@@ -169,7 +169,7 @@ pub fn module(program: &mut Program) -> Result<(), EvalError> {
 
 #[cfg(test)]
 mod tests {
-  use crate::{simple_exprs, ExprSimple};
+  use crate::{simple_exprs, TestExpr};
 
   use super::*;
 
@@ -179,7 +179,7 @@ mod tests {
     program.eval_string("1 tostring").unwrap();
     assert_eq!(
       simple_exprs(program.stack),
-      vec![ExprSimple::String(interner().get_or_intern_static("1"))]
+      vec![TestExpr::String(interner().get_or_intern_static("1"))]
     );
   }
 
@@ -189,7 +189,7 @@ mod tests {
     program.eval_string("\"a\" tocall").unwrap();
     assert_eq!(
       simple_exprs(program.stack),
-      vec![ExprSimple::Call(interner().get_or_intern_static("a"))]
+      vec![TestExpr::Call(interner().get_or_intern_static("a"))]
     );
   }
 
@@ -197,7 +197,7 @@ mod tests {
   fn to_integer() {
     let mut program = Program::new().with_core().unwrap();
     program.eval_string("\"1\" tointeger").unwrap();
-    assert_eq!(simple_exprs(program.stack), vec![ExprSimple::Integer(1)]);
+    assert_eq!(simple_exprs(program.stack), vec![TestExpr::Integer(1)]);
   }
 
   #[test]
@@ -206,9 +206,7 @@ mod tests {
     program.eval_string("1 typeof").unwrap();
     assert_eq!(
       simple_exprs(program.stack),
-      vec![ExprSimple::String(
-        interner().get_or_intern_static("integer")
-      )]
+      vec![TestExpr::String(interner().get_or_intern_static("integer"))]
     );
   }
 
@@ -218,10 +216,10 @@ mod tests {
     program.eval_string("(1 2 3) tolist").unwrap();
     assert_eq!(
       simple_exprs(program.stack),
-      vec![ExprSimple::List(vec![
-        ExprSimple::Integer(1),
-        ExprSimple::Integer(2),
-        ExprSimple::Integer(3)
+      vec![TestExpr::List(vec![
+        TestExpr::Integer(1),
+        TestExpr::Integer(2),
+        TestExpr::Integer(3)
       ])]
     );
   }
@@ -232,11 +230,11 @@ mod tests {
     program.eval_string("(1 2 3) lazy").unwrap();
     assert_eq!(
       simple_exprs(program.stack),
-      vec![ExprSimple::Lazy(
-        ExprSimple::List(vec![
-          ExprSimple::Integer(1),
-          ExprSimple::Integer(2),
-          ExprSimple::Integer(3)
+      vec![TestExpr::Lazy(
+        TestExpr::List(vec![
+          TestExpr::Integer(1),
+          TestExpr::Integer(2),
+          TestExpr::Integer(3)
         ])
         .into()
       )]
@@ -249,8 +247,8 @@ mod tests {
     program.eval_string("'set lazy").unwrap();
     assert_eq!(
       simple_exprs(program.stack),
-      vec![ExprSimple::Lazy(
-        ExprSimple::Call(interner().get_or_intern_static("set")).into()
+      vec![TestExpr::Lazy(
+        TestExpr::Call(interner().get_or_intern_static("set")).into()
       )]
     );
   }

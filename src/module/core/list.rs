@@ -248,7 +248,7 @@ pub fn module(program: &mut Program) -> Result<(), EvalError> {
 
 #[cfg(test)]
 mod tests {
-  use crate::{simple_exprs, ExprSimple};
+  use crate::{simple_exprs, TestExpr};
 
   use super::*;
 
@@ -258,11 +258,11 @@ mod tests {
     program.eval_string("(1 2) (3 \"4\") concat").unwrap();
     assert_eq!(
       simple_exprs(program.stack),
-      vec![ExprSimple::List(vec![
-        ExprSimple::Integer(1),
-        ExprSimple::Integer(2),
-        ExprSimple::Integer(3),
-        ExprSimple::String(interner().get_or_intern_static("4"))
+      vec![TestExpr::List(vec![
+        TestExpr::Integer(1),
+        TestExpr::Integer(2),
+        TestExpr::Integer(3),
+        TestExpr::String(interner().get_or_intern_static("4"))
       ])]
     );
   }
@@ -273,10 +273,10 @@ mod tests {
     program.eval_string("(1 2) ('+) concat").unwrap();
     assert_eq!(
       simple_exprs(program.stack),
-      vec![ExprSimple::List(vec![
-        ExprSimple::Integer(1),
-        ExprSimple::Integer(2),
-        ExprSimple::Call(interner().get_or_intern_static("+"))
+      vec![TestExpr::List(vec![
+        TestExpr::Integer(1),
+        TestExpr::Integer(2),
+        TestExpr::Call(interner().get_or_intern_static("+"))
       ])]
     );
   }
@@ -288,12 +288,12 @@ mod tests {
     assert_eq!(
       simple_exprs(program.stack),
       vec![
-        ExprSimple::List(vec![
-          ExprSimple::Integer(1),
-          ExprSimple::Integer(2),
-          ExprSimple::Integer(3)
+        TestExpr::List(vec![
+          TestExpr::Integer(1),
+          TestExpr::Integer(2),
+          TestExpr::Integer(3)
         ]),
-        ExprSimple::Integer(3)
+        TestExpr::Integer(3)
       ]
     );
   }
@@ -305,12 +305,12 @@ mod tests {
     assert_eq!(
       simple_exprs(program.stack),
       vec![
-        ExprSimple::List(vec![
-          ExprSimple::Integer(1),
-          ExprSimple::Integer(2),
-          ExprSimple::Integer(3)
+        TestExpr::List(vec![
+          TestExpr::Integer(1),
+          TestExpr::Integer(2),
+          TestExpr::Integer(3)
         ]),
-        ExprSimple::Integer(2)
+        TestExpr::Integer(2)
       ]
     );
   }
@@ -319,7 +319,7 @@ mod tests {
   fn calling_lists() {
     let mut program = Program::new().with_core().unwrap();
     program.eval_string("'(2 2 +) call").unwrap();
-    assert_eq!(simple_exprs(program.stack), vec![ExprSimple::Integer(4)]);
+    assert_eq!(simple_exprs(program.stack), vec![TestExpr::Integer(4)]);
   }
 
   #[test]
@@ -328,7 +328,7 @@ mod tests {
     program.eval_string("'(2 2 +) call-list").unwrap();
     assert_eq!(
       simple_exprs(program.stack),
-      vec![ExprSimple::List(vec![ExprSimple::Integer(4)])]
+      vec![TestExpr::List(vec![TestExpr::Integer(4)])]
     );
   }
 }

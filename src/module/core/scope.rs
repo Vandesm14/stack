@@ -120,7 +120,7 @@ pub fn module(program: &mut Program) -> Result<(), EvalError> {
 
 mod tests {
   use super::*;
-  use crate::{simple_expr, simple_exprs, ExprSimple};
+  use crate::{simple_expr, simple_exprs, TestExpr};
   use crate::{FnSymbol, Scope};
 
   #[test]
@@ -135,21 +135,21 @@ mod tests {
       .get_val(interner().get_or_intern("a"))
       .unwrap();
 
-    assert_eq!(simple_expr(a), ExprSimple::Integer(1));
+    assert_eq!(simple_expr(a), TestExpr::Integer(1));
   }
 
   #[test]
   fn retrieving_variables() {
     let mut program = Program::new().with_core().unwrap();
     program.eval_string("1 'a def a").unwrap();
-    assert_eq!(simple_exprs(program.stack), vec![ExprSimple::Integer(1)]);
+    assert_eq!(simple_exprs(program.stack), vec![TestExpr::Integer(1)]);
   }
 
   #[test]
   fn evaluating_variables() {
     let mut program = Program::new().with_core().unwrap();
     program.eval_string("1 'a def a 2 +").unwrap();
-    assert_eq!(simple_exprs(program.stack), vec![ExprSimple::Integer(3)]);
+    assert_eq!(simple_exprs(program.stack), vec![TestExpr::Integer(3)]);
   }
 
   #[test]
@@ -168,7 +168,7 @@ mod tests {
     program
       .eval_string("'(fn 1 2 +) 'is-three def is-three")
       .unwrap();
-    assert_eq!(simple_exprs(program.stack), vec![ExprSimple::Integer(3)]);
+    assert_eq!(simple_exprs(program.stack), vec![TestExpr::Integer(3)]);
   }
 
   #[test]
@@ -179,10 +179,10 @@ mod tests {
       .unwrap();
     assert_eq!(
       simple_exprs(program.stack),
-      vec![ExprSimple::List(vec![
-        ExprSimple::Integer(1),
-        ExprSimple::Integer(2),
-        ExprSimple::Call(interner().get_or_intern_static("+"))
+      vec![TestExpr::List(vec![
+        TestExpr::Integer(1),
+        TestExpr::Integer(2),
+        TestExpr::Call(interner().get_or_intern_static("+"))
       ])]
     );
   }
@@ -195,14 +195,14 @@ mod tests {
       .unwrap();
     assert_eq!(
       simple_exprs(program.stack),
-      vec![ExprSimple::List(vec![
-        ExprSimple::Fn(FnSymbol {
+      vec![TestExpr::List(vec![
+        TestExpr::Fn(FnSymbol {
           scoped: true,
           scope: Scope::new(),
         }),
-        ExprSimple::Integer(1),
-        ExprSimple::Integer(2),
-        ExprSimple::Call(interner().get_or_intern_static("+"))
+        TestExpr::Integer(1),
+        TestExpr::Integer(2),
+        TestExpr::Call(interner().get_or_intern_static("+"))
       ])]
     );
   }
@@ -216,16 +216,16 @@ mod tests {
     assert_eq!(
       simple_exprs(program.stack),
       vec![
-        ExprSimple::List(vec![
-          ExprSimple::Fn(FnSymbol {
+        TestExpr::List(vec![
+          TestExpr::Fn(FnSymbol {
             scoped: true,
             scope: Scope::new(),
           }),
-          ExprSimple::Integer(1),
-          ExprSimple::Integer(2),
-          ExprSimple::Call(interner().get_or_intern_static("+"))
+          TestExpr::Integer(1),
+          TestExpr::Integer(2),
+          TestExpr::Call(interner().get_or_intern_static("+"))
         ]),
-        ExprSimple::Integer(3)
+        TestExpr::Integer(3)
       ]
     );
   }
@@ -252,7 +252,7 @@ mod tests {
         .get_val(interner().get_or_intern("a"))
         .unwrap();
 
-      assert_eq!(simple_expr(a), ExprSimple::Integer(0));
+      assert_eq!(simple_expr(a), TestExpr::Integer(0));
     }
 
     #[test]
@@ -272,7 +272,7 @@ mod tests {
         .get_val(interner().get_or_intern("a"))
         .unwrap();
 
-      assert_eq!(simple_expr(a), ExprSimple::Integer(1));
+      assert_eq!(simple_expr(a), TestExpr::Integer(1));
     }
 
     #[test]
@@ -292,10 +292,10 @@ mod tests {
         .get_val(interner().get_or_intern("a"))
         .unwrap();
 
-      assert_eq!(simple_expr(a), ExprSimple::Integer(0));
+      assert_eq!(simple_expr(a), TestExpr::Integer(0));
       assert_eq!(
         simple_exprs(program.stack),
-        vec![ExprSimple::Integer(1), ExprSimple::Integer(0)]
+        vec![TestExpr::Integer(1), TestExpr::Integer(0)]
       )
     }
   }

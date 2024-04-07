@@ -84,7 +84,7 @@ pub fn module(program: &mut Program) -> Result<(), EvalError> {
 
 mod tests {
   use super::*;
-  use crate::{simple_expr, simple_exprs, ExprSimple};
+  use crate::{simple_expr, simple_exprs, TestExpr};
 
   #[test]
   fn clearing_stack() {
@@ -97,7 +97,7 @@ mod tests {
   fn dropping_from_stack() {
     let mut program = Program::new().with_core().unwrap();
     program.eval_string("1 2 drop").unwrap();
-    assert_eq!(simple_exprs(program.stack), vec![ExprSimple::Integer(1)]);
+    assert_eq!(simple_exprs(program.stack), vec![TestExpr::Integer(1)]);
   }
 
   #[test]
@@ -106,7 +106,7 @@ mod tests {
     program.eval_string("1 dup").unwrap();
     assert_eq!(
       simple_exprs(program.stack),
-      vec![ExprSimple::Integer(1), ExprSimple::Integer(1)]
+      vec![TestExpr::Integer(1), TestExpr::Integer(1)]
     );
   }
 
@@ -116,7 +116,7 @@ mod tests {
     program.eval_string("1 2 swap").unwrap();
     assert_eq!(
       simple_exprs(program.stack),
-      vec![ExprSimple::Integer(2), ExprSimple::Integer(1)]
+      vec![TestExpr::Integer(2), TestExpr::Integer(1)]
     );
   }
 
@@ -127,9 +127,9 @@ mod tests {
     assert_eq!(
       simple_exprs(program.stack),
       vec![
-        ExprSimple::Integer(3),
-        ExprSimple::Integer(1),
-        ExprSimple::Integer(2)
+        TestExpr::Integer(3),
+        TestExpr::Integer(1),
+        TestExpr::Integer(2)
       ]
     );
   }
@@ -140,10 +140,10 @@ mod tests {
     program.eval_string("1 2 3 collect").unwrap();
     assert_eq!(
       simple_exprs(program.stack),
-      vec![ExprSimple::List(vec![
-        ExprSimple::Integer(1),
-        ExprSimple::Integer(2),
-        ExprSimple::Integer(3)
+      vec![TestExpr::List(vec![
+        TestExpr::Integer(1),
+        TestExpr::Integer(2),
+        TestExpr::Integer(3)
       ])]
     );
   }
@@ -158,9 +158,9 @@ mod tests {
     assert_eq!(
       simple_exprs(program.stack),
       vec![
-        ExprSimple::Integer(1),
-        ExprSimple::Integer(2),
-        ExprSimple::Integer(3)
+        TestExpr::Integer(1),
+        TestExpr::Integer(2),
+        TestExpr::Integer(3)
       ]
     );
 
@@ -173,10 +173,10 @@ mod tests {
 
     assert_eq!(
       simple_expr(a),
-      ExprSimple::List(vec![
-        ExprSimple::Integer(1),
-        ExprSimple::Integer(2),
-        ExprSimple::Integer(3)
+      TestExpr::List(vec![
+        TestExpr::Integer(1),
+        TestExpr::Integer(2),
+        TestExpr::Integer(3)
       ])
     );
   }
