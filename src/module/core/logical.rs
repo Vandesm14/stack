@@ -11,11 +11,7 @@ pub fn module(program: &mut Program) -> Result<(), EvalError> {
 
       program.push(
         ExprKind::Boolean(lhs.val.is_truthy() || rhs.val.is_truthy())
-          .into_expr(DebugData::only_ingredients(vec![
-            lhs,
-            rhs,
-            trace_expr.clone(),
-          ])),
+          .into_expr(DebugData::default()),
       )
     },
   );
@@ -28,11 +24,7 @@ pub fn module(program: &mut Program) -> Result<(), EvalError> {
 
       program.push(
         ExprKind::Boolean(lhs.val.is_truthy() && rhs.val.is_truthy())
-          .into_expr(DebugData::only_ingredients(vec![
-            lhs,
-            rhs,
-            trace_expr.clone(),
-          ])),
+          .into_expr(DebugData::default()),
       )
     },
   );

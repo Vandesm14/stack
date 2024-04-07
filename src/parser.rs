@@ -80,28 +80,24 @@ impl<'source> Parser<'source> {
           break Ok(Some(ExprKind::Boolean(x).into_expr(DebugData {
             source_file: Some(self.filename),
             span: Some(token.span),
-            ingredients: vec![],
           })));
         }
         TokenKind::Integer(x) => {
           break Ok(Some(ExprKind::Integer(x).into_expr(DebugData {
             source_file: Some(self.filename),
             span: Some(token.span),
-            ingredients: vec![],
           })));
         }
         TokenKind::Float(x) => {
           break Ok(Some(ExprKind::Float(x).into_expr(DebugData {
             source_file: Some(self.filename),
             span: Some(token.span),
-            ingredients: vec![],
           })));
         }
         TokenKind::String(x) => {
           break Ok(Some(ExprKind::String(x).into_expr(DebugData {
             source_file: Some(self.filename),
             span: Some(token.span),
-            ingredients: vec![],
           })));
         }
 
@@ -109,7 +105,6 @@ impl<'source> Parser<'source> {
           break Ok(Some(ExprKind::Call(x).into_expr(DebugData {
             source_file: Some(self.filename),
             span: Some(token.span),
-            ingredients: vec![],
           })));
         }
 
@@ -124,7 +119,6 @@ impl<'source> Parser<'source> {
                   // ALWAYS have a span in debug data, so this is fine if it hard-errors
                   end: expr.debug_data.span.unwrap().end,
                 }),
-                ingredients: vec![],
               })))
             }
             Ok(None) => Err(ParseError {
@@ -157,7 +151,6 @@ impl<'source> Parser<'source> {
                     } - 1,
                     end: token.span.end,
                   }),
-                  ingredients: vec![],
                 })));
               }
               _ => match self.next()? {
@@ -182,7 +175,6 @@ impl<'source> Parser<'source> {
           break Ok(Some(ExprKind::Nil.into_expr(DebugData {
             source_file: Some(self.filename),
             span: Some(token.span),
-            ingredients: vec![],
           })));
         }
         TokenKind::Fn => {
@@ -194,7 +186,6 @@ impl<'source> Parser<'source> {
             .into_expr(DebugData {
               source_file: Some(self.filename),
               span: Some(token.span),
-              ingredients: vec![],
             }),
           ));
         }
@@ -207,7 +198,6 @@ impl<'source> Parser<'source> {
             .into_expr(DebugData {
               source_file: Some(self.filename),
               span: Some(token.span),
-              ingredients: vec![],
             }),
           ));
         }

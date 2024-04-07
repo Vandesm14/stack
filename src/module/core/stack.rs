@@ -7,10 +7,7 @@ pub fn module(program: &mut Program) -> Result<(), EvalError> {
     interner().get_or_intern_static("collect"),
     |program, trace_expr| {
       let list = core::mem::take(&mut program.stack);
-      program.push(
-        ExprKind::List(list)
-          .into_expr(DebugData::only_ingredients(vec![trace_expr.clone()])),
-      )
+      program.push(ExprKind::List(list).into_expr(DebugData::default()))
     },
   );
 
@@ -68,11 +65,8 @@ pub fn module(program: &mut Program) -> Result<(), EvalError> {
     interner().get_or_intern_static("lazy"),
     |program, trace_expr| {
       let item = program.pop(trace_expr)?;
-      program.push(
-        ExprKind::Lazy(Box::new(item)).into_expr(DebugData::only_ingredients(
-          vec![item, trace_expr.clone()],
-        )),
-      )
+      program
+        .push(ExprKind::Lazy(Box::new(item)).into_expr(DebugData::default()))
     },
   );
 

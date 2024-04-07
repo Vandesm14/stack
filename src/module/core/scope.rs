@@ -98,12 +98,11 @@ pub fn module(program: &mut Program) -> Result<(), EvalError> {
 
             // Always push something, otherwise it can get tricky to manage the
             // stack in-langauge.
-            program.push(program.scope_item(key_str).unwrap_or(
-              ExprKind::Nil.into_expr(DebugData::only_ingredients(vec![
-                item,
-                trace_expr.clone(),
-              ])),
-            ))
+            program.push(
+              program
+                .scope_item(key_str)
+                .unwrap_or(ExprKind::Nil.into_expr(DebugData::default())),
+            )
           }
         }
         item => Err(EvalError {

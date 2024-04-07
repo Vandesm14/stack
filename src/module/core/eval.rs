@@ -21,10 +21,7 @@ pub fn module(program: &mut Program) -> Result<(), EvalError> {
             .map(ExprKind::List)
             .unwrap_or(ExprKind::Nil);
 
-          program.push(expr.into_expr(DebugData::only_ingredients(vec![
-            item,
-            trace_expr.clone(),
-          ])))
+          program.push(expr.into_expr(DebugData::default()))
         }
         _ => Err(EvalError {
           expr: Some(trace_expr),

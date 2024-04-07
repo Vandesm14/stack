@@ -35,9 +35,9 @@ pub fn module(program: &mut Program) -> Result<(), EvalError> {
                       .unwrap(),
                   },
                 );
-                program.push(ExprKind::String(content).into_expr(
-                  DebugData::only_ingredients(vec![item, trace_expr.clone()]),
-                ))
+                program.push(
+                  ExprKind::String(content).into_expr(DebugData::default()),
+                )
               }
               Err(e) => Err(EvalError {
                 expr: Some(trace_expr),
@@ -49,9 +49,8 @@ pub fn module(program: &mut Program) -> Result<(), EvalError> {
             }
           } else {
             let contents = program.sources.get(path_str).unwrap().contents;
-            program.push(ExprKind::String(contents).into_expr(
-              DebugData::only_ingredients(vec![item, trace_expr.clone()]),
-            ))
+            program
+              .push(ExprKind::String(contents).into_expr(DebugData::default()))
           }
         }
         _ => Err(EvalError {

@@ -11,16 +11,10 @@ pub fn module(program: &mut Program) -> Result<(), EvalError> {
       let lhs_expr = program.pop(trace_expr)?;
 
       match lhs_expr.val.coerce_same_float(&rhs_expr.val) {
-        Some((ExprKind::Integer(lhs), ExprKind::Integer(rhs))) => program.push(
-          ExprKind::Integer(lhs + rhs).into_expr(DebugData::only_ingredients(
-            vec![lhs_expr, rhs_expr, trace_expr.clone()],
-          )),
-        ),
-        Some((ExprKind::Float(lhs), ExprKind::Float(rhs))) => program.push(
-          ExprKind::Float(lhs + rhs).into_expr(DebugData::only_ingredients(
-            vec![lhs_expr, rhs_expr, trace_expr.clone()],
-          )),
-        ),
+        Some((ExprKind::Integer(lhs), ExprKind::Integer(rhs))) => program
+          .push(ExprKind::Integer(lhs + rhs).into_expr(DebugData::default())),
+        Some((ExprKind::Float(lhs), ExprKind::Float(rhs))) => program
+          .push(ExprKind::Float(lhs + rhs).into_expr(DebugData::default())),
         _ => Err(EvalError {
           expr: Some(trace_expr),
           kind: EvalErrorKind::ExpectedFound(
@@ -42,16 +36,10 @@ pub fn module(program: &mut Program) -> Result<(), EvalError> {
       let lhs_expr = program.pop(trace_expr)?;
 
       match lhs_expr.val.coerce_same_float(&rhs_expr.val) {
-        Some((ExprKind::Integer(lhs), ExprKind::Integer(rhs))) => program.push(
-          ExprKind::Integer(lhs - rhs).into_expr(DebugData::only_ingredients(
-            vec![lhs_expr, rhs_expr, trace_expr.clone()],
-          )),
-        ),
-        Some((ExprKind::Float(lhs), ExprKind::Float(rhs))) => program.push(
-          ExprKind::Float(lhs - rhs).into_expr(DebugData::only_ingredients(
-            vec![lhs_expr, rhs_expr, trace_expr.clone()],
-          )),
-        ),
+        Some((ExprKind::Integer(lhs), ExprKind::Integer(rhs))) => program
+          .push(ExprKind::Integer(lhs - rhs).into_expr(DebugData::default())),
+        Some((ExprKind::Float(lhs), ExprKind::Float(rhs))) => program
+          .push(ExprKind::Float(lhs - rhs).into_expr(DebugData::default())),
         _ => Err(EvalError {
           expr: Some(trace_expr),
           kind: EvalErrorKind::ExpectedFound(
@@ -73,16 +61,10 @@ pub fn module(program: &mut Program) -> Result<(), EvalError> {
       let lhs_expr = program.pop(trace_expr)?;
 
       match lhs_expr.val.coerce_same_float(&rhs_expr.val) {
-        Some((ExprKind::Integer(lhs), ExprKind::Integer(rhs))) => program.push(
-          ExprKind::Integer(lhs * rhs).into_expr(DebugData::only_ingredients(
-            vec![lhs_expr, rhs_expr, trace_expr.clone()],
-          )),
-        ),
-        Some((ExprKind::Float(lhs), ExprKind::Float(rhs))) => program.push(
-          ExprKind::Float(lhs * rhs).into_expr(DebugData::only_ingredients(
-            vec![lhs_expr, rhs_expr, trace_expr.clone()],
-          )),
-        ),
+        Some((ExprKind::Integer(lhs), ExprKind::Integer(rhs))) => program
+          .push(ExprKind::Integer(lhs * rhs).into_expr(DebugData::default())),
+        Some((ExprKind::Float(lhs), ExprKind::Float(rhs))) => program
+          .push(ExprKind::Float(lhs * rhs).into_expr(DebugData::default())),
         _ => Err(EvalError {
           expr: Some(trace_expr),
           kind: EvalErrorKind::ExpectedFound(
@@ -104,16 +86,10 @@ pub fn module(program: &mut Program) -> Result<(), EvalError> {
       let lhs_expr = program.pop(trace_expr)?;
 
       match lhs_expr.val.coerce_same_float(&rhs_expr.val) {
-        Some((ExprKind::Integer(lhs), ExprKind::Integer(rhs))) => program.push(
-          ExprKind::Integer(lhs / rhs).into_expr(DebugData::only_ingredients(
-            vec![lhs_expr, rhs_expr, trace_expr.clone()],
-          )),
-        ),
-        Some((ExprKind::Float(lhs), ExprKind::Float(rhs))) => program.push(
-          ExprKind::Float(lhs / rhs).into_expr(DebugData::only_ingredients(
-            vec![lhs_expr, rhs_expr, trace_expr.clone()],
-          )),
-        ),
+        Some((ExprKind::Integer(lhs), ExprKind::Integer(rhs))) => program
+          .push(ExprKind::Integer(lhs / rhs).into_expr(DebugData::default())),
+        Some((ExprKind::Float(lhs), ExprKind::Float(rhs))) => program
+          .push(ExprKind::Float(lhs / rhs).into_expr(DebugData::default())),
         _ => Err(EvalError {
           expr: Some(trace_expr),
           kind: EvalErrorKind::ExpectedFound(
@@ -135,16 +111,10 @@ pub fn module(program: &mut Program) -> Result<(), EvalError> {
       let lhs_expr = program.pop(trace_expr)?;
 
       match lhs_expr.val.coerce_same_float(&rhs_expr.val) {
-        Some((ExprKind::Integer(lhs), ExprKind::Integer(rhs))) => program.push(
-          ExprKind::Integer(lhs % rhs).into_expr(DebugData::only_ingredients(
-            vec![lhs_expr, rhs_expr, trace_expr.clone()],
-          )),
-        ),
-        Some((ExprKind::Float(lhs), ExprKind::Float(rhs))) => program.push(
-          ExprKind::Float(lhs % rhs).into_expr(DebugData::only_ingredients(
-            vec![lhs_expr, rhs_expr, trace_expr.clone()],
-          )),
-        ),
+        Some((ExprKind::Integer(lhs), ExprKind::Integer(rhs))) => program
+          .push(ExprKind::Integer(lhs % rhs).into_expr(DebugData::default())),
+        Some((ExprKind::Float(lhs), ExprKind::Float(rhs))) => program
+          .push(ExprKind::Float(lhs % rhs).into_expr(DebugData::default())),
         _ => Err(EvalError {
           expr: Some(trace_expr),
           kind: EvalErrorKind::ExpectedFound(

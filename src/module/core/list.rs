@@ -16,9 +16,9 @@ pub fn module(program: &mut Program) -> Result<(), EvalError> {
 
       match list_expr.val {
         ExprKind::List(list) => match i64::try_from(list.len()) {
-          Ok(i) => program.push(ExprKind::Integer(i).into_expr(
-            DebugData::only_ingredients(vec![list_expr, trace_expr.clone()]),
-          )),
+          Ok(i) => {
+            program.push(ExprKind::Integer(i).into_expr(DebugData::default()))
+          }
           Err(_) => Err(EvalError {
             expr: Some(trace_expr),
             kind: EvalErrorKind::Message(
@@ -47,15 +47,12 @@ pub fn module(program: &mut Program) -> Result<(), EvalError> {
       match index_expr.val {
         ExprKind::Integer(index) => match usize::try_from(index) {
           Ok(i) => match list_expr.val {
-            ExprKind::List(list) => {
-              program.push(list.get(i).cloned().unwrap_or(
-                ExprKind::Nil.into_expr(DebugData::only_ingredients(vec![
-                  list_expr,
-                  index_expr,
-                  trace_expr.clone(),
-                ])),
-              ))
-            }
+            ExprKind::List(list) => program.push(
+              list
+                .get(i)
+                .cloned()
+                .unwrap_or(ExprKind::Nil.into_expr(DebugData::default())),
+            ),
             _ => Err(EvalError {
               expr: Some(trace_expr),
               kind: EvalErrorKind::ExpectedFound(
@@ -97,28 +94,12 @@ pub fn module(program: &mut Program) -> Result<(), EvalError> {
             ExprKind::List(mut list) => {
               if i <= list.len() {
                 let rest = list.split_off(i);
-                program.push(ExprKind::List(list).into_expr(
-                  DebugData::only_ingredients(vec![
-                    list_expr.clone(),
-                    index_expr.clone(),
-                    trace_expr.clone(),
-                  ]),
-                ))?;
-                program.push(ExprKind::List(rest).into_expr(
-                  DebugData::only_ingredients(vec![
-                    list_expr,
-                    index_expr,
-                    trace_expr.clone(),
-                  ]),
-                ))
+                program
+                  .push(ExprKind::List(list).into_expr(DebugData::default()))?;
+                program
+                  .push(ExprKind::List(rest).into_expr(DebugData::default()))
               } else {
-                program.push(ExprKind::Nil.into_expr(
-                  DebugData::only_ingredients(vec![
-                    list_expr,
-                    index_expr,
-                    trace_expr.clone(),
-                  ]),
-                ))
+                program.push(ExprKind::Nil.into_expr(DebugData::default()))
               }
             }
             _ => Err(EvalError {
@@ -170,11 +151,7 @@ pub fn module(program: &mut Program) -> Result<(), EvalError> {
             })
             .join(delimiter_str);
           let string = ExprKind::String(interner().get_or_intern(string));
-          program.push(string.into_expr(DebugData::only_ingredients(vec![
-            delimiter_expr,
-            list_expr,
-            trace_expr.clone(),
-          ])))
+          program.push(string.into_expr(DebugData::default()))
         }
         (delimiter, list) => Err(EvalError {
           expr: Some(trace_expr),
@@ -197,9 +174,7 @@ pub fn module(program: &mut Program) -> Result<(), EvalError> {
         (ExprKind::List(mut list_lhs), ExprKind::List(list_rhs)) => {
           list_lhs.extend(list_rhs);
           let list_expr =
-            ExprKind::List(list_lhs).into_expr(DebugData::only_ingredients(
-              vec![list_lhs_expr, list_rhs_expr, trace_expr.clone()],
-            ));
+            ExprKind::List(list_lhs).into_expr(DebugData::default());
           program.push(list_expr)
         }
         (list_lhs, list_rhs) => Err(EvalError {
@@ -232,12 +207,7 @@ pub fn module(program: &mut Program) -> Result<(), EvalError> {
     interner().get_or_intern_static("wrap"),
     |program, trace_expr| {
       let any = program.pop(trace_expr)?;
-      program.push(
-        ExprKind::List(vec![any]).into_expr(DebugData::only_ingredients(vec![
-          any,
-          trace_expr.clone(),
-        ])),
-      )
+      program.push(ExprKind::List(vec![any]).into_expr(DebugData::default()))
     },
   );
 
@@ -259,9 +229,7 @@ pub fn module(program: &mut Program) -> Result<(), EvalError> {
             .collect::<Vec<_>>();
           list.reverse();
 
-          program.push(ExprKind::List(list).into_expr(
-            DebugData::only_ingredients(vec![item.clone(), trace_expr.clone()]),
-          ))
+          program.push(ExprKind::List(list).into_expr(DebugData::default()))
         }
         _ => Err(EvalError {
           expr: Some(trace_expr),

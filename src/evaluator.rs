@@ -343,7 +343,7 @@ impl Program {
 
         self.push(Expr {
           val: ExprKind::List(list),
-          debug_data: expr.debug_data.update(vec![expr]),
+          debug_data: expr.debug_data,
         })
       }
       ExprKind::Fn(_) => Ok(()),
