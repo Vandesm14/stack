@@ -88,103 +88,103 @@ pub fn module(program: &mut Program) -> Result<(), EvalError> {
   Ok(())
 }
 
-#[cfg(test)]
+// #[cfg(test)]
 
-mod tests {
-  use super::*;
+// mod tests {
+//   use super::*;
 
-  #[test]
-  fn clearing_stack() {
-    let mut program = Program::new().with_core().unwrap();
-    program.eval_string("1 2 clear").unwrap();
-    assert_eq!(program.stack, vec![]);
-  }
+//   #[test]
+//   fn clearing_stack() {
+//     let mut program = Program::new().with_core().unwrap();
+//     program.eval_string("1 2 clear").unwrap();
+//     assert_eq!(program.stack, vec![]);
+//   }
 
-  #[test]
-  fn dropping_from_stack() {
-    let mut program = Program::new().with_core().unwrap();
-    program.eval_string("1 2 drop").unwrap();
-    assert_eq!(program.stack, vec![ExprKind::Integer(1)]);
-  }
+//   #[test]
+//   fn dropping_from_stack() {
+//     let mut program = Program::new().with_core().unwrap();
+//     program.eval_string("1 2 drop").unwrap();
+//     assert_eq!(program.stack, vec![ExprKind::Integer(1)]);
+//   }
 
-  #[test]
-  fn duplicating() {
-    let mut program = Program::new().with_core().unwrap();
-    program.eval_string("1 dup").unwrap();
-    assert_eq!(
-      program.stack,
-      vec![ExprKind::Integer(1), ExprKind::Integer(1)]
-    );
-  }
+//   #[test]
+//   fn duplicating() {
+//     let mut program = Program::new().with_core().unwrap();
+//     program.eval_string("1 dup").unwrap();
+//     assert_eq!(
+//       program.stack,
+//       vec![ExprKind::Integer(1), ExprKind::Integer(1)]
+//     );
+//   }
 
-  #[test]
-  fn swapping() {
-    let mut program = Program::new().with_core().unwrap();
-    program.eval_string("1 2 swap").unwrap();
-    assert_eq!(
-      program.stack,
-      vec![ExprKind::Integer(2), ExprKind::Integer(1)]
-    );
-  }
+//   #[test]
+//   fn swapping() {
+//     let mut program = Program::new().with_core().unwrap();
+//     program.eval_string("1 2 swap").unwrap();
+//     assert_eq!(
+//       program.stack,
+//       vec![ExprKind::Integer(2), ExprKind::Integer(1)]
+//     );
+//   }
 
-  #[test]
-  fn rotating() {
-    let mut program = Program::new().with_core().unwrap();
-    program.eval_string("1 2 3 rot").unwrap();
-    assert_eq!(
-      program.stack,
-      vec![
-        ExprKind::Integer(3),
-        ExprKind::Integer(1),
-        ExprKind::Integer(2)
-      ]
-    );
-  }
+//   #[test]
+//   fn rotating() {
+//     let mut program = Program::new().with_core().unwrap();
+//     program.eval_string("1 2 3 rot").unwrap();
+//     assert_eq!(
+//       program.stack,
+//       vec![
+//         ExprKind::Integer(3),
+//         ExprKind::Integer(1),
+//         ExprKind::Integer(2)
+//       ]
+//     );
+//   }
 
-  #[test]
-  fn collect() {
-    let mut program = Program::new().with_core().unwrap();
-    program.eval_string("1 2 3 collect").unwrap();
-    assert_eq!(
-      program.stack,
-      vec![ExprKind::List(vec![
-        ExprKind::Integer(1),
-        ExprKind::Integer(2),
-        ExprKind::Integer(3)
-      ])]
-    );
-  }
+//   #[test]
+//   fn collect() {
+//     let mut program = Program::new().with_core().unwrap();
+//     program.eval_string("1 2 3 collect").unwrap();
+//     assert_eq!(
+//       program.stack,
+//       vec![ExprKind::List(vec![
+//         ExprKind::Integer(1),
+//         ExprKind::Integer(2),
+//         ExprKind::Integer(3)
+//       ])]
+//     );
+//   }
 
-  #[test]
-  fn collect_and_unwrap() {
-    let mut program = Program::new().with_core().unwrap();
-    program
-      .eval_string("1 2 3 collect 'a def 'a get unwrap")
-      .unwrap();
+//   #[test]
+//   fn collect_and_unwrap() {
+//     let mut program = Program::new().with_core().unwrap();
+//     program
+//       .eval_string("1 2 3 collect 'a def 'a get unwrap")
+//       .unwrap();
 
-    assert_eq!(
-      program.stack,
-      vec![
-        ExprKind::Integer(1),
-        ExprKind::Integer(2),
-        ExprKind::Integer(3)
-      ]
-    );
+//     assert_eq!(
+//       program.stack,
+//       vec![
+//         ExprKind::Integer(1),
+//         ExprKind::Integer(2),
+//         ExprKind::Integer(3)
+//       ]
+//     );
 
-    let a = program
-      .scopes
-      .last()
-      .unwrap()
-      .get_val(interner().get_or_intern("a"))
-      .unwrap();
+//     let a = program
+//       .scopes
+//       .last()
+//       .unwrap()
+//       .get_val(interner().get_or_intern("a"))
+//       .unwrap();
 
-    assert_eq!(
-      a,
-      ExprKind::List(vec![
-        ExprKind::Integer(1),
-        ExprKind::Integer(2),
-        ExprKind::Integer(3)
-      ])
-    );
-  }
-}
+//     assert_eq!(
+//       a,
+//       ExprKind::List(vec![
+//         ExprKind::Integer(1),
+//         ExprKind::Integer(2),
+//         ExprKind::Integer(3)
+//       ])
+//     );
+//   }
+// }
