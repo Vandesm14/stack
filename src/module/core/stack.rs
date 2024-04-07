@@ -1,11 +1,9 @@
-use crate::{
-  interner::interner, DebugData, EvalError, Expr, ExprKind, Program, Type,
-};
+use crate::{interner::interner, DebugData, EvalError, ExprKind, Program};
 
 pub fn module(program: &mut Program) -> Result<(), EvalError> {
   program.funcs.insert(
     interner().get_or_intern_static("collect"),
-    |program, trace_expr| {
+    |program, _| {
       let list = core::mem::take(&mut program.stack);
       program.push(ExprKind::List(list).into_expr(DebugData::default()))
     },

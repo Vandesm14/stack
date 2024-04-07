@@ -111,15 +111,17 @@ impl<'source> Parser<'source> {
         TokenKind::Apostrophe => {
           break match self.next() {
             Ok(Some(expr)) => {
-              Ok(Some(ExprKind::Lazy(Box::new(expr)).into_expr(DebugData {
-                source_file: Some(self.filename),
-                span: Some(Span {
-                  start: token.span.start,
-                  // TODO: We probably shouldn't be unwrapping here, though processed expressions should
-                  // ALWAYS have a span in debug data, so this is fine if it hard-errors
-                  end: expr.debug_data.span.unwrap().end,
-                }),
-              })))
+              Ok(Some(ExprKind::Lazy(Box::new(expr.clone())).into_expr(
+                DebugData {
+                  source_file: Some(self.filename),
+                  span: Some(Span {
+                    start: token.span.start,
+                    // TODO: We probably shouldn't be unwrapping here, though processed expressions should
+                    // ALWAYS have a span in debug data, so this is fine if it hard-errors
+                    end: expr.debug_data.span.unwrap().end,
+                  }),
+                },
+              )))
             }
             Ok(None) => Err(ParseError {
               reason: ParseErrorReason::UnexpectedToken { kind: token.kind },
@@ -129,38 +131,36 @@ impl<'source> Parser<'source> {
           };
         }
         TokenKind::ParenOpen => {
-          let mut list = Vec::new();
+          let mut list_items: Vec<Expr> = Vec::new();
 
           break loop {
-            let token = self.tokens.token(self.cursor);
+            let token_inner = self.tokens.token(self.cursor);
 
-            match token.kind {
+            match token_inner.kind {
               TokenKind::Whitespace | TokenKind::Comment => {
                 self.cursor += 1;
                 continue;
               }
               TokenKind::ParenClose => {
                 self.cursor += 1;
-                break Ok(Some(ExprKind::List(list).into_expr(DebugData {
-                  source_file: Some(self.filename),
-                  span: Some(Span {
-                    start: match list.first() {
-                      // TODO: same as the TODO above
-                      Some(expr) => expr.debug_data.span.unwrap().start,
-                      None => token.span.start,
-                    } - 1,
-                    end: token.span.end,
-                  }),
-                })));
+                break Ok(Some(ExprKind::List(list_items).into_expr(
+                  DebugData {
+                    source_file: Some(self.filename),
+                    span: Some(Span {
+                      start: token.span.start,
+                      end: token_inner.span.end,
+                    }),
+                  },
+                )));
               }
               _ => match self.next()? {
-                Some(expr) => list.push(expr),
+                Some(expr) => list_items.push(expr),
                 None => {
                   break Err(ParseError {
                     reason: ParseErrorReason::UnexpectedToken {
-                      kind: token.kind,
+                      kind: token_inner.kind,
                     },
-                    span: token.span,
+                    span: token_inner.span,
                   });
                 }
               },

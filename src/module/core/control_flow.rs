@@ -32,7 +32,7 @@ pub fn module(program: &mut Program) -> Result<(), EvalError> {
             ]),
             Type::List(vec![cond.type_of(), then.type_of(), r#else.type_of()]),
           ),
-          expr: Some(trace_expr),
+          expr: Some(trace_expr.clone()),
         }),
       }
     },
@@ -63,7 +63,7 @@ pub fn module(program: &mut Program) -> Result<(), EvalError> {
             ]),
             Type::List(vec![cond.type_of(), then.type_of()]),
           ),
-          expr: Some(trace_expr),
+          expr: Some(trace_expr.clone()),
         }),
       }
 
@@ -97,7 +97,7 @@ pub fn module(program: &mut Program) -> Result<(), EvalError> {
             ]),
             Type::List(vec![cond.type_of(), block.type_of()]),
           ),
-          expr: Some(trace_expr),
+          expr: Some(trace_expr.clone()),
         }),
       }
     },
@@ -105,10 +105,10 @@ pub fn module(program: &mut Program) -> Result<(), EvalError> {
 
   program.funcs.insert(
     interner().get_or_intern_static("halt"),
-    |program, trace_expr| {
+    |_, trace_expr| {
       Err(EvalError {
         kind: crate::EvalErrorKind::Halt,
-        expr: Some(trace_expr),
+        expr: Some(trace_expr.clone()),
       })
     },
   );

@@ -85,9 +85,9 @@ impl ExprKind {
     }
   }
 
-  pub fn fn_symbol(&self) -> Option<FnSymbol> {
+  pub fn fn_symbol(&self) -> Option<&FnSymbol> {
     match self {
-      Self::List(list) => list.first().and_then(|x| match x.val {
+      Self::List(list) => list.first().and_then(|x| match &x.val {
         Self::Fn(scope) => Some(scope),
         _ => None,
       }),
@@ -382,16 +382,12 @@ pub struct DebugData {
 }
 
 impl DebugData {
-  pub fn new(
-    source_file: Option<Spur>,
-    span: Option<Span>,
-    ingredients: Vec<Expr>,
-  ) -> Self {
+  pub fn new(source_file: Option<Spur>, span: Option<Span>) -> Self {
     Self { source_file, span }
   }
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq, PartialOrd)]
 pub struct Expr {
   pub val: ExprKind,
   pub debug_data: DebugData,
@@ -406,18 +402,6 @@ impl fmt::Display for Expr {
 impl From<Expr> for ExprKind {
   fn from(value: Expr) -> Self {
     value.val
-  }
-}
-
-impl PartialEq for Expr {
-  fn eq(&self, other: &Self) -> bool {
-    self == other
-  }
-}
-
-impl PartialOrd for Expr {
-  fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
-    self.val.partial_cmp(&other.val)
   }
 }
 

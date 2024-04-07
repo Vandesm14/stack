@@ -13,18 +13,18 @@ pub fn module(program: &mut Program) -> Result<(), EvalError> {
       match key.val {
         ExprKind::Call(ref key) => match program.funcs.contains_key(key) {
           true => Err(EvalError {
-            expr: Some(trace_expr),
+            expr: Some(trace_expr.clone()),
             kind: EvalErrorKind::Message(
               "cannot shadow a native function".into(),
             ),
           }),
           false => {
-            program.def_scope_item(trace_expr, interner().resolve(key), val);
+            program.def_scope_item(interner().resolve(key), val);
             Ok(())
           }
         },
         _ => Err(EvalError {
-          expr: Some(trace_expr),
+          expr: Some(trace_expr.clone()),
           kind: EvalErrorKind::ExpectedFound(
             Type::List(vec![Type::Any, Type::Call]),
             Type::List(vec![val.val.type_of(), key.val.type_of()]),
@@ -47,7 +47,7 @@ pub fn module(program: &mut Program) -> Result<(), EvalError> {
           Ok(())
         }
         item => Err(EvalError {
-          expr: Some(trace_expr),
+          expr: Some(trace_expr.clone()),
           kind: EvalErrorKind::ExpectedFound(Type::Call, item.type_of()),
         }),
       }
@@ -63,18 +63,18 @@ pub fn module(program: &mut Program) -> Result<(), EvalError> {
       match key.val {
         ExprKind::Call(ref key) => match program.funcs.contains_key(key) {
           true => Err(EvalError {
-            expr: Some(trace_expr),
+            expr: Some(trace_expr.clone()),
             kind: EvalErrorKind::Message(
               "cannot shadow a native function".into(),
             ),
           }),
           false => {
-            program.set_scope_item(trace_expr, interner().resolve(key), val);
+            program.set_scope_item(interner().resolve(key), val)?;
             Ok(())
           }
         },
         key => Err(EvalError {
-          expr: Some(trace_expr),
+          expr: Some(trace_expr.clone()),
           kind: EvalErrorKind::ExpectedFound(
             Type::List(vec![Type::Any, Type::Call]),
             Type::List(vec![val.val.type_of(), key.type_of()]),
@@ -106,7 +106,7 @@ pub fn module(program: &mut Program) -> Result<(), EvalError> {
           }
         }
         item => Err(EvalError {
-          expr: Some(trace_expr),
+          expr: Some(trace_expr.clone()),
           kind: EvalErrorKind::ExpectedFound(Type::Call, item.type_of()),
         }),
       }

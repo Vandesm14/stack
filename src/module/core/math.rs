@@ -16,7 +16,7 @@ pub fn module(program: &mut Program) -> Result<(), EvalError> {
         Some((ExprKind::Float(lhs), ExprKind::Float(rhs))) => program
           .push(ExprKind::Float(lhs + rhs).into_expr(DebugData::default())),
         _ => Err(EvalError {
-          expr: Some(trace_expr),
+          expr: Some(trace_expr.clone()),
           kind: EvalErrorKind::ExpectedFound(
             Type::List(vec![
               Type::Set(vec![Type::Integer, Type::Float, Type::Pointer]),
@@ -41,7 +41,7 @@ pub fn module(program: &mut Program) -> Result<(), EvalError> {
         Some((ExprKind::Float(lhs), ExprKind::Float(rhs))) => program
           .push(ExprKind::Float(lhs - rhs).into_expr(DebugData::default())),
         _ => Err(EvalError {
-          expr: Some(trace_expr),
+          expr: Some(trace_expr.clone()),
           kind: EvalErrorKind::ExpectedFound(
             Type::List(vec![
               Type::Set(vec![Type::Integer, Type::Float, Type::Pointer]),
@@ -66,7 +66,7 @@ pub fn module(program: &mut Program) -> Result<(), EvalError> {
         Some((ExprKind::Float(lhs), ExprKind::Float(rhs))) => program
           .push(ExprKind::Float(lhs * rhs).into_expr(DebugData::default())),
         _ => Err(EvalError {
-          expr: Some(trace_expr),
+          expr: Some(trace_expr.clone()),
           kind: EvalErrorKind::ExpectedFound(
             Type::List(vec![
               Type::Set(vec![Type::Integer, Type::Float, Type::Pointer]),
@@ -91,7 +91,7 @@ pub fn module(program: &mut Program) -> Result<(), EvalError> {
         Some((ExprKind::Float(lhs), ExprKind::Float(rhs))) => program
           .push(ExprKind::Float(lhs / rhs).into_expr(DebugData::default())),
         _ => Err(EvalError {
-          expr: Some(trace_expr),
+          expr: Some(trace_expr.clone()),
           kind: EvalErrorKind::ExpectedFound(
             Type::List(vec![
               Type::Set(vec![Type::Integer, Type::Float, Type::Pointer]),
@@ -116,7 +116,7 @@ pub fn module(program: &mut Program) -> Result<(), EvalError> {
         Some((ExprKind::Float(lhs), ExprKind::Float(rhs))) => program
           .push(ExprKind::Float(lhs % rhs).into_expr(DebugData::default())),
         _ => Err(EvalError {
-          expr: Some(trace_expr),
+          expr: Some(trace_expr.clone()),
           kind: EvalErrorKind::ExpectedFound(
             Type::List(vec![
               Type::Set(vec![Type::Integer, Type::Float, Type::Pointer]),

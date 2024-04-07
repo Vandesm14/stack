@@ -40,7 +40,7 @@ pub fn module(program: &mut Program) -> Result<(), EvalError> {
                 )
               }
               Err(e) => Err(EvalError {
-                expr: Some(trace_expr),
+                expr: Some(trace_expr.clone()),
                 kind: EvalErrorKind::UnableToRead(
                   path_str.into(),
                   e.to_string(),
@@ -54,7 +54,7 @@ pub fn module(program: &mut Program) -> Result<(), EvalError> {
           }
         }
         _ => Err(EvalError {
-          expr: Some(trace_expr),
+          expr: Some(trace_expr.clone()),
           kind: EvalErrorKind::ExpectedFound(Type::String, item.val.type_of()),
         }),
       }

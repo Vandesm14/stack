@@ -7,7 +7,7 @@ pub fn module(program: &mut Program) -> Result<(), EvalError> {
       let string = program.pop(trace_expr)?;
 
       Err(EvalError {
-        expr: Some(trace_expr),
+        expr: Some(trace_expr.clone()),
         kind: EvalErrorKind::Panic(format!("{}", string.val)),
       })
     },

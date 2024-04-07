@@ -80,14 +80,8 @@ impl Scope {
     }
   }
 
-  pub fn remove(&mut self, name: Spur) -> Result<(), String> {
-    if self.items.get(&name).is_none() {
-      return Err("Cannot remove a nonexistent variable".to_owned());
-    }
-
+  pub fn remove(&mut self, name: Spur) {
     self.items.remove(&name);
-
-    Ok(())
   }
 
   pub fn has(&self, name: Spur) -> bool {
@@ -160,7 +154,7 @@ impl<'a> Scanner<'a> {
           *unlazied_mut = scanner
             .scan(Expr {
               val: unlazied_mut.clone(),
-              debug_data: item.debug_data,
+              debug_data: item.debug_data.clone(),
             })
             .unwrap()
             .into_expr_kind();
@@ -177,7 +171,7 @@ impl<'a> Scanner<'a> {
 
       let mut list_items = vec![Expr {
         val: fn_symbol,
-        debug_data: expr.debug_data,
+        debug_data: expr.debug_data.clone(),
       }];
       list_items.extend(fn_body);
 

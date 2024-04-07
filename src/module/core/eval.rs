@@ -24,7 +24,7 @@ pub fn module(program: &mut Program) -> Result<(), EvalError> {
           program.push(expr.into_expr(DebugData::default()))
         }
         _ => Err(EvalError {
-          expr: Some(trace_expr),
+          expr: Some(trace_expr.clone()),
           kind: EvalErrorKind::ExpectedFound(Type::String, item.val.type_of()),
         }),
       }

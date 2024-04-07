@@ -115,18 +115,18 @@ impl fmt::Display for EvalErrorKind {
 }
 
 #[derive(Debug, Clone, PartialEq)]
-pub struct EvalError<'a> {
+pub struct EvalError {
   pub kind: EvalErrorKind,
-  pub expr: Option<&'a Expr>,
+  pub expr: Option<Expr>,
 }
 
-impl<'a> fmt::Display for EvalError<'a> {
+impl fmt::Display for EvalError {
   fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
     writeln!(f, "Error: {}", self.kind)?;
     writeln!(
       f,
       "Expr: {}",
-      match self.expr {
+      match self.expr.clone() {
         Some(expr) => expr.to_string(),
         None => "no expr to display".into(),
       }
@@ -147,17 +147,19 @@ impl Program {
     }
   }
 
-  pub fn with_core(&mut self) -> Result<&mut Self, EvalError> {
-    module::core::Core::default().link(self)?;
-    Ok(self)
+  pub fn with_core(self) -> Result<Self, EvalError> {
+    let mut program = self;
+    module::core::Core::default().link(&mut program)?;
+    Ok(program)
   }
 
-  pub fn with_module<M>(&mut self, module: M) -> Result<&mut Self, EvalError>
+  pub fn with_module<M>(self, module: M) -> Result<Self, EvalError>
   where
     M: Module,
   {
-    module.link(self)?;
-    Ok(self)
+    let mut program = self;
+    module.link(&mut program)?;
+    Ok(program)
   }
 
   pub fn with_debug(mut self) -> Self {
@@ -171,7 +173,7 @@ impl Program {
 
   pub fn pop(&mut self, trace_expr: &Expr) -> Result<Expr, EvalError> {
     self.stack.pop().ok_or_else(|| EvalError {
-      expr: Some(trace_expr),
+      expr: Some(trace_expr.clone()),
       kind: EvalErrorKind::StackUnderflow,
     })
   }
@@ -185,7 +187,7 @@ impl Program {
         Ok(expr) => expr,
         Err(message) => {
           return Err(EvalError {
-            expr: Some(&expr),
+            expr: Some(expr),
             kind: EvalErrorKind::Message(message),
           })
         }
@@ -206,12 +208,7 @@ impl Program {
       .and_then(|layer| layer.get_val(interner().get_or_intern(symbol)))
   }
 
-  pub fn def_scope_item(
-    &mut self,
-    trace_expr: &Expr,
-    symbol: &str,
-    value: Expr,
-  ) {
+  pub fn def_scope_item(&mut self, symbol: &str, value: Expr) {
     if let Some(layer) = self.scopes.last_mut() {
       layer
         .define(interner().get_or_intern(symbol), value)
@@ -221,12 +218,22 @@ impl Program {
 
   pub fn set_scope_item(
     &mut self,
-    trace_expr: &Expr,
     symbol: &str,
     value: Expr,
-  ) {
+  ) -> Result<(), EvalError> {
     if let Some(layer) = self.scopes.last_mut() {
-      layer.set(interner().get_or_intern(symbol), value);
+      match layer.set(interner().get_or_intern(symbol), value.clone()) {
+        Ok(_) => Ok(()),
+        Err(string) => Err(EvalError {
+          expr: Some(value),
+          kind: EvalErrorKind::Message(string),
+        }),
+      }
+    } else {
+      Err(EvalError {
+        expr: Some(value),
+        kind: EvalErrorKind::Message("no scopes to set to".into()),
+      })
     }
   }
 
@@ -252,7 +259,7 @@ impl Program {
     expr: Expr,
   ) -> Result<(), EvalError> {
     match expr.val {
-      call @ ExprKind::Call(_) => self.eval_expr(expr),
+      ExprKind::Call(_) => self.eval_expr(expr),
       item @ ExprKind::List(_) => match item.is_function() {
         true => {
           let fn_symbol = item.fn_symbol().unwrap();
@@ -280,7 +287,7 @@ impl Program {
         }
       },
       _ => Err(EvalError {
-        expr: Some(trace_expr),
+        expr: Some(trace_expr.clone()),
         kind: EvalErrorKind::ExpectedFound(
           Type::Set(vec![
             Type::Call,
@@ -316,7 +323,7 @@ impl Program {
     } else {
       Err(EvalError {
         kind: EvalErrorKind::UnknownCall,
-        expr: Some(trace_expr),
+        expr: Some(trace_expr.clone()),
       })
     }
   }
@@ -356,7 +363,7 @@ impl Program {
     let lexer = Lexer::new(line);
     let parser = Parser::new(lexer, interner().get_or_intern("internal"));
     // TODO: It might be time to add a proper EvalError enum.
-    let exprs = parser.parse().map_err(|e| EvalError {
+    let exprs = parser.parse().map_err(|_| EvalError {
       expr: None,
       kind: EvalErrorKind::ParseError,
     })?;

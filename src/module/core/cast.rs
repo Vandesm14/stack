@@ -19,11 +19,7 @@ pub fn module(program: &mut Program) -> Result<(), EvalError> {
               .ok()
               .map(ExprKind::Boolean)
               .unwrap_or(ExprKind::Nil),
-            debug_data: DebugData::new(
-              None,
-              None,
-              vec![item, trace_expr.clone()],
-            ),
+            debug_data: DebugData::default(),
           })
         }
         found => program.push(Expr {

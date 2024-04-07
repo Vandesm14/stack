@@ -12,7 +12,7 @@ pub fn module(program: &mut Program) -> Result<(), EvalError> {
     interner().get_or_intern_static("len"),
     |program, trace_expr| {
       let list_expr = program.pop(trace_expr)?;
-      program.push(list_expr);
+      program.push(list_expr.clone())?;
 
       match list_expr.val {
         ExprKind::List(list) => match i64::try_from(list.len()) {
@@ -20,14 +20,14 @@ pub fn module(program: &mut Program) -> Result<(), EvalError> {
             program.push(ExprKind::Integer(i).into_expr(DebugData::default()))
           }
           Err(_) => Err(EvalError {
-            expr: Some(trace_expr),
+            expr: Some(trace_expr.clone()),
             kind: EvalErrorKind::Message(
               "list length could not be converted to an integer".into(),
             ),
           }),
         },
         _ => Err(EvalError {
-          expr: Some(trace_expr),
+          expr: Some(trace_expr.clone()),
           kind: EvalErrorKind::ExpectedFound(
             Type::List(vec![]),
             list_expr.val.type_of(),
@@ -42,7 +42,7 @@ pub fn module(program: &mut Program) -> Result<(), EvalError> {
     |program, trace_expr| {
       let index_expr = program.pop(trace_expr)?;
       let list_expr = program.pop(trace_expr)?;
-      program.push(list_expr);
+      program.push(list_expr.clone())?;
 
       match index_expr.val {
         ExprKind::Integer(index) => match usize::try_from(index) {
@@ -54,7 +54,7 @@ pub fn module(program: &mut Program) -> Result<(), EvalError> {
                 .unwrap_or(ExprKind::Nil.into_expr(DebugData::default())),
             ),
             _ => Err(EvalError {
-              expr: Some(trace_expr),
+              expr: Some(trace_expr.clone()),
               kind: EvalErrorKind::ExpectedFound(
                 Type::List(vec![Type::List(vec![]), Type::Integer]),
                 Type::List(vec![
@@ -68,11 +68,11 @@ pub fn module(program: &mut Program) -> Result<(), EvalError> {
             kind: EvalErrorKind::Message(
               "could not convert index into integer".into(),
             ),
-            expr: Some(trace_expr),
+            expr: Some(trace_expr.clone()),
           }),
         },
         _ => Err(EvalError {
-          expr: Some(trace_expr),
+          expr: Some(trace_expr.clone()),
           kind: EvalErrorKind::ExpectedFound(
             Type::List(vec![Type::List(vec![]), Type::Integer]),
             Type::List(vec![list_expr.val.type_of(), index_expr.val.type_of()]),
@@ -103,7 +103,7 @@ pub fn module(program: &mut Program) -> Result<(), EvalError> {
               }
             }
             _ => Err(EvalError {
-              expr: Some(trace_expr),
+              expr: Some(trace_expr.clone()),
               kind: EvalErrorKind::ExpectedFound(
                 Type::List(vec![Type::List(vec![]), Type::Integer]),
                 Type::List(vec![
@@ -117,11 +117,11 @@ pub fn module(program: &mut Program) -> Result<(), EvalError> {
             kind: EvalErrorKind::Message(
               "could not convert index into integer".into(),
             ),
-            expr: Some(trace_expr),
+            expr: Some(trace_expr.clone()),
           }),
         },
         _ => Err(EvalError {
-          expr: Some(trace_expr),
+          expr: Some(trace_expr.clone()),
           kind: EvalErrorKind::ExpectedFound(
             Type::List(vec![Type::List(vec![]), Type::Integer]),
             Type::List(vec![list_expr.val.type_of(), index_expr.val.type_of()]),
@@ -154,7 +154,7 @@ pub fn module(program: &mut Program) -> Result<(), EvalError> {
           program.push(string.into_expr(DebugData::default()))
         }
         (delimiter, list) => Err(EvalError {
-          expr: Some(trace_expr),
+          expr: Some(trace_expr.clone()),
           kind: EvalErrorKind::ExpectedFound(
             Type::List(vec![Type::List(vec![]), Type::String]),
             Type::List(vec![list.type_of(), delimiter.type_of()]),
@@ -178,7 +178,7 @@ pub fn module(program: &mut Program) -> Result<(), EvalError> {
           program.push(list_expr)
         }
         (list_lhs, list_rhs) => Err(EvalError {
-          expr: Some(trace_expr),
+          expr: Some(trace_expr.clone()),
           kind: EvalErrorKind::ExpectedFound(
             Type::List(vec![Type::List(vec![]), Type::List(vec![])]),
             Type::List(vec![list_lhs.type_of(), list_rhs.type_of()]),
@@ -215,6 +215,7 @@ pub fn module(program: &mut Program) -> Result<(), EvalError> {
     interner().get_or_intern_static("call-list"),
     |program, trace_expr| {
       let item = program.pop(trace_expr)?;
+      let item_clone = item.clone();
 
       match item.val {
         ExprKind::List(list) => {
@@ -224,7 +225,7 @@ pub fn module(program: &mut Program) -> Result<(), EvalError> {
 
           let list_len = program.stack.len() - stack_len;
 
-          let mut list = iter::repeat_with(|| program.pop(&item).unwrap())
+          let mut list = iter::from_fn(|| program.pop(&item_clone).ok())
             .take(list_len)
             .collect::<Vec<_>>();
           list.reverse();
@@ -232,7 +233,7 @@ pub fn module(program: &mut Program) -> Result<(), EvalError> {
           program.push(ExprKind::List(list).into_expr(DebugData::default()))
         }
         _ => Err(EvalError {
-          expr: Some(trace_expr),
+          expr: Some(trace_expr.clone()),
           kind: EvalErrorKind::ExpectedFound(
             Type::List(vec![Type::FnScope, Type::Any]),
             Type::List(vec![item.val.type_of()]),
