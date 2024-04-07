@@ -3,6 +3,7 @@ use crate::{EvalError, Module, Program};
 pub mod cast;
 pub mod compare;
 pub mod control_flow;
+#[allow(clippy::module_inception)]
 pub mod core;
 pub mod debug;
 pub mod eval;

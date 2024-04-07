@@ -116,90 +116,97 @@ pub fn module(program: &mut Program) -> Result<(), EvalError> {
   Ok(())
 }
 
-// #[cfg(test)]
-// mod tests {
-//   use super::*;
+#[cfg(test)]
+mod tests {
+  use super::*;
+  use crate::{simple_exprs, TestExpr};
 
-//   mod control_flow {
-//     use super::*;
+  mod control_flow {
+    use super::*;
 
-//     #[test]
-//     fn if_true() {
-//       let mut program = Program::new().with_core().unwrap();
-//       program
-//         .eval_string("1 2 + '(\"correct\") '(3 =) if")
-//         .unwrap();
-//       assert_eq!(
-//         program.stack,
-//         vec![Expr::String(interner().get_or_intern_static("correct"))]
-//       );
-//     }
+    #[test]
+    fn if_true() {
+      let mut program = Program::new().with_core().unwrap();
+      program
+        .eval_string("1 2 + '(\"correct\") '(3 =) if")
+        .unwrap();
+      assert_eq!(
+        simple_exprs(program.stack),
+        vec![TestExpr::String(interner().get_or_intern_static("correct"))]
+      );
+    }
 
-//     #[test]
-//     fn if_empty_condition() {
-//       let mut program = Program::new().with_core().unwrap();
-//       program
-//         .eval_string("1 2 + 3 = '(\"correct\") '() if")
-//         .unwrap();
-//       assert_eq!(
-//         program.stack,
-//         vec![Expr::String(interner().get_or_intern_static("correct"))]
-//       );
-//     }
+    #[test]
+    fn if_empty_condition() {
+      let mut program = Program::new().with_core().unwrap();
+      program
+        .eval_string("1 2 + 3 = '(\"correct\") '() if")
+        .unwrap();
+      assert_eq!(
+        simple_exprs(program.stack),
+        vec![TestExpr::String(interner().get_or_intern_static("correct"))]
+      );
+    }
 
-//     #[test]
-//     fn if_else_true() {
-//       let mut program = Program::new().with_core().unwrap();
-//       program
-//         .eval_string("1 2 + 3 = '(\"incorrect\") '(\"correct\") '() ifelse")
-//         .unwrap();
-//       assert_eq!(
-//         program.stack,
-//         vec![Expr::String(interner().get_or_intern_static("correct"))]
-//       );
-//     }
+    #[test]
+    fn if_else_true() {
+      let mut program = Program::new().with_core().unwrap();
+      program
+        .eval_string("1 2 + 3 = '(\"incorrect\") '(\"correct\") '() ifelse")
+        .unwrap();
+      assert_eq!(
+        simple_exprs(program.stack),
+        vec![TestExpr::String(interner().get_or_intern_static("correct"))]
+      );
+    }
 
-//     #[test]
-//     fn if_else_false() {
-//       let mut program = Program::new().with_core().unwrap();
-//       program
-//         .eval_string("1 2 + 2 = '(\"incorrect\") '(\"correct\") '() ifelse")
-//         .unwrap();
-//       assert_eq!(
-//         program.stack,
-//         vec![Expr::String(interner().get_or_intern_static("incorrect"))]
-//       );
-//     }
-//   }
+    #[test]
+    fn if_else_false() {
+      let mut program = Program::new().with_core().unwrap();
+      program
+        .eval_string("1 2 + 2 = '(\"incorrect\") '(\"correct\") '() ifelse")
+        .unwrap();
+      assert_eq!(
+        simple_exprs(program.stack),
+        vec![TestExpr::String(
+          interner().get_or_intern_static("incorrect")
+        )]
+      );
+    }
+  }
 
-//   mod loops {
-//     use super::*;
+  mod loops {
+    use super::*;
 
-//     #[test]
-//     fn while_loop() {
-//       let mut program = Program::new().with_core().unwrap();
-//       program
-//         .eval_string(
-//           ";; Set i to 3
-//            3 'i def
+    #[test]
+    fn while_loop() {
+      let mut program = Program::new().with_core().unwrap();
+      program
+        .eval_string(
+          ";; Set i to 3
+           3 'i def
 
-//            '(
-//              ;; Decrement i by 1
-//              i 1 -
-//              ;; Set i
-//              'i set
+           '(
+             ;; Decrement i by 1
+             i 1 -
+             ;; Set i
+             'i set
 
-//              i
-//            ) '(
-//              ;; If i is 0, break
-//              i 0 !=
-//            ) while",
-//         )
-//         .unwrap();
-//       assert_eq!(
-//         program.stack,
-//         vec![Expr::Integer(2), Expr::Integer(1), Expr::Integer(0)]
-//       );
-//     }
-//   }
-// }
+             i
+           ) '(
+             ;; If i is 0, break
+             i 0 !=
+           ) while",
+        )
+        .unwrap();
+      assert_eq!(
+        simple_exprs(program.stack),
+        vec![
+          TestExpr::Integer(2),
+          TestExpr::Integer(1),
+          TestExpr::Integer(0)
+        ]
+      );
+    }
+  }
+}

@@ -7,7 +7,7 @@ use lasso::Spur;
 
 use crate::{interner::interner, Scope, Span};
 
-#[derive(Clone)]
+#[derive(Clone, PartialEq)]
 pub struct FnSymbol {
   pub scoped: bool,
   pub scope: Scope,
@@ -261,15 +261,18 @@ impl PartialEq for ExprKind {
 
       (Self::String(lhs), Self::String(rhs)) => lhs == rhs,
 
-      (Self::List(lhs), Self::List(rhs)) => lhs == rhs,
+      (Self::List(lhs), Self::List(rhs)) => {
+        if lhs.len() != rhs.len() {
+          return false;
+        }
 
-      (Self::Lazy(lhs), Self::Lazy(rhs)) => lhs == rhs,
+        lhs.iter().zip(rhs).all(|(lhs, rhs)| lhs.val == rhs.val)
+      }
+
+      (Self::Lazy(lhs), Self::Lazy(rhs)) => lhs.val == rhs.val,
       (Self::Call(lhs), Self::Call(rhs)) => lhs == rhs,
 
-      // TODO: I removed `lhs.scope == rhs.scope &&` since it made asserting
-      // equality impossible in tests (without filling out the entire scope).
-      // Though, I think there's a better solution than removing comparability.
-      (Self::Fn(lhs), Self::Fn(rhs)) => lhs.scoped == rhs.scoped,
+      (Self::Fn(lhs), Self::Fn(rhs)) => lhs == rhs,
 
       (Self::UserData(lhs), Self::UserData(rhs)) => {
         core::ptr::addr_eq(Rc::as_ptr(lhs), Rc::as_ptr(rhs))
