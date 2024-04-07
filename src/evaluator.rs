@@ -130,8 +130,7 @@ impl fmt::Display for EvalError {
         Some(expr) => expr.to_string(),
         None => "no expr to display".into(),
       }
-    )?;
-    todo!()
+    )
   }
 }
 

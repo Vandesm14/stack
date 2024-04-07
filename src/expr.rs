@@ -261,9 +261,15 @@ impl PartialEq for ExprKind {
 
       (Self::String(lhs), Self::String(rhs)) => lhs == rhs,
 
-      (Self::List(lhs), Self::List(rhs)) => lhs == rhs,
+      (Self::List(lhs), Self::List(rhs)) => {
+        if lhs.len() != rhs.len() {
+          return false;
+        }
 
-      (Self::Lazy(lhs), Self::Lazy(rhs)) => lhs == rhs,
+        lhs.iter().zip(rhs).all(|(lhs, rhs)| lhs.val == rhs.val)
+      }
+
+      (Self::Lazy(lhs), Self::Lazy(rhs)) => lhs.val == rhs.val,
       (Self::Call(lhs), Self::Call(rhs)) => lhs == rhs,
 
       (Self::Fn(lhs), Self::Fn(rhs)) => lhs == rhs,
