@@ -285,24 +285,13 @@ impl Program {
 
   /// Evaluates a vec of expressions
   pub fn eval(&mut self, exprs: Vec<Expr>) -> Result<(), EvalError> {
-    let mut clone = self.clone();
-    let result = exprs.into_iter().try_for_each(|expr| clone.eval_expr(expr));
-
-    self.sources = clone.sources;
-
-    // TODO: Why tf are we doing this again? This is so dumb and I hate that I made it work like this.
-    // We need to figure out a better way of reverting the state after an error instead of conditionally
-    // assigning if there isn't an error
+    let result = exprs.into_iter().try_for_each(|expr| self.eval_expr(expr));
     match result {
-      Ok(x) => {
-        self.stack = clone.stack;
-        self.scopes = clone.scopes;
-        self.debug = clone.debug;
-        self.journal = clone.journal;
-
-        Ok(x)
+      Ok(_) => Ok(()),
+      Err(err) => {
+        self.journal.commit();
+        Err(err)
       }
-      Err(e) => Err(e),
     }
   }
 
@@ -346,12 +335,11 @@ impl Program {
     symbol: Spur,
   ) -> Result<(), EvalError> {
     let symbol_str = interner().resolve(&symbol);
+    if self.debug {
+      self.journal.op(JournalOp::Call(trace_expr.clone()));
+    }
 
     if let Some(func) = self.funcs.get(&symbol) {
-      if self.debug {
-        self.journal.op(JournalOp::Call(trace_expr.clone()));
-      }
-
       let result = func(self, trace_expr);
       if self.debug {
         self.journal.commit();
@@ -362,9 +350,6 @@ impl Program {
 
     if let Some(value) = self.scope_item(symbol_str) {
       if value.val.is_function() {
-        if self.debug {
-          self.journal.op(JournalOp::Call(trace_expr.clone()));
-        }
         let result = self.auto_call(trace_expr, value);
         if self.debug {
           self.journal.commit();

@@ -21,8 +21,11 @@ pub struct Journal {
 impl fmt::Display for Journal {
   fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
     let mut do_space = false;
-    for op in self.ops.iter() {
+    for (i, op) in self.ops.iter().enumerate() {
       if !do_space {
+        if i != 0 {
+          writeln!(f)?;
+        }
         write!(f, " * ")?;
       }
 
@@ -44,7 +47,6 @@ impl fmt::Display for Journal {
         }
         JournalOp::Commit => {
           do_space = false;
-          writeln!(f)?;
         }
       }
       write!(f, "{}", color::Fg(color::Reset))?;
