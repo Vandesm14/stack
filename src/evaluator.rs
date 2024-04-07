@@ -135,7 +135,7 @@ impl fmt::Display for Program {
     //   }
     // }
 
-    dbg!(self.journal.clone());
+    writeln!(f, "{}", self.journal)?;
 
     Ok(())
   }
@@ -179,10 +179,23 @@ impl Program {
   }
 
   pub fn pop(&mut self, trace_expr: &Expr) -> Result<Expr, EvalError> {
-    self.stack.pop().ok_or_else(|| EvalError {
-      expr: Some(trace_expr.clone()),
-      kind: EvalErrorKind::StackUnderflow,
-    })
+    // self.stack.pop().ok_or_else(|| EvalError {
+    //   expr: Some(trace_expr.clone()),
+    //   kind: EvalErrorKind::StackUnderflow,
+    // })
+
+    match self.stack.pop() {
+      Some(expr) => {
+        if self.debug {
+          self.journal.new_op(JournalOp::Pop(expr.clone()));
+        }
+        Ok(expr)
+      }
+      None => Err(EvalError {
+        expr: Some(trace_expr.clone()),
+        kind: EvalErrorKind::StackUnderflow,
+      }),
+    }
   }
 
   pub fn push(&mut self, expr: Expr) -> Result<(), EvalError> {
