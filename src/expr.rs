@@ -377,9 +377,36 @@ impl fmt::Display for ExprKind {
 
 #[derive(Debug, Clone, PartialEq, PartialOrd)]
 pub struct DebugData {
-  pub source_file: Spur,
-  pub span: Span,
-  pub ingredients: Option<Vec<Expr>>,
+  pub source_file: Option<Spur>,
+  pub span: Option<Span>,
+  pub ingredients: Vec<Expr>,
+}
+
+impl DebugData {
+  pub fn new(
+    source_file: Option<Spur>,
+    span: Option<Span>,
+    ingredients: Vec<Expr>,
+  ) -> Self {
+    Self {
+      source_file,
+      span,
+      ingredients,
+    }
+  }
+
+  pub fn update(mut self, ingredients: Vec<Expr>) -> Self {
+    self.ingredients = ingredients;
+    self
+  }
+
+  pub fn only_ingredients(ingredients: Vec<Expr>) -> Self {
+    Self {
+      source_file: None,
+      span: None,
+      ingredients,
+    }
+  }
 }
 
 #[derive(Debug, Clone)]

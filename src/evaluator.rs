@@ -2,8 +2,8 @@ use itertools::Itertools as _;
 use lasso::Spur;
 
 use crate::{
-  interner::interner, module, DebugData, Expr, ExprKind, Func, Lexer, Module,
-  Parser, Scanner, Scope, Type,
+  interner::interner, module, Expr, ExprKind, Func, Lexer, Module, Parser,
+  Scanner, Scope, Type,
 };
 use core::{fmt, iter};
 use std::{collections::HashMap, time::SystemTime};
@@ -335,11 +335,7 @@ impl Program {
 
         self.push(Expr {
           val: ExprKind::List(list),
-          debug_data: DebugData {
-            ingredients: Some(vec![expr]),
-            source_file: expr.debug_data.source_file,
-            span: expr.debug_data.span,
-          },
+          debug_data: expr.debug_data.update(vec![expr]),
         })
       }
       ExprKind::Fn(_) => Ok(()),
