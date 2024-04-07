@@ -9,42 +9,48 @@ pub enum JournalOp {
   Call(Expr),
   Push(Expr),
   Pop(Expr),
+  Commit,
 }
 
 #[derive(Debug, Clone, PartialEq, PartialOrd, Default)]
 pub struct Journal {
-  states: Vec<Vec<JournalOp>>,
+  ops: Vec<JournalOp>,
   current: Vec<JournalOp>,
 }
 
 impl fmt::Display for Journal {
   fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-    for (i, state) in self.states.iter().enumerate() {
-      if i > 0 {
-        writeln!(f)?;
+    let mut do_space = false;
+    for op in self.ops.iter() {
+      if !do_space {
+        write!(f, " * ")?;
       }
 
-      for (op_i, op) in state.iter().enumerate() {
-        if op_i > 0 {
-          write!(f, " ")?;
-        }
+      do_space |= true;
 
-        match op {
-          JournalOp::Call(call) => {
-            write!(f, "{}", color::Fg(color::Yellow))?;
-            write!(f, "{}", call)?;
-            write!(f, " |")?;
-          }
-          JournalOp::Push(push) => {
-            write!(f, "{}", color::Fg(color::Green))?;
-            write!(f, "{}", push)?;
-          }
-          JournalOp::Pop(pop) => {
-            write!(f, "{}", color::Fg(color::Red))?;
-            write!(f, "{}", pop)?;
-          }
+      match op {
+        JournalOp::Call(call) => {
+          write!(f, "{}", color::Fg(color::Yellow))?;
+          write!(f, "{}", call)?;
+          write!(f, " |")?;
         }
-        write!(f, "{}", color::Fg(color::Reset))?;
+        JournalOp::Push(push) => {
+          write!(f, "{}", color::Fg(color::Green))?;
+          write!(f, "{}", push)?;
+        }
+        JournalOp::Pop(pop) => {
+          write!(f, "{}", color::Fg(color::Red))?;
+          write!(f, "{}", pop)?;
+        }
+        JournalOp::Commit => {
+          do_space = false;
+          writeln!(f)?;
+        }
+      }
+      write!(f, "{}", color::Fg(color::Reset))?;
+
+      if do_space {
+        write!(f, " ")?;
       }
     }
 
@@ -57,12 +63,12 @@ impl Journal {
     Self::default()
   }
 
-  pub fn new_op(&mut self, op: JournalOp) {
+  pub fn op(&mut self, op: JournalOp) {
     self.current.push(op);
   }
 
-  pub fn submit(&mut self) -> usize {
-    self.states.push(mem::take(&mut self.current));
-    self.states.len() - 1
+  pub fn commit(&mut self) {
+    self.ops.extend(mem::take(&mut self.current));
+    self.ops.push(JournalOp::Commit);
   }
 }

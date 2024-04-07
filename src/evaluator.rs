@@ -135,7 +135,7 @@ impl fmt::Display for Program {
     //   }
     // }
 
-    writeln!(f, "{}", self.journal)?;
+    write!(f, "{}", self.journal)?;
 
     Ok(())
   }
@@ -179,15 +179,10 @@ impl Program {
   }
 
   pub fn pop(&mut self, trace_expr: &Expr) -> Result<Expr, EvalError> {
-    // self.stack.pop().ok_or_else(|| EvalError {
-    //   expr: Some(trace_expr.clone()),
-    //   kind: EvalErrorKind::StackUnderflow,
-    // })
-
     match self.stack.pop() {
       Some(expr) => {
         if self.debug {
-          self.journal.new_op(JournalOp::Pop(expr.clone()));
+          self.journal.op(JournalOp::Pop(expr.clone()));
         }
         Ok(expr)
       }
@@ -217,7 +212,7 @@ impl Program {
     };
 
     if self.debug {
-      self.journal.new_op(JournalOp::Push(expr.clone()));
+      self.journal.op(JournalOp::Push(expr.clone()));
     }
 
     self.stack.push(expr);
@@ -354,12 +349,12 @@ impl Program {
 
     if let Some(func) = self.funcs.get(&symbol) {
       if self.debug {
-        self.journal.new_op(JournalOp::Call(trace_expr.clone()));
+        self.journal.op(JournalOp::Call(trace_expr.clone()));
       }
 
       let result = func(self, trace_expr);
       if self.debug {
-        self.journal.submit();
+        self.journal.commit();
       }
 
       return result;
@@ -368,11 +363,11 @@ impl Program {
     if let Some(value) = self.scope_item(symbol_str) {
       if value.val.is_function() {
         if self.debug {
-          self.journal.new_op(JournalOp::Call(trace_expr.clone()));
+          self.journal.op(JournalOp::Call(trace_expr.clone()));
         }
         let result = self.auto_call(trace_expr, value);
         if self.debug {
-          self.journal.submit();
+          self.journal.commit();
         }
 
         result
