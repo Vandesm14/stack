@@ -1,4 +1,6 @@
-use crate::{interner::interner, EvalError, Expr, ExprKind, Program};
+use crate::{
+  interner::interner, DebugData, EvalError, Expr, ExprKind, Program, Span,
+};
 
 pub fn module(program: &mut Program) -> Result<(), EvalError> {
   program.funcs.insert(
@@ -7,21 +9,30 @@ pub fn module(program: &mut Program) -> Result<(), EvalError> {
       let item = program.pop(trace_expr)?;
 
       match item.val {
+        ExprKind::Boolean(_) => program.push(item),
         ExprKind::String(string) => {
           let string_str = interner().resolve(&string);
 
-          program.push(
-            string_str
+          program.push(Expr {
+            val: string_str
               .parse()
               .ok()
               .map(ExprKind::Boolean)
-              .unwrap_or(ExprKind::Nil)
-              .into_expr(),
-          )
+              .unwrap_or(ExprKind::Nil),
+            debug_data: DebugData::new(
+              None,
+              None,
+              vec![item, trace_expr.clone()],
+            ),
+          })
         }
-        found => {
-          program.push(found.to_boolean().unwrap_or(ExprKind::Nil).into_expr())
-        }
+        found => program.push(Expr {
+          val: found.to_boolean().unwrap_or(ExprKind::Nil),
+          debug_data: DebugData::only_ingredients(vec![
+            item,
+            trace_expr.clone(),
+          ]),
+        }),
       }
     },
   );
@@ -32,6 +43,7 @@ pub fn module(program: &mut Program) -> Result<(), EvalError> {
       let item = program.pop(trace_expr)?;
 
       match item.val {
+        ExprKind::Integer(_) => program.push(item),
         ExprKind::String(string) => {
           let string_str = interner().resolve(&string);
 
@@ -41,12 +53,18 @@ pub fn module(program: &mut Program) -> Result<(), EvalError> {
               .ok()
               .map(ExprKind::Integer)
               .unwrap_or(ExprKind::Nil)
-              .into_expr(),
+              .into_expr(DebugData::only_ingredients(vec![
+                item,
+                trace_expr.clone(),
+              ])),
           )
         }
-        found => {
-          program.push(found.to_integer().unwrap_or(ExprKind::Nil).into_expr())
-        }
+        found => program.push(
+          found
+            .to_integer()
+            .unwrap_or(ExprKind::Nil)
+            .into_expr(item.debug_data.update(vec![item, trace_expr.clone()])),
+        ),
       }
     },
   );
@@ -57,6 +75,7 @@ pub fn module(program: &mut Program) -> Result<(), EvalError> {
       let item = program.pop(trace_expr)?;
 
       match item.val {
+        ExprKind::Float(_) => program.push(item),
         ExprKind::String(string) => {
           let string_str = interner().resolve(&string);
 
@@ -66,11 +85,16 @@ pub fn module(program: &mut Program) -> Result<(), EvalError> {
               .ok()
               .map(ExprKind::Float)
               .unwrap_or(ExprKind::Nil)
-              .into_expr(),
+              .into_expr(DebugData::only_ingredients(vec![
+                item,
+                trace_expr.clone(),
+              ])),
           )
         }
         found => {
-          program.push(found.to_float().unwrap_or(ExprKind::Nil).into_expr())
+          program.push(found.to_float().unwrap_or(ExprKind::Nil).into_expr(
+            DebugData::only_ingredients(vec![item, trace_expr.clone()]),
+          ))
         }
       }
     },
@@ -82,11 +106,14 @@ pub fn module(program: &mut Program) -> Result<(), EvalError> {
       let item = program.pop(trace_expr)?;
 
       match item.val {
-        string @ ExprKind::String(_) => program.push(string.into_expr()),
+        ExprKind::String(_) => program.push(item),
         found => {
           let string =
             ExprKind::String(interner().get_or_intern(found.to_string()));
-          program.push(string.into_expr())
+          program.push(string.into_expr(DebugData::only_ingredients(vec![
+            item,
+            trace_expr.clone(),
+          ])))
         }
       }
     },
@@ -98,7 +125,7 @@ pub fn module(program: &mut Program) -> Result<(), EvalError> {
       let item = program.pop(trace_expr)?;
 
       match item.val {
-        list @ ExprKind::List(_) => program.push(list.into_expr()),
+        ExprKind::List(_) => program.push(item),
         ExprKind::String(s) => {
           let str = interner().resolve(&s).to_owned();
           program.push(
@@ -107,16 +134,24 @@ pub fn module(program: &mut Program) -> Result<(), EvalError> {
                 .chars()
                 .map(|c| {
                   ExprKind::String(interner().get_or_intern(c.to_string()))
-                    .into_expr()
+                    .into_expr(DebugData::only_ingredients(vec![
+                      item,
+                      trace_expr.clone(),
+                    ]))
                 })
                 .collect::<Vec<_>>(),
             )
-            .into_expr(),
+            .into_expr(DebugData::only_ingredients(vec![
+              item,
+              trace_expr.clone(),
+            ])),
           )
         }
-        found => {
-          program.push(ExprKind::List(vec![found.into_expr()]).into_expr())
-        }
+        found => program.push(
+          ExprKind::List(vec![found.into_expr(item.debug_data)]).into_expr(
+            DebugData::only_ingredients(vec![item, trace_expr.clone()]),
+          ),
+        ),
       }
     },
   );
@@ -127,14 +162,19 @@ pub fn module(program: &mut Program) -> Result<(), EvalError> {
       let item = program.pop(trace_expr)?;
 
       match item.val {
-        call @ ExprKind::Call(_) => program.push(call.into_expr()),
+        ExprKind::Call(_) => program.push(item),
         ExprKind::String(string) => {
-          program.push(ExprKind::Call(string).into_expr())
+          program.push(ExprKind::Call(string).into_expr(
+            DebugData::only_ingredients(vec![item, trace_expr.clone()]),
+          ))
         }
         found => {
           let call =
             ExprKind::Call(interner().get_or_intern(found.to_string()));
-          program.push(call.into_expr())
+          program.push(call.into_expr(DebugData::only_ingredients(vec![
+            item,
+            trace_expr.clone(),
+          ])))
         }
       }
     },
@@ -147,7 +187,12 @@ pub fn module(program: &mut Program) -> Result<(), EvalError> {
       let string = ExprKind::String(
         interner().get_or_intern(item.val.type_of().to_string()),
       );
-      program.push(string.into_expr())
+      program.push(
+        string.into_expr(DebugData::only_ingredients(vec![
+          item,
+          trace_expr.clone(),
+        ])),
+      )
     },
   );
 
