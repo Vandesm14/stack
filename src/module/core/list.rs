@@ -19,12 +19,9 @@ pub fn module(program: &mut Program) -> Result<(), EvalError> {
           Ok(i) => {
             program.push(ExprKind::Integer(i).into_expr(DebugData::default()))
           }
-          Err(_) => Err(EvalError {
-            expr: Some(trace_expr.clone()),
-            kind: EvalErrorKind::Message(
-              "list length could not be converted to an integer".into(),
-            ),
-          }),
+          Err(_) => {
+            todo!("Create a list type to not exceed the i64 bounds")
+          }
         },
         _ => Err(EvalError {
           expr: Some(trace_expr.clone()),
@@ -89,8 +86,9 @@ pub fn module(program: &mut Program) -> Result<(), EvalError> {
       let list_expr = program.pop(trace_expr)?;
 
       match index_expr.val {
-        ExprKind::Integer(index) => match usize::try_from(index) {
-          Ok(i) => match list_expr.val {
+        ExprKind::Integer(index) if index >= 0 => {
+          let i = index as usize;
+          match list_expr.val {
             ExprKind::List(mut list) => {
               if i <= list.len() {
                 let rest = list.split_off(i);
@@ -112,14 +110,8 @@ pub fn module(program: &mut Program) -> Result<(), EvalError> {
                 ]),
               ),
             }),
-          },
-          Err(_) => Err(EvalError {
-            kind: EvalErrorKind::Message(
-              "could not convert index into integer".into(),
-            ),
-            expr: Some(trace_expr.clone()),
-          }),
-        },
+          }
+        }
         _ => Err(EvalError {
           expr: Some(trace_expr.clone()),
           kind: EvalErrorKind::ExpectedFound(
