@@ -2,24 +2,37 @@ use std::iter;
 
 use itertools::Itertools;
 
-use crate::{interner::interner, EvalError, Expr, ExprKind, Program, Type};
+use crate::{
+  interner::interner, DebugData, EvalError, EvalErrorKind, ExprKind, Program,
+  Type,
+};
 
 pub fn module(program: &mut Program) -> Result<(), EvalError> {
   program.funcs.insert(
     interner().get_or_intern_static("len"),
     |program, trace_expr| {
-      let list = program.stack.last().ok_or_else(|| EvalError {
-        expr: trace_expr.clone(),
-        program: program.clone(),
-        message: "Stack underflow".into(),
-      })?;
+      let list_expr = program.pop(trace_expr)?;
+      program.push(list_expr);
 
-      match list.val {
+      match list_expr.val {
         ExprKind::List(list) => match i64::try_from(list.len()) {
-          Ok(i) => program.push(ExprKind::Integer(i).into_expr()),
-          Err(_) => program.push(ExprKind::Nil.into_expr()),
+          Ok(i) => program.push(ExprKind::Integer(i).into_expr(
+            DebugData::only_ingredients(vec![list_expr, trace_expr.clone()]),
+          )),
+          Err(_) => Err(EvalError {
+            expr: Some(trace_expr),
+            kind: EvalErrorKind::Message(
+              "list length could not be converted to an integer".into(),
+            ),
+          }),
         },
-        _ => program.push(ExprKind::Nil.into_expr()),
+        _ => Err(EvalError {
+          expr: Some(trace_expr),
+          kind: EvalErrorKind::ExpectedFound(
+            Type::List(vec![]),
+            list_expr.val.type_of(),
+          ),
+        }),
       }
     },
   );
@@ -27,23 +40,47 @@ pub fn module(program: &mut Program) -> Result<(), EvalError> {
   program.funcs.insert(
     interner().get_or_intern_static("index"),
     |program, trace_expr| {
-      let index = program.pop(trace_expr)?;
-      let list = program.stack.last().ok_or_else(|| EvalError {
-        expr: trace_expr.clone(),
-        program: program.clone(),
-        message: "Stack underflow".into(),
-      })?;
+      let index_expr = program.pop(trace_expr)?;
+      let list_expr = program.pop(trace_expr)?;
+      program.push(list_expr);
 
-      match index.val {
+      match index_expr.val {
         ExprKind::Integer(index) => match usize::try_from(index) {
-          Ok(i) => match list.val {
-            ExprKind::List(list) => program
-              .push(list.get(i).cloned().unwrap_or(ExprKind::Nil.into_expr())),
-            _ => program.push(ExprKind::Nil.into_expr()),
+          Ok(i) => match list_expr.val {
+            ExprKind::List(list) => {
+              program.push(list.get(i).cloned().unwrap_or(
+                ExprKind::Nil.into_expr(DebugData::only_ingredients(vec![
+                  list_expr,
+                  index_expr,
+                  trace_expr.clone(),
+                ])),
+              ))
+            }
+            _ => Err(EvalError {
+              expr: Some(trace_expr),
+              kind: EvalErrorKind::ExpectedFound(
+                Type::List(vec![Type::List(vec![]), Type::Integer]),
+                Type::List(vec![
+                  list_expr.val.type_of(),
+                  index_expr.val.type_of(),
+                ]),
+              ),
+            }),
           },
-          Err(_) => program.push(ExprKind::Nil.into_expr()),
+          Err(_) => Err(EvalError {
+            kind: EvalErrorKind::Message(
+              "could not convert index into integer".into(),
+            ),
+            expr: Some(trace_expr),
+          }),
         },
-        _ => program.push(ExprKind::Nil.into_expr()),
+        _ => Err(EvalError {
+          expr: Some(trace_expr),
+          kind: EvalErrorKind::ExpectedFound(
+            Type::List(vec![Type::List(vec![]), Type::Integer]),
+            Type::List(vec![list_expr.val.type_of(), index_expr.val.type_of()]),
+          ),
+        }),
       }
     },
   );
@@ -51,26 +88,64 @@ pub fn module(program: &mut Program) -> Result<(), EvalError> {
   program.funcs.insert(
     interner().get_or_intern_static("split"),
     |program, trace_expr| {
-      let index = program.pop(trace_expr)?;
-      let list = program.pop(trace_expr)?;
+      let index_expr = program.pop(trace_expr)?;
+      let list_expr = program.pop(trace_expr)?;
 
-      match index.val {
+      match index_expr.val {
         ExprKind::Integer(index) => match usize::try_from(index) {
-          Ok(i) => match list.val {
+          Ok(i) => match list_expr.val {
             ExprKind::List(mut list) => {
               if i <= list.len() {
                 let rest = list.split_off(i);
-                program.push(ExprKind::List(list).into_expr())?;
-                program.push(ExprKind::List(rest).into_expr())
+                program.push(ExprKind::List(list).into_expr(
+                  DebugData::only_ingredients(vec![
+                    list_expr.clone(),
+                    index_expr.clone(),
+                    trace_expr.clone(),
+                  ]),
+                ))?;
+                program.push(ExprKind::List(rest).into_expr(
+                  DebugData::only_ingredients(vec![
+                    list_expr,
+                    index_expr,
+                    trace_expr.clone(),
+                  ]),
+                ))
               } else {
-                program.push(ExprKind::Nil.into_expr())
+                program.push(ExprKind::Nil.into_expr(
+                  DebugData::only_ingredients(vec![
+                    list_expr,
+                    index_expr,
+                    trace_expr.clone(),
+                  ]),
+                ))
               }
             }
-            _ => program.push(ExprKind::Nil.into_expr()),
+            _ => Err(EvalError {
+              expr: Some(trace_expr),
+              kind: EvalErrorKind::ExpectedFound(
+                Type::List(vec![Type::List(vec![]), Type::Integer]),
+                Type::List(vec![
+                  list_expr.val.type_of(),
+                  index_expr.val.type_of(),
+                ]),
+              ),
+            }),
           },
-          Err(_) => program.push(ExprKind::Nil.into_expr()),
+          Err(_) => Err(EvalError {
+            kind: EvalErrorKind::Message(
+              "could not convert index into integer".into(),
+            ),
+            expr: Some(trace_expr),
+          }),
         },
-        _ => program.push(ExprKind::Nil.into_expr()),
+        _ => Err(EvalError {
+          expr: Some(trace_expr),
+          kind: EvalErrorKind::ExpectedFound(
+            Type::List(vec![Type::List(vec![]), Type::Integer]),
+            Type::List(vec![list_expr.val.type_of(), index_expr.val.type_of()]),
+          ),
+        }),
       }
     },
   );
@@ -78,10 +153,10 @@ pub fn module(program: &mut Program) -> Result<(), EvalError> {
   program.funcs.insert(
     interner().get_or_intern_static("join"),
     |program, trace_expr| {
-      let delimiter = program.pop(trace_expr)?;
-      let list = program.pop(trace_expr)?;
+      let delimiter_expr = program.pop(trace_expr)?;
+      let list_expr = program.pop(trace_expr)?;
 
-      match (delimiter.val, list.val) {
+      match (delimiter_expr.val, list_expr.val) {
         (ExprKind::String(delimiter), ExprKind::List(list)) => {
           let delimiter_str = interner().resolve(&delimiter);
 
@@ -95,13 +170,15 @@ pub fn module(program: &mut Program) -> Result<(), EvalError> {
             })
             .join(delimiter_str);
           let string = ExprKind::String(interner().get_or_intern(string));
-          program.push(string.into_expr())
+          program.push(string.into_expr(DebugData::only_ingredients(vec![
+            delimiter_expr,
+            list_expr,
+            trace_expr.clone(),
+          ])))
         }
         (delimiter, list) => Err(EvalError {
-          expr: trace_expr.clone(),
-          program: program.clone(),
-          message: format!(
-            "expected {}, found {}",
+          expr: Some(trace_expr),
+          kind: EvalErrorKind::ExpectedFound(
             Type::List(vec![Type::List(vec![]), Type::String]),
             Type::List(vec![list.type_of(), delimiter.type_of()]),
           ),
@@ -113,15 +190,25 @@ pub fn module(program: &mut Program) -> Result<(), EvalError> {
   program.funcs.insert(
     interner().get_or_intern_static("concat"),
     |program, trace_expr| {
-      let list_rhs = program.pop(trace_expr)?;
-      let list_lhs = program.pop(trace_expr)?;
+      let list_rhs_expr = program.pop(trace_expr)?;
+      let list_lhs_expr = program.pop(trace_expr)?;
 
-      match (list_lhs.val, list_rhs.val) {
+      match (list_lhs_expr.val, list_rhs_expr.val) {
         (ExprKind::List(mut list_lhs), ExprKind::List(list_rhs)) => {
           list_lhs.extend(list_rhs);
-          program.push(ExprKind::List(list_lhs).into_expr())
+          let list_expr =
+            ExprKind::List(list_lhs).into_expr(DebugData::only_ingredients(
+              vec![list_lhs_expr, list_rhs_expr, trace_expr.clone()],
+            ));
+          program.push(list_expr)
         }
-        _ => program.push(ExprKind::Nil.into_expr()),
+        (list_lhs, list_rhs) => Err(EvalError {
+          expr: Some(trace_expr),
+          kind: EvalErrorKind::ExpectedFound(
+            Type::List(vec![Type::List(vec![]), Type::List(vec![])]),
+            Type::List(vec![list_lhs.type_of(), list_rhs.type_of()]),
+          ),
+        }),
       }
     },
   );
@@ -129,14 +216,14 @@ pub fn module(program: &mut Program) -> Result<(), EvalError> {
   program.funcs.insert(
     interner().get_or_intern_static("unwrap"),
     |program, trace_expr| {
-      let list = program.pop(trace_expr)?;
+      let item = program.pop(trace_expr)?;
 
-      match list.val {
+      match item.val {
         ExprKind::List(list) => {
           program.stack.extend(list);
           Ok(())
         }
-        list => program.push(list.into_expr()),
+        _ => program.push(item),
       }
     },
   );
@@ -145,7 +232,12 @@ pub fn module(program: &mut Program) -> Result<(), EvalError> {
     interner().get_or_intern_static("wrap"),
     |program, trace_expr| {
       let any = program.pop(trace_expr)?;
-      program.push(ExprKind::List(vec![any]).into_expr())
+      program.push(
+        ExprKind::List(vec![any]).into_expr(DebugData::only_ingredients(vec![
+          any,
+          trace_expr.clone(),
+        ])),
+      )
     },
   );
 
@@ -167,15 +259,15 @@ pub fn module(program: &mut Program) -> Result<(), EvalError> {
             .collect::<Vec<_>>();
           list.reverse();
 
-          program.push(ExprKind::List(list).into_expr())
+          program.push(ExprKind::List(list).into_expr(
+            DebugData::only_ingredients(vec![item.clone(), trace_expr.clone()]),
+          ))
         }
         _ => Err(EvalError {
-          expr: trace_expr.clone(),
-          program: program.clone(),
-          message: format!(
-            "expected {}, found {}",
+          expr: Some(trace_expr),
+          kind: EvalErrorKind::ExpectedFound(
             Type::List(vec![Type::FnScope, Type::Any]),
-            item.val.type_of(),
+            Type::List(vec![item.val.type_of()]),
           ),
         }),
       }
