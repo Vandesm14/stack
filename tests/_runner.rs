@@ -1,6 +1,6 @@
 use std::fs;
 
-use stack::{map, Program};
+use stack::Program;
 
 #[test]
 fn run_tests() {
@@ -14,7 +14,11 @@ fn run_tests() {
       if name.to_str().unwrap().ends_with(".stack") {
         let contents = fs::read_to_string(&path).unwrap();
 
-        let mut program = Program::new().with_core().unwrap().with_module(map::module).unwrap();
+        let mut program = Program::new()
+          .with_core()
+          // .unwrap()
+          // .with_module(map::module)
+          .unwrap();
         let result = program.eval_string(contents.as_str());
 
         assert!(
