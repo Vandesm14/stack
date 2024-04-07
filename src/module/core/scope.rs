@@ -1,4 +1,7 @@
-use crate::{interner::interner, EvalError, Expr, ExprKind, Program, Type};
+use crate::{
+  interner::interner, DebugData, EvalError, EvalErrorKind, ExprKind, Program,
+  Type,
+};
 
 pub fn module(program: &mut Program) -> Result<(), EvalError> {
   program.funcs.insert(
@@ -10,28 +13,21 @@ pub fn module(program: &mut Program) -> Result<(), EvalError> {
       match key.val {
         ExprKind::Call(ref key) => match program.funcs.contains_key(key) {
           true => Err(EvalError {
-            expr: trace_expr.clone(),
-            program: program.clone(),
-            message: format!(
-              "cannot shadow a native function {}",
-              interner().resolve(key)
+            expr: Some(trace_expr),
+            kind: EvalErrorKind::Message(
+              "cannot shadow a native function".into(),
             ),
           }),
           false => {
-            program.def_scope_item(trace_expr, interner().resolve(key), val)
+            program.def_scope_item(trace_expr, interner().resolve(key), val);
+            Ok(())
           }
         },
-        key => Err(EvalError {
-          expr: trace_expr.clone(),
-          program: program.clone(),
-          message: format!(
-            "expected {}, found {}",
-            Type::List(vec![
-              // TODO: A type to represent functions.
-              Type::Any,
-              Type::Call,
-            ]),
-            Type::List(vec![val.val.type_of(), key.type_of(),]),
+        _ => Err(EvalError {
+          expr: Some(trace_expr),
+          kind: EvalErrorKind::ExpectedFound(
+            Type::List(vec![Type::Any, Type::Call]),
+            Type::List(vec![val.val.type_of(), key.val.type_of()]),
           ),
         }),
       }
@@ -46,22 +42,16 @@ pub fn module(program: &mut Program) -> Result<(), EvalError> {
       match item.val {
         ExprKind::Call(key) => {
           let key_str = interner().resolve(&key).to_owned();
-          match program.remove_scope_item(&key_str) {
-            Ok(_) => Ok(()),
-            Err(err) => Err(err),
-          }
+          program.remove_scope_item(&key_str);
+
+          Ok(())
         }
         item => Err(EvalError {
-          expr: trace_expr.clone(),
-          program: program.clone(),
-          message: format!(
-            "expected {}, found {}",
-            Type::Call,
-            item.type_of(),
-          ),
+          expr: Some(trace_expr),
+          kind: EvalErrorKind::ExpectedFound(Type::Call, item.type_of()),
         }),
       }
-    }
+    },
   );
 
   program.funcs.insert(
@@ -73,28 +63,21 @@ pub fn module(program: &mut Program) -> Result<(), EvalError> {
       match key.val {
         ExprKind::Call(ref key) => match program.funcs.contains_key(key) {
           true => Err(EvalError {
-            expr: trace_expr.clone(),
-            program: program.clone(),
-            message: format!(
-              "cannot shadow a native function {}",
-              interner().resolve(key)
+            expr: Some(trace_expr),
+            kind: EvalErrorKind::Message(
+              "cannot shadow a native function".into(),
             ),
           }),
           false => {
-            program.set_scope_item(trace_expr, interner().resolve(key), val)
+            program.set_scope_item(trace_expr, interner().resolve(key), val);
+            Ok(())
           }
         },
         key => Err(EvalError {
-          expr: trace_expr.clone(),
-          program: program.clone(),
-          message: format!(
-            "expected {}, found {}",
-            Type::List(vec![
-              // TODO: A type to represent functions.
-              Type::Any,
-              Type::Call,
-            ]),
-            Type::List(vec![val.val.type_of(), key.type_of(),]),
+          expr: Some(trace_expr),
+          kind: EvalErrorKind::ExpectedFound(
+            Type::List(vec![Type::Any, Type::Call]),
+            Type::List(vec![val.val.type_of(), key.type_of()]),
           ),
         }),
       }
@@ -115,20 +98,20 @@ pub fn module(program: &mut Program) -> Result<(), EvalError> {
 
             // Always push something, otherwise it can get tricky to manage the
             // stack in-langauge.
-            program.push(program.scope_item(key_str).unwrap_or(ExprKind::Nil.into_expr()))
+            program.push(program.scope_item(key_str).unwrap_or(
+              ExprKind::Nil.into_expr(DebugData::only_ingredients(vec![
+                item,
+                trace_expr.clone(),
+              ])),
+            ))
           }
         }
         item => Err(EvalError {
-          expr: trace_expr.clone(),
-          program: program.clone(),
-          message: format!(
-            "expected {}, found {}",
-            Type::Call,
-            item.type_of(),
-          ),
+          expr: Some(trace_expr),
+          kind: EvalErrorKind::ExpectedFound(Type::Call, item.type_of()),
         }),
       }
-    }
+    },
   );
 
   Ok(())

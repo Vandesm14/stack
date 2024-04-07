@@ -1,11 +1,16 @@
-use crate::{interner::interner, EvalError, Expr, ExprKind, Program, Type};
+use crate::{
+  interner::interner, DebugData, EvalError, Expr, ExprKind, Program, Type,
+};
 
 pub fn module(program: &mut Program) -> Result<(), EvalError> {
   program.funcs.insert(
     interner().get_or_intern_static("collect"),
-    |program, _| {
+    |program, trace_expr| {
       let list = core::mem::take(&mut program.stack);
-      program.push(ExprKind::List(list).into_expr())
+      program.push(
+        ExprKind::List(list)
+          .into_expr(DebugData::only_ingredients(vec![trace_expr.clone()])),
+      )
     },
   );
 
@@ -63,7 +68,11 @@ pub fn module(program: &mut Program) -> Result<(), EvalError> {
     interner().get_or_intern_static("lazy"),
     |program, trace_expr| {
       let item = program.pop(trace_expr)?;
-      program.push(ExprKind::Lazy(Box::new(item)).into_expr())
+      program.push(
+        ExprKind::Lazy(Box::new(item)).into_expr(DebugData::only_ingredients(
+          vec![item, trace_expr.clone()],
+        )),
+      )
     },
   );
 
