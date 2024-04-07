@@ -78,38 +78,38 @@ impl<'source> Parser<'source> {
 
         TokenKind::Boolean(x) => {
           break Ok(Some(ExprKind::Boolean(x).into_expr(DebugData {
-            source_file: self.filename,
-            span: token.span,
-            ingredients: None,
+            source_file: Some(self.filename),
+            span: Some(token.span),
+            ingredients: vec![],
           })));
         }
         TokenKind::Integer(x) => {
           break Ok(Some(ExprKind::Integer(x).into_expr(DebugData {
-            source_file: self.filename,
-            span: token.span,
-            ingredients: None,
+            source_file: Some(self.filename),
+            span: Some(token.span),
+            ingredients: vec![],
           })));
         }
         TokenKind::Float(x) => {
           break Ok(Some(ExprKind::Float(x).into_expr(DebugData {
-            source_file: self.filename,
-            span: token.span,
-            ingredients: None,
+            source_file: Some(self.filename),
+            span: Some(token.span),
+            ingredients: vec![],
           })));
         }
         TokenKind::String(x) => {
           break Ok(Some(ExprKind::String(x).into_expr(DebugData {
-            source_file: self.filename,
-            span: token.span,
-            ingredients: None,
+            source_file: Some(self.filename),
+            span: Some(token.span),
+            ingredients: vec![],
           })));
         }
 
         TokenKind::Ident(x) => {
           break Ok(Some(ExprKind::Call(x).into_expr(DebugData {
-            source_file: self.filename,
-            span: token.span,
-            ingredients: None,
+            source_file: Some(self.filename),
+            span: Some(token.span),
+            ingredients: vec![],
           })));
         }
 
@@ -117,12 +117,14 @@ impl<'source> Parser<'source> {
           break match self.next() {
             Ok(Some(expr)) => {
               Ok(Some(ExprKind::Lazy(Box::new(expr)).into_expr(DebugData {
-                source_file: self.filename,
-                span: Span {
+                source_file: Some(self.filename),
+                span: Some(Span {
                   start: token.span.start,
-                  end: expr.debug_data.span.end,
-                },
-                ingredients: None,
+                  // TODO: We probably shouldn't be unwrapping here, though processed expressions should
+                  // ALWAYS have a span in debug data, so this is fine if it hard-errors
+                  end: expr.debug_data.span.unwrap().end,
+                }),
+                ingredients: vec![],
               })))
             }
             Ok(None) => Err(ParseError {
@@ -146,15 +148,16 @@ impl<'source> Parser<'source> {
               TokenKind::ParenClose => {
                 self.cursor += 1;
                 break Ok(Some(ExprKind::List(list).into_expr(DebugData {
-                  source_file: self.filename,
-                  span: Span {
+                  source_file: Some(self.filename),
+                  span: Some(Span {
                     start: match list.first() {
-                      Some(expr) => expr.debug_data.span.start,
+                      // TODO: same as the TODO above
+                      Some(expr) => expr.debug_data.span.unwrap().start,
                       None => token.span.start,
                     } - 1,
                     end: token.span.end,
-                  },
-                  ingredients: None,
+                  }),
+                  ingredients: vec![],
                 })));
               }
               _ => match self.next()? {
@@ -177,9 +180,9 @@ impl<'source> Parser<'source> {
         // }
         TokenKind::Nil => {
           break Ok(Some(ExprKind::Nil.into_expr(DebugData {
-            source_file: self.filename,
-            span: token.span,
-            ingredients: None,
+            source_file: Some(self.filename),
+            span: Some(token.span),
+            ingredients: vec![],
           })));
         }
         TokenKind::Fn => {
@@ -189,9 +192,9 @@ impl<'source> Parser<'source> {
               scope: Scope::new(),
             })
             .into_expr(DebugData {
-              source_file: self.filename,
-              span: token.span,
-              ingredients: None,
+              source_file: Some(self.filename),
+              span: Some(token.span),
+              ingredients: vec![],
             }),
           ));
         }
@@ -202,9 +205,9 @@ impl<'source> Parser<'source> {
               scope: Scope::new(),
             })
             .into_expr(DebugData {
-              source_file: self.filename,
-              span: token.span,
-              ingredients: None,
+              source_file: Some(self.filename),
+              span: Some(token.span),
+              ingredients: vec![],
             }),
           ));
         }
