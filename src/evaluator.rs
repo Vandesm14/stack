@@ -14,6 +14,59 @@ pub struct SourceFile {
   pub mtime: SystemTime,
 }
 
+#[derive(Debug, Clone, PartialEq)]
+pub enum EvalErrorKind {
+  Push,
+  StackUnderflow,
+  UnknownCall,
+  ParseError,
+  Message(String),
+  ExpectedFound(Type, Type),
+  Halt,
+  Panic(String),
+  UnableToRead(String, String),
+}
+
+impl fmt::Display for EvalErrorKind {
+  fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+    match self {
+      Self::Push => write!(f, "failed to push to the stack"),
+      Self::StackUnderflow => write!(f, "stack underflow"),
+      Self::UnknownCall => write!(f, "unknown call"),
+      Self::ParseError => write!(f, "parse error"),
+      Self::ExpectedFound(expected, found) => {
+        write!(f, "expected {}, found {}", expected, found)
+      }
+      Self::Message(message) => write!(f, "{}", message),
+      Self::Halt => write!(f, "halted"),
+      Self::Panic(message) => write!(f, "panic: {}", message),
+      Self::UnableToRead(filename, error) => {
+        write!(f, "unable to read {}: {}", filename, error)
+      }
+    }
+  }
+}
+
+#[derive(Debug, Clone, PartialEq)]
+pub struct EvalError {
+  pub kind: EvalErrorKind,
+  pub expr: Option<Expr>,
+}
+
+impl fmt::Display for EvalError {
+  fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+    writeln!(f, "Error: {}", self.kind)?;
+    writeln!(
+      f,
+      "Expr: {}",
+      match self.expr.clone() {
+        Some(expr) => expr.to_string(),
+        None => "no expr to display".into(),
+      }
+    )
+  }
+}
+
 #[derive(Debug, Clone)]
 pub struct Program {
   pub stack: Vec<Expr>,
@@ -78,59 +131,6 @@ impl fmt::Display for Program {
     }
 
     Ok(())
-  }
-}
-
-#[derive(Debug, Clone, PartialEq)]
-pub enum EvalErrorKind {
-  Push,
-  StackUnderflow,
-  UnknownCall,
-  ParseError,
-  Message(String),
-  ExpectedFound(Type, Type),
-  Halt,
-  Panic(String),
-  UnableToRead(String, String),
-}
-
-impl fmt::Display for EvalErrorKind {
-  fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-    match self {
-      Self::Push => write!(f, "failed to push to the stack"),
-      Self::StackUnderflow => write!(f, "stack underflow"),
-      Self::UnknownCall => write!(f, "unknown call"),
-      Self::ParseError => write!(f, "parse error"),
-      Self::ExpectedFound(expected, found) => {
-        write!(f, "expected {}, found {}", expected, found)
-      }
-      Self::Message(message) => write!(f, "{}", message),
-      Self::Halt => write!(f, "halted"),
-      Self::Panic(message) => write!(f, "panic: {}", message),
-      Self::UnableToRead(filename, error) => {
-        write!(f, "unable to read {}: {}", filename, error)
-      }
-    }
-  }
-}
-
-#[derive(Debug, Clone, PartialEq)]
-pub struct EvalError {
-  pub kind: EvalErrorKind,
-  pub expr: Option<Expr>,
-}
-
-impl fmt::Display for EvalError {
-  fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-    writeln!(f, "Error: {}", self.kind)?;
-    writeln!(
-      f,
-      "Expr: {}",
-      match self.expr.clone() {
-        Some(expr) => expr.to_string(),
-        None => "no expr to display".into(),
-      }
-    )
   }
 }
 
