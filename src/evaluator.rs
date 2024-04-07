@@ -2,8 +2,8 @@ use itertools::Itertools as _;
 use lasso::Spur;
 
 use crate::{
-  interner::interner, module, Expr, ExprKind, Func, Lexer, Module, Parser,
-  Scanner, Scope, Type,
+  interner::interner, module, Expr, ExprKind, Func, Journal, JournalOp, Lexer,
+  Module, Parser, Scanner, Scope, Type,
 };
 use core::{fmt, iter};
 use std::{collections::HashMap, time::SystemTime};
@@ -78,6 +78,7 @@ pub struct Program {
   pub funcs: HashMap<Spur, Func>,
   pub sources: HashMap<String, SourceFile>,
   pub debug: bool,
+  pub journal: Journal,
 }
 
 impl Default for Program {
@@ -102,37 +103,39 @@ impl fmt::Display for Program {
 
     writeln!(f,)?;
 
-    if !self.scopes.is_empty() {
-      writeln!(f, "Scope:")?;
+    // if !self.scopes.is_empty() {
+    //   writeln!(f, "Scope:")?;
 
-      let layer = self.scopes.last().unwrap();
-      let items = layer.items.len();
-      for (item_i, (key, value)) in
-        layer.items.iter().sorted_by_key(|(s, _)| *s).enumerate()
-      {
-        if item_i == items - 1 {
-          write!(
-            f,
-            " + {}: {}",
-            interner().resolve(key),
-            match value.borrow().val() {
-              Some(expr) => expr.to_string(),
-              None => "None".to_owned(),
-            }
-          )?;
-        } else {
-          writeln!(
-            f,
-            " + {}: {}",
-            interner().resolve(key),
-            match value.borrow().val() {
-              Some(expr) => expr.to_string(),
-              None => "None".to_owned(),
-            }
-          )?;
-        }
-      }
-    }
+    //   let layer = self.scopes.last().unwrap();
+    //   let items = layer.items.len();
+    //   for (item_i, (key, value)) in
+    //     layer.items.iter().sorted_by_key(|(s, _)| *s).enumerate()
+    //   {
+    //     if item_i == items - 1 {
+    //       write!(
+    //         f,
+    //         " + {}: {}",
+    //         interner().resolve(key),
+    //         match value.borrow().val() {
+    //           Some(expr) => expr.to_string(),
+    //           None => "None".to_owned(),
+    //         }
+    //       )?;
+    //     } else {
+    //       writeln!(
+    //         f,
+    //         " + {}: {}",
+    //         interner().resolve(key),
+    //         match value.borrow().val() {
+    //           Some(expr) => expr.to_string(),
+    //           None => "None".to_owned(),
+    //         }
+    //       )?;
+    //     }
+    //   }
+    // }
+
+    dbg!(self.journal.clone());
 
     Ok(())
   }
@@ -147,6 +150,7 @@ impl Program {
       funcs: HashMap::new(),
       sources: HashMap::new(),
       debug: false,
+      journal: Journal::new(),
     }
   }
 
@@ -198,6 +202,10 @@ impl Program {
     } else {
       expr
     };
+
+    if self.debug {
+      self.journal.new_op(JournalOp::Push(expr.clone()));
+    }
 
     self.stack.push(expr);
 
@@ -282,6 +290,7 @@ impl Program {
         self.stack = clone.stack;
         self.scopes = clone.scopes;
         self.debug = clone.debug;
+        self.journal = clone.journal;
 
         Ok(x)
       }
@@ -331,12 +340,29 @@ impl Program {
     let symbol_str = interner().resolve(&symbol);
 
     if let Some(func) = self.funcs.get(&symbol) {
-      return func(self, trace_expr);
+      if self.debug {
+        self.journal.new_op(JournalOp::Call(trace_expr.clone()));
+      }
+
+      let result = func(self, trace_expr);
+      if self.debug {
+        self.journal.submit();
+      }
+
+      return result;
     }
 
     if let Some(value) = self.scope_item(symbol_str) {
       if value.val.is_function() {
-        self.auto_call(trace_expr, value)
+        if self.debug {
+          self.journal.new_op(JournalOp::Call(trace_expr.clone()));
+        }
+        let result = self.auto_call(trace_expr, value);
+        if self.debug {
+          self.journal.submit();
+        }
+
+        result
       } else {
         self.push(value)
       }
