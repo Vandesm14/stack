@@ -1,5 +1,6 @@
 use crate::{
-  interner::interner, EvalError, Expr, ExprKind, Program, SourceFile, Type,
+  interner::interner, DebugData, EvalError, EvalErrorKind, ExprKind, Program,
+  SourceFile, Type,
 };
 
 pub fn module(program: &mut Program) -> Result<(), EvalError> {
@@ -34,27 +35,28 @@ pub fn module(program: &mut Program) -> Result<(), EvalError> {
                       .unwrap(),
                   },
                 );
-                program.push(ExprKind::String(content).into_expr())
+                program.push(ExprKind::String(content).into_expr(
+                  DebugData::only_ingredients(vec![item, trace_expr.clone()]),
+                ))
               }
               Err(e) => Err(EvalError {
-                expr: trace_expr.clone(),
-                program: program.clone(),
-                message: format!("unable to read {path_str}: {e}"),
+                expr: Some(trace_expr),
+                kind: EvalErrorKind::UnableToRead(
+                  path_str.into(),
+                  e.to_string(),
+                ),
               }),
             }
           } else {
             let contents = program.sources.get(path_str).unwrap().contents;
-            program.push(ExprKind::String(contents).into_expr())
+            program.push(ExprKind::String(contents).into_expr(
+              DebugData::only_ingredients(vec![item, trace_expr.clone()]),
+            ))
           }
         }
         _ => Err(EvalError {
-          expr: trace_expr.clone(),
-          program: program.clone(),
-          message: format!(
-            "expected {}, found {}",
-            Type::String,
-            item.val.type_of(),
-          ),
+          expr: Some(trace_expr),
+          kind: EvalErrorKind::ExpectedFound(Type::String, item.val.type_of()),
         }),
       }
     },

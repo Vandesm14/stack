@@ -1,5 +1,6 @@
 use crate::{
-  interner::interner, EvalError, Expr, ExprKind, Lexer, Parser, Program, Type,
+  interner::interner, DebugData, EvalError, EvalErrorKind, ExprKind, Lexer,
+  Parser, Program, Type,
 };
 
 pub fn module(program: &mut Program) -> Result<(), EvalError> {
@@ -13,23 +14,21 @@ pub fn module(program: &mut Program) -> Result<(), EvalError> {
           let source = interner().resolve(&string).to_string();
 
           let lexer = Lexer::new(&source);
-          let parser = Parser::new(lexer);
+          let parser = Parser::new(lexer, interner().get_or_intern("internal"));
           let expr = parser
             .parse()
             .ok()
             .map(ExprKind::List)
             .unwrap_or(ExprKind::Nil);
 
-          program.push(expr.into_expr())
+          program.push(expr.into_expr(DebugData::only_ingredients(vec![
+            item,
+            trace_expr.clone(),
+          ])))
         }
         _ => Err(EvalError {
-          expr: trace_expr.clone(),
-          program: program.clone(),
-          message: format!(
-            "expected {}, found {}",
-            Type::String,
-            item.val.type_of(),
-          ),
+          expr: Some(trace_expr),
+          kind: EvalErrorKind::ExpectedFound(Type::String, item.val.type_of()),
         }),
       }
     },

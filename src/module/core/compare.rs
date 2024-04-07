@@ -1,4 +1,4 @@
-use crate::{interner::interner, EvalError, Expr, ExprKind, Program};
+use crate::{interner::interner, DebugData, EvalError, ExprKind, Program};
 
 pub fn module(program: &mut Program) -> Result<(), EvalError> {
   program.funcs.insert(
@@ -7,7 +7,9 @@ pub fn module(program: &mut Program) -> Result<(), EvalError> {
       let rhs = program.pop(trace_expr)?;
       let lhs = program.pop(trace_expr)?;
 
-      program.push(ExprKind::Boolean(lhs.val == rhs.val).into_expr())
+      program.push(ExprKind::Boolean(lhs.val == rhs.val).into_expr(
+        DebugData::only_ingredients(vec![lhs, rhs, trace_expr.clone()]),
+      ))
     },
   );
 
@@ -17,7 +19,9 @@ pub fn module(program: &mut Program) -> Result<(), EvalError> {
       let rhs = program.pop(trace_expr)?;
       let lhs = program.pop(trace_expr)?;
 
-      program.push(ExprKind::Boolean(lhs.val != rhs.val).into_expr())
+      program.push(ExprKind::Boolean(lhs.val != rhs.val).into_expr(
+        DebugData::only_ingredients(vec![lhs, rhs, trace_expr.clone()]),
+      ))
     },
   );
 
@@ -27,7 +31,9 @@ pub fn module(program: &mut Program) -> Result<(), EvalError> {
       let rhs = program.pop(trace_expr)?;
       let lhs = program.pop(trace_expr)?;
 
-      program.push(ExprKind::Boolean(lhs.val < rhs.val).into_expr())
+      program.push(ExprKind::Boolean(lhs.val < rhs.val).into_expr(
+        DebugData::only_ingredients(vec![lhs, rhs, trace_expr.clone()]),
+      ))
     },
   );
 
@@ -37,7 +43,9 @@ pub fn module(program: &mut Program) -> Result<(), EvalError> {
       let rhs = program.pop(trace_expr)?;
       let lhs = program.pop(trace_expr)?;
 
-      program.push(ExprKind::Boolean(lhs.val > rhs.val).into_expr())
+      program.push(ExprKind::Boolean(lhs.val > rhs.val).into_expr(
+        DebugData::only_ingredients(vec![lhs, rhs, trace_expr.clone()]),
+      ))
     },
   );
 
@@ -47,7 +55,9 @@ pub fn module(program: &mut Program) -> Result<(), EvalError> {
       let rhs = program.pop(trace_expr)?;
       let lhs = program.pop(trace_expr)?;
 
-      program.push(ExprKind::Boolean(lhs.val <= rhs.val).into_expr())
+      program.push(ExprKind::Boolean(lhs.val <= rhs.val).into_expr(
+        DebugData::only_ingredients(vec![lhs, rhs, trace_expr.clone()]),
+      ))
     },
   );
 
@@ -57,7 +67,9 @@ pub fn module(program: &mut Program) -> Result<(), EvalError> {
       let rhs = program.pop(trace_expr)?;
       let lhs = program.pop(trace_expr)?;
 
-      program.push(ExprKind::Boolean(lhs.val >= rhs.val).into_expr())
+      program.push(ExprKind::Boolean(lhs.val >= rhs.val).into_expr(
+        DebugData::only_ingredients(vec![lhs, rhs, trace_expr.clone()]),
+      ))
     },
   );
 

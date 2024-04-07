@@ -1,4 +1,4 @@
-use crate::{interner::interner, EvalError, Expr, ExprKind, Program, Type};
+use crate::{interner::interner, EvalError, ExprKind, Program, Type};
 
 pub fn module(program: &mut Program) -> Result<(), EvalError> {
   program.funcs.insert(
@@ -24,18 +24,15 @@ pub fn module(program: &mut Program) -> Result<(), EvalError> {
           }
         }
         (cond, then, r#else) => Err(EvalError {
-          expr: trace_expr.clone(),
-          program: program.clone(),
-          message: format!(
-            "expected {}, found {}",
+          kind: crate::EvalErrorKind::ExpectedFound(
             Type::List(vec![
-              // TODO: A type to represent functions.
               Type::List(vec![Type::Boolean]),
               Type::List(vec![]),
               Type::List(vec![]),
             ]),
-            Type::List(vec![cond.type_of(), then.type_of(), r#else.type_of(),]),
+            Type::List(vec![cond.type_of(), then.type_of(), r#else.type_of()]),
           ),
+          expr: Some(trace_expr),
         }),
       }
     },
@@ -59,17 +56,14 @@ pub fn module(program: &mut Program) -> Result<(), EvalError> {
           }
         }
         (cond, then) => Err(EvalError {
-          expr: trace_expr.clone(),
-          program: program.clone(),
-          message: format!(
-            "expected {}, found {}",
+          kind: crate::EvalErrorKind::ExpectedFound(
             Type::List(vec![
-              // TODO: A type to represent functions.
               Type::List(vec![Type::Boolean]),
               Type::List(vec![]),
             ]),
-            Type::List(vec![cond.type_of(), then.type_of(),]),
+            Type::List(vec![cond.type_of(), then.type_of()]),
           ),
+          expr: Some(trace_expr),
         }),
       }
 
@@ -96,17 +90,14 @@ pub fn module(program: &mut Program) -> Result<(), EvalError> {
           }
         },
         (cond, block) => Err(EvalError {
-          expr: trace_expr.clone(),
-          program: program.clone(),
-          message: format!(
-            "expected {}, found {}",
+          kind: crate::EvalErrorKind::ExpectedFound(
             Type::List(vec![
-              // TODO: A type to represent functions.
               Type::List(vec![Type::Boolean]),
               Type::List(vec![]),
             ]),
-            Type::List(vec![cond.type_of(), block.type_of(),]),
+            Type::List(vec![cond.type_of(), block.type_of()]),
           ),
+          expr: Some(trace_expr),
         }),
       }
     },
@@ -116,9 +107,8 @@ pub fn module(program: &mut Program) -> Result<(), EvalError> {
     interner().get_or_intern_static("halt"),
     |program, trace_expr| {
       Err(EvalError {
-        expr: trace_expr.clone(),
-        program: program.clone(),
-        message: "halt".to_string(),
+        kind: crate::EvalErrorKind::Halt,
+        expr: Some(trace_expr),
       })
     },
   );

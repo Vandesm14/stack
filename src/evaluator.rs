@@ -89,6 +89,9 @@ pub enum EvalErrorKind {
   ParseError,
   Message(String),
   ExpectedFound(Type, Type),
+  Halt,
+  Panic(String),
+  UnableToRead(String, String),
 }
 
 impl fmt::Display for EvalErrorKind {
@@ -102,14 +105,19 @@ impl fmt::Display for EvalErrorKind {
         write!(f, "expected {}, found {}", expected, found)
       }
       Self::Message(message) => write!(f, "{}", message),
+      Self::Halt => write!(f, "halted"),
+      Self::Panic(message) => write!(f, "panic: {}", message),
+      Self::UnableToRead(filename, error) => {
+        write!(f, "unable to read {}: {}", filename, error)
+      }
     }
   }
 }
 
 #[derive(Debug, Clone, PartialEq)]
 pub struct EvalError<'a> {
-  kind: EvalErrorKind,
-  expr: Option<&'a Expr>,
+  pub kind: EvalErrorKind,
+  pub expr: Option<&'a Expr>,
 }
 
 impl<'a> fmt::Display for EvalError<'a> {

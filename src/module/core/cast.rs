@@ -1,5 +1,5 @@
 use crate::{
-  interner::interner, DebugData, EvalError, Expr, ExprKind, Program, Span,
+  interner::interner, DebugData, EvalError, Expr, ExprKind, Program,
 };
 
 pub fn module(program: &mut Program) -> Result<(), EvalError> {
