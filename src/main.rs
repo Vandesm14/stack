@@ -67,7 +67,7 @@ fn repl(with_core: bool) -> rustyline::Result<()> {
         rl.add_history_entry(line.as_str()).unwrap();
 
         let result = program.eval_string(line.as_str());
-        program.journal.finish();
+        program.journal.commit();
         eval_string(&program, result);
       }
       Err(ReadlineError::Interrupted) => {
@@ -119,7 +119,7 @@ fn eval_file(
       }
 
       let result = program.eval_string(contents.as_str());
-      program.journal.finish();
+      program.journal.commit();
       eval_string(&program, result);
 
       if let Some(watcher) = watcher {

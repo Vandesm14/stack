@@ -252,6 +252,7 @@ impl Program {
     }
 
     self.stack.push(expr);
+    self.journal.commit();
 
     Ok(())
   }

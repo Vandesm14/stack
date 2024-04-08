@@ -1,6 +1,6 @@
 use core::fmt;
 use itertools::Itertools;
-use std::{fmt::Formatter, mem};
+use std::mem;
 use termion::color;
 
 use crate::Expr;
@@ -27,7 +27,7 @@ impl fmt::Display for Journal {
     let mut lines: Vec<String> = Vec::new();
     let mut line = String::new();
 
-    let max_commits = 10;
+    let max_commits = 20;
     let start = match max_commits >= self.commits.len() {
       false => self
         .commits
@@ -77,6 +77,8 @@ impl fmt::Display for Journal {
       write!(f, "\n\nStack History:\n")?;
     }
 
+    // dbg!(self.ops.clone());
+
     write!(f, "{}", lines.join("\n"))?;
 
     Ok(())
@@ -90,21 +92,17 @@ impl Journal {
 
   pub fn op(&mut self, op: JournalOp) {
     if matches!(op, JournalOp::Commit) {
-      self.commits.push(self.ops.len());
+      return self.commit();
     }
 
     self.current.push(op);
   }
 
   pub fn commit(&mut self) {
-    self.ops.extend(mem::take(&mut self.current));
-    self.commits.push(self.ops.len());
-    self.ops.push(JournalOp::Commit);
-  }
-
-  pub fn finish(&mut self) {
     if !self.current.is_empty() {
-      self.commit();
+      self.ops.extend(mem::take(&mut self.current));
+      self.commits.push(self.ops.len());
+      self.ops.push(JournalOp::Commit);
     }
   }
 }
