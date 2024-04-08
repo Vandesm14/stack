@@ -8,6 +8,7 @@ use crate::Expr;
 #[derive(Debug, Clone, PartialEq, PartialOrd)]
 pub enum JournalOp {
   Call(Expr),
+  FnCall(Expr),
   Push(Expr),
   Pop(Expr),
   Commit,
@@ -48,6 +49,11 @@ impl fmt::Display for Journal {
         JournalOp::Call(call) => {
           line.push_str(&format!("{}", color::Fg(color::Yellow)));
           line.push_str(&format!("{}", call));
+          line.push_str(" |");
+        }
+        JournalOp::FnCall(fn_call) => {
+          line.push_str(&format!("{}", color::Fg(color::Yellow)));
+          line.push_str(&format!("{}()", fn_call));
           line.push_str(" |");
         }
         JournalOp::Push(push) => {

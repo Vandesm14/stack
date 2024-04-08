@@ -379,10 +379,12 @@ impl Program {
 
     if self.debug {
       self.journal.commit();
-      self.journal.op(JournalOp::Call(trace_expr.clone()));
     }
 
     if let Some(func) = self.funcs.get(&symbol) {
+      if self.debug {
+        self.journal.op(JournalOp::FnCall(trace_expr.clone()));
+      }
       let result = func(self, trace_expr);
       if self.debug && result.is_ok() {
         self.journal.commit();
@@ -394,10 +396,14 @@ impl Program {
     if let Some(value) = self.scope_item(symbol_str) {
       if value.val.is_function() {
         if self.debug {
+          self.journal.op(JournalOp::FnCall(trace_expr.clone()));
           self.journal.commit();
         }
         self.auto_call(trace_expr, value)
       } else {
+        if self.debug {
+          self.journal.op(JournalOp::Call(trace_expr.clone()));
+        }
         let result = self.push(value);
         if self.debug {
           self.journal.commit();
