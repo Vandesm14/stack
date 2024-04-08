@@ -304,10 +304,16 @@ impl Program {
 
   pub fn push_scope(&mut self, scope: Scope) {
     self.scopes.push(scope);
+    self
+      .journal
+      .op(JournalOp::ScopeChange(self.scopes.len() - 1));
   }
 
   pub fn pop_scope(&mut self) {
     self.scopes.pop();
+    self
+      .journal
+      .op(JournalOp::ScopeChange(self.scopes.len() - 1));
   }
 
   /// Lexes, Parses, and Evaluates a string
@@ -395,10 +401,6 @@ impl Program {
 
     if let Some(value) = self.scope_item(symbol_str) {
       if value.val.is_function() {
-        if self.debug {
-          self.journal.op(JournalOp::FnCall(trace_expr.clone()));
-          self.journal.commit();
-        }
         self.auto_call(trace_expr, value)
       } else {
         if self.debug {
@@ -430,6 +432,10 @@ impl Program {
       ExprKind::Call(_) => self.eval_expr(expr),
       item @ ExprKind::List(_) => match item.is_function() {
         true => {
+          if self.debug {
+            self.journal.op(JournalOp::FnCall(trace_expr.clone()));
+          }
+
           let fn_symbol = item.fn_symbol().unwrap();
           let fn_body = item.fn_body().unwrap();
 
@@ -437,8 +443,16 @@ impl Program {
             self.push_scope(fn_symbol.scope.clone());
           }
 
+          if self.debug {
+            self.journal.commit();
+          }
+
           match self.eval(fn_body.to_vec()) {
             Ok(_) => {
+              if self.debug {
+                self.journal.commit();
+              }
+
               if fn_symbol.scoped {
                 self.pop_scope();
               }

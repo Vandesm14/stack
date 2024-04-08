@@ -5,6 +5,12 @@ use termion::color;
 
 use crate::Expr;
 
+#[derive(Debug, Clone, PartialEq, PartialOrd, Default)]
+struct JournalEntry {
+  ops: Vec<JournalOp>,
+  scope: usize,
+}
+
 #[derive(Debug, Clone, PartialEq, PartialOrd)]
 pub enum JournalOp {
   Call(Expr),
@@ -12,6 +18,7 @@ pub enum JournalOp {
   Push(Expr),
   Pop(Expr),
   Commit,
+  ScopeChange(usize),
 }
 
 #[derive(Debug, Clone, PartialEq, PartialOrd, Default)]
@@ -23,67 +30,60 @@ pub struct Journal {
 
 impl fmt::Display for Journal {
   fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-    let mut do_space = false;
-
-    let mut lines: Vec<String> = Vec::new();
-    let mut line = String::new();
-
-    let max_commits = 30;
-    let start = match max_commits >= self.commits.len() {
-      false => self
-        .commits
-        .get(self.commits.len() - max_commits - 1)
-        .map(|index| index + 1)
-        .unwrap_or(0),
-      true => 0,
-    };
-
-    for op in self.ops.iter().skip(start) {
-      if !do_space {
-        line.push_str(" * ");
-      }
-
-      do_space |= true;
-
-      match op {
-        JournalOp::Call(call) => {
-          line.push_str(&format!("{}", color::Fg(color::Yellow)));
-          line.push_str(&format!("{}", call));
-          line.push_str(" |");
-        }
-        JournalOp::FnCall(fn_call) => {
-          line.push_str(&format!("{}", color::Fg(color::Yellow)));
-          line.push_str(&format!("{}()", fn_call));
-          line.push_str(" |");
-        }
-        JournalOp::Push(push) => {
-          line.push_str(&format!("{}", color::Fg(color::Green)));
-          line.push_str(&format!("{}", push));
-        }
-        JournalOp::Pop(pop) => {
-          line.push_str(&format!("{}", color::Fg(color::Red)));
-          line.push_str(&format!("{}", pop));
-        }
-        JournalOp::Commit => {
-          do_space = false;
-          lines.push(line.clone());
-          line = String::new();
-        }
-      }
-      line.push_str(&format!("{}", color::Fg(color::Reset)));
-
-      if do_space {
-        line.push(' ');
-      }
-    }
-
-    lines = lines.into_iter().rev().collect_vec();
-
-    if !lines.is_empty() {
+    let entries = self.entries(10);
+    if !entries.is_empty() {
       write!(f, "\n\nStack History:\n")?;
     }
 
-    write!(f, "{}", lines.join("\n"))?;
+    for entry in entries {
+      let mut line = String::new();
+      let mut should_print = false;
+      for op in entry.ops {
+        if !line.is_empty() {
+          line.push(' ');
+        }
+
+        match op {
+          JournalOp::Call(call) => {
+            line.push_str(&format!("{}", color::Fg(color::White)));
+            line.push_str(&format!("{}", call));
+
+            line.push_str(&format!("{}", color::Fg(color::White)));
+            line.push_str(" |");
+
+            should_print = true;
+          }
+          JournalOp::FnCall(fn_call) => {
+            line.push_str(&format!("{}", color::Fg(color::Yellow)));
+            line.push_str(&format!("{}", fn_call));
+
+            line.push_str(&format!("{}", color::Fg(color::White)));
+            line.push_str(" |");
+
+            should_print = true;
+          }
+          JournalOp::Push(push) => {
+            line.push_str(&format!("{}", color::Fg(color::Green)));
+            line.push_str(&format!("{}", push));
+
+            should_print = true;
+          }
+          JournalOp::Pop(pop) => {
+            line.push_str(&format!("{}", color::Fg(color::Red)));
+            line.push_str(&format!("{}", pop));
+
+            should_print = true;
+          }
+          _ => {}
+        }
+      }
+
+      if should_print {
+        line.push_str(&format!("{}", color::Fg(color::Reset)));
+        write!(f, " {}* ", "  ".repeat(entry.scope))?;
+        writeln!(f, "{}", line)?;
+      }
+    }
 
     Ok(())
   }
@@ -114,5 +114,37 @@ impl Journal {
     self.ops.clear();
     self.current.clear();
     self.commits.clear();
+  }
+
+  fn entries(&self, max_commits: usize) -> Vec<JournalEntry> {
+    let mut entries: Vec<JournalEntry> = Vec::new();
+    let mut entry = JournalEntry::default();
+
+    let start = match max_commits >= self.commits.len() {
+      false => self
+        .commits
+        .get(self.commits.len() - max_commits - 1)
+        .map(|index| index + 1)
+        .unwrap_or(0),
+      true => 0,
+    };
+
+    let mut scope = 0;
+    for op in self.ops.iter().skip(start) {
+      match op {
+        JournalOp::Commit => {
+          entries.push(entry.clone());
+          entry = JournalEntry::default();
+          entry.scope = scope;
+        }
+        JournalOp::ScopeChange(scope_op) => {
+          scope = *scope_op;
+          entry.scope = scope;
+        }
+        op => entry.ops.push(op.clone()),
+      }
+    }
+
+    entries.into_iter().rev().collect_vec()
   }
 }
