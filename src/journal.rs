@@ -27,7 +27,7 @@ impl fmt::Display for Journal {
     let mut lines: Vec<String> = Vec::new();
     let mut line = String::new();
 
-    let max_commits = 20;
+    let max_commits = 30;
     let start = match max_commits >= self.commits.len() {
       false => self
         .commits
@@ -77,8 +77,6 @@ impl fmt::Display for Journal {
       write!(f, "\n\nStack History:\n")?;
     }
 
-    // dbg!(self.ops.clone());
-
     write!(f, "{}", lines.join("\n"))?;
 
     Ok(())
@@ -104,5 +102,11 @@ impl Journal {
       self.commits.push(self.ops.len());
       self.ops.push(JournalOp::Commit);
     }
+  }
+
+  pub fn clear(&mut self) {
+    self.ops.clear();
+    self.current.clear();
+    self.commits.clear();
   }
 }

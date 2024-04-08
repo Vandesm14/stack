@@ -115,8 +115,8 @@ pub struct Program {
   pub scopes: Vec<Scope>,
   pub funcs: HashMap<Spur, Func>,
   pub sources: HashMap<String, SourceFile>,
-  pub debug: bool,
   pub journal: Journal,
+  pub debug: bool,
 }
 
 impl Default for Program {
@@ -185,14 +185,15 @@ impl Program {
       scopes: vec![Scope::new()],
       funcs: HashMap::new(),
       sources: HashMap::new(),
-      debug: false,
       journal: Journal::new(),
+      debug: false,
     }
   }
 
   pub fn with_core(self) -> Result<Self, EvalError> {
     let mut program = self;
     module::core::Core::default().link(&mut program)?;
+    program.journal.clear();
     Ok(program)
   }
 
@@ -202,6 +203,7 @@ impl Program {
   {
     let mut program = self;
     module.link(&mut program)?;
+    program.journal.clear();
     Ok(program)
   }
 
