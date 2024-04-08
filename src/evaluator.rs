@@ -1,6 +1,4 @@
-use ariadne::{
-  Color, ColorGenerator, Config, Fmt, Label, Report, ReportKind, Source,
-};
+use ariadne::{Color, Label, Report, ReportKind, Source};
 use lasso::Spur;
 
 use crate::{
@@ -74,7 +72,7 @@ impl fmt::Display for EvalError {
 }
 
 impl EvalError {
-  pub fn print_report(&self, program: &Program) {
+  pub fn print_report(&self) {
     let out = Color::Red;
 
     let source_file: Option<&str> = self.expr.as_ref().and_then(|expr| {
@@ -105,10 +103,6 @@ impl EvalError {
           .with_message("error occurs here")
           .with_color(out),
       )
-      // .with_note(format!(
-      //   "Outputs of {} expressions must coerce to the same type",
-      //   "match".fg(out)
-      // ))
       .finish()
       .print((file_name, Source::from(source)))
       .unwrap();
@@ -386,7 +380,7 @@ impl Program {
 
     if let Some(func) = self.funcs.get(&symbol) {
       let result = func(self, trace_expr);
-      if self.debug {
+      if self.debug && result.is_ok() {
         self.journal.commit();
       }
 
@@ -396,7 +390,7 @@ impl Program {
     if let Some(value) = self.scope_item(symbol_str) {
       if value.val.is_function() {
         let result = self.auto_call(trace_expr, value);
-        if self.debug {
+        if self.debug && result.is_ok() {
           self.journal.commit();
         }
 

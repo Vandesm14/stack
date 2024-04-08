@@ -41,7 +41,7 @@ enum Commands {
 fn eval_string(program: &Program, result: Result<(), EvalError>) {
   println!();
   if let Err(err) = result {
-    err.print_report(program);
+    err.print_report();
     eprintln!("{}", program.journal);
   } else {
     println!("{}", program);
