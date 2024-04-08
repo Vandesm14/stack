@@ -390,12 +390,10 @@ impl Program {
 
     if let Some(value) = self.scope_item(symbol_str) {
       if value.val.is_function() {
-        let result = self.auto_call(trace_expr, value);
-        if self.debug && result.is_ok() {
+        if self.debug {
           self.journal.commit();
         }
-
-        result
+        self.auto_call(trace_expr, value)
       } else {
         self.push(value)
       }
