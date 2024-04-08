@@ -139,8 +139,6 @@ impl fmt::Display for Program {
     })?;
     write!(f, "]")?;
 
-    writeln!(f,)?;
-
     // if !self.scopes.is_empty() {
     //   writeln!(f, "Scope:")?;
 

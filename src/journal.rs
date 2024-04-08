@@ -73,6 +73,10 @@ impl fmt::Display for Journal {
 
     lines = lines.into_iter().rev().collect_vec();
 
+    if !lines.is_empty() {
+      write!(f, "\n\nStack History:\n")?;
+    }
+
     write!(f, "{}", lines.join("\n"))?;
 
     Ok(())
@@ -96,5 +100,11 @@ impl Journal {
     self.ops.extend(mem::take(&mut self.current));
     self.commits.push(self.ops.len());
     self.ops.push(JournalOp::Commit);
+  }
+
+  pub fn finish(&mut self) {
+    if !self.current.is_empty() {
+      self.commit();
+    }
   }
 }
