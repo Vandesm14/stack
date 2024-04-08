@@ -1,5 +1,6 @@
 use core::fmt;
-use std::mem;
+use itertools::Itertools;
+use std::{fmt::Formatter, mem};
 use termion::color;
 
 use crate::Expr;
@@ -16,45 +17,63 @@ pub enum JournalOp {
 pub struct Journal {
   ops: Vec<JournalOp>,
   current: Vec<JournalOp>,
+  commits: Vec<usize>,
 }
 
 impl fmt::Display for Journal {
   fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
     let mut do_space = false;
-    for (i, op) in self.ops.iter().enumerate() {
+
+    let mut lines: Vec<String> = Vec::new();
+    let mut line = String::new();
+
+    let max_commits = 10;
+    let start = match max_commits >= self.commits.len() {
+      false => self
+        .commits
+        .get(self.commits.len() - max_commits - 1)
+        .map(|index| index + 1)
+        .unwrap_or(0),
+      true => 0,
+    };
+
+    for op in self.ops.iter().skip(start) {
       if !do_space {
-        if i != 0 {
-          writeln!(f)?;
-        }
-        write!(f, " * ")?;
+        line.push_str(" * ");
       }
 
       do_space |= true;
 
       match op {
         JournalOp::Call(call) => {
-          write!(f, "{}", color::Fg(color::Yellow))?;
-          write!(f, "{}", call)?;
-          write!(f, " |")?;
+          line.push_str(&format!("{}", color::Fg(color::Yellow)));
+          line.push_str(&format!("{}", call));
+          line.push_str(" |");
         }
         JournalOp::Push(push) => {
-          write!(f, "{}", color::Fg(color::Green))?;
-          write!(f, "{}", push)?;
+          line.push_str(&format!("{}", color::Fg(color::Green)));
+          line.push_str(&format!("{}", push));
         }
         JournalOp::Pop(pop) => {
-          write!(f, "{}", color::Fg(color::Red))?;
-          write!(f, "{}", pop)?;
+          line.push_str(&format!("{}", color::Fg(color::Red)));
+          line.push_str(&format!("{}", pop));
         }
         JournalOp::Commit => {
           do_space = false;
+          lines.push(line.clone());
+          line = String::new();
         }
       }
-      write!(f, "{}", color::Fg(color::Reset))?;
+      line.push_str(&format!("{}", color::Fg(color::Reset)));
 
       if do_space {
-        write!(f, " ")?;
+        line.push(' ');
       }
     }
+
+    lines = lines.into_iter().rev().collect_vec();
+
+    write!(f, "{}", lines.join("\n"))?;
 
     Ok(())
   }
@@ -66,11 +85,16 @@ impl Journal {
   }
 
   pub fn op(&mut self, op: JournalOp) {
+    if matches!(op, JournalOp::Commit) {
+      self.commits.push(self.ops.len());
+    }
+
     self.current.push(op);
   }
 
   pub fn commit(&mut self) {
     self.ops.extend(mem::take(&mut self.current));
+    self.commits.push(self.ops.len());
     self.ops.push(JournalOp::Commit);
   }
 }
