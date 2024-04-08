@@ -254,7 +254,8 @@ impl Program {
     }
 
     self.stack.push(expr);
-    self.journal.commit();
+    // TODO: I don't think we need to commit after each push.
+    // self.journal.commit();
 
     Ok(())
   }
@@ -375,7 +376,9 @@ impl Program {
     symbol: Spur,
   ) -> Result<(), EvalError> {
     let symbol_str = interner().resolve(&symbol);
+
     if self.debug {
+      self.journal.commit();
       self.journal.op(JournalOp::Call(trace_expr.clone()));
     }
 
@@ -395,7 +398,12 @@ impl Program {
         }
         self.auto_call(trace_expr, value)
       } else {
-        self.push(value)
+        let result = self.push(value);
+        if self.debug {
+          self.journal.commit();
+        }
+
+        result
       }
     } else {
       Err(EvalError {
