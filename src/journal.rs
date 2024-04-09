@@ -32,6 +32,7 @@ pub enum JournalOp {
 }
 
 #[derive(Debug, Clone, PartialEq, PartialOrd, Default)]
+// TODO: implement this as a ring buffer with max_commits so we never go over
 pub struct Journal {
   ops: Vec<JournalOp>,
   current: Vec<JournalOp>,
