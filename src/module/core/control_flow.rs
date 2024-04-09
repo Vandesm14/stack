@@ -132,7 +132,7 @@ mod tests {
         .unwrap();
       assert_eq!(
         simple_exprs(program.stack),
-        vec![TestExpr::String(interner().get_or_intern_static("correct"))]
+        vec![TestExpr::String("correct".into())]
       );
     }
 
@@ -144,7 +144,7 @@ mod tests {
         .unwrap();
       assert_eq!(
         simple_exprs(program.stack),
-        vec![TestExpr::String(interner().get_or_intern_static("correct"))]
+        vec![TestExpr::String("correct".into())]
       );
     }
 
@@ -156,7 +156,7 @@ mod tests {
         .unwrap();
       assert_eq!(
         simple_exprs(program.stack),
-        vec![TestExpr::String(interner().get_or_intern_static("correct"))]
+        vec![TestExpr::String("correct".into())]
       );
     }
 
@@ -168,9 +168,7 @@ mod tests {
         .unwrap();
       assert_eq!(
         simple_exprs(program.stack),
-        vec![TestExpr::String(
-          interner().get_or_intern_static("incorrect")
-        )]
+        vec![TestExpr::String("incorrect".into())]
       );
     }
   }

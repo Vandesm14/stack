@@ -11,9 +11,7 @@ pub fn module(program: &mut Program) -> Result<(), EvalError> {
 
       match item.val {
         ExprKind::String(string) => {
-          let source = interner().resolve(&string).to_string();
-
-          let lexer = Lexer::new(&source);
+          let lexer = Lexer::new(&string);
           let parser = Parser::new(lexer, interner().get_or_intern("internal"));
           let expr = parser
             .parse()

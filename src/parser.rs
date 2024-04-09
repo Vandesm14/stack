@@ -206,14 +206,14 @@ impl<'source> Parser<'source> {
   }
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, PartialOrd, Error)]
+#[derive(Debug, Clone, PartialEq, PartialOrd, Error)]
 #[error("{reason} at {span}")]
 pub struct ParseError {
   pub reason: ParseErrorReason,
   pub span: Span,
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, PartialOrd, Error)]
+#[derive(Debug, Clone, PartialEq, PartialOrd, Error)]
 pub enum ParseErrorReason {
   #[error("unexpected token: {kind}")]
   UnexpectedToken { kind: TokenKind },

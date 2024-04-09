@@ -10,7 +10,7 @@ use std::{collections::HashMap, fs, time::SystemTime};
 
 #[derive(Debug, Clone)]
 pub struct SourceFile {
-  pub contents: Spur,
+  pub contents: String,
   pub mtime: SystemTime,
 }
 

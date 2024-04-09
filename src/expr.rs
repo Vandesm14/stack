@@ -30,7 +30,7 @@ pub enum ExprKind {
   Integer(i64),
   Float(f64),
 
-  String(Spur),
+  String(String),
   List(Vec<Expr>),
 
   Lazy(Box<Expr>),
@@ -350,7 +350,7 @@ impl fmt::Display for ExprKind {
       Self::Integer(x) => fmt::Display::fmt(x, f),
       Self::Float(x) => fmt::Display::fmt(x, f),
 
-      Self::String(x) => write!(f, "\"{}\"", interner().resolve(x)),
+      Self::String(x) => write!(f, "\"{}\"", x),
 
       Self::List(x) => {
         f.write_str("(")?;
@@ -426,7 +426,7 @@ impl Expr {
       ExprKind::Float(x) => format!("{}{}", color::Fg(color::Yellow), x),
 
       ExprKind::String(x) => {
-        format!("{}\"{}\"", color::Fg(color::Green), interner().resolve(x))
+        format!("{}\"{}\"", color::Fg(color::Green), x)
       }
 
       ExprKind::List(x) => {

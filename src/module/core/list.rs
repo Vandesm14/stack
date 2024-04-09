@@ -131,18 +131,14 @@ pub fn module(program: &mut Program) -> Result<(), EvalError> {
 
       match (delimiter_expr.val, list_expr.val) {
         (ExprKind::String(delimiter), ExprKind::List(list)) => {
-          let delimiter_str = interner().resolve(&delimiter);
-
           let string = list
             .into_iter()
             .map(|expr| match expr.val {
-              ExprKind::String(string) => {
-                interner().resolve(&string).to_string()
-              }
+              ExprKind::String(string) => string,
               expr_kind => expr_kind.to_string(),
             })
-            .join(delimiter_str);
-          let string = ExprKind::String(interner().get_or_intern(string));
+            .join(&delimiter);
+          let string = ExprKind::String(string);
           program.push(string.into_expr(DebugData::default()))
         }
         (delimiter, list) => Err(EvalError {
@@ -254,7 +250,7 @@ mod tests {
         TestExpr::Integer(1),
         TestExpr::Integer(2),
         TestExpr::Integer(3),
-        TestExpr::String(interner().get_or_intern_static("4"))
+        TestExpr::String("4".into())
       ])]
     );
   }
