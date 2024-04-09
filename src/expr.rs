@@ -450,7 +450,7 @@ impl Expr {
         format!("'{}", x)
       }
       ExprKind::Call(x) => {
-        format!("{}{}", color::Fg(color::Blue), interner().resolve(&x))
+        format!("{}{}", color::Fg(color::Blue), interner().resolve(x))
       }
 
       ExprKind::Fn(_) => format!("{}fn", color::Fg(color::Blue)),
