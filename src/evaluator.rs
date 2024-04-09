@@ -180,7 +180,12 @@ impl fmt::Display for Program {
     //   }
     // }
 
-    write!(f, "{}", self.journal)?;
+    let journal = self.journal.to_string();
+
+    if !journal.is_empty() {
+      write!(f, "\n\n")?;
+      write!(f, "{}", journal)?;
+    }
 
     Ok(())
   }

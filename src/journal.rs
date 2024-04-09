@@ -43,7 +43,7 @@ impl fmt::Display for Journal {
   fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
     let entries = self.entries(20);
     if !entries.is_empty() {
-      write!(f, "\n\nStack History (most recent first):\n")?;
+      writeln!(f, "Stack History (most recent first):")?;
     }
 
     let len = entries.len();
