@@ -10,18 +10,14 @@ pub fn module(program: &mut Program) -> Result<(), EvalError> {
 
       match item.val {
         ExprKind::Boolean(_) => program.push(item),
-        ExprKind::String(string) => {
-          let string_str = interner().resolve(&string);
-
-          program.push(Expr {
-            val: string_str
-              .parse()
-              .ok()
-              .map(ExprKind::Boolean)
-              .unwrap_or(ExprKind::Nil),
-            debug_data: DebugData::default(),
-          })
-        }
+        ExprKind::String(string) => program.push(Expr {
+          val: string
+            .parse()
+            .ok()
+            .map(ExprKind::Boolean)
+            .unwrap_or(ExprKind::Nil),
+          debug_data: DebugData::default(),
+        }),
         found => program.push(Expr {
           val: found.to_boolean().unwrap_or(ExprKind::Nil),
           debug_data: DebugData::default(),
@@ -37,18 +33,14 @@ pub fn module(program: &mut Program) -> Result<(), EvalError> {
 
       match item.val {
         ExprKind::Integer(_) => program.push(item),
-        ExprKind::String(string) => {
-          let string_str = interner().resolve(&string);
-
-          program.push(
-            string_str
-              .parse()
-              .ok()
-              .map(ExprKind::Integer)
-              .unwrap_or(ExprKind::Nil)
-              .into_expr(DebugData::default()),
-          )
-        }
+        ExprKind::String(string) => program.push(
+          string
+            .parse()
+            .ok()
+            .map(ExprKind::Integer)
+            .unwrap_or(ExprKind::Nil)
+            .into_expr(DebugData::default()),
+        ),
         found => program.push(
           found
             .to_integer()
@@ -66,18 +58,14 @@ pub fn module(program: &mut Program) -> Result<(), EvalError> {
 
       match item.val {
         ExprKind::Float(_) => program.push(item),
-        ExprKind::String(string) => {
-          let string_str = interner().resolve(&string);
-
-          program.push(
-            string_str
-              .parse()
-              .ok()
-              .map(ExprKind::Float)
-              .unwrap_or(ExprKind::Nil)
-              .into_expr(DebugData::default()),
-          )
-        }
+        ExprKind::String(string) => program.push(
+          string
+            .parse()
+            .ok()
+            .map(ExprKind::Float)
+            .unwrap_or(ExprKind::Nil)
+            .into_expr(DebugData::default()),
+        ),
         found => program.push(
           found
             .to_float()
@@ -96,8 +84,7 @@ pub fn module(program: &mut Program) -> Result<(), EvalError> {
       match item.val {
         ExprKind::String(_) => program.push(item),
         found => {
-          let string =
-            ExprKind::String(interner().get_or_intern(found.to_string()));
+          let string = ExprKind::String(found.to_string());
           program.push(string.into_expr(DebugData::default()))
         }
       }
@@ -111,21 +98,17 @@ pub fn module(program: &mut Program) -> Result<(), EvalError> {
 
       match item.val {
         ExprKind::List(_) => program.push(item),
-        ExprKind::String(s) => {
-          let str = interner().resolve(&s).to_owned();
-          program.push(
-            ExprKind::List(
-              str
-                .chars()
-                .map(|c| {
-                  ExprKind::String(interner().get_or_intern(c.to_string()))
-                    .into_expr(DebugData::default())
-                })
-                .collect::<Vec<_>>(),
-            )
-            .into_expr(DebugData::default()),
+        ExprKind::String(str) => program.push(
+          ExprKind::List(
+            str
+              .chars()
+              .map(|c| {
+                ExprKind::String(c.to_string()).into_expr(DebugData::default())
+              })
+              .collect::<Vec<_>>(),
           )
-        }
+          .into_expr(DebugData::default()),
+        ),
         found => program.push(
           ExprKind::List(vec![found.into_expr(item.debug_data)])
             .into_expr(DebugData::default()),
@@ -141,9 +124,10 @@ pub fn module(program: &mut Program) -> Result<(), EvalError> {
 
       match item.val {
         ExprKind::Call(_) => program.push(item),
-        ExprKind::String(string) => {
-          program.push(ExprKind::Call(string).into_expr(DebugData::default()))
-        }
+        ExprKind::String(string) => program.push(
+          ExprKind::Call(interner().get_or_intern(string))
+            .into_expr(DebugData::default()),
+        ),
         found => {
           let call =
             ExprKind::Call(interner().get_or_intern(found.to_string()));
@@ -157,9 +141,7 @@ pub fn module(program: &mut Program) -> Result<(), EvalError> {
     interner().get_or_intern_static("typeof"),
     |program, trace_expr| {
       let item = program.pop(trace_expr)?;
-      let string = ExprKind::String(
-        interner().get_or_intern(item.val.type_of().to_string()),
-      );
+      let string = ExprKind::String(item.val.type_of().to_string());
       program.push(string.into_expr(DebugData::default()))
     },
   );
@@ -179,7 +161,7 @@ mod tests {
     program.eval_string("1 tostring").unwrap();
     assert_eq!(
       simple_exprs(program.stack),
-      vec![TestExpr::String(interner().get_or_intern_static("1"))]
+      vec![TestExpr::String("1".into())]
     );
   }
 
@@ -206,7 +188,7 @@ mod tests {
     program.eval_string("1 typeof").unwrap();
     assert_eq!(
       simple_exprs(program.stack),
-      vec![TestExpr::String(interner().get_or_intern_static("integer"))]
+      vec![TestExpr::String("integer".into())]
     );
   }
 

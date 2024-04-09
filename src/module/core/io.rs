@@ -10,11 +10,10 @@ pub fn module(program: &mut Program) -> Result<(), EvalError> {
       let item = program.pop(trace_expr)?;
 
       match item.val {
-        ExprKind::String(path) => {
-          let path_str = interner().resolve(&path);
+        ExprKind::String(ref path) => {
           let file_is_newer =
-            if let Some(loaded_file) = program.sources.get(path_str) {
-              let metadata = std::fs::metadata(path_str).ok().unwrap();
+            if let Some(loaded_file) = program.sources.get(path) {
+              let metadata = std::fs::metadata(path).ok().unwrap();
               let mtime = metadata.modified().ok().unwrap();
               mtime > loaded_file.mtime
             } else {
@@ -22,35 +21,30 @@ pub fn module(program: &mut Program) -> Result<(), EvalError> {
             };
 
           if file_is_newer {
-            match std::fs::read_to_string(path_str) {
+            match std::fs::read_to_string(path.clone()) {
               Ok(contents) => {
-                let content = interner().get_or_intern(contents);
                 program.sources.insert(
-                  path_str.to_string(),
+                  path.to_string(),
                   SourceFile {
-                    contents: content,
-                    mtime: std::fs::metadata(path_str)
-                      .unwrap()
-                      .modified()
-                      .unwrap(),
+                    contents: contents.clone(),
+                    mtime: std::fs::metadata(path).unwrap().modified().unwrap(),
                   },
                 );
                 program.push(
-                  ExprKind::String(content).into_expr(DebugData::default()),
+                  ExprKind::String(contents).into_expr(DebugData::default()),
                 )
               }
               Err(e) => Err(EvalError {
                 expr: Some(trace_expr.clone()),
-                kind: EvalErrorKind::UnableToRead(
-                  path_str.into(),
-                  e.to_string(),
-                ),
+                kind: EvalErrorKind::UnableToRead(path.into(), e.to_string()),
               }),
             }
           } else {
-            let contents = program.sources.get(path_str).unwrap().contents;
-            program
-              .push(ExprKind::String(contents).into_expr(DebugData::default()))
+            let contents = &program.sources.get(path).unwrap().contents;
+            program.push(
+              ExprKind::String(contents.clone())
+                .into_expr(DebugData::default()),
+            )
           }
         }
         _ => Err(EvalError {

@@ -1,84 +1,20 @@
-use itertools::Itertools as _;
+use codespan_reporting::diagnostic::{Diagnostic, Label};
+use codespan_reporting::files::SimpleFiles;
+use codespan_reporting::term;
+use codespan_reporting::term::termcolor::{ColorChoice, StandardStream};
 use lasso::Spur;
 
 use crate::{
-  interner::interner, module, Expr, ExprKind, Func, Lexer, Module, Parser,
-  Scanner, Scope, Type,
+  interner::interner, module, Expr, ExprKind, Func, Journal, JournalOp, Lexer,
+  Module, Parser, Scanner, Scope, Span, Type,
 };
 use core::{fmt, iter};
-use std::{collections::HashMap, time::SystemTime};
+use std::{collections::HashMap, fs, time::SystemTime};
 
 #[derive(Debug, Clone)]
 pub struct SourceFile {
-  pub contents: Spur,
+  pub contents: String,
   pub mtime: SystemTime,
-}
-
-#[derive(Debug, Clone)]
-pub struct Program {
-  pub stack: Vec<Expr>,
-  pub scopes: Vec<Scope>,
-  pub funcs: HashMap<Spur, Func>,
-  pub sources: HashMap<String, SourceFile>,
-  pub debug: bool,
-}
-
-impl Default for Program {
-  #[inline]
-  fn default() -> Self {
-    Self::new()
-  }
-}
-
-impl fmt::Display for Program {
-  fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-    write!(f, "Stack: [")?;
-
-    self.stack.iter().enumerate().try_for_each(|(i, expr)| {
-      if i == self.stack.len() - 1 {
-        write!(f, "{}", expr)
-      } else {
-        write!(f, "{}, ", expr)
-      }
-    })?;
-    write!(f, "]")?;
-
-    writeln!(f,)?;
-
-    if !self.scopes.is_empty() {
-      writeln!(f, "Scope:")?;
-
-      let layer = self.scopes.last().unwrap();
-      let items = layer.items.len();
-      for (item_i, (key, value)) in
-        layer.items.iter().sorted_by_key(|(s, _)| *s).enumerate()
-      {
-        if item_i == items - 1 {
-          write!(
-            f,
-            " + {}: {}",
-            interner().resolve(key),
-            match value.borrow().val() {
-              Some(expr) => expr.to_string(),
-              None => "None".to_owned(),
-            }
-          )?;
-        } else {
-          writeln!(
-            f,
-            " + {}: {}",
-            interner().resolve(key),
-            match value.borrow().val() {
-              Some(expr) => expr.to_string(),
-              None => "None".to_owned(),
-            }
-          )?;
-        }
-      }
-    }
-
-    Ok(())
-  }
 }
 
 #[derive(Debug, Clone, PartialEq)]
@@ -92,6 +28,7 @@ pub enum EvalErrorKind {
   Halt,
   Panic(String),
   UnableToRead(String, String),
+  Cast(Type),
 }
 
 impl fmt::Display for EvalErrorKind {
@@ -109,6 +46,9 @@ impl fmt::Display for EvalErrorKind {
       Self::Panic(message) => write!(f, "panic: {}", message),
       Self::UnableToRead(filename, error) => {
         write!(f, "unable to read {}: {}", filename, error)
+      }
+      Self::Cast(t) => {
+        write!(f, "unable to cast into {}", t)
       }
     }
   }
@@ -134,6 +74,121 @@ impl fmt::Display for EvalError {
   }
 }
 
+impl EvalError {
+  pub fn print_report(&self, program: &Program) {
+    let source_file: Option<&str> = self.expr.as_ref().and_then(|expr| {
+      expr
+        .debug_data
+        .source_file
+        .and_then(|spur| interner().try_resolve(&spur))
+    });
+    let file_name = source_file.unwrap_or("");
+
+    let span: Option<Span> =
+      self.expr.as_ref().and_then(|expr| expr.debug_data.span);
+    let span = match span {
+      Some(span) => span.start..span.end,
+      None => 0..0,
+    };
+
+    let mut files = SimpleFiles::new();
+    let mut file_id = 0;
+
+    for (name, source) in program.sources.iter() {
+      let id = files.add(name, source.contents.clone());
+
+      if name == file_name {
+        file_id = id;
+      }
+    }
+
+    let diagnostic = Diagnostic::error()
+      .with_message(self.to_string())
+      .with_labels(vec![
+        Label::primary(file_id, span).with_message("error occurs here")
+      ]);
+
+    let writer = StandardStream::stderr(ColorChoice::Always);
+    let config = codespan_reporting::term::Config::default();
+
+    // TODO: Should we do anything for this error or can we just unwrap?
+    let _ = term::emit(&mut writer.lock(), &config, &files, &diagnostic);
+  }
+}
+
+#[derive(Debug, Clone)]
+pub struct Program {
+  pub stack: Vec<Expr>,
+  pub scopes: Vec<Scope>,
+  pub funcs: HashMap<Spur, Func>,
+  pub sources: HashMap<String, SourceFile>,
+  pub journal: Journal,
+  pub debug: bool,
+}
+
+impl Default for Program {
+  #[inline]
+  fn default() -> Self {
+    Self::new()
+  }
+}
+
+impl fmt::Display for Program {
+  fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+    write!(f, "Stack: [")?;
+
+    self.stack.iter().enumerate().try_for_each(|(i, expr)| {
+      if i == self.stack.len() - 1 {
+        write!(f, "{}", expr.to_pretty_string())
+      } else {
+        write!(f, "{}, ", expr.to_pretty_string())
+      }
+    })?;
+    write!(f, "]")?;
+
+    // if !self.scopes.is_empty() {
+    //   writeln!(f, "Scope:")?;
+
+    //   let layer = self.scopes.last().unwrap();
+    //   let items = layer.items.len();
+    //   for (item_i, (key, value)) in
+    //     layer.items.iter().sorted_by_key(|(s, _)| *s).enumerate()
+    //   {
+    //     if item_i == items - 1 {
+    //       write!(
+    //         f,
+    //         " + {}: {}",
+    //         interner().resolve(key),
+    //         match value.borrow().val() {
+    //           Some(expr) => expr.to_string(),
+    //           None => "None".to_owned(),
+    //         }
+    //       )?;
+    //     } else {
+    //       writeln!(
+    //         f,
+    //         " + {}: {}",
+    //         interner().resolve(key),
+    //         match value.borrow().val() {
+    //           Some(expr) => expr.to_string(),
+    //           None => "None".to_owned(),
+    //         }
+    //       )?;
+    //     }
+    //   }
+    // }
+
+    let journal = self.journal.to_string();
+
+    if !journal.is_empty() {
+      write!(f, "\n\n")?;
+      write!(f, "{}", journal)?;
+    }
+
+    Ok(())
+  }
+}
+
 impl Program {
   #[inline]
   pub fn new() -> Self {
@@ -142,6 +197,7 @@ impl Program {
       scopes: vec![Scope::new()],
       funcs: HashMap::new(),
       sources: HashMap::new(),
+      journal: Journal::new(),
       debug: false,
     }
   }
@@ -149,6 +205,7 @@ impl Program {
   pub fn with_core(self) -> Result<Self, EvalError> {
     let mut program = self;
     module::core::Core::default().link(&mut program)?;
+    program.journal.clear();
     Ok(program)
   }
 
@@ -158,6 +215,7 @@ impl Program {
   {
     let mut program = self;
     module.link(&mut program)?;
+    program.journal.clear();
     Ok(program)
   }
 
@@ -171,10 +229,18 @@ impl Program {
   }
 
   pub fn pop(&mut self, trace_expr: &Expr) -> Result<Expr, EvalError> {
-    self.stack.pop().ok_or_else(|| EvalError {
-      expr: Some(trace_expr.clone()),
-      kind: EvalErrorKind::StackUnderflow,
-    })
+    match self.stack.pop() {
+      Some(expr) => {
+        if self.debug {
+          self.journal.op(JournalOp::Pop(expr.clone()));
+        }
+        Ok(expr)
+      }
+      None => Err(EvalError {
+        expr: Some(trace_expr.clone()),
+        kind: EvalErrorKind::StackUnderflow,
+      }),
+    }
   }
 
   pub fn push(&mut self, expr: Expr) -> Result<(), EvalError> {
@@ -195,7 +261,13 @@ impl Program {
       expr
     };
 
+    if self.debug {
+      self.journal.op(JournalOp::Push(expr.clone()));
+    }
+
     self.stack.push(expr);
+    // TODO: I don't think we need to commit after each push.
+    // self.journal.commit();
 
     Ok(())
   }
@@ -250,80 +322,68 @@ impl Program {
     self.scopes.pop();
   }
 
-  /// Handles auto-calling symbols (calls) when they're pushed to the stack
-  /// This is also triggered by the `call` keyword
-  pub fn auto_call(
-    &mut self,
-    trace_expr: &Expr,
-    expr: Expr,
-  ) -> Result<(), EvalError> {
-    match expr.val {
-      ExprKind::Call(_) => self.eval_expr(expr),
-      item @ ExprKind::List(_) => match item.is_function() {
-        true => {
-          let fn_symbol = item.fn_symbol().unwrap();
-          let fn_body = item.fn_body().unwrap();
+  /// Reads, Lexes, Parses, and Evaluates a file
+  pub fn eval_file(&mut self, path: &str) -> Result<(), EvalError> {
+    let contents = fs::read_to_string(path);
 
-          if fn_symbol.scoped {
-            self.push_scope(fn_symbol.scope.clone());
-          }
+    match contents {
+      Ok(contents) => {
+        self.sources.insert(
+          path.into(),
+          SourceFile {
+            mtime: SystemTime::now(),
+            contents: contents.clone(),
+          },
+        );
 
-          match self.eval(fn_body.to_vec()) {
-            Ok(_) => {
-              if fn_symbol.scoped {
-                self.pop_scope();
-              }
-              Ok(())
-            }
-            Err(err) => Err(err),
-          }
-        }
-        false => {
-          let ExprKind::List(list) = item else {
-            unreachable!()
-          };
-          self.eval(list)
-        }
-      },
-      _ => Err(EvalError {
-        expr: Some(trace_expr.clone()),
-        kind: EvalErrorKind::ExpectedFound(
-          Type::Set(vec![
-            Type::Call,
-            Type::List(vec![Type::FnScope, Type::Any]),
-          ]),
-          expr.val.type_of(),
-        ),
+        let lexer = Lexer::new(&contents);
+        let parser = Parser::new(lexer, interner().get_or_intern(path));
+        // TODO: It might be time to add a proper EvalError enum.
+        let exprs = parser.parse().map_err(|_| EvalError {
+          expr: None,
+          kind: EvalErrorKind::ParseError,
+        })?;
+
+        self.eval(exprs)
+      }
+      Err(err) => Err(EvalError {
+        expr: None,
+        kind: EvalErrorKind::UnableToRead(path.into(), err.to_string()),
       }),
     }
   }
 
-  /// Makes decisions for how to evaluate a symbol (calls) such as
-  /// - Running an intrinsic
-  /// - Getting the value from the scope
-  /// - Calling functions through [`Self::auto_call`]
-  fn eval_symbol(
+  /// Lexes, Parses, and Evaluates a string, setting the source_file of the exprs to `name`
+  pub fn eval_string_with_name(
     &mut self,
-    trace_expr: &Expr,
-    symbol: Spur,
+    line: &str,
+    name: &str,
   ) -> Result<(), EvalError> {
-    let symbol_str = interner().resolve(&symbol);
+    let lexer = Lexer::new(line);
+    let parser = Parser::new(lexer, interner().get_or_intern(name));
+    // TODO: It might be time to add a proper EvalError enum.
+    let exprs = parser.parse().map_err(|_| EvalError {
+      expr: None,
+      kind: EvalErrorKind::ParseError,
+    })?;
 
-    if let Some(func) = self.funcs.get(&symbol) {
-      return func(self, trace_expr);
-    }
+    self.eval(exprs)
+  }
 
-    if let Some(value) = self.scope_item(symbol_str) {
-      if value.val.is_function() {
-        self.auto_call(trace_expr, value)
-      } else {
-        self.push(value)
+  /// Lexes, Parses, and Evaluates a string
+  pub fn eval_string(&mut self, line: &str) -> Result<(), EvalError> {
+    self.eval_string_with_name(line, "internal")
+  }
+
+  /// Evaluates a vec of expressions
+  pub fn eval(&mut self, exprs: Vec<Expr>) -> Result<(), EvalError> {
+    let result = exprs.into_iter().try_for_each(|expr| self.eval_expr(expr));
+    match result {
+      Ok(_) => Ok(()),
+      Err(err) => {
+        self.journal.commit();
+        Err(err)
       }
-    } else {
-      Err(EvalError {
-        kind: EvalErrorKind::UnknownCall,
-        expr: Some(trace_expr.clone()),
-      })
     }
   }
 
@@ -357,38 +417,115 @@ impl Program {
     }
   }
 
-  /// Lexes, Parses, and Evaluates a string
-  pub fn eval_string(&mut self, line: &str) -> Result<(), EvalError> {
-    let lexer = Lexer::new(line);
-    let parser = Parser::new(lexer, interner().get_or_intern("internal"));
-    // TODO: It might be time to add a proper EvalError enum.
-    let exprs = parser.parse().map_err(|_| EvalError {
-      expr: None,
-      kind: EvalErrorKind::ParseError,
-    })?;
+  /// Makes decisions for how to evaluate a symbol (calls) such as
+  /// - Running an intrinsic
+  /// - Getting the value from the scope
+  /// - Calling functions through [`Self::auto_call`]
+  fn eval_symbol(
+    &mut self,
+    trace_expr: &Expr,
+    symbol: Spur,
+  ) -> Result<(), EvalError> {
+    let symbol_str = interner().resolve(&symbol);
 
-    self.eval(exprs)
+    if self.debug {
+      self.journal.commit();
+    }
+
+    if let Some(func) = self.funcs.get(&symbol) {
+      if self.debug {
+        self.journal.op(JournalOp::FnCall(trace_expr.clone()));
+      }
+      let result = func(self, trace_expr);
+      if self.debug && result.is_ok() {
+        self.journal.commit();
+      }
+
+      return result;
+    }
+
+    if let Some(value) = self.scope_item(symbol_str) {
+      if value.val.is_function() {
+        self.auto_call(trace_expr, value)
+      } else {
+        if self.debug {
+          self.journal.op(JournalOp::Call(trace_expr.clone()));
+        }
+        let result = self.push(value);
+        if self.debug {
+          self.journal.commit();
+        }
+
+        result
+      }
+    } else {
+      Err(EvalError {
+        kind: EvalErrorKind::UnknownCall,
+        expr: Some(trace_expr.clone()),
+      })
+    }
   }
 
-  /// Evaluates a vec of expressions
-  pub fn eval(&mut self, exprs: Vec<Expr>) -> Result<(), EvalError> {
-    let mut clone = self.clone();
-    let result = exprs.into_iter().try_for_each(|expr| clone.eval_expr(expr));
+  /// Handles auto-calling symbols (calls) when they're pushed to the stack
+  /// This is also triggered by the `call` keyword
+  pub fn auto_call(
+    &mut self,
+    trace_expr: &Expr,
+    expr: Expr,
+  ) -> Result<(), EvalError> {
+    match expr.val {
+      ExprKind::Call(_) => self.eval_expr(expr),
+      item @ ExprKind::List(_) => match item.is_function() {
+        true => {
+          if self.debug {
+            self.journal.op(JournalOp::FnCall(trace_expr.clone()));
+          }
 
-    self.sources = clone.sources;
+          let fn_symbol = item.fn_symbol().unwrap();
+          let fn_body = item.fn_body().unwrap();
 
-    // TODO: Why tf are we doing this again? This is so dumb and I hate that I made it work like this.
-    // We need to figure out a better way of reverting the state after an error instead of conditionally
-    // assigning if there isn't an error
-    match result {
-      Ok(x) => {
-        self.stack = clone.stack;
-        self.scopes = clone.scopes;
-        self.debug = clone.debug;
+          if fn_symbol.scoped {
+            self.push_scope(fn_symbol.scope.clone());
+          }
 
-        Ok(x)
-      }
-      Err(e) => Err(e),
+          if self.debug {
+            self.journal.commit();
+            self.journal.op(JournalOp::FnStart(fn_symbol.scoped));
+          }
+
+          match self.eval(fn_body.to_vec()) {
+            Ok(_) => {
+              if self.debug {
+                self.journal.commit();
+                self.journal.op(JournalOp::FnEnd);
+              }
+
+              if fn_symbol.scoped {
+                self.pop_scope();
+              }
+
+              Ok(())
+            }
+            Err(err) => Err(err),
+          }
+        }
+        false => {
+          let ExprKind::List(list) = item else {
+            unreachable!()
+          };
+          self.eval(list)
+        }
+      },
+      _ => Err(EvalError {
+        expr: Some(trace_expr.clone()),
+        kind: EvalErrorKind::ExpectedFound(
+          Type::Set(vec![
+            Type::Call,
+            Type::List(vec![Type::FnScope, Type::Any]),
+          ]),
+          expr.val.type_of(),
+        ),
+      }),
     }
   }
 }

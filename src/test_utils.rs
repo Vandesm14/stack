@@ -12,7 +12,7 @@ pub enum TestExpr {
   Integer(i64),
   Float(f64),
 
-  String(Spur),
+  String(String),
   List(Vec<TestExpr>),
 
   Lazy(Box<TestExpr>),

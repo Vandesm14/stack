@@ -19,8 +19,8 @@ pub fn module(program: &mut Program) -> Result<(), EvalError> {
 
   program.funcs.insert(
     interner().get_or_intern_static("drop"),
-    |program, _| {
-      program.stack.pop();
+    |program, trace_expr| {
+      program.pop(trace_expr)?;
       Ok(())
     },
   );

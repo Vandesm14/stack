@@ -43,10 +43,10 @@ impl<'source> TokenVec<'source> {
     index = index.min(self.eoi.unwrap_or(usize::MAX));
 
     match self.tokens.get(index) {
-      Some(token) => *token,
+      Some(token) => token.clone(),
       None => loop {
         let token = self.lexer.next();
-        self.tokens.push(token);
+        self.tokens.push(token.clone());
 
         if token.kind == TokenKind::Eoi {
           self.eoi = Some(self.tokens.len() - 1);
@@ -268,12 +268,10 @@ impl<'source> Lexer<'source> {
             // included in the length. However, we only want to
             // intern the inner slice.
             let slice = &self.source[start + 1..self.cursor];
-            let value = interner().get_or_intern(slice);
-
             self.cursor += 1;
 
             break Token {
-              kind: TokenKind::String(value),
+              kind: TokenKind::String(slice.into()),
               span: Span {
                 start,
                 end: self.cursor,
@@ -380,7 +378,7 @@ impl<'source> Lexer<'source> {
 }
 
 /// Contains information about a source code token.
-#[derive(Debug, Clone, Copy, PartialEq, PartialOrd)]
+#[derive(Debug, Clone, PartialEq, PartialOrd)]
 pub struct Token {
   /// The lexeme kind.
   pub kind: TokenKind,
@@ -389,7 +387,7 @@ pub struct Token {
 }
 
 /// [`Token`] lexeme kinds.
-#[derive(Debug, Clone, Copy, PartialEq, PartialOrd)]
+#[derive(Debug, Clone, PartialEq, PartialOrd)]
 pub enum TokenKind {
   /// Invalid sequence of [`char`]s.
   Invalid,
@@ -408,7 +406,7 @@ pub enum TokenKind {
   /// 64-bit floating-point literal.
   Float(f64),
   /// Sequence of [`char`]s delimited by double-quotes (`"`).
-  String(Spur),
+  String(String),
 
   /// Sequence of identifier [`char`]s.
   Ident(Spur),
@@ -447,7 +445,7 @@ impl fmt::Display for TokenKind {
       // TODO: Should this display the kind of token too?
       Self::Float(x) => fmt::Display::fmt(x, f),
       // TODO: Should this display the kind of token too?
-      Self::String(x) => fmt::Display::fmt(interner().resolve(x), f),
+      Self::String(x) => fmt::Display::fmt(x, f),
 
       // TODO: Should this display the kind of token too?
       Self::Ident(x) => fmt::Display::fmt(interner().resolve(x), f),
@@ -516,8 +514,8 @@ mod test {
   #[test_case("-123." => vec![Token { kind: TokenKind::Float(-123.0), span: Span { start: 0, end: 5 } }, Token { kind: TokenKind::Eoi, span: Span { start: 5, end: 5 } }] ; "negative float without fractional eoi")]
   #[test_case("123.456" => vec![Token { kind: TokenKind::Float(123.456), span: Span { start: 0, end: 7 } }, Token { kind: TokenKind::Eoi, span: Span { start: 7, end: 7 } }] ; "float with fractional eoi")]
   #[test_case("-123.456" => vec![Token { kind: TokenKind::Float(-123.456), span: Span { start: 0, end: 8 } }, Token { kind: TokenKind::Eoi, span: Span { start: 8, end: 8 } }] ; "negative float with fractional eoi")]
-  #[test_case("\"hello\"" => vec![Token { kind: TokenKind::String(interner().get_or_intern_static("hello")), span: Span { start: 0, end: 7 } }, Token { kind: TokenKind::Eoi, span: Span { start: 7, end: 7 } }] ; "string eoi")]
-  #[test_case("\"he\\tlo\"" => vec![Token { kind: TokenKind::String(interner().get_or_intern_static("he\\tlo")), span: Span { start: 0, end: 8 } }, Token { kind: TokenKind::Eoi, span: Span { start: 8, end: 8 } }] ; "string escape eoi")]
+  #[test_case("\"hello\"" => vec![Token { kind: TokenKind::String("hello".into()), span: Span { start: 0, end: 7 } }, Token { kind: TokenKind::Eoi, span: Span { start: 7, end: 7 } }] ; "string eoi")]
+  #[test_case("\"he\\tlo\"" => vec![Token { kind: TokenKind::String("he\\tlo".into()), span: Span { start: 0, end: 8 } }, Token { kind: TokenKind::Eoi, span: Span { start: 8, end: 8 } }] ; "string escape eoi")]
   #[test_case("\"hello" => vec![Token { kind: TokenKind::Invalid, span: Span { start: 0, end: 6 } }, Token { kind: TokenKind::Eoi, span: Span { start: 6, end: 6 } }] ; "string missing end quote eoi")]
   #[test_case("\"hello\n" => vec![Token { kind: TokenKind::Invalid, span: Span { start: 0, end: 7 } }, Token { kind: TokenKind::Eoi, span: Span { start: 7, end: 7 } }] ; "string missing end quote whitespace")]
   #[test_case("false" => vec![Token { kind: TokenKind::Boolean(false), span: Span { start: 0, end: 5 } }, Token { kind: TokenKind::Eoi, span: Span { start: 5, end: 5 } }] ; "boolean false eoi")]
@@ -541,7 +539,7 @@ mod test {
 
     loop {
       let token = lexer.next();
-      tokens.push(token);
+      tokens.push(token.clone());
 
       if token.kind == TokenKind::Eoi {
         break;

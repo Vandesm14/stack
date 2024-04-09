@@ -4,6 +4,7 @@ use core::{
 use std::{fmt::Debug, rc::Rc};
 
 use lasso::Spur;
+use termion::color;
 
 use crate::{interner::interner, Scope, Span};
 
@@ -29,7 +30,7 @@ pub enum ExprKind {
   Integer(i64),
   Float(f64),
 
-  String(Spur),
+  String(String),
   List(Vec<Expr>),
 
   Lazy(Box<Expr>),
@@ -349,7 +350,7 @@ impl fmt::Display for ExprKind {
       Self::Integer(x) => fmt::Display::fmt(x, f),
       Self::Float(x) => fmt::Display::fmt(x, f),
 
-      Self::String(x) => write!(f, "\"{}\"", interner().resolve(x)),
+      Self::String(x) => write!(f, "\"{}\"", x),
 
       Self::List(x) => {
         f.write_str("(")?;
@@ -411,6 +412,53 @@ impl From<Expr> for ExprKind {
 impl Expr {
   pub fn into_expr_kind(self) -> ExprKind {
     self.into()
+  }
+
+  pub fn to_pretty_string(&self) -> String {
+    let reset = color::Fg(color::Reset);
+    let result = match &self.val {
+      ExprKind::Nil => format!("{}nil", color::Fg(color::White)),
+
+      ExprKind::Boolean(x) => {
+        format!("{}{}", color::Fg(color::Yellow), x)
+      }
+      ExprKind::Integer(x) => format!("{}{}", color::Fg(color::Yellow), x),
+      ExprKind::Float(x) => format!("{}{}", color::Fg(color::Yellow), x),
+
+      ExprKind::String(x) => {
+        format!("{}\"{}\"", color::Fg(color::Green), x)
+      }
+
+      ExprKind::List(x) => {
+        let mut string = String::new();
+        string.push('(');
+
+        iter::once("")
+          .chain(iter::repeat(" "))
+          .zip(x.iter())
+          .for_each(|(s, x)| {
+            string.push_str(s);
+            string.push_str(&x.to_pretty_string())
+          });
+
+        string.push(')');
+
+        string
+      }
+
+      ExprKind::Lazy(x) => {
+        format!("'{}", x.to_pretty_string())
+      }
+      ExprKind::Call(x) => {
+        format!("{}{}", color::Fg(color::Blue), interner().resolve(x))
+      }
+
+      ExprKind::Fn(_) => format!("{}fn", color::Fg(color::Blue)),
+
+      ExprKind::UserData(_) => format!("{}userdata", color::Fg(color::Blue)),
+    };
+
+    format!("{}{}", result, reset)
   }
 }
 
