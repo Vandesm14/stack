@@ -93,6 +93,7 @@ impl EvalError {
 
     let mut files = SimpleFiles::new();
     let mut file_id = 0;
+
     for (name, source) in program.sources.iter() {
       let id = files.add(name, source.contents.clone());
 
@@ -324,6 +325,14 @@ impl Program {
 
     match contents {
       Ok(contents) => {
+        self.sources.insert(
+          path.into(),
+          SourceFile {
+            mtime: SystemTime::now(),
+            contents: contents.clone(),
+          },
+        );
+
         let lexer = Lexer::new(&contents);
         let parser = Parser::new(lexer, interner().get_or_intern(path));
         // TODO: It might be time to add a proper EvalError enum.
