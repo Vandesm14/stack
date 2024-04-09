@@ -113,8 +113,6 @@ impl EvalError {
 
     // TODO: Should we do anything for this error or can we just unwrap?
     let _ = term::emit(&mut writer.lock(), &config, &files, &diagnostic);
-
-    eprintln!("{}", program.journal);
   }
 }
 

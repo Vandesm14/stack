@@ -41,6 +41,7 @@ fn eval_string(program: &Program, result: Result<(), EvalError>) {
   println!();
   if let Err(err) = result {
     err.print_report(program);
+    eprintln!("{}", program);
   } else {
     println!("{}", program);
   }
