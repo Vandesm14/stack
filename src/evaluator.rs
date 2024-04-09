@@ -304,16 +304,10 @@ impl Program {
 
   pub fn push_scope(&mut self, scope: Scope) {
     self.scopes.push(scope);
-    self
-      .journal
-      .op(JournalOp::ScopeChange(self.scopes.len() - 1));
   }
 
   pub fn pop_scope(&mut self) {
     self.scopes.pop();
-    self
-      .journal
-      .op(JournalOp::ScopeChange(self.scopes.len() - 1));
   }
 
   /// Lexes, Parses, and Evaluates a string
@@ -445,17 +439,23 @@ impl Program {
 
           if self.debug {
             self.journal.commit();
+            self.journal.op(JournalOp::FnStart);
+            if !fn_symbol.scoped {
+              self.journal.op(JournalOp::IsScopeless);
+            }
           }
 
           match self.eval(fn_body.to_vec()) {
             Ok(_) => {
               if self.debug {
                 self.journal.commit();
+                self.journal.op(JournalOp::FnEnd);
               }
 
               if fn_symbol.scoped {
                 self.pop_scope();
               }
+
               Ok(())
             }
             Err(err) => Err(err),

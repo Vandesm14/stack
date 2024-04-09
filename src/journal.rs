@@ -11,14 +11,24 @@ struct JournalEntry {
   scope: usize,
 }
 
+impl JournalEntry {
+  fn new(ops: Vec<JournalOp>, scope: usize) -> Self {
+    Self { ops, scope }
+  }
+}
+
 #[derive(Debug, Clone, PartialEq, PartialOrd)]
 pub enum JournalOp {
   Call(Expr),
   FnCall(Expr),
   Push(Expr),
   Pop(Expr),
+
+  IsScopeless,
+  FnStart,
+  FnEnd,
+
   Commit,
-  ScopeChange(usize),
 }
 
 #[derive(Debug, Clone, PartialEq, PartialOrd, Default)]
@@ -118,7 +128,6 @@ impl Journal {
 
   fn entries(&self, max_commits: usize) -> Vec<JournalEntry> {
     let mut entries: Vec<JournalEntry> = Vec::new();
-    let mut entry = JournalEntry::default();
 
     let start = match max_commits >= self.commits.len() {
       false => self
@@ -130,18 +139,20 @@ impl Journal {
     };
 
     let mut scope = 0;
+    let mut ops: Vec<JournalOp> = Vec::new();
     for op in self.ops.iter().skip(start) {
       match op {
         JournalOp::Commit => {
-          entries.push(entry.clone());
-          entry = JournalEntry::default();
-          entry.scope = scope;
+          entries.push(JournalEntry::new(ops, scope));
+          ops = Vec::new();
         }
-        JournalOp::ScopeChange(scope_op) => {
-          scope = *scope_op;
-          entry.scope = scope;
+        JournalOp::FnStart => {
+          scope += 1;
         }
-        op => entry.ops.push(op.clone()),
+        JournalOp::FnEnd => {
+          scope -= 1;
+        }
+        op => ops.push(op.clone()),
       }
     }
 
