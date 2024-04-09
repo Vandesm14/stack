@@ -18,7 +18,7 @@ When lists are pushed to the stack, the items inside of the list are evaluated i
 (2 2 +)
 
 ;; Results in `(4)`
-;; [] -> [(2 2 +)] -> [4]
+;; [] -> [(2 2 +)] -> [(4)]
 ```
 
 You can also use symbols (variables) in non-lazy lists, which will evaluate to their values.

@@ -2,8 +2,7 @@
 
 In Stack, there are a few basic types of data, and a few basic ways to structure them. Here are some examples:
 
-<!-- TODO: Show the complete list of allowed chars in symbols -->
-<!-- TODO: Double-check that this is everything -->
+<!-- TODO: Improve the structure of this. It shouldn't be just a code block. -->
 
 ```clojure
 ;; Integers
@@ -19,7 +18,7 @@ In Stack, there are a few basic types of data, and a few basic ways to structure
 true false
 
 ;; Symbols (aka "Calls")
-+ - * / % = < > <= >= != my-symbol what/is_this-madness?!
++ - * / % = < > <= >= != my-symbol what/is_a-symbol?!
 
 ;; Lists
 (1 2 3) (('a 'pair) ('of 'items))

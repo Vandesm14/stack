@@ -3,7 +3,7 @@
 [![Tests](https://github.com/Vandesm14/stack/actions/workflows/tests.yml/badge.svg)](https://github.com/Vandesm14/stack/actions/workflows/tests.yml)
 [![Docs](https://github.com/Vandesm14/stack/actions/workflows/deploy_book.yml/badge.svg?branch=main)](https://vandesm14.github.io/stack/)
 
-An RPN stack machine built with Rust
+A highly dynamic stack-based language built with Rust.
 
 ## Documentation
 
