@@ -60,17 +60,11 @@ impl fmt::Display for Journal {
             line.push_str(&format!("{}", color::Fg(color::White)));
             line.push_str(&format!("{}", call));
 
-            line.push_str(&format!("{}", color::Fg(color::White)));
-            line.push_str(" |");
-
             should_print = true;
           }
           JournalOp::FnCall(fn_call) => {
             line.push_str(&format!("{}", color::Fg(color::Yellow)));
             line.push_str(&format!("{}", fn_call));
-
-            line.push_str(&format!("{}", color::Fg(color::White)));
-            line.push_str(" |");
 
             should_print = true;
           }
