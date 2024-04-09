@@ -447,7 +447,7 @@ impl Expr {
       }
 
       ExprKind::Lazy(x) => {
-        format!("'{}", x)
+        format!("'{}", x.to_pretty_string())
       }
       ExprKind::Call(x) => {
         format!("{}{}", color::Fg(color::Blue), interner().resolve(x))
