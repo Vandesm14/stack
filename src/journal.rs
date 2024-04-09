@@ -170,6 +170,9 @@ impl Journal {
           scoped.push(*is_scoped);
         }
         JournalOp::FnEnd => {
+          // TODO: There was a bug where we were underflowing, meaning multiple FnEnd's existed.
+          // I'm not sure why that could be the case, so I'm using `saturating_sub` to ignore
+          // that case and prevent underflow.
           scope = scope.saturating_sub(1);
           scoped.pop();
         }
