@@ -4,6 +4,7 @@ use core::{
 use std::{fmt::Debug, rc::Rc};
 
 use lasso::Spur;
+use termion::color;
 
 use crate::{interner::interner, Scope, Span};
 
@@ -411,6 +412,53 @@ impl From<Expr> for ExprKind {
 impl Expr {
   pub fn into_expr_kind(self) -> ExprKind {
     self.into()
+  }
+
+  pub fn to_pretty_string(&self) -> String {
+    let reset = color::Fg(color::Reset);
+    let result = match &self.val {
+      ExprKind::Nil => format!("{}nil", color::Fg(color::White)),
+
+      ExprKind::Boolean(x) => {
+        format!("{}{}", color::Fg(color::Yellow), x)
+      }
+      ExprKind::Integer(x) => format!("{}{}", color::Fg(color::Yellow), x),
+      ExprKind::Float(x) => format!("{}{}", color::Fg(color::Yellow), x),
+
+      ExprKind::String(x) => {
+        format!("{}\"{}\"", color::Fg(color::Green), interner().resolve(x))
+      }
+
+      ExprKind::List(x) => {
+        let mut string = String::new();
+        string.push('(');
+
+        iter::once("")
+          .chain(iter::repeat(" "))
+          .zip(x.iter())
+          .for_each(|(s, x)| {
+            string.push_str(s);
+            string.push_str(&x.to_pretty_string())
+          });
+
+        string.push(')');
+
+        string
+      }
+
+      ExprKind::Lazy(x) => {
+        format!("'{}", x)
+      }
+      ExprKind::Call(x) => {
+        format!("{}{}", color::Fg(color::Blue), interner().resolve(&x))
+      }
+
+      ExprKind::Fn(_) => format!("{}fn", color::Fg(color::Blue)),
+
+      ExprKind::UserData(_) => format!("{}userdata", color::Fg(color::Blue)),
+    };
+
+    format!("{}{}", result, reset)
   }
 }
 

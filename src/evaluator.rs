@@ -132,9 +132,9 @@ impl fmt::Display for Program {
 
     self.stack.iter().enumerate().try_for_each(|(i, expr)| {
       if i == self.stack.len() - 1 {
-        write!(f, "{}", expr)
+        write!(f, "{}", expr.to_pretty_string())
       } else {
-        write!(f, "{}, ", expr)
+        write!(f, "{}, ", expr.to_pretty_string())
       }
     })?;
     write!(f, "]")?;
