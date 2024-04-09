@@ -439,10 +439,7 @@ impl Program {
 
           if self.debug {
             self.journal.commit();
-            self.journal.op(JournalOp::FnStart);
-            if !fn_symbol.scoped {
-              self.journal.op(JournalOp::IsScopeless);
-            }
+            self.journal.op(JournalOp::FnStart(fn_symbol.scoped));
           }
 
           match self.eval(fn_body.to_vec()) {

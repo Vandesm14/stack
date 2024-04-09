@@ -9,11 +9,12 @@ use crate::Expr;
 struct JournalEntry {
   ops: Vec<JournalOp>,
   scope: usize,
+  scoped: bool,
 }
 
 impl JournalEntry {
-  fn new(ops: Vec<JournalOp>, scope: usize) -> Self {
-    Self { ops, scope }
+  fn new(ops: Vec<JournalOp>, scope: usize, scoped: bool) -> Self {
+    Self { ops, scope, scoped }
   }
 }
 
@@ -24,8 +25,7 @@ pub enum JournalOp {
   Push(Expr),
   Pop(Expr),
 
-  IsScopeless,
-  FnStart,
+  FnStart(bool),
   FnEnd,
 
   Commit,
@@ -40,15 +40,16 @@ pub struct Journal {
 
 impl fmt::Display for Journal {
   fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-    let entries = self.entries(10);
+    let entries = self.entries(20);
     if !entries.is_empty() {
-      write!(f, "\n\nStack History:\n")?;
+      write!(f, "\n\nStack History (most recent first):\n")?;
     }
 
-    for entry in entries {
+    let len = entries.len();
+    for (i, entry) in entries.iter().enumerate() {
       let mut line = String::new();
       let mut should_print = false;
-      for op in entry.ops {
+      for op in entry.ops.iter() {
         if !line.is_empty() {
           line.push(' ');
         }
@@ -90,8 +91,20 @@ impl fmt::Display for Journal {
 
       if should_print {
         line.push_str(&format!("{}", color::Fg(color::Reset)));
-        write!(f, " {}* ", "  ".repeat(entry.scope))?;
-        writeln!(f, "{}", line)?;
+
+        let bullet_symbol = match entry.scoped {
+          true => format!("{}*", "  ".repeat(entry.scope)),
+          false => {
+            format!("{}!", "  ".repeat(entry.scope))
+          }
+        };
+        write!(f, " {} ", bullet_symbol)?;
+
+        if i != len - 1 {
+          writeln!(f, "{}", line)?;
+        } else {
+          write!(f, "{}", line)?;
+        }
       }
     }
 
@@ -140,17 +153,24 @@ impl Journal {
 
     let mut scope = 0;
     let mut ops: Vec<JournalOp> = Vec::new();
+    let mut scoped: Vec<bool> = vec![true];
     for op in self.ops.iter().skip(start) {
       match op {
         JournalOp::Commit => {
-          entries.push(JournalEntry::new(ops, scope));
+          entries.push(JournalEntry::new(
+            ops,
+            scope,
+            *scoped.last().unwrap_or(&true),
+          ));
           ops = Vec::new();
         }
-        JournalOp::FnStart => {
+        JournalOp::FnStart(is_scoped) => {
           scope += 1;
+          scoped.push(*is_scoped);
         }
         JournalOp::FnEnd => {
-          scope -= 1;
+          scope = scope.saturating_sub(1);
+          scoped.pop();
         }
         op => ops.push(op.clone()),
       }
