@@ -95,8 +95,7 @@ impl EvalError {
       None => "".into(),
     };
 
-    Report::build(ReportKind::Error, file_name, 12)
-      .with_code(3)
+    Report::build(ReportKind::Error, file_name, span.start)
       .with_message(self.to_string())
       .with_label(
         Label::new((file_name, span))
