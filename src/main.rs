@@ -1,4 +1,3 @@
-use std::fs;
 use std::io::stdout;
 use std::path::{Path, PathBuf};
 
@@ -96,47 +95,44 @@ fn eval_file(
 ) {
   let mut stdout = stdout();
 
-  match fs::read(path.clone()) {
-    Ok(contents) => {
-      let contents = String::from_utf8(contents).unwrap();
-      let mut program = Program::new();
+  let mut program = Program::new();
 
-      if debug {
-        program = program.with_debug();
-      }
+  if debug {
+    program = program.with_debug();
+  }
 
-      if with_core {
-        program = program
-          .with_core()
-          // .unwrap()
-          // .with_module(map::module)
-          .unwrap();
-      }
+  if with_core {
+    program = program
+      .with_core()
+      // .unwrap()
+      // .with_module(map::module)
+      .unwrap();
+  }
 
-      if watcher.is_some() {
-        execute!(stdout, Clear(ClearType::All)).unwrap();
-        execute!(stdout, cursor::MoveTo(0, 0)).unwrap();
-      }
+  if watcher.is_some() {
+    execute!(stdout, Clear(ClearType::All)).unwrap();
+    execute!(stdout, cursor::MoveTo(0, 0)).unwrap();
+  }
 
-      let result = program.eval_string(contents.as_str());
-      program.journal.commit();
-      eval_string(&program, result);
+  let path = match path.to_str() {
+    Some(str) => str,
+    None => panic!("Failed to read file"),
+  };
 
-      if let Some(watcher) = watcher {
-        println!();
-        println!("Watching files for changes...");
+  let result = program.eval_file(path);
+  program.journal.commit();
+  eval_string(&program, result);
 
-        println!(" - {}", path.display());
-        for path in program.loaded_files().filter(|p| p.ends_with(".stack")) {
-          println!(" - {}", path);
-          watcher
-            .watch(Path::new(path), RecursiveMode::NonRecursive)
-            .unwrap();
-        }
-      }
-    }
-    Err(err) => {
-      eprintln!("Error: {:?}", err);
+  if let Some(watcher) = watcher {
+    println!();
+    println!("Watching files for changes...");
+
+    println!(" - {}", path);
+    for path in program.loaded_files().filter(|p| p.ends_with(".stack")) {
+      println!(" - {}", path);
+      watcher
+        .watch(Path::new(path), RecursiveMode::NonRecursive)
+        .unwrap();
     }
   }
 }

@@ -309,11 +309,37 @@ impl Program {
     self.scopes.pop();
   }
 
-  /// Lexes, Parses, and Evaluates a string
-  pub fn eval_string(&mut self, line: &str) -> Result<(), EvalError> {
+  /// Reads, Lexes, Parses, and Evaluates a file
+  pub fn eval_file(&mut self, path: &str) -> Result<(), EvalError> {
+    let contents = fs::read_to_string(path);
+
+    match contents {
+      Ok(contents) => {
+        let lexer = Lexer::new(&contents);
+        let parser = Parser::new(lexer, interner().get_or_intern(path));
+        // TODO: It might be time to add a proper EvalError enum.
+        let exprs = parser.parse().map_err(|_| EvalError {
+          expr: None,
+          kind: EvalErrorKind::ParseError,
+        })?;
+
+        self.eval(exprs)
+      }
+      Err(err) => Err(EvalError {
+        expr: None,
+        kind: EvalErrorKind::UnableToRead(path.into(), err.to_string()),
+      }),
+    }
+  }
+
+  /// Lexes, Parses, and Evaluates a string, setting the source_file of the exprs to `name`
+  pub fn eval_string_with_name(
+    &mut self,
+    line: &str,
+    name: &str,
+  ) -> Result<(), EvalError> {
     let lexer = Lexer::new(line);
-    let parser =
-      Parser::new(lexer, interner().get_or_intern("testing/test.stack"));
+    let parser = Parser::new(lexer, interner().get_or_intern(name));
     // TODO: It might be time to add a proper EvalError enum.
     let exprs = parser.parse().map_err(|_| EvalError {
       expr: None,
@@ -321,6 +347,11 @@ impl Program {
     })?;
 
     self.eval(exprs)
+  }
+
+  /// Lexes, Parses, and Evaluates a string
+  pub fn eval_string(&mut self, line: &str) -> Result<(), EvalError> {
+    self.eval_string_with_name(line, "internal")
   }
 
   /// Evaluates a vec of expressions
