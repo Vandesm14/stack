@@ -1,4 +1,6 @@
-use crate::{interner::interner, EvalError, Expr, Program};
+use crate::{
+  interner::interner, DebugData, EvalError, Expr, ExprKind, Program,
+};
 
 pub fn module(program: &mut Program) -> Result<(), EvalError> {
   program.funcs.insert(
@@ -6,19 +8,20 @@ pub fn module(program: &mut Program) -> Result<(), EvalError> {
     |program, trace_expr| {
       let item = program.pop(trace_expr)?;
 
-      match item {
-        Expr::String(string) => {
-          let string_str = interner().resolve(&string);
-
-          program.push(
-            string_str
-              .parse()
-              .ok()
-              .map(Expr::Boolean)
-              .unwrap_or(Expr::Nil),
-          )
-        }
-        found => program.push(found.to_boolean().unwrap_or(Expr::Nil)),
+      match item.val {
+        ExprKind::Boolean(_) => program.push(item),
+        ExprKind::String(string) => program.push(Expr {
+          val: string
+            .parse()
+            .ok()
+            .map(ExprKind::Boolean)
+            .unwrap_or(ExprKind::Nil),
+          debug_data: DebugData::default(),
+        }),
+        found => program.push(Expr {
+          val: found.to_boolean().unwrap_or(ExprKind::Nil),
+          debug_data: DebugData::default(),
+        }),
       }
     },
   );
@@ -28,19 +31,22 @@ pub fn module(program: &mut Program) -> Result<(), EvalError> {
     |program, trace_expr| {
       let item = program.pop(trace_expr)?;
 
-      match item {
-        Expr::String(string) => {
-          let string_str = interner().resolve(&string);
-
-          program.push(
-            string_str
-              .parse()
-              .ok()
-              .map(Expr::Integer)
-              .unwrap_or(Expr::Nil),
-          )
-        }
-        found => program.push(found.to_integer().unwrap_or(Expr::Nil)),
+      match item.val {
+        ExprKind::Integer(_) => program.push(item),
+        ExprKind::String(string) => program.push(
+          string
+            .parse()
+            .ok()
+            .map(ExprKind::Integer)
+            .unwrap_or(ExprKind::Nil)
+            .into_expr(DebugData::default()),
+        ),
+        found => program.push(
+          found
+            .to_integer()
+            .unwrap_or(ExprKind::Nil)
+            .into_expr(item.debug_data),
+        ),
       }
     },
   );
@@ -50,19 +56,22 @@ pub fn module(program: &mut Program) -> Result<(), EvalError> {
     |program, trace_expr| {
       let item = program.pop(trace_expr)?;
 
-      match item {
-        Expr::String(string) => {
-          let string_str = interner().resolve(&string);
-
-          program.push(
-            string_str
-              .parse()
-              .ok()
-              .map(Expr::Float)
-              .unwrap_or(Expr::Nil),
-          )
-        }
-        found => program.push(found.to_float().unwrap_or(Expr::Nil)),
+      match item.val {
+        ExprKind::Float(_) => program.push(item),
+        ExprKind::String(string) => program.push(
+          string
+            .parse()
+            .ok()
+            .map(ExprKind::Float)
+            .unwrap_or(ExprKind::Nil)
+            .into_expr(DebugData::default()),
+        ),
+        found => program.push(
+          found
+            .to_float()
+            .unwrap_or(ExprKind::Nil)
+            .into_expr(DebugData::default()),
+        ),
       }
     },
   );
@@ -72,12 +81,11 @@ pub fn module(program: &mut Program) -> Result<(), EvalError> {
     |program, trace_expr| {
       let item = program.pop(trace_expr)?;
 
-      match item {
-        string @ Expr::String(_) => program.push(string),
+      match item.val {
+        ExprKind::String(_) => program.push(item),
         found => {
-          let string =
-            Expr::String(interner().get_or_intern(found.to_string()));
-          program.push(string)
+          let string = ExprKind::String(found.to_string());
+          program.push(string.into_expr(DebugData::default()))
         }
       }
     },
@@ -88,18 +96,23 @@ pub fn module(program: &mut Program) -> Result<(), EvalError> {
     |program, trace_expr| {
       let item = program.pop(trace_expr)?;
 
-      match item {
-        list @ Expr::List(_) => program.push(list),
-        Expr::String(s) => {
-          let str = interner().resolve(&s).to_owned();
-          program.push(Expr::List(
+      match item.val {
+        ExprKind::List(_) => program.push(item),
+        ExprKind::String(str) => program.push(
+          ExprKind::List(
             str
               .chars()
-              .map(|c| Expr::String(interner().get_or_intern(c.to_string())))
+              .map(|c| {
+                ExprKind::String(c.to_string()).into_expr(DebugData::default())
+              })
               .collect::<Vec<_>>(),
-          ))
-        }
-        found => program.push(Expr::List(vec![found])),
+          )
+          .into_expr(DebugData::default()),
+        ),
+        found => program.push(
+          ExprKind::List(vec![found.into_expr(item.debug_data)])
+            .into_expr(DebugData::default()),
+        ),
       }
     },
   );
@@ -109,12 +122,16 @@ pub fn module(program: &mut Program) -> Result<(), EvalError> {
     |program, trace_expr| {
       let item = program.pop(trace_expr)?;
 
-      match item {
-        call @ Expr::Call(_) => program.push(call),
-        Expr::String(string) => program.push(Expr::Call(string)),
+      match item.val {
+        ExprKind::Call(_) => program.push(item),
+        ExprKind::String(string) => program.push(
+          ExprKind::Call(interner().get_or_intern(string))
+            .into_expr(DebugData::default()),
+        ),
         found => {
-          let call = Expr::Call(interner().get_or_intern(found.to_string()));
-          program.push(call)
+          let call =
+            ExprKind::Call(interner().get_or_intern(found.to_string()));
+          program.push(call.into_expr(DebugData::default()))
         }
       }
     },
@@ -124,9 +141,8 @@ pub fn module(program: &mut Program) -> Result<(), EvalError> {
     interner().get_or_intern_static("typeof"),
     |program, trace_expr| {
       let item = program.pop(trace_expr)?;
-      let string =
-        Expr::String(interner().get_or_intern(item.type_of().to_string()));
-      program.push(string)
+      let string = ExprKind::String(item.val.type_of().to_string());
+      program.push(string.into_expr(DebugData::default()))
     },
   );
 
@@ -135,6 +151,8 @@ pub fn module(program: &mut Program) -> Result<(), EvalError> {
 
 #[cfg(test)]
 mod tests {
+  use crate::{simple_exprs, TestExpr};
+
   use super::*;
 
   #[test]
@@ -142,8 +160,8 @@ mod tests {
     let mut program = Program::new().with_core().unwrap();
     program.eval_string("1 tostring").unwrap();
     assert_eq!(
-      program.stack,
-      vec![Expr::String(interner().get_or_intern_static("1"))]
+      simple_exprs(program.stack),
+      vec![TestExpr::String("1".into())]
     );
   }
 
@@ -152,8 +170,8 @@ mod tests {
     let mut program = Program::new().with_core().unwrap();
     program.eval_string("\"a\" tocall").unwrap();
     assert_eq!(
-      program.stack,
-      vec![Expr::Call(interner().get_or_intern_static("a"))]
+      simple_exprs(program.stack),
+      vec![TestExpr::Call(interner().get_or_intern_static("a"))]
     );
   }
 
@@ -161,7 +179,7 @@ mod tests {
   fn to_integer() {
     let mut program = Program::new().with_core().unwrap();
     program.eval_string("\"1\" tointeger").unwrap();
-    assert_eq!(program.stack, vec![Expr::Integer(1)]);
+    assert_eq!(simple_exprs(program.stack), vec![TestExpr::Integer(1)]);
   }
 
   #[test]
@@ -169,8 +187,8 @@ mod tests {
     let mut program = Program::new().with_core().unwrap();
     program.eval_string("1 typeof").unwrap();
     assert_eq!(
-      program.stack,
-      vec![Expr::String(interner().get_or_intern_static("integer"))]
+      simple_exprs(program.stack),
+      vec![TestExpr::String("integer".into())]
     );
   }
 
@@ -179,11 +197,11 @@ mod tests {
     let mut program = Program::new().with_core().unwrap();
     program.eval_string("(1 2 3) tolist").unwrap();
     assert_eq!(
-      program.stack,
-      vec![Expr::List(vec![
-        Expr::Integer(1),
-        Expr::Integer(2),
-        Expr::Integer(3)
+      simple_exprs(program.stack),
+      vec![TestExpr::List(vec![
+        TestExpr::Integer(1),
+        TestExpr::Integer(2),
+        TestExpr::Integer(3)
       ])]
     );
   }
@@ -193,10 +211,14 @@ mod tests {
     let mut program = Program::new().with_core().unwrap();
     program.eval_string("(1 2 3) lazy").unwrap();
     assert_eq!(
-      program.stack,
-      vec![Expr::Lazy(
-        Expr::List(vec![Expr::Integer(1), Expr::Integer(2), Expr::Integer(3)])
-          .into()
+      simple_exprs(program.stack),
+      vec![TestExpr::Lazy(
+        TestExpr::List(vec![
+          TestExpr::Integer(1),
+          TestExpr::Integer(2),
+          TestExpr::Integer(3)
+        ])
+        .into()
       )]
     );
   }
@@ -206,9 +228,9 @@ mod tests {
     let mut program = Program::new().with_core().unwrap();
     program.eval_string("'set lazy").unwrap();
     assert_eq!(
-      program.stack,
-      vec![Expr::Lazy(
-        Expr::Call(interner().get_or_intern_static("set")).into()
+      simple_exprs(program.stack),
+      vec![TestExpr::Lazy(
+        TestExpr::Call(interner().get_or_intern_static("set")).into()
       )]
     );
   }

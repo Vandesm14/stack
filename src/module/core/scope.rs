@@ -1,4 +1,7 @@
-use crate::{interner::interner, EvalError, Expr, Program, Type};
+use crate::{
+  interner::interner, DebugData, EvalError, EvalErrorKind, ExprKind, Program,
+  Type,
+};
 
 pub fn module(program: &mut Program) -> Result<(), EvalError> {
   program.funcs.insert(
@@ -7,31 +10,24 @@ pub fn module(program: &mut Program) -> Result<(), EvalError> {
       let key = program.pop(trace_expr)?;
       let val = program.pop(trace_expr)?;
 
-      match key {
-        Expr::Call(ref key) => match program.funcs.contains_key(key) {
+      match key.val {
+        ExprKind::Call(ref key) => match program.funcs.contains_key(key) {
           true => Err(EvalError {
-            expr: trace_expr.clone(),
-            program: program.clone(),
-            message: format!(
-              "cannot shadow a native function {}",
-              interner().resolve(key)
+            expr: Some(trace_expr.clone()),
+            kind: EvalErrorKind::Message(
+              "cannot shadow a native function".into(),
             ),
           }),
           false => {
-            program.def_scope_item(trace_expr, interner().resolve(key), val)
+            program.def_scope_item(interner().resolve(key), val);
+            Ok(())
           }
         },
-        key => Err(EvalError {
-          expr: trace_expr.clone(),
-          program: program.clone(),
-          message: format!(
-            "expected {}, found {}",
-            Type::List(vec![
-              // TODO: A type to represent functions.
-              Type::Any,
-              Type::Call,
-            ]),
-            Type::List(vec![val.type_of(), key.type_of(),]),
+        _ => Err(EvalError {
+          expr: Some(trace_expr.clone()),
+          kind: EvalErrorKind::ExpectedFound(
+            Type::List(vec![Type::Any, Type::Call]),
+            Type::List(vec![val.val.type_of(), key.val.type_of()]),
           ),
         }),
       }
@@ -43,25 +39,19 @@ pub fn module(program: &mut Program) -> Result<(), EvalError> {
     |program, trace_expr| {
       let item = program.pop(trace_expr)?;
 
-      match item {
-        Expr::Call(key) => {
+      match item.val {
+        ExprKind::Call(key) => {
           let key_str = interner().resolve(&key).to_owned();
-          match program.remove_scope_item(&key_str) {
-            Ok(_) => Ok(()),
-            Err(err) => Err(err),
-          }
+          program.remove_scope_item(&key_str);
+
+          Ok(())
         }
         item => Err(EvalError {
-          expr: trace_expr.clone(),
-          program: program.clone(),
-          message: format!(
-            "expected {}, found {}",
-            Type::Call,
-            item.type_of(),
-          ),
+          expr: Some(trace_expr.clone()),
+          kind: EvalErrorKind::ExpectedFound(Type::Call, item.type_of()),
         }),
       }
-    }
+    },
   );
 
   program.funcs.insert(
@@ -70,31 +60,24 @@ pub fn module(program: &mut Program) -> Result<(), EvalError> {
       let key = program.pop(trace_expr)?;
       let val = program.pop(trace_expr)?;
 
-      match key {
-        Expr::Call(ref key) => match program.funcs.contains_key(key) {
+      match key.val {
+        ExprKind::Call(ref key) => match program.funcs.contains_key(key) {
           true => Err(EvalError {
-            expr: trace_expr.clone(),
-            program: program.clone(),
-            message: format!(
-              "cannot shadow a native function {}",
-              interner().resolve(key)
+            expr: Some(trace_expr.clone()),
+            kind: EvalErrorKind::Message(
+              "cannot shadow a native function".into(),
             ),
           }),
           false => {
-            program.set_scope_item(trace_expr, interner().resolve(key), val)
+            program.set_scope_item(interner().resolve(key), val)?;
+            Ok(())
           }
         },
         key => Err(EvalError {
-          expr: trace_expr.clone(),
-          program: program.clone(),
-          message: format!(
-            "expected {}, found {}",
-            Type::List(vec![
-              // TODO: A type to represent functions.
-              Type::Any,
-              Type::Call,
-            ]),
-            Type::List(vec![val.type_of(), key.type_of(),]),
+          expr: Some(trace_expr.clone()),
+          kind: EvalErrorKind::ExpectedFound(
+            Type::List(vec![Type::Any, Type::Call]),
+            Type::List(vec![val.val.type_of(), key.type_of()]),
           ),
         }),
       }
@@ -106,8 +89,8 @@ pub fn module(program: &mut Program) -> Result<(), EvalError> {
     |program, trace_expr| {
       let item = program.pop(trace_expr)?;
 
-      match item {
-        Expr::Call(ref key) => {
+      match item.val {
+        ExprKind::Call(ref key) => {
           if let Some(func) = program.funcs.get(key) {
             func(program, trace_expr)
           } else {
@@ -115,20 +98,19 @@ pub fn module(program: &mut Program) -> Result<(), EvalError> {
 
             // Always push something, otherwise it can get tricky to manage the
             // stack in-langauge.
-            program.push(program.scope_item(key_str).unwrap_or(Expr::Nil))
+            program.push(
+              program
+                .scope_item(key_str)
+                .unwrap_or(ExprKind::Nil.into_expr(DebugData::default())),
+            )
           }
         }
         item => Err(EvalError {
-          expr: trace_expr.clone(),
-          program: program.clone(),
-          message: format!(
-            "expected {}, found {}",
-            Type::Call,
-            item.type_of(),
-          ),
+          expr: Some(trace_expr.clone()),
+          kind: EvalErrorKind::ExpectedFound(Type::Call, item.type_of()),
         }),
       }
-    }
+    },
   );
 
   Ok(())
@@ -137,9 +119,9 @@ pub fn module(program: &mut Program) -> Result<(), EvalError> {
 #[cfg(test)]
 
 mod tests {
-  use crate::{FnSymbol, Scope};
-
   use super::*;
+  use crate::{simple_expr, simple_exprs, TestExpr};
+  use crate::{FnSymbol, Scope};
 
   #[test]
   fn storing_variables() {
@@ -153,21 +135,21 @@ mod tests {
       .get_val(interner().get_or_intern("a"))
       .unwrap();
 
-    assert_eq!(a, Expr::Integer(1));
+    assert_eq!(simple_expr(a), TestExpr::Integer(1));
   }
 
   #[test]
   fn retrieving_variables() {
     let mut program = Program::new().with_core().unwrap();
     program.eval_string("1 'a def a").unwrap();
-    assert_eq!(program.stack, vec![Expr::Integer(1)]);
+    assert_eq!(simple_exprs(program.stack), vec![TestExpr::Integer(1)]);
   }
 
   #[test]
   fn evaluating_variables() {
     let mut program = Program::new().with_core().unwrap();
     program.eval_string("1 'a def a 2 +").unwrap();
-    assert_eq!(program.stack, vec![Expr::Integer(3)]);
+    assert_eq!(simple_exprs(program.stack), vec![TestExpr::Integer(3)]);
   }
 
   #[test]
@@ -186,7 +168,7 @@ mod tests {
     program
       .eval_string("'(fn 1 2 +) 'is-three def is-three")
       .unwrap();
-    assert_eq!(program.stack, vec![Expr::Integer(3)]);
+    assert_eq!(simple_exprs(program.stack), vec![TestExpr::Integer(3)]);
   }
 
   #[test]
@@ -196,11 +178,11 @@ mod tests {
       .eval_string("'(1 2 +) 'is-three def is-three")
       .unwrap();
     assert_eq!(
-      program.stack,
-      vec![Expr::List(vec![
-        Expr::Integer(1),
-        Expr::Integer(2),
-        Expr::Call(interner().get_or_intern_static("+"))
+      simple_exprs(program.stack),
+      vec![TestExpr::List(vec![
+        TestExpr::Integer(1),
+        TestExpr::Integer(2),
+        TestExpr::Call(interner().get_or_intern_static("+"))
       ])]
     );
   }
@@ -212,15 +194,15 @@ mod tests {
       .eval_string("'(fn 1 2 +) 'is-three def 'is-three get")
       .unwrap();
     assert_eq!(
-      program.stack,
-      vec![Expr::List(vec![
-        Expr::Fn(FnSymbol {
+      simple_exprs(program.stack),
+      vec![TestExpr::List(vec![
+        TestExpr::Fn(FnSymbol {
           scoped: true,
           scope: Scope::new(),
         }),
-        Expr::Integer(1),
-        Expr::Integer(2),
-        Expr::Call(interner().get_or_intern_static("+"))
+        TestExpr::Integer(1),
+        TestExpr::Integer(2),
+        TestExpr::Call(interner().get_or_intern_static("+"))
       ])]
     );
   }
@@ -232,18 +214,18 @@ mod tests {
       .eval_string("'() 'fn tolist concat 1 tolist concat 2 tolist concat '+ tolist concat dup call")
       .unwrap();
     assert_eq!(
-      program.stack,
+      simple_exprs(program.stack),
       vec![
-        Expr::List(vec![
-          Expr::Fn(FnSymbol {
+        TestExpr::List(vec![
+          TestExpr::Fn(FnSymbol {
             scoped: true,
             scope: Scope::new(),
           }),
-          Expr::Integer(1),
-          Expr::Integer(2),
-          Expr::Call(interner().get_or_intern_static("+"))
+          TestExpr::Integer(1),
+          TestExpr::Integer(2),
+          TestExpr::Call(interner().get_or_intern_static("+"))
         ]),
-        Expr::Integer(3)
+        TestExpr::Integer(3)
       ]
     );
   }
@@ -270,7 +252,7 @@ mod tests {
         .get_val(interner().get_or_intern("a"))
         .unwrap();
 
-      assert_eq!(a, Expr::Integer(0));
+      assert_eq!(simple_expr(a), TestExpr::Integer(0));
     }
 
     #[test]
@@ -290,7 +272,7 @@ mod tests {
         .get_val(interner().get_or_intern("a"))
         .unwrap();
 
-      assert_eq!(a, Expr::Integer(1));
+      assert_eq!(simple_expr(a), TestExpr::Integer(1));
     }
 
     #[test]
@@ -310,8 +292,11 @@ mod tests {
         .get_val(interner().get_or_intern("a"))
         .unwrap();
 
-      assert_eq!(a, Expr::Integer(0));
-      assert_eq!(program.stack, vec![Expr::Integer(1), Expr::Integer(0)])
+      assert_eq!(simple_expr(a), TestExpr::Integer(0));
+      assert_eq!(
+        simple_exprs(program.stack),
+        vec![TestExpr::Integer(1), TestExpr::Integer(0)]
+      )
     }
   }
 }

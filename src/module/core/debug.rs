@@ -1,4 +1,4 @@
-use crate::{interner::interner, EvalError, Program};
+use crate::{interner::interner, EvalError, EvalErrorKind, Program};
 
 pub fn module(program: &mut Program) -> Result<(), EvalError> {
   program.funcs.insert(
@@ -7,9 +7,8 @@ pub fn module(program: &mut Program) -> Result<(), EvalError> {
       let string = program.pop(trace_expr)?;
 
       Err(EvalError {
-        expr: trace_expr.clone(),
-        program: program.clone(),
-        message: format!("panic: {}", string),
+        expr: Some(trace_expr.clone()),
+        kind: EvalErrorKind::Panic(format!("{}", string.val)),
       })
     },
   );

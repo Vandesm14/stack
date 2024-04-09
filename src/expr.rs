@@ -1,11 +1,14 @@
-use core::{any::Any, cell::RefCell, cmp::Ordering, fmt, iter, num::FpCategory};
-use std::rc::Rc;
+use core::{
+  any::Any, cell::RefCell, cmp::Ordering, fmt, iter, num::FpCategory,
+};
+use std::{fmt::Debug, rc::Rc};
 
 use lasso::Spur;
+use termion::color;
 
-use crate::{interner::interner, Scope};
+use crate::{interner::interner, Scope, Span};
 
-#[derive(Clone)]
+#[derive(Clone, PartialEq)]
 pub struct FnSymbol {
   pub scoped: bool,
   pub scope: Scope,
@@ -20,14 +23,14 @@ impl fmt::Debug for FnSymbol {
 }
 
 #[derive(Debug, Clone)]
-pub enum Expr {
+pub enum ExprKind {
   Nil,
 
   Boolean(bool),
   Integer(i64),
   Float(f64),
 
-  String(Spur),
+  String(String),
   List(Vec<Expr>),
 
   Lazy(Box<Expr>),
@@ -39,7 +42,21 @@ pub enum Expr {
   UserData(Rc<RefCell<dyn Any>>),
 }
 
-impl Expr {
+impl ExprKind {
+  pub fn unlazy(&self) -> &ExprKind {
+    match self {
+      ExprKind::Lazy(x) => x.val.unlazy(),
+      x => x,
+    }
+  }
+
+  pub fn unlazy_mut(&mut self) -> &mut ExprKind {
+    match self {
+      ExprKind::Lazy(x) => x.val.unlazy_mut(),
+      x => x,
+    }
+  }
+
   pub fn is_truthy(&self) -> bool {
     match self.to_boolean() {
       Some(Self::Boolean(x)) => x,
@@ -48,14 +65,22 @@ impl Expr {
   }
 
   pub const fn is_nil(&self) -> bool {
-    matches!(*self, Expr::Nil)
+    matches!(*self, Self::Nil)
   }
 
   pub fn is_function(&self) -> bool {
     match self {
-      Expr::List(list) => list
+      Self::List(list) => list
         .first()
-        .map(|x| matches!(x, Expr::Fn(_)))
+        .map(|x| {
+          matches!(
+            x,
+            Expr {
+              val: Self::Fn(_),
+              ..
+            }
+          )
+        })
         .unwrap_or(false),
       _ => false,
     }
@@ -63,8 +88,8 @@ impl Expr {
 
   pub fn fn_symbol(&self) -> Option<&FnSymbol> {
     match self {
-      Expr::List(list) => list.first().and_then(|x| match x {
-        Expr::Fn(scope) => Some(scope),
+      Self::List(list) => list.first().and_then(|x| match &x.val {
+        Self::Fn(scope) => Some(scope),
         _ => None,
       }),
       _ => None,
@@ -73,25 +98,11 @@ impl Expr {
 
   pub fn fn_body(&self) -> Option<&[Expr]> {
     match self {
-      Expr::List(list) => list.first().and_then(|x| match x {
-        Expr::Fn(_) => Some(&list[1..]),
+      Self::List(list) => list.first().and_then(|x| match x.val {
+        Self::Fn(_) => Some(&list[1..]),
         _ => None,
       }),
       _ => None,
-    }
-  }
-
-  pub fn unlazy(&self) -> &Self {
-    match self {
-      Self::Lazy(x) => x.unlazy(),
-      x => x,
-    }
-  }
-
-  pub fn unlazy_mut(&mut self) -> &mut Self {
-    match self {
-      Self::Lazy(x) => x.unlazy_mut(),
-      x => x,
     }
   }
 
@@ -105,11 +116,14 @@ impl Expr {
 
       Self::String(_) => Type::String,
 
-      Self::List(list) => {
-        Type::List(list.iter().map(|expr| expr.type_of()).collect::<Vec<_>>())
-      }
+      Self::List(list) => Type::List(
+        list
+          .iter()
+          .map(|expr| expr.val.type_of())
+          .collect::<Vec<_>>(),
+      ),
 
-      Self::Lazy(x) => x.type_of(),
+      Self::Lazy(x) => x.val.type_of(),
       Self::Call(_) => Type::Call,
 
       Self::Fn(_) => Type::FnScope,
@@ -118,7 +132,7 @@ impl Expr {
     }
   }
 
-  pub fn coerce_same(&self, other: &Self) -> Option<(Self, Self)> {
+  pub fn coerce_same(&self, other: &Self) -> Option<(ExprKind, ExprKind)> {
     match self {
       x @ Self::Boolean(_) => Some(x.clone()).zip(other.to_boolean()),
       x @ Self::Integer(_) => Some(x.clone()).zip(other.to_integer()),
@@ -127,7 +141,10 @@ impl Expr {
     }
   }
 
-  pub fn coerce_same_float(&self, other: &Self) -> Option<(Self, Self)> {
+  pub fn coerce_same_float(
+    &self,
+    other: &Self,
+  ) -> Option<(ExprKind, ExprKind)> {
     match (self, other) {
       (lhs @ Self::Float(_), rhs) => Some(lhs.clone()).zip(rhs.to_float()),
       (lhs, rhs @ Self::Float(_)) => lhs.to_float().zip(Some(rhs.clone())),
@@ -135,7 +152,7 @@ impl Expr {
     }
   }
 
-  pub fn to_boolean(&self) -> Option<Self> {
+  pub fn to_boolean(&self) -> Option<ExprKind> {
     match self {
       Self::Nil => Some(Self::Boolean(false)),
 
@@ -146,7 +163,7 @@ impl Expr {
     }
   }
 
-  pub fn to_integer(&self) -> Option<Self> {
+  pub fn to_integer(&self) -> Option<ExprKind> {
     match self {
       Self::Boolean(x) => Some(Self::Integer(if *x { 1 } else { 0 })),
       x @ Self::Integer(_) => Some(x.clone()),
@@ -171,13 +188,20 @@ impl Expr {
     }
   }
 
-  pub fn to_float(&self) -> Option<Self> {
+  pub fn to_float(&self) -> Option<ExprKind> {
     match self {
       Self::Integer(x) => Some(Self::Float(*x as f64)),
       x @ Self::Float(_) => Some(x.clone()),
 
       // Self::String(x) => x.parse().ok().map(Self::Float),
       _ => None,
+    }
+  }
+
+  pub fn into_expr(self, debug_data: DebugData) -> Expr {
+    Expr {
+      val: self,
+      debug_data,
     }
   }
 
@@ -226,7 +250,7 @@ impl Expr {
   // }
 }
 
-impl PartialEq for Expr {
+impl PartialEq for ExprKind {
   fn eq(&self, other: &Self) -> bool {
     match (self, other) {
       // Same types.
@@ -238,17 +262,22 @@ impl PartialEq for Expr {
 
       (Self::String(lhs), Self::String(rhs)) => lhs == rhs,
 
-      (Self::List(lhs), Self::List(rhs)) => lhs == rhs,
+      (Self::List(lhs), Self::List(rhs)) => {
+        if lhs.len() != rhs.len() {
+          return false;
+        }
 
-      (Self::Lazy(lhs), Self::Lazy(rhs)) => lhs == rhs,
+        lhs.iter().zip(rhs).all(|(lhs, rhs)| lhs.val == rhs.val)
+      }
+
+      (Self::Lazy(lhs), Self::Lazy(rhs)) => lhs.val == rhs.val,
       (Self::Call(lhs), Self::Call(rhs)) => lhs == rhs,
 
-      // TODO: I removed `lhs.scope == rhs.scope &&` since it made asserting
-      // equality impossible in tests (without filling out the entire scope).
-      // Though, I think there's a better solution than removing comparability.
-      (Self::Fn(lhs), Self::Fn(rhs)) => lhs.scoped == rhs.scoped,
+      (Self::Fn(lhs), Self::Fn(rhs)) => lhs == rhs,
 
-      (Self::UserData(lhs), Self::UserData(rhs)) => core::ptr::addr_eq(Rc::as_ptr(lhs), Rc::as_ptr(rhs)),
+      (Self::UserData(lhs), Self::UserData(rhs)) => {
+        core::ptr::addr_eq(Rc::as_ptr(lhs), Rc::as_ptr(rhs))
+      }
 
       // Different types.
       (lhs @ Self::Boolean(_), rhs) => match rhs.to_boolean() {
@@ -273,7 +302,7 @@ impl PartialEq for Expr {
   }
 }
 
-impl PartialOrd for Expr {
+impl PartialOrd for ExprKind {
   fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
     match (self, other) {
       // Same types.
@@ -312,7 +341,7 @@ impl PartialOrd for Expr {
   }
 }
 
-impl fmt::Display for Expr {
+impl fmt::Display for ExprKind {
   fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
     match self {
       Self::Nil => f.write_str("nil"),
@@ -321,7 +350,7 @@ impl fmt::Display for Expr {
       Self::Integer(x) => fmt::Display::fmt(x, f),
       Self::Float(x) => fmt::Display::fmt(x, f),
 
-      Self::String(x) => write!(f, "\"{}\"", interner().resolve(x)),
+      Self::String(x) => write!(f, "\"{}\"", x),
 
       Self::List(x) => {
         f.write_str("(")?;
@@ -347,6 +376,89 @@ impl fmt::Display for Expr {
 
       Self::UserData(_) => f.write_str("userdata"),
     }
+  }
+}
+
+#[derive(Debug, Clone, PartialEq, PartialOrd, Default)]
+pub struct DebugData {
+  pub source_file: Option<Spur>,
+  pub span: Option<Span>,
+}
+
+impl DebugData {
+  pub fn new(source_file: Option<Spur>, span: Option<Span>) -> Self {
+    Self { source_file, span }
+  }
+}
+
+#[derive(Debug, Clone, PartialEq, PartialOrd)]
+pub struct Expr {
+  pub val: ExprKind,
+  pub debug_data: DebugData,
+}
+
+impl fmt::Display for Expr {
+  fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+    write!(f, "{}", self.val)
+  }
+}
+
+impl From<Expr> for ExprKind {
+  fn from(value: Expr) -> Self {
+    value.val
+  }
+}
+
+impl Expr {
+  pub fn into_expr_kind(self) -> ExprKind {
+    self.into()
+  }
+
+  pub fn to_pretty_string(&self) -> String {
+    let reset = color::Fg(color::Reset);
+    let result = match &self.val {
+      ExprKind::Nil => format!("{}nil", color::Fg(color::White)),
+
+      ExprKind::Boolean(x) => {
+        format!("{}{}", color::Fg(color::Yellow), x)
+      }
+      ExprKind::Integer(x) => format!("{}{}", color::Fg(color::Yellow), x),
+      ExprKind::Float(x) => format!("{}{}", color::Fg(color::Yellow), x),
+
+      ExprKind::String(x) => {
+        format!("{}\"{}\"", color::Fg(color::Green), x)
+      }
+
+      ExprKind::List(x) => {
+        let mut string = String::new();
+        string.push('(');
+
+        iter::once("")
+          .chain(iter::repeat(" "))
+          .zip(x.iter())
+          .for_each(|(s, x)| {
+            string.push_str(s);
+            string.push_str(&x.to_pretty_string())
+          });
+
+        string.push(')');
+
+        string
+      }
+
+      ExprKind::Lazy(x) => {
+        format!("'{}", x.to_pretty_string())
+      }
+      ExprKind::Call(x) => {
+        format!("{}{}", color::Fg(color::Blue), interner().resolve(x))
+      }
+
+      ExprKind::Fn(_) => format!("{}fn", color::Fg(color::Blue)),
+
+      ExprKind::UserData(_) => format!("{}userdata", color::Fg(color::Blue)),
+    };
+
+    format!("{}{}", result, reset)
   }
 }
 
@@ -435,58 +547,58 @@ mod test {
 
   use test_case::test_case;
 
-  #[test_case(Expr::Nil => Some(Expr::Boolean(false)))]
-  #[test_case(Expr::Boolean(false) => Some(Expr::Boolean(false)))]
-  #[test_case(Expr::Boolean(true) => Some(Expr::Boolean(true)))]
-  #[test_case(Expr::Integer(0) => Some(Expr::Boolean(false)))]
-  #[test_case(Expr::Integer(1) => Some(Expr::Boolean(true)))]
-  #[test_case(Expr::Integer(i64::MIN) => Some(Expr::Boolean(true)))]
-  #[test_case(Expr::Integer(i64::MAX) => Some(Expr::Boolean(true)))]
-  #[test_case(Expr::Float(0.0) => None)]
-  #[test_case(Expr::Float(1.0) => None)]
-  #[test_case(Expr::Float(f64::MIN) => None)]
-  #[test_case(Expr::Float(f64::MAX) => None)]
-  #[test_case(Expr::Float(f64::NEG_INFINITY) => None)]
-  #[test_case(Expr::Float(f64::INFINITY) => None)]
-  #[test_case(Expr::Float(f64::NAN) => None)]
-  fn to_boolean(expr: Expr) -> Option<Expr> {
+  #[test_case(ExprKind::Nil => Some(ExprKind::Boolean(false)))]
+  #[test_case(ExprKind::Boolean(false) => Some(ExprKind::Boolean(false)))]
+  #[test_case(ExprKind::Boolean(true) => Some(ExprKind::Boolean(true)))]
+  #[test_case(ExprKind::Integer(0) => Some(ExprKind::Boolean(false)))]
+  #[test_case(ExprKind::Integer(1) => Some(ExprKind::Boolean(true)))]
+  #[test_case(ExprKind::Integer(i64::MIN) => Some(ExprKind::Boolean(true)))]
+  #[test_case(ExprKind::Integer(i64::MAX) => Some(ExprKind::Boolean(true)))]
+  #[test_case(ExprKind::Float(0.0) => None)]
+  #[test_case(ExprKind::Float(1.0) => None)]
+  #[test_case(ExprKind::Float(f64::MIN) => None)]
+  #[test_case(ExprKind::Float(f64::MAX) => None)]
+  #[test_case(ExprKind::Float(f64::NEG_INFINITY) => None)]
+  #[test_case(ExprKind::Float(f64::INFINITY) => None)]
+  #[test_case(ExprKind::Float(f64::NAN) => None)]
+  fn to_boolean(expr: ExprKind) -> Option<ExprKind> {
     expr.to_boolean()
   }
 
-  #[test_case(Expr::Nil => None)]
-  #[test_case(Expr::Boolean(false) => Some(Expr::Integer(0)))]
-  #[test_case(Expr::Boolean(true) => Some(Expr::Integer(1)))]
-  #[test_case(Expr::Integer(0) => Some(Expr::Integer(0)))]
-  #[test_case(Expr::Integer(1) => Some(Expr::Integer(1)))]
-  #[test_case(Expr::Integer(i64::MIN) => Some(Expr::Integer(i64::MIN)))]
-  #[test_case(Expr::Integer(i64::MAX) => Some(Expr::Integer(i64::MAX)))]
-  #[test_case(Expr::Float(f64::MIN) => None)]
-  #[test_case(Expr::Float(f64::MAX) => None)]
-  #[test_case(Expr::Float(f64::NEG_INFINITY) => None)]
-  #[test_case(Expr::Float(f64::INFINITY) => None)]
-  #[test_case(Expr::Float(f64::NAN) => None)]
-  #[test_case(Expr::Float(0.0) => Some(Expr::Integer(0)))]
-  #[test_case(Expr::Float(1.0) => Some(Expr::Integer(1)))]
-  fn to_integer(expr: Expr) -> Option<Expr> {
+  #[test_case(ExprKind::Nil => None)]
+  #[test_case(ExprKind::Boolean(false) => Some(ExprKind::Integer(0)))]
+  #[test_case(ExprKind::Boolean(true) => Some(ExprKind::Integer(1)))]
+  #[test_case(ExprKind::Integer(0) => Some(ExprKind::Integer(0)))]
+  #[test_case(ExprKind::Integer(1) => Some(ExprKind::Integer(1)))]
+  #[test_case(ExprKind::Integer(i64::MIN) => Some(ExprKind::Integer(i64::MIN)))]
+  #[test_case(ExprKind::Integer(i64::MAX) => Some(ExprKind::Integer(i64::MAX)))]
+  #[test_case(ExprKind::Float(f64::MIN) => None)]
+  #[test_case(ExprKind::Float(f64::MAX) => None)]
+  #[test_case(ExprKind::Float(f64::NEG_INFINITY) => None)]
+  #[test_case(ExprKind::Float(f64::INFINITY) => None)]
+  #[test_case(ExprKind::Float(f64::NAN) => None)]
+  #[test_case(ExprKind::Float(0.0) => Some(ExprKind::Integer(0)))]
+  #[test_case(ExprKind::Float(1.0) => Some(ExprKind::Integer(1)))]
+  fn to_integer(expr: ExprKind) -> Option<ExprKind> {
     expr.to_integer()
   }
 
-  #[test_case(Expr::Nil => None)]
-  #[test_case(Expr::Boolean(false) => None)]
-  #[test_case(Expr::Boolean(true) => None)]
-  #[test_case(Expr::Integer(0) => Some(Expr::Float(0.0)))]
-  #[test_case(Expr::Integer(1) => Some(Expr::Float(1.0)))]
-  #[test_case(Expr::Integer(i64::MIN) => Some(Expr::Float(i64::MIN as f64)))]
-  #[test_case(Expr::Integer(i64::MAX) => Some(Expr::Float(i64::MAX as f64)))]
-  #[test_case(Expr::Float(f64::MIN) => Some(Expr::Float(f64::MIN)))]
-  #[test_case(Expr::Float(f64::MAX) => Some(Expr::Float(f64::MAX)))]
-  #[test_case(Expr::Float(f64::NEG_INFINITY) => Some(Expr::Float(f64::NEG_INFINITY)))]
-  #[test_case(Expr::Float(f64::INFINITY) => Some(Expr::Float(f64::INFINITY)))]
+  #[test_case(ExprKind::Nil => None)]
+  #[test_case(ExprKind::Boolean(false) => None)]
+  #[test_case(ExprKind::Boolean(true) => None)]
+  #[test_case(ExprKind::Integer(0) => Some(ExprKind::Float(0.0)))]
+  #[test_case(ExprKind::Integer(1) => Some(ExprKind::Float(1.0)))]
+  #[test_case(ExprKind::Integer(i64::MIN) => Some(ExprKind::Float(i64::MIN as f64)))]
+  #[test_case(ExprKind::Integer(i64::MAX) => Some(ExprKind::Float(i64::MAX as f64)))]
+  #[test_case(ExprKind::Float(f64::MIN) => Some(ExprKind::Float(f64::MIN)))]
+  #[test_case(ExprKind::Float(f64::MAX) => Some(ExprKind::Float(f64::MAX)))]
+  #[test_case(ExprKind::Float(f64::NEG_INFINITY) => Some(ExprKind::Float(f64::NEG_INFINITY)))]
+  #[test_case(ExprKind::Float(f64::INFINITY) => Some(ExprKind::Float(f64::INFINITY)))]
   // NOTE: NaN cannot be equality checked.
-  // #[test_case(Expr::Float(f64::NAN) => Some(Expr::Float(f64::NAN)))]
-  #[test_case(Expr::Float(0.0) => Some(Expr::Float(0.0)))]
-  #[test_case(Expr::Float(1.0) => Some(Expr::Float(1.0)))]
-  fn to_float(expr: Expr) -> Option<Expr> {
+  // #[test_case(ExprKind::Float(f64::NAN) => Some(ExprKind::Float(f64::NAN)))]
+  #[test_case(ExprKind::Float(0.0) => Some(ExprKind::Float(0.0)))]
+  #[test_case(ExprKind::Float(1.0) => Some(ExprKind::Float(1.0)))]
+  fn to_float(expr: ExprKind) -> Option<ExprKind> {
     expr.to_float()
   }
 }
