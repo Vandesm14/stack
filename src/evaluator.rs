@@ -1,4 +1,7 @@
-use ariadne::{Color, Label, Report, ReportKind, Source};
+use codespan_reporting::diagnostic::{Diagnostic, Label};
+use codespan_reporting::files::SimpleFiles;
+use codespan_reporting::term;
+use codespan_reporting::term::termcolor::{ColorChoice, StandardStream};
 use lasso::Spur;
 
 use crate::{
@@ -72,9 +75,7 @@ impl fmt::Display for EvalError {
 }
 
 impl EvalError {
-  pub fn print_report(&self) {
-    let out = Color::Red;
-
+  pub fn print_report(&self, program: &Program) {
     let source_file: Option<&str> = self.expr.as_ref().and_then(|expr| {
       expr
         .debug_data
@@ -90,21 +91,29 @@ impl EvalError {
       None => 0..0,
     };
 
-    let source = match source_file {
-      Some(path) => fs::read_to_string(path).ok().unwrap_or("".into()),
-      None => "".into(),
-    };
+    let mut files = SimpleFiles::new();
+    let mut file_id = 0;
+    for (name, source) in program.sources.iter() {
+      let id = files.add(name, source.contents.clone());
 
-    Report::build(ReportKind::Error, file_name, span.start)
+      if name == file_name {
+        file_id = id;
+      }
+    }
+
+    let diagnostic = Diagnostic::error()
       .with_message(self.to_string())
-      .with_label(
-        Label::new((file_name, span))
-          .with_message("error occurs here")
-          .with_color(out),
-      )
-      .finish()
-      .print((file_name, Source::from(source)))
-      .unwrap();
+      .with_labels(vec![
+        Label::primary(file_id, span).with_message("error occurs here")
+      ]);
+
+    let writer = StandardStream::stderr(ColorChoice::Always);
+    let config = codespan_reporting::term::Config::default();
+
+    // TODO: Should we do anything for this error or can we just unwrap?
+    let _ = term::emit(&mut writer.lock(), &config, &files, &diagnostic);
+
+    eprintln!("{}", program.journal);
   }
 }
 
