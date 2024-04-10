@@ -1,7 +1,6 @@
 mod chain;
 mod evaluator;
 mod expr;
-mod interner;
 mod journal;
 mod lexer;
 mod module;

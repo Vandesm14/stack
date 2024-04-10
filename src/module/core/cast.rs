@@ -1,11 +1,11 @@
-use crate::{
-  interner::interner, DebugData, EvalError, Expr, ExprKind, Program,
-};
+use internment::Intern;
+
+use crate::{DebugData, EvalError, Expr, ExprKind, Program};
 
 pub fn module(program: &mut Program) -> Result<(), EvalError> {
-  program.funcs.insert(
-    interner().get_or_intern_static("toboolean"),
-    |program, trace_expr| {
+  program
+    .funcs
+    .insert(Intern::from_ref("toboolean"), |program, trace_expr| {
       let item = program.pop(trace_expr)?;
 
       match item.val {
@@ -23,12 +23,11 @@ pub fn module(program: &mut Program) -> Result<(), EvalError> {
           debug_data: DebugData::default(),
         }),
       }
-    },
-  );
+    });
 
-  program.funcs.insert(
-    interner().get_or_intern_static("tointeger"),
-    |program, trace_expr| {
+  program
+    .funcs
+    .insert(Intern::from_ref("tointeger"), |program, trace_expr| {
       let item = program.pop(trace_expr)?;
 
       match item.val {
@@ -48,12 +47,11 @@ pub fn module(program: &mut Program) -> Result<(), EvalError> {
             .into_expr(item.debug_data),
         ),
       }
-    },
-  );
+    });
 
-  program.funcs.insert(
-    interner().get_or_intern_static("tofloat"),
-    |program, trace_expr| {
+  program
+    .funcs
+    .insert(Intern::from_ref("tofloat"), |program, trace_expr| {
       let item = program.pop(trace_expr)?;
 
       match item.val {
@@ -73,12 +71,11 @@ pub fn module(program: &mut Program) -> Result<(), EvalError> {
             .into_expr(DebugData::default()),
         ),
       }
-    },
-  );
+    });
 
-  program.funcs.insert(
-    interner().get_or_intern_static("tostring"),
-    |program, trace_expr| {
+  program
+    .funcs
+    .insert(Intern::from_ref("tostring"), |program, trace_expr| {
       let item = program.pop(trace_expr)?;
 
       match item.val {
@@ -88,12 +85,11 @@ pub fn module(program: &mut Program) -> Result<(), EvalError> {
           program.push(string.into_expr(DebugData::default()))
         }
       }
-    },
-  );
+    });
 
-  program.funcs.insert(
-    interner().get_or_intern_static("tolist"),
-    |program, trace_expr| {
+  program
+    .funcs
+    .insert(Intern::from_ref("tolist"), |program, trace_expr| {
       let item = program.pop(trace_expr)?;
 
       match item.val {
@@ -114,37 +110,32 @@ pub fn module(program: &mut Program) -> Result<(), EvalError> {
             .into_expr(DebugData::default()),
         ),
       }
-    },
-  );
+    });
 
-  program.funcs.insert(
-    interner().get_or_intern_static("tocall"),
-    |program, trace_expr| {
+  program
+    .funcs
+    .insert(Intern::from_ref("tocall"), |program, trace_expr| {
       let item = program.pop(trace_expr)?;
 
       match item.val {
         ExprKind::Call(_) => program.push(item),
         ExprKind::String(string) => program.push(
-          ExprKind::Call(interner().get_or_intern(string))
-            .into_expr(DebugData::default()),
+          ExprKind::Call(Intern::new(string)).into_expr(DebugData::default()),
         ),
         found => {
-          let call =
-            ExprKind::Call(interner().get_or_intern(found.to_string()));
+          let call = ExprKind::Call(Intern::new(found.to_string()));
           program.push(call.into_expr(DebugData::default()))
         }
       }
-    },
-  );
+    });
 
-  program.funcs.insert(
-    interner().get_or_intern_static("typeof"),
-    |program, trace_expr| {
+  program
+    .funcs
+    .insert(Intern::from_ref("typeof"), |program, trace_expr| {
       let item = program.pop(trace_expr)?;
       let string = ExprKind::String(item.val.type_of().to_string());
       program.push(string.into_expr(DebugData::default()))
-    },
-  );
+    });
 
   Ok(())
 }
@@ -171,7 +162,7 @@ mod tests {
     program.eval_string("\"a\" tocall").unwrap();
     assert_eq!(
       simple_exprs(program.stack),
-      vec![TestExpr::Call(interner().get_or_intern_static("a"))]
+      vec![TestExpr::Call(Intern::from_ref("a"))]
     );
   }
 
@@ -230,7 +221,7 @@ mod tests {
     assert_eq!(
       simple_exprs(program.stack),
       vec![TestExpr::Lazy(
-        TestExpr::Call(interner().get_or_intern_static("set")).into()
+        TestExpr::Call(Intern::from_ref("set")).into()
       )]
     );
   }

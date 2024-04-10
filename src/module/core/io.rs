@@ -1,12 +1,13 @@
+use internment::Intern;
+
 use crate::{
-  interner::interner, DebugData, EvalError, EvalErrorKind, ExprKind, Program,
-  SourceFile, Type,
+  DebugData, EvalError, EvalErrorKind, ExprKind, Program, SourceFile, Type,
 };
 
 pub fn module(program: &mut Program) -> Result<(), EvalError> {
-  program.funcs.insert(
-    interner().get_or_intern_static("read-file"),
-    |program, trace_expr| {
+  program
+    .funcs
+    .insert(Intern::from_ref("read-file"), |program, trace_expr| {
       let item = program.pop(trace_expr)?;
 
       match item.val {
@@ -52,8 +53,7 @@ pub fn module(program: &mut Program) -> Result<(), EvalError> {
           kind: EvalErrorKind::ExpectedFound(Type::String, item.val.type_of()),
         }),
       }
-    },
-  );
+    });
 
   Ok(())
 }

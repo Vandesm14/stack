@@ -1,9 +1,11 @@
-use crate::{interner::interner, EvalError, ExprKind, Program, Type};
+use internment::Intern;
+
+use crate::{EvalError, ExprKind, Program, Type};
 
 pub fn module(program: &mut Program) -> Result<(), EvalError> {
-  program.funcs.insert(
-    interner().get_or_intern_static("ifelse"),
-    |program, trace_expr| {
+  program
+    .funcs
+    .insert(Intern::from_ref("ifelse"), |program, trace_expr| {
       let cond = program.pop(trace_expr)?;
       let then = program.pop(trace_expr)?;
       let r#else = program.pop(trace_expr)?;
@@ -35,12 +37,11 @@ pub fn module(program: &mut Program) -> Result<(), EvalError> {
           expr: Some(trace_expr.clone()),
         }),
       }
-    },
-  );
+    });
 
-  program.funcs.insert(
-    interner().get_or_intern_static("if"),
-    |program, trace_expr| {
+  program
+    .funcs
+    .insert(Intern::from_ref("if"), |program, trace_expr| {
       let cond = program.pop(trace_expr)?;
       let then = program.pop(trace_expr)?;
 
@@ -69,12 +70,11 @@ pub fn module(program: &mut Program) -> Result<(), EvalError> {
 
       // program.push(ExprKind::List(vec![]));
       // program.eval_intrinsic(trace_expr, Intrinsic::IfElse)
-    },
-  );
+    });
 
-  program.funcs.insert(
-    interner().get_or_intern_static("while"),
-    |program, trace_expr| {
+  program
+    .funcs
+    .insert(Intern::from_ref("while"), |program, trace_expr| {
       let cond = program.pop(trace_expr)?;
       let block = program.pop(trace_expr)?;
 
@@ -100,18 +100,16 @@ pub fn module(program: &mut Program) -> Result<(), EvalError> {
           expr: Some(trace_expr.clone()),
         }),
       }
-    },
-  );
+    });
 
-  program.funcs.insert(
-    interner().get_or_intern_static("halt"),
-    |_, trace_expr| {
+  program
+    .funcs
+    .insert(Intern::from_ref("halt"), |_, trace_expr| {
       Err(EvalError {
         kind: crate::EvalErrorKind::Halt,
         expr: Some(trace_expr.clone()),
       })
-    },
-  );
+    });
 
   Ok(())
 }

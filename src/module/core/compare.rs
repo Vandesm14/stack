@@ -1,77 +1,73 @@
-use crate::{interner::interner, DebugData, EvalError, ExprKind, Program};
+use internment::Intern;
+
+use crate::{DebugData, EvalError, ExprKind, Program};
 
 pub fn module(program: &mut Program) -> Result<(), EvalError> {
-  program.funcs.insert(
-    interner().get_or_intern_static("="),
-    |program, trace_expr| {
+  program
+    .funcs
+    .insert(Intern::from_ref("="), |program, trace_expr| {
       let rhs = program.pop(trace_expr)?;
       let lhs = program.pop(trace_expr)?;
 
       program.push(
         ExprKind::Boolean(lhs.val == rhs.val).into_expr(DebugData::default()),
       )
-    },
-  );
+    });
 
-  program.funcs.insert(
-    interner().get_or_intern_static("!="),
-    |program, trace_expr| {
+  program
+    .funcs
+    .insert(Intern::from_ref("!="), |program, trace_expr| {
       let rhs = program.pop(trace_expr)?;
       let lhs = program.pop(trace_expr)?;
 
       program.push(
         ExprKind::Boolean(lhs.val != rhs.val).into_expr(DebugData::default()),
       )
-    },
-  );
+    });
 
-  program.funcs.insert(
-    interner().get_or_intern_static("<"),
-    |program, trace_expr| {
+  program
+    .funcs
+    .insert(Intern::from_ref("<"), |program, trace_expr| {
       let rhs = program.pop(trace_expr)?;
       let lhs = program.pop(trace_expr)?;
 
       program.push(
         ExprKind::Boolean(lhs.val < rhs.val).into_expr(DebugData::default()),
       )
-    },
-  );
+    });
 
-  program.funcs.insert(
-    interner().get_or_intern_static(">"),
-    |program, trace_expr| {
+  program
+    .funcs
+    .insert(Intern::from_ref(">"), |program, trace_expr| {
       let rhs = program.pop(trace_expr)?;
       let lhs = program.pop(trace_expr)?;
 
       program.push(
         ExprKind::Boolean(lhs.val > rhs.val).into_expr(DebugData::default()),
       )
-    },
-  );
+    });
 
-  program.funcs.insert(
-    interner().get_or_intern_static("<="),
-    |program, trace_expr| {
+  program
+    .funcs
+    .insert(Intern::from_ref("<="), |program, trace_expr| {
       let rhs = program.pop(trace_expr)?;
       let lhs = program.pop(trace_expr)?;
 
       program.push(
         ExprKind::Boolean(lhs.val <= rhs.val).into_expr(DebugData::default()),
       )
-    },
-  );
+    });
 
-  program.funcs.insert(
-    interner().get_or_intern_static(">="),
-    |program, trace_expr| {
+  program
+    .funcs
+    .insert(Intern::from_ref(">="), |program, trace_expr| {
       let rhs = program.pop(trace_expr)?;
       let lhs = program.pop(trace_expr)?;
 
       program.push(
         ExprKind::Boolean(lhs.val >= rhs.val).into_expr(DebugData::default()),
       )
-    },
-  );
+    });
 
   Ok(())
 }

@@ -1,13 +1,14 @@
-use crate::{interner::interner, Chain, Expr, ExprKind, FnSymbol, Func};
+use internment::Intern;
+
+use crate::{Chain, Expr, ExprKind, FnSymbol, Func};
 use core::fmt;
-use lasso::Spur;
 use std::{cell::RefCell, collections::HashMap, fmt::Formatter, rc::Rc};
 
 pub type Val = Rc<RefCell<Chain<Option<Expr>>>>;
 
 #[derive(Default, PartialEq)]
 pub struct Scope {
-  pub items: HashMap<Spur, Val>,
+  pub items: HashMap<Intern<String>, Val>,
 }
 
 impl fmt::Debug for Scope {
@@ -15,7 +16,7 @@ impl fmt::Debug for Scope {
     let iter = self
       .items
       .iter()
-      .map(|(name, item)| (interner().resolve(name), item));
+      .map(|(name, item)| (name.as_ref().as_str(), item));
     write!(f, "{:?}", HashMap::<&str, &Val>::from_iter(iter))
   }
 }
@@ -37,11 +38,15 @@ impl Scope {
     Self::default()
   }
 
-  pub fn from(items: HashMap<Spur, Val>) -> Self {
+  pub fn from(items: HashMap<Intern<String>, Val>) -> Self {
     Self { items }
   }
 
-  pub fn define(&mut self, name: Spur, item: Expr) -> Result<(), String> {
+  pub fn define(
+    &mut self,
+    name: Intern<String>,
+    item: Expr,
+  ) -> Result<(), String> {
     if let Some(chain) = self.items.get(&name) {
       let mut chain = RefCell::borrow_mut(chain);
       match chain.is_root() {
@@ -60,7 +65,7 @@ impl Scope {
     Ok(())
   }
 
-  pub fn reserve(&mut self, name: Spur) -> Result<(), String> {
+  pub fn reserve(&mut self, name: Intern<String>) -> Result<(), String> {
     if self.items.get(&name).is_none() {
       let val = Rc::new(RefCell::new(Chain::new(None)));
       self.items.insert(name, val);
@@ -70,7 +75,11 @@ impl Scope {
     }
   }
 
-  pub fn set(&mut self, name: Spur, item: Expr) -> Result<(), String> {
+  pub fn set(
+    &mut self,
+    name: Intern<String>,
+    item: Expr,
+  ) -> Result<(), String> {
     if let Some(chain) = self.items.get_mut(&name) {
       let mut chain = RefCell::borrow_mut(chain);
       chain.set(Some(item));
@@ -80,19 +89,19 @@ impl Scope {
     }
   }
 
-  pub fn remove(&mut self, name: Spur) {
+  pub fn remove(&mut self, name: Intern<String>) {
     self.items.remove(&name);
   }
 
-  pub fn has(&self, name: Spur) -> bool {
+  pub fn has(&self, name: Intern<String>) -> bool {
     self.items.contains_key(&name)
   }
 
-  pub fn get_val(&self, name: Spur) -> Option<Expr> {
+  pub fn get_val(&self, name: Intern<String>) -> Option<Expr> {
     self.items.get(&name).and_then(|item| item.borrow().val())
   }
 
-  pub fn get_ref(&self, name: Spur) -> Option<&Val> {
+  pub fn get_ref(&self, name: Intern<String>) -> Option<&Val> {
     self.items.get(&name)
   }
 
@@ -122,11 +131,11 @@ impl Scope {
 #[derive(Debug)]
 pub struct Scanner<'a> {
   pub scope: Scope,
-  pub funcs: &'a HashMap<Spur, Func>,
+  pub funcs: &'a HashMap<Intern<String>, Func>,
 }
 
 impl<'a> Scanner<'a> {
-  pub fn new(scope: Scope, funcs: &'a HashMap<Spur, Func>) -> Self {
+  pub fn new(scope: Scope, funcs: &'a HashMap<Intern<String>, Func>) -> Self {
     Self { scope, funcs }
   }
 

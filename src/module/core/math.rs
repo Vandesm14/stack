@@ -1,12 +1,11 @@
-use crate::{
-  interner::interner, DebugData, EvalError, EvalErrorKind, ExprKind, Program,
-  Type,
-};
+use internment::Intern;
+
+use crate::{DebugData, EvalError, EvalErrorKind, ExprKind, Program, Type};
 
 pub fn module(program: &mut Program) -> Result<(), EvalError> {
-  program.funcs.insert(
-    interner().get_or_intern_static("+"),
-    |program, trace_expr| {
+  program
+    .funcs
+    .insert(Intern::from_ref("+"), |program, trace_expr| {
       let rhs_expr = program.pop(trace_expr)?;
       let lhs_expr = program.pop(trace_expr)?;
 
@@ -26,12 +25,11 @@ pub fn module(program: &mut Program) -> Result<(), EvalError> {
           ),
         }),
       }
-    },
-  );
+    });
 
-  program.funcs.insert(
-    interner().get_or_intern_static("-"),
-    |program, trace_expr| {
+  program
+    .funcs
+    .insert(Intern::from_ref("-"), |program, trace_expr| {
       let rhs_expr = program.pop(trace_expr)?;
       let lhs_expr = program.pop(trace_expr)?;
 
@@ -51,12 +49,11 @@ pub fn module(program: &mut Program) -> Result<(), EvalError> {
           ),
         }),
       }
-    },
-  );
+    });
 
-  program.funcs.insert(
-    interner().get_or_intern_static("*"),
-    |program, trace_expr| {
+  program
+    .funcs
+    .insert(Intern::from_ref("*"), |program, trace_expr| {
       let rhs_expr = program.pop(trace_expr)?;
       let lhs_expr = program.pop(trace_expr)?;
 
@@ -76,12 +73,11 @@ pub fn module(program: &mut Program) -> Result<(), EvalError> {
           ),
         }),
       }
-    },
-  );
+    });
 
-  program.funcs.insert(
-    interner().get_or_intern_static("/"),
-    |program, trace_expr| {
+  program
+    .funcs
+    .insert(Intern::from_ref("/"), |program, trace_expr| {
       let rhs_expr = program.pop(trace_expr)?;
       let lhs_expr = program.pop(trace_expr)?;
 
@@ -101,12 +97,11 @@ pub fn module(program: &mut Program) -> Result<(), EvalError> {
           ),
         }),
       }
-    },
-  );
+    });
 
-  program.funcs.insert(
-    interner().get_or_intern_static("%"),
-    |program, trace_expr| {
+  program
+    .funcs
+    .insert(Intern::from_ref("%"), |program, trace_expr| {
       let rhs_expr = program.pop(trace_expr)?;
       let lhs_expr = program.pop(trace_expr)?;
 
@@ -126,8 +121,7 @@ pub fn module(program: &mut Program) -> Result<(), EvalError> {
           ),
         }),
       }
-    },
-  );
+    });
 
   Ok(())
 }

@@ -1,12 +1,11 @@
-use crate::{
-  interner::interner, DebugData, EvalError, EvalErrorKind, ExprKind, Program,
-  Type,
-};
+use internment::Intern;
+
+use crate::{DebugData, EvalError, EvalErrorKind, ExprKind, Program, Type};
 
 pub fn module(program: &mut Program) -> Result<(), EvalError> {
-  program.funcs.insert(
-    interner().get_or_intern_static("def"),
-    |program, trace_expr| {
+  program
+    .funcs
+    .insert(Intern::from_ref("def"), |program, trace_expr| {
       let key = program.pop(trace_expr)?;
       let val = program.pop(trace_expr)?;
 
@@ -19,7 +18,7 @@ pub fn module(program: &mut Program) -> Result<(), EvalError> {
             ),
           }),
           false => {
-            program.def_scope_item(interner().resolve(key), val);
+            program.def_scope_item(key.as_ref(), val);
             Ok(())
           }
         },
@@ -31,18 +30,17 @@ pub fn module(program: &mut Program) -> Result<(), EvalError> {
           ),
         }),
       }
-    },
-  );
+    });
 
-  program.funcs.insert(
-    interner().get_or_intern_static("undef"),
-    |program, trace_expr| {
+  program
+    .funcs
+    .insert(Intern::from_ref("undef"), |program, trace_expr| {
       let item = program.pop(trace_expr)?;
 
       match item.val {
         ExprKind::Call(key) => {
-          let key_str = interner().resolve(&key).to_owned();
-          program.remove_scope_item(&key_str);
+          let key_str = &key.as_ref().to_owned();
+          program.remove_scope_item(key_str);
 
           Ok(())
         }
@@ -51,12 +49,11 @@ pub fn module(program: &mut Program) -> Result<(), EvalError> {
           kind: EvalErrorKind::ExpectedFound(Type::Call, item.type_of()),
         }),
       }
-    },
-  );
+    });
 
-  program.funcs.insert(
-    interner().get_or_intern_static("set"),
-    |program, trace_expr| {
+  program
+    .funcs
+    .insert(Intern::from_ref("set"), |program, trace_expr| {
       let key = program.pop(trace_expr)?;
       let val = program.pop(trace_expr)?;
 
@@ -69,7 +66,7 @@ pub fn module(program: &mut Program) -> Result<(), EvalError> {
             ),
           }),
           false => {
-            program.set_scope_item(interner().resolve(key), val)?;
+            program.set_scope_item(key.as_ref(), val)?;
             Ok(())
           }
         },
@@ -81,12 +78,11 @@ pub fn module(program: &mut Program) -> Result<(), EvalError> {
           ),
         }),
       }
-    },
-  );
+    });
 
-  program.funcs.insert(
-    interner().get_or_intern_static("get"),
-    |program, trace_expr| {
+  program
+    .funcs
+    .insert(Intern::from_ref("get"), |program, trace_expr| {
       let item = program.pop(trace_expr)?;
 
       match item.val {
@@ -94,7 +90,7 @@ pub fn module(program: &mut Program) -> Result<(), EvalError> {
           if let Some(func) = program.funcs.get(key) {
             func(program, trace_expr)
           } else {
-            let key_str = interner().resolve(key);
+            let key_str = key.as_ref();
 
             // Always push something, otherwise it can get tricky to manage the
             // stack in-langauge.
@@ -110,8 +106,7 @@ pub fn module(program: &mut Program) -> Result<(), EvalError> {
           kind: EvalErrorKind::ExpectedFound(Type::Call, item.type_of()),
         }),
       }
-    },
-  );
+    });
 
   Ok(())
 }
@@ -132,7 +127,7 @@ mod tests {
       .scopes
       .last()
       .unwrap()
-      .get_val(interner().get_or_intern("a"))
+      .get_val(Intern::from_ref("a"))
       .unwrap();
 
     assert_eq!(simple_expr(a), TestExpr::Integer(1));
@@ -159,7 +154,7 @@ mod tests {
     assert!(!program
       .scopes
       .iter()
-      .any(|scope| scope.has(interner().get_or_intern_static("a"))))
+      .any(|scope| scope.has(Intern::from_ref("a"))))
   }
 
   #[test]
@@ -182,7 +177,7 @@ mod tests {
       vec![TestExpr::List(vec![
         TestExpr::Integer(1),
         TestExpr::Integer(2),
-        TestExpr::Call(interner().get_or_intern_static("+"))
+        TestExpr::Call(Intern::from_ref("+"))
       ])]
     );
   }
@@ -202,7 +197,7 @@ mod tests {
         }),
         TestExpr::Integer(1),
         TestExpr::Integer(2),
-        TestExpr::Call(interner().get_or_intern_static("+"))
+        TestExpr::Call(Intern::from_ref("+"))
       ])]
     );
   }
@@ -223,7 +218,7 @@ mod tests {
           }),
           TestExpr::Integer(1),
           TestExpr::Integer(2),
-          TestExpr::Call(interner().get_or_intern_static("+"))
+          TestExpr::Call(Intern::from_ref("+"))
         ]),
         TestExpr::Integer(3)
       ]
@@ -249,7 +244,7 @@ mod tests {
         .scopes
         .last()
         .unwrap()
-        .get_val(interner().get_or_intern("a"))
+        .get_val(Intern::from_ref("a"))
         .unwrap();
 
       assert_eq!(simple_expr(a), TestExpr::Integer(0));
@@ -269,7 +264,7 @@ mod tests {
         .scopes
         .last()
         .unwrap()
-        .get_val(interner().get_or_intern("a"))
+        .get_val(Intern::from_ref("a"))
         .unwrap();
 
       assert_eq!(simple_expr(a), TestExpr::Integer(1));
@@ -289,7 +284,7 @@ mod tests {
         .scopes
         .last()
         .unwrap()
-        .get_val(interner().get_or_intern("a"))
+        .get_val(Intern::from_ref("a"))
         .unwrap();
 
       assert_eq!(simple_expr(a), TestExpr::Integer(0));
