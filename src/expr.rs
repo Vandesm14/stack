@@ -3,10 +3,10 @@ use core::{
 };
 use std::{fmt::Debug, rc::Rc};
 
-use lasso::Spur;
+use internment::Intern;
 use termion::color;
 
-use crate::{interner::interner, Scope, Span};
+use crate::{Scope, Span};
 
 #[derive(Clone, PartialEq)]
 pub struct FnSymbol {
@@ -34,7 +34,7 @@ pub enum ExprKind {
   List(Vec<Expr>),
 
   Lazy(Box<Expr>),
-  Call(Spur),
+  Call(Intern<String>),
 
   /// Boolean denotes whether to create a new scope.
   Fn(FnSymbol),
@@ -370,7 +370,7 @@ impl fmt::Display for ExprKind {
         f.write_str("'")?;
         fmt::Display::fmt(x, f)
       }
-      Self::Call(x) => f.write_str(interner().resolve(x)),
+      Self::Call(x) => f.write_str(x.as_ref()),
 
       Self::Fn(_) => f.write_str("fn"),
 
@@ -381,12 +381,12 @@ impl fmt::Display for ExprKind {
 
 #[derive(Debug, Clone, PartialEq, PartialOrd, Default)]
 pub struct DebugData {
-  pub source_file: Option<Spur>,
+  pub source_file: Option<Intern<String>>,
   pub span: Option<Span>,
 }
 
 impl DebugData {
-  pub fn new(source_file: Option<Spur>, span: Option<Span>) -> Self {
+  pub fn new(source_file: Option<Intern<String>>, span: Option<Span>) -> Self {
     Self { source_file, span }
   }
 }
@@ -450,7 +450,7 @@ impl Expr {
         format!("'{}", x.to_pretty_string())
       }
       ExprKind::Call(x) => {
-        format!("{}{}", color::Fg(color::Blue), interner().resolve(x))
+        format!("{}{}", color::Fg(color::Blue), x.as_ref())
       }
 
       ExprKind::Fn(_) => format!("{}fn", color::Fg(color::Blue)),

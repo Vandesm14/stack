@@ -1,18 +1,19 @@
+use internment::Intern;
+
 use crate::{
-  interner::interner, DebugData, EvalError, EvalErrorKind, ExprKind, Lexer,
-  Parser, Program, Type,
+  DebugData, EvalError, EvalErrorKind, ExprKind, Lexer, Parser, Program, Type,
 };
 
 pub fn module(program: &mut Program) -> Result<(), EvalError> {
-  program.funcs.insert(
-    interner().get_or_intern_static("parse"),
-    |program, trace_expr| {
+  program
+    .funcs
+    .insert(Intern::from_ref("parse"), |program, trace_expr| {
       let item = program.pop(trace_expr)?;
 
       match item.val {
         ExprKind::String(string) => {
           let lexer = Lexer::new(&string);
-          let parser = Parser::new(lexer, interner().get_or_intern("internal"));
+          let parser = Parser::new(lexer, Intern::from_ref("internal"));
           let expr = parser
             .parse()
             .ok()
@@ -26,8 +27,7 @@ pub fn module(program: &mut Program) -> Result<(), EvalError> {
           kind: EvalErrorKind::ExpectedFound(Type::String, item.val.type_of()),
         }),
       }
-    },
-  );
+    });
 
   Ok(())
 }

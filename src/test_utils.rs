@@ -1,7 +1,7 @@
 use crate::{Expr, ExprKind, FnSymbol};
 use core::{any::Any, cell::RefCell};
+use internment::Intern;
 use itertools::Itertools;
-use lasso::Spur;
 use std::{fmt::Debug, ops::Deref, rc::Rc};
 
 #[derive(Debug, Clone)]
@@ -16,7 +16,7 @@ pub enum TestExpr {
   List(Vec<TestExpr>),
 
   Lazy(Box<TestExpr>),
-  Call(Spur),
+  Call(Intern<String>),
 
   /// Boolean denotes whether to create a new scope.
   Fn(FnSymbol),

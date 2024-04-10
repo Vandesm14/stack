@@ -1,16 +1,14 @@
 use std::iter;
 
+use internment::Intern;
 use itertools::Itertools;
 
-use crate::{
-  interner::interner, DebugData, EvalError, EvalErrorKind, ExprKind, Program,
-  Type,
-};
+use crate::{DebugData, EvalError, EvalErrorKind, ExprKind, Program, Type};
 
 pub fn module(program: &mut Program) -> Result<(), EvalError> {
-  program.funcs.insert(
-    interner().get_or_intern_static("len"),
-    |program, trace_expr| {
+  program
+    .funcs
+    .insert(Intern::from_ref("len"), |program, trace_expr| {
       let list_expr = program.pop(trace_expr)?;
       program.push(list_expr.clone())?;
 
@@ -31,12 +29,11 @@ pub fn module(program: &mut Program) -> Result<(), EvalError> {
           ),
         }),
       }
-    },
-  );
+    });
 
-  program.funcs.insert(
-    interner().get_or_intern_static("index"),
-    |program, trace_expr| {
+  program
+    .funcs
+    .insert(Intern::from_ref("index"), |program, trace_expr| {
       let index_expr = program.pop(trace_expr)?;
       let list_expr = program.pop(trace_expr)?;
       program.push(list_expr.clone())?;
@@ -76,12 +73,11 @@ pub fn module(program: &mut Program) -> Result<(), EvalError> {
           ),
         }),
       }
-    },
-  );
+    });
 
-  program.funcs.insert(
-    interner().get_or_intern_static("split"),
-    |program, trace_expr| {
+  program
+    .funcs
+    .insert(Intern::from_ref("split"), |program, trace_expr| {
       let index_expr = program.pop(trace_expr)?;
       let list_expr = program.pop(trace_expr)?;
 
@@ -120,12 +116,11 @@ pub fn module(program: &mut Program) -> Result<(), EvalError> {
           ),
         }),
       }
-    },
-  );
+    });
 
-  program.funcs.insert(
-    interner().get_or_intern_static("join"),
-    |program, trace_expr| {
+  program
+    .funcs
+    .insert(Intern::from_ref("join"), |program, trace_expr| {
       let delimiter_expr = program.pop(trace_expr)?;
       let list_expr = program.pop(trace_expr)?;
 
@@ -149,12 +144,11 @@ pub fn module(program: &mut Program) -> Result<(), EvalError> {
           ),
         }),
       }
-    },
-  );
+    });
 
-  program.funcs.insert(
-    interner().get_or_intern_static("concat"),
-    |program, trace_expr| {
+  program
+    .funcs
+    .insert(Intern::from_ref("concat"), |program, trace_expr| {
       let list_rhs_expr = program.pop(trace_expr)?;
       let list_lhs_expr = program.pop(trace_expr)?;
 
@@ -173,12 +167,11 @@ pub fn module(program: &mut Program) -> Result<(), EvalError> {
           ),
         }),
       }
-    },
-  );
+    });
 
-  program.funcs.insert(
-    interner().get_or_intern_static("unwrap"),
-    |program, trace_expr| {
+  program
+    .funcs
+    .insert(Intern::from_ref("unwrap"), |program, trace_expr| {
       let item = program.pop(trace_expr)?;
 
       match item.val {
@@ -188,20 +181,18 @@ pub fn module(program: &mut Program) -> Result<(), EvalError> {
         }
         _ => program.push(item),
       }
-    },
-  );
+    });
 
-  program.funcs.insert(
-    interner().get_or_intern_static("wrap"),
-    |program, trace_expr| {
+  program
+    .funcs
+    .insert(Intern::from_ref("wrap"), |program, trace_expr| {
       let any = program.pop(trace_expr)?;
       program.push(ExprKind::List(vec![any]).into_expr(DebugData::default()))
-    },
-  );
+    });
 
-  program.funcs.insert(
-    interner().get_or_intern_static("call-list"),
-    |program, trace_expr| {
+  program
+    .funcs
+    .insert(Intern::from_ref("call-list"), |program, trace_expr| {
       let item = program.pop(trace_expr)?;
       let item_clone = item.clone();
 
@@ -228,8 +219,7 @@ pub fn module(program: &mut Program) -> Result<(), EvalError> {
           ),
         }),
       }
-    },
-  );
+    });
 
   Ok(())
 }
@@ -264,7 +254,7 @@ mod tests {
       vec![TestExpr::List(vec![
         TestExpr::Integer(1),
         TestExpr::Integer(2),
-        TestExpr::Call(interner().get_or_intern_static("+"))
+        TestExpr::Call(Intern::from_ref("+"))
       ])]
     );
   }

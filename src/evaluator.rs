@@ -2,11 +2,11 @@ use codespan_reporting::diagnostic::{Diagnostic, Label};
 use codespan_reporting::files::SimpleFiles;
 use codespan_reporting::term;
 use codespan_reporting::term::termcolor::{ColorChoice, StandardStream};
-use lasso::Spur;
+use internment::Intern;
 
 use crate::{
-  interner::interner, module, Expr, ExprKind, Func, Journal, JournalOp, Lexer,
-  Module, Parser, Scanner, Scope, Span, Type,
+  module, Expr, ExprKind, Func, Journal, JournalOp, Lexer, Module, Parser,
+  Scanner, Scope, Span, Type,
 };
 use core::{fmt, iter};
 use std::{collections::HashMap, fs, time::SystemTime};
@@ -77,10 +77,7 @@ impl fmt::Display for EvalError {
 impl EvalError {
   pub fn print_report(&self, program: &Program) {
     let source_file: Option<&str> = self.expr.as_ref().and_then(|expr| {
-      expr
-        .debug_data
-        .source_file
-        .and_then(|spur| interner().try_resolve(&spur))
+      expr.debug_data.source_file.map(|x| x.as_ref().as_str())
     });
     let file_name = source_file.unwrap_or("");
 
@@ -120,7 +117,7 @@ impl EvalError {
 pub struct Program {
   pub stack: Vec<Expr>,
   pub scopes: Vec<Scope>,
-  pub funcs: HashMap<Spur, Func>,
+  pub funcs: HashMap<Intern<String>, Func>,
   pub sources: HashMap<String, SourceFile>,
   pub journal: Journal,
   pub debug: bool,
@@ -276,14 +273,12 @@ impl Program {
     self
       .scopes
       .last()
-      .and_then(|layer| layer.get_val(interner().get_or_intern(symbol)))
+      .and_then(|layer| layer.get_val(Intern::from_ref(symbol)))
   }
 
   pub fn def_scope_item(&mut self, symbol: &str, value: Expr) {
     if let Some(layer) = self.scopes.last_mut() {
-      layer
-        .define(interner().get_or_intern(symbol), value)
-        .unwrap();
+      layer.define(Intern::from_ref(symbol), value).unwrap();
     }
   }
 
@@ -293,7 +288,7 @@ impl Program {
     value: Expr,
   ) -> Result<(), EvalError> {
     if let Some(layer) = self.scopes.last_mut() {
-      match layer.set(interner().get_or_intern(symbol), value.clone()) {
+      match layer.set(Intern::from_ref(symbol), value.clone()) {
         Ok(_) => Ok(()),
         Err(string) => Err(EvalError {
           expr: Some(value),
@@ -310,7 +305,7 @@ impl Program {
 
   pub fn remove_scope_item(&mut self, symbol: &str) {
     if let Some(layer) = self.scopes.last_mut() {
-      layer.remove(interner().get_or_intern(symbol));
+      layer.remove(Intern::from_ref(symbol));
     }
   }
 
@@ -337,7 +332,7 @@ impl Program {
         );
 
         let lexer = Lexer::new(&contents);
-        let parser = Parser::new(lexer, interner().get_or_intern(path));
+        let parser = Parser::new(lexer, Intern::new(path.to_string()));
         // TODO: It might be time to add a proper EvalError enum.
         let exprs = parser.parse().map_err(|_| EvalError {
           expr: None,
@@ -360,7 +355,7 @@ impl Program {
     name: &str,
   ) -> Result<(), EvalError> {
     let lexer = Lexer::new(line);
-    let parser = Parser::new(lexer, interner().get_or_intern(name));
+    let parser = Parser::new(lexer, Intern::new(name.to_string()));
     // TODO: It might be time to add a proper EvalError enum.
     let exprs = parser.parse().map_err(|_| EvalError {
       expr: None,
@@ -424,9 +419,9 @@ impl Program {
   fn eval_symbol(
     &mut self,
     trace_expr: &Expr,
-    symbol: Spur,
+    symbol: Intern<String>,
   ) -> Result<(), EvalError> {
-    let symbol_str = interner().resolve(&symbol);
+    let symbol_str = symbol.as_ref();
 
     if self.debug {
       self.journal.commit();
@@ -608,7 +603,7 @@ mod tests {
     program.eval_string("6 'var def 'var").unwrap();
     assert_eq!(
       simple_exprs(program.stack),
-      vec![TestExpr::Call(interner().get_or_intern_static("var"))]
+      vec![TestExpr::Call(Intern::from_ref("var"))]
     );
   }
 

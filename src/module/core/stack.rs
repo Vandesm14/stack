@@ -1,54 +1,51 @@
-use crate::{interner::interner, DebugData, EvalError, ExprKind, Program};
+use internment::Intern;
+
+use crate::{DebugData, EvalError, ExprKind, Program};
 
 pub fn module(program: &mut Program) -> Result<(), EvalError> {
-  program.funcs.insert(
-    interner().get_or_intern_static("collect"),
-    |program, _| {
+  program
+    .funcs
+    .insert(Intern::from_ref("collect"), |program, _| {
       let list = core::mem::take(&mut program.stack);
       program.push(ExprKind::List(list).into_expr(DebugData::default()))
-    },
-  );
+    });
 
-  program.funcs.insert(
-    interner().get_or_intern_static("clear"),
-    |program, _| {
+  program
+    .funcs
+    .insert(Intern::from_ref("clear"), |program, _| {
       program.stack.clear();
       Ok(())
-    },
-  );
+    });
 
-  program.funcs.insert(
-    interner().get_or_intern_static("drop"),
-    |program, trace_expr| {
+  program
+    .funcs
+    .insert(Intern::from_ref("drop"), |program, trace_expr| {
       program.pop(trace_expr)?;
       Ok(())
-    },
-  );
+    });
 
-  program.funcs.insert(
-    interner().get_or_intern_static("dup"),
-    |program, trace_expr| {
+  program
+    .funcs
+    .insert(Intern::from_ref("dup"), |program, trace_expr| {
       let item = program.pop(trace_expr)?;
 
       program.push(item.clone())?;
       program.push(item)
-    },
-  );
+    });
 
-  program.funcs.insert(
-    interner().get_or_intern_static("swap"),
-    |program, trace_expr| {
+  program
+    .funcs
+    .insert(Intern::from_ref("swap"), |program, trace_expr| {
       let rhs = program.pop(trace_expr)?;
       let lhs = program.pop(trace_expr)?;
 
       program.push(rhs)?;
       program.push(lhs)
-    },
-  );
+    });
 
-  program.funcs.insert(
-    interner().get_or_intern_static("rot"),
-    |program, trace_expr| {
+  program
+    .funcs
+    .insert(Intern::from_ref("rot"), |program, trace_expr| {
       let rhs = program.pop(trace_expr)?;
       let mid = program.pop(trace_expr)?;
       let lhs = program.pop(trace_expr)?;
@@ -56,26 +53,23 @@ pub fn module(program: &mut Program) -> Result<(), EvalError> {
       program.push(rhs)?;
       program.push(lhs)?;
       program.push(mid)
-    },
-  );
+    });
 
-  program.funcs.insert(
-    interner().get_or_intern_static("lazy"),
-    |program, trace_expr| {
+  program
+    .funcs
+    .insert(Intern::from_ref("lazy"), |program, trace_expr| {
       let item = program.pop(trace_expr)?;
       program
         .push(ExprKind::Lazy(Box::new(item)).into_expr(DebugData::default()))
-    },
-  );
+    });
 
-  program.funcs.insert(
-    interner().get_or_intern_static("call"),
-    |program, trace_expr| {
+  program
+    .funcs
+    .insert(Intern::from_ref("call"), |program, trace_expr| {
       let item = program.pop(trace_expr)?;
 
       program.auto_call(trace_expr, item)
-    },
-  );
+    });
 
   Ok(())
 }
@@ -168,7 +162,7 @@ mod tests {
       .scopes
       .last()
       .unwrap()
-      .get_val(interner().get_or_intern("a"))
+      .get_val(Intern::from_ref("a"))
       .unwrap();
 
     assert_eq!(

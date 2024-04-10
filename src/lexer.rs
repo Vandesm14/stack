@@ -1,8 +1,6 @@
 use core::fmt;
 
-use lasso::Spur;
-
-use crate::interner::{interned, interner};
+use internment::Intern;
 
 /// Converts a [`Lexer`] into a lazy <code>[Vec]\<[Token]\></code>.
 ///
@@ -318,14 +316,18 @@ impl<'source> Lexer<'source> {
           | '^' => {}
           _ => {
             let slice = &self.source[start..self.cursor];
-            let ident = interner().get_or_intern(slice);
+            let ident = Intern::from_ref(slice);
 
             let kind = match ident {
-              ident if ident == interned().NIL => TokenKind::Nil,
-              ident if ident == interned().FALSE => TokenKind::Boolean(false),
-              ident if ident == interned().TRUE => TokenKind::Boolean(true),
-              ident if ident == interned().FN => TokenKind::Fn,
-              ident if ident == interned().FN_EXCLAMATION => {
+              ident if ident == Intern::from_ref("nil") => TokenKind::Nil,
+              ident if ident == Intern::from_ref("false") => {
+                TokenKind::Boolean(false)
+              }
+              ident if ident == Intern::from_ref("true") => {
+                TokenKind::Boolean(true)
+              }
+              ident if ident == Intern::from_ref("fn") => TokenKind::Fn,
+              ident if ident == Intern::from_ref("fn!") => {
                 TokenKind::FnExclamation
               }
               ident => TokenKind::Ident(ident),
@@ -362,7 +364,7 @@ impl<'source> Lexer<'source> {
           | '^' => state = State::Ident,
           _ => {
             break Token {
-              kind: TokenKind::Ident(interned().MINUS),
+              kind: TokenKind::Ident(Intern::from_ref("-")),
               span: Span {
                 start,
                 end: self.cursor,
@@ -409,7 +411,7 @@ pub enum TokenKind {
   String(String),
 
   /// Sequence of identifier [`char`]s.
-  Ident(Spur),
+  Ident(Intern<String>),
 
   /// `'` symbol.
   Apostrophe,
@@ -448,7 +450,7 @@ impl fmt::Display for TokenKind {
       Self::String(x) => fmt::Display::fmt(x, f),
 
       // TODO: Should this display the kind of token too?
-      Self::Ident(x) => fmt::Display::fmt(interner().resolve(x), f),
+      Self::Ident(x) => fmt::Display::fmt(x.as_ref(), f),
 
       Self::Apostrophe => f.write_str("'"),
       Self::ParenOpen => f.write_str("("),
@@ -520,12 +522,12 @@ mod test {
   #[test_case("\"hello\n" => vec![Token { kind: TokenKind::Invalid, span: Span { start: 0, end: 7 } }, Token { kind: TokenKind::Eoi, span: Span { start: 7, end: 7 } }] ; "string missing end quote whitespace")]
   #[test_case("false" => vec![Token { kind: TokenKind::Boolean(false), span: Span { start: 0, end: 5 } }, Token { kind: TokenKind::Eoi, span: Span { start: 5, end: 5 } }] ; "boolean false eoi")]
   #[test_case("true" => vec![Token { kind: TokenKind::Boolean(true), span: Span { start: 0, end: 4 } }, Token { kind: TokenKind::Eoi, span: Span { start: 4, end: 4 } }] ; "boolean true eoi")]
-  #[test_case("hello" => vec![Token { kind: TokenKind::Ident(interner().get_or_intern_static("hello")), span: Span { start: 0, end: 5 } }, Token { kind: TokenKind::Eoi, span: Span { start: 5, end: 5 } }] ; "ident eoi")]
-  #[test_case("-hello" => vec![Token { kind: TokenKind::Ident(interner().get_or_intern_static("-hello")), span: Span { start: 0, end: 6 } }, Token { kind: TokenKind::Eoi, span: Span { start: 6, end: 6 } }] ; "ident starting hypen eoi")]
-  #[test_case("hey-o" => vec![Token { kind: TokenKind::Ident(interner().get_or_intern_static("hey-o")), span: Span { start: 0, end: 5 } }, Token { kind: TokenKind::Eoi, span: Span { start: 5, end: 5 } }] ; "kebab ident eoi")]
-  #[test_case("+" => vec![Token { kind: TokenKind::Ident(interned().PLUS), span: Span { start: 0, end: 1 } }, Token { kind: TokenKind::Eoi, span: Span { start: 1, end: 1 } }] ; "plus ident eoi")]
-  #[test_case("-" => vec![Token { kind: TokenKind::Ident(interned().MINUS), span: Span { start: 0, end: 1 } }, Token { kind: TokenKind::Eoi, span: Span { start: 1, end: 1 } }] ; "minus ident eoi")]
-  #[test_case("!=" => vec![Token { kind: TokenKind::Ident(interned().EXCLAMATION_EQUALS), span: Span { start: 0, end: 2 } }, Token { kind: TokenKind::Eoi, span: Span { start: 2, end: 2 } }] ; "exclamation equals ident eoi")]
+  #[test_case("hello" => vec![Token { kind: TokenKind::Ident(Intern::from_ref("hello")), span: Span { start: 0, end: 5 } }, Token { kind: TokenKind::Eoi, span: Span { start: 5, end: 5 } }] ; "ident eoi")]
+  #[test_case("-hello" => vec![Token { kind: TokenKind::Ident(Intern::from_ref("-hello")), span: Span { start: 0, end: 6 } }, Token { kind: TokenKind::Eoi, span: Span { start: 6, end: 6 } }] ; "ident starting hypen eoi")]
+  #[test_case("hey-o" => vec![Token { kind: TokenKind::Ident(Intern::from_ref("hey-o")), span: Span { start: 0, end: 5 } }, Token { kind: TokenKind::Eoi, span: Span { start: 5, end: 5 } }] ; "kebab ident eoi")]
+  #[test_case("+" => vec![Token { kind: TokenKind::Ident(Intern::from_ref("+")), span: Span { start: 0, end: 1 } }, Token { kind: TokenKind::Eoi, span: Span { start: 1, end: 1 } }] ; "plus ident eoi")]
+  #[test_case("-" => vec![Token { kind: TokenKind::Ident(Intern::from_ref("-")), span: Span { start: 0, end: 1 } }, Token { kind: TokenKind::Eoi, span: Span { start: 1, end: 1 } }] ; "minus ident eoi")]
+  #[test_case("!=" => vec![Token { kind: TokenKind::Ident(Intern::from_ref("!=")), span: Span { start: 0, end: 2 } }, Token { kind: TokenKind::Eoi, span: Span { start: 2, end: 2 } }] ; "exclamation equals ident eoi")]
   #[test_case("'" => vec![Token { kind: TokenKind::Apostrophe, span: Span { start: 0, end: 1 } }, Token { kind: TokenKind::Eoi, span: Span { start: 1, end: 1 } }] ; "apostrophe eoi")]
   #[test_case("(" => vec![Token { kind: TokenKind::ParenOpen, span: Span { start: 0, end: 1 } }, Token { kind: TokenKind::Eoi, span: Span { start: 1, end: 1 } }] ; "paren open eoi")]
   #[test_case(")" => vec![Token { kind: TokenKind::ParenClose, span: Span { start: 0, end: 1 } }, Token { kind: TokenKind::Eoi, span: Span { start: 1, end: 1 } }] ; "paren close eoi")]
@@ -555,7 +557,7 @@ mod test {
   #[test_case("123", 0 => Token { kind: TokenKind::Integer(123), span: Span { start: 0, end: 3 } } ; "single at 0")]
   #[test_case("123", 1 => Token { kind: TokenKind::Eoi, span: Span { start: 3, end: 3 } } ; "single at 1")]
   #[test_case("123", 3 => Token { kind: TokenKind::Eoi, span: Span { start: 3, end: 3 } } ; "single at 3")]
-  #[test_case("hello 123", 0 => Token { kind: TokenKind::Ident(interner().get_or_intern_static("hello")), span: Span { start: 0, end: 5 } } ; "many at 0")]
+  #[test_case("hello 123", 0 => Token { kind: TokenKind::Ident(Intern::from_ref("hello")), span: Span { start: 0, end: 5 } } ; "many at 0")]
   #[test_case("hello 123", 1 => Token { kind: TokenKind::Whitespace, span: Span { start: 5, end: 6 } } ; "many at 1")]
   #[test_case("hello 123", 2 => Token { kind: TokenKind::Integer(123), span: Span { start: 6, end: 9 } } ; "many at 2")]
   #[test_case("hello 123", 5 => Token { kind: TokenKind::Eoi, span: Span { start: 9, end: 9 } } ; "many at 4")]
