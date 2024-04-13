@@ -16,6 +16,7 @@ const fn e(kind: ExprKind) -> Expr {
 #[case("intrinsics/logical.stack" => Ok(vec![e(ExprKind::Boolean(false)), e(ExprKind::Boolean(true)), e(ExprKind::Boolean(true)), e(ExprKind::Boolean(true)), e(ExprKind::Boolean(false)), e(ExprKind::Boolean(false)), e(ExprKind::Boolean(false)), e(ExprKind::Boolean(false)), e(ExprKind::Boolean(false)), e(ExprKind::Boolean(true)), e(ExprKind::Boolean(false)), e(ExprKind::Boolean(false))]) ; "logical")]
 #[case("intrinsics/assert_fail.stack" => Err(RunError { reason: RunErrorReason::AssertionFailed, expr: e(ExprKind::Integer(123)) }) ; "assert fail")]
 #[case("intrinsics/assert_okay.stack" => Ok(vec![]) ; "assert okay")]
+#[case("intrinsics/stack.stack" => Ok(vec![e(ExprKind::Integer(1)), e(ExprKind::Integer(3)), e(ExprKind::Integer(3)), e(ExprKind::Integer(5)), e(ExprKind::Integer(4)), e(ExprKind::Integer(7)), e(ExprKind::Integer(8)), e(ExprKind::Integer(6))]) ; "stack")]
 fn integration(subpath: &str) -> Result<Vec<Expr>, RunError> {
   let mut path = PathBuf::from_str("tests").unwrap();
   path.push(subpath);

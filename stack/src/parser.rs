@@ -114,6 +114,11 @@ impl Parser {
 
           "assert" => ExprKind::Intrinsic(Intrinsic::Assert),
 
+          "drop" => ExprKind::Intrinsic(Intrinsic::Drop),
+          "dupe" => ExprKind::Intrinsic(Intrinsic::Dupe),
+          "swap" => ExprKind::Intrinsic(Intrinsic::Swap),
+          "rot" => ExprKind::Intrinsic(Intrinsic::Rot),
+
           "nil" => ExprKind::Nil,
           "true" => ExprKind::Boolean(true),
           "false" => ExprKind::Boolean(false),

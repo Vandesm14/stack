@@ -25,6 +25,11 @@ pub enum Intrinsic {
   And,
 
   Assert,
+
+  Drop,
+  Dupe,
+  Swap,
+  Rot,
 }
 
 impl Intrinsic {
@@ -259,12 +264,58 @@ impl Intrinsic {
         } else {
           Err(RunError {
             expr: Expr {
-              kind: message.kind.clone(),
-              info: Some(ExprInfo::Runtime {
-                components: vec![message, bool, expr],
+              info: engine.track_info().then(|| ExprInfo::Runtime {
+                components: vec![message.clone(), bool, expr],
               }),
+              kind: message.kind,
             },
             reason: RunErrorReason::AssertionFailed,
+          })
+        }
+      }
+
+      Self::Drop => {
+        context.stack_pop(&expr)?;
+        Ok(context)
+      }
+      Self::Dupe => {
+        let item = context.stack().last().cloned().ok_or_else(|| RunError {
+          reason: RunErrorReason::StackUnderflow,
+          expr,
+        })?;
+
+        context.stack_push(item);
+        Ok(context)
+      }
+      Self::Swap => {
+        let len = context.stack().len();
+
+        if len >= 2 {
+          context.stack_mut().swap(len - 1, len - 2);
+          Ok(context)
+        } else {
+          Err(RunError {
+            reason: RunErrorReason::StackUnderflow,
+            expr,
+          })
+        }
+      }
+      Self::Rot => {
+        let len = context.stack().len();
+
+        // a b c
+        // c b a
+        // b c a
+
+        if len >= 3 {
+          context.stack_mut().swap(len - 1, len - 3);
+          context.stack_mut().swap(len - 2, len - 3);
+
+          Ok(context)
+        } else {
+          Err(RunError {
+            reason: RunErrorReason::StackUnderflow,
+            expr,
           })
         }
       }
@@ -292,6 +343,11 @@ impl fmt::Display for Intrinsic {
       Self::And => write!(f, "and"),
 
       Self::Assert => write!(f, "assert"),
+
+      Self::Drop => write!(f, "drop"),
+      Self::Dupe => write!(f, "dupe"),
+      Self::Swap => write!(f, "swap"),
+      Self::Rot => write!(f, "rot"),
     }
   }
 }
