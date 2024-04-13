@@ -1,4 +1,4 @@
-use core::{any::Any, cmp::Ordering, fmt, ops};
+use core::{cmp::Ordering, fmt, ops};
 use std::rc::Rc;
 
 use internment::Intern;
@@ -49,8 +49,6 @@ pub enum ExprKind {
   Lazy(Box<Expr>),
   List(Vec<Expr>),
 
-  UserData(Box<dyn UserData>),
-
   Intrinsic(Intrinsic),
 
   Fn(Fn),
@@ -84,8 +82,6 @@ impl Clone for ExprKind {
       Self::Lazy(x) => Self::Lazy(x.clone()),
       Self::List(x) => Self::List(x.clone()),
 
-      Self::UserData(x) => Self::UserData(UserData::clone(&**x)),
-
       Self::Intrinsic(x) => Self::Intrinsic(*x),
 
       Self::Fn(x) => Self::Fn(*x),
@@ -107,8 +103,6 @@ impl PartialEq for ExprKind {
 
       (Self::Lazy(lhs), Self::Lazy(rhs)) => lhs == rhs,
       (Self::List(lhs), Self::List(rhs)) => *lhs == *rhs,
-
-      (Self::UserData(lhs), Self::UserData(rhs)) => lhs.eq(&**rhs),
 
       (Self::Intrinsic(lhs), Self::Intrinsic(rhs)) => lhs == rhs,
 
@@ -139,8 +133,6 @@ impl PartialOrd for ExprKind {
 
       (Self::Lazy(lhs), Self::Lazy(rhs)) => lhs.partial_cmp(rhs),
       (Self::List(_), Self::List(_)) => None,
-
-      (Self::UserData(lhs), Self::UserData(rhs)) => lhs.partial_cmp(&**rhs),
 
       (Self::Intrinsic(_), Self::Intrinsic(_)) => None,
 
@@ -238,8 +230,6 @@ impl fmt::Debug for ExprKind {
       Self::Lazy(x) => f.debug_tuple("Lazy").field(x).finish(),
       Self::List(x) => f.debug_tuple("List").field(x).finish(),
 
-      Self::UserData(_) => f.debug_tuple("UserData").field(&"..").finish(),
-
       Self::Intrinsic(x) => f.debug_tuple("Intrinsic").field(x).finish(),
 
       Self::Fn(x) => f.debug_tuple("Fn").field(x).finish(),
@@ -278,33 +268,11 @@ impl fmt::Display for ExprKind {
         write!(f, ")")
       }
 
-      Self::UserData(x) => x.fmt(f),
-
       Self::Intrinsic(x) => write!(f, "{x}"),
 
       Self::Fn(x) => write!(f, "{x}"),
     }
   }
-}
-
-/// Implemented by types that are provided by embedders.
-pub trait UserData: Any {
-  /// See [`Clone::clone`].
-  #[must_use]
-  fn clone(&self) -> Box<dyn UserData>;
-
-  /// See [`PartialEq::eq`].
-  #[must_use]
-  fn eq(&self, other: &dyn UserData) -> bool;
-
-  /// See [`PartialOrd::partial_cmp`].
-  #[must_use]
-  fn partial_cmp(&self, other: &dyn UserData) -> Option<Ordering>;
-
-  /// See [`Display::fmt`].
-  ///
-  /// [`Display`]: fmt::Display
-  fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result;
 }
 
 // TODO: Implement Fn.

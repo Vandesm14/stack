@@ -74,8 +74,7 @@ impl Engine {
       | ExprKind::Boolean(_)
       | ExprKind::Integer(_)
       | ExprKind::Float(_)
-      | ExprKind::String(_)
-      | ExprKind::UserData(_) => {
+      | ExprKind::String(_) => {
         context.stack_push(expr);
         Ok(context)
       }
