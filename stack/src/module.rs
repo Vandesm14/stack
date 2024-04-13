@@ -3,10 +3,10 @@ use std::collections::HashMap;
 use crate::{
   context::Context,
   engine::{Engine, RunError},
-  expr::Symbol,
+  expr::{Symbol, Expr},
 };
 
-pub type Func = fn(&Engine, Context) -> Result<Context, RunError>;
+pub type Func = fn(&Engine, Context, Expr) -> Result<Context, RunError>;
 
 #[derive(Debug, Clone, PartialEq, Eq, Default)]
 pub struct Module {

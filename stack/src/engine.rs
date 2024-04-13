@@ -92,7 +92,7 @@ impl Engine {
             .get(&Symbol::from_ref(a))
             .and_then(|module| module.func(Symbol::from_ref(b)))
           {
-            context = func(self, context)?;
+            context = func(self, context, expr)?;
             Ok(context)
           } else {
             context.stack_push(Expr {
