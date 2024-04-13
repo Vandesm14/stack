@@ -1,11 +1,11 @@
-use core::fmt;
+use core::{fmt, num::FpCategory};
 
 use unicode_segmentation::UnicodeSegmentation as _;
 
 use crate::{
   context::Context,
   engine::{Engine, RunError, RunErrorReason},
-  expr::{Expr, ExprInfo, ExprKind},
+  expr::{Expr, ExprInfo, ExprKind, Symbol},
 };
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
@@ -37,9 +37,48 @@ pub enum Intrinsic {
   Nth,
   Split,
   Concat,
+
+  Cast,
 }
 
 impl Intrinsic {
+  #[allow(clippy::should_implement_trait)]
+  pub fn from_str(s: &str) -> Option<Self> {
+    match s {
+      "+" => Some(Self::Add),
+      "-" => Some(Self::Sub),
+      "*" => Some(Self::Mul),
+      "/" => Some(Self::Div),
+      "%" => Some(Self::Rem),
+
+      "=" => Some(Self::Eq),
+      "!=" => Some(Self::Ne),
+      "<" => Some(Self::Lt),
+      "<=" => Some(Self::Le),
+      ">" => Some(Self::Gt),
+      ">=" => Some(Self::Ge),
+
+      "or" => Some(Self::Or),
+      "and" => Some(Self::And),
+
+      "assert" => Some(Self::Assert),
+
+      "drop" => Some(Self::Drop),
+      "dupe" => Some(Self::Dupe),
+      "swap" => Some(Self::Swap),
+      "rot" => Some(Self::Rot),
+
+      "len" => Some(Self::Len),
+      "nth" => Some(Self::Nth),
+      "split" => Some(Self::Split),
+      "concat" => Some(Self::Concat),
+
+      "cast" => Some(Self::Cast),
+
+      _ => None,
+    }
+  }
+
   pub fn run(
     &self,
     engine: &Engine,
@@ -500,6 +539,75 @@ impl Intrinsic {
 
         Ok(context)
       }
+
+      Self::Cast => {
+        let ty = context.stack_pop(&expr)?;
+        let item = context.stack_pop(&expr)?;
+
+        // TODO: Can these eager clones be removed?
+        let kind = match ty.kind {
+          ExprKind::String(ref x) => match (item.kind.clone(), x.as_str()) {
+            (ExprKind::Nil, "boolean") => ExprKind::Boolean(false),
+            (ExprKind::Boolean(x), "boolean") => ExprKind::Boolean(x),
+            (ExprKind::Integer(x), "boolean") => ExprKind::Boolean(x != 0),
+            (ExprKind::Float(x), "boolean") => ExprKind::Boolean(x == 0.0),
+
+            (ExprKind::Nil, "integer") => ExprKind::Integer(0),
+            (ExprKind::Boolean(x), "integer") => ExprKind::Integer(x as i64),
+            (ExprKind::Integer(x), "integer") => ExprKind::Integer(x),
+            (ExprKind::Float(x), "integer") => {
+              let x = x.floor();
+
+              match x.classify() {
+                FpCategory::Zero => ExprKind::Integer(0),
+                FpCategory::Normal
+                  if x >= i64::MIN as f64 && x <= i64::MAX as f64 =>
+                {
+                  ExprKind::Integer(x as i64)
+                }
+                _ => ExprKind::Nil,
+              }
+            }
+
+            (ExprKind::Nil, "float") => ExprKind::Float(0.0),
+            (ExprKind::Boolean(x), "float") => ExprKind::Float(x as i64 as f64),
+            (ExprKind::Integer(x), "float") => ExprKind::Float(x as f64),
+            (ExprKind::Float(x), "float") => ExprKind::Float(x),
+
+            (ExprKind::Nil, "string") => ExprKind::String("nil".into()),
+            (ExprKind::Boolean(x), "string") => ExprKind::String(x.to_string()),
+            (ExprKind::Integer(x), "string") => ExprKind::String(x.to_string()),
+            (ExprKind::Float(x), "string") => ExprKind::String(x.to_string()),
+            (ExprKind::String(x), "string") => ExprKind::String(x),
+            (ExprKind::Symbol(x), "string") => {
+              ExprKind::String(x.as_str().into())
+            }
+            (ExprKind::Intrinsic(x), "string") => {
+              ExprKind::String(x.to_string())
+            }
+
+            (ExprKind::Nil, "symbol") => ExprKind::Nil,
+            (ExprKind::Boolean(x), "symbol") => ExprKind::Boolean(x),
+            (ExprKind::String(x), "symbol") => ExprKind::Symbol(Symbol::new(x)),
+            (ExprKind::Symbol(x), "symbol") => Self::from_str(x.as_str())
+              .map(ExprKind::Intrinsic)
+              .unwrap_or(ExprKind::Symbol(x)),
+            (ExprKind::Intrinsic(x), "symbol") => ExprKind::Intrinsic(x),
+
+            _ => ExprKind::Nil,
+          },
+          _ => ExprKind::Nil,
+        };
+
+        context.stack_push(Expr {
+          kind,
+          info: engine.track_info().then(|| ExprInfo::Runtime {
+            components: vec![item, ty, expr],
+          }),
+        });
+
+        Ok(context)
+      }
     }
   }
 }
@@ -534,6 +642,8 @@ impl fmt::Display for Intrinsic {
       Self::Nth => write!(f, "nth"),
       Self::Split => write!(f, "split"),
       Self::Concat => write!(f, "concat"),
+
+      Self::Cast => write!(f, "cast"),
     }
   }
 }

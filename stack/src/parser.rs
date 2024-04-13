@@ -97,41 +97,15 @@ impl Parser {
       TokenKind::Symbol => {
         let slice = &source.content()[token.span.start..token.span.end];
 
-        let kind = match slice {
-          "nil" => ExprKind::Nil,
-          "true" => ExprKind::Boolean(true),
-          "false" => ExprKind::Boolean(false),
+        let kind = Intrinsic::from_str(slice)
+          .map(ExprKind::Intrinsic)
+          .unwrap_or_else(|| match slice {
+            "nil" => ExprKind::Nil,
+            "true" => ExprKind::Boolean(true),
+            "false" => ExprKind::Boolean(false),
 
-          "+" => ExprKind::Intrinsic(Intrinsic::Add),
-          "-" => ExprKind::Intrinsic(Intrinsic::Sub),
-          "*" => ExprKind::Intrinsic(Intrinsic::Mul),
-          "/" => ExprKind::Intrinsic(Intrinsic::Div),
-          "%" => ExprKind::Intrinsic(Intrinsic::Rem),
-
-          "=" => ExprKind::Intrinsic(Intrinsic::Eq),
-          "!=" => ExprKind::Intrinsic(Intrinsic::Ne),
-          "<" => ExprKind::Intrinsic(Intrinsic::Lt),
-          "<=" => ExprKind::Intrinsic(Intrinsic::Le),
-          ">" => ExprKind::Intrinsic(Intrinsic::Gt),
-          ">=" => ExprKind::Intrinsic(Intrinsic::Ge),
-
-          "or" => ExprKind::Intrinsic(Intrinsic::Or),
-          "and" => ExprKind::Intrinsic(Intrinsic::And),
-
-          "assert" => ExprKind::Intrinsic(Intrinsic::Assert),
-
-          "drop" => ExprKind::Intrinsic(Intrinsic::Drop),
-          "dupe" => ExprKind::Intrinsic(Intrinsic::Dupe),
-          "swap" => ExprKind::Intrinsic(Intrinsic::Swap),
-          "rot" => ExprKind::Intrinsic(Intrinsic::Rot),
-
-          "len" => ExprKind::Intrinsic(Intrinsic::Len),
-          "nth" => ExprKind::Intrinsic(Intrinsic::Nth),
-          "split" => ExprKind::Intrinsic(Intrinsic::Split),
-          "concat" => ExprKind::Intrinsic(Intrinsic::Concat),
-
-          slice => ExprKind::Symbol(Symbol::from_ref(slice)),
-        };
+            slice => ExprKind::Symbol(Symbol::from_ref(slice)),
+          });
 
         Ok(Some(Expr {
           kind,
