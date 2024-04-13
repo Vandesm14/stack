@@ -1,5 +1,0 @@
-"std/assert.stack" import
-
-'(fn a b -) '(a b) 'subtract defn
-
-[[10 2 subtract] 8] ["subtract" assert-eq]

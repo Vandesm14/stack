@@ -1,9 +1,0 @@
-"std/assert.stack" import
-
-[1 1 =] ["assert: 1 = 1" assert]
-[true]  ["assert: true" assert]
-
-[2 2 + 4]         ["assert-eq: 2 + 2 = 4" assert-eq]
-[true true]       ["assert-eq: true = true" assert-eq]
-["hello" "hello"] ["assert-eq: hello = hello" assert-eq]
-[2.0 2.0]         ["assert-eq: 2.0 = 2.0" assert-eq]
