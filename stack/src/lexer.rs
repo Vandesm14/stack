@@ -185,6 +185,7 @@ impl Lexer {
           ';' => state = State::Comment,
           '-' => state = State::Minus,
           '0'..='9' => state = State::Integer,
+          '"' => state = State::String,
           // NOTE: If this is modified, remember to change the other instances
           //       in the other State matches.
           '_'
@@ -274,6 +275,51 @@ impl Lexer {
             };
           }
         },
+        State::String => match c {
+          '\0' if self.cursor == source.len() => {
+            break Token {
+              kind: TokenKind::Invalid,
+              span: Span {
+                start,
+                end: self.cursor,
+              },
+            };
+          }
+          '\n' => {
+            break Token {
+              kind: TokenKind::Invalid,
+              span: Span {
+                start,
+                end: self.cursor,
+              },
+            };
+          }
+          '\\' => state = State::StringBackslash,
+          '"' => {
+            self.cursor += c_len;
+
+            break Token {
+              kind: TokenKind::String,
+              span: Span {
+                start,
+                end: self.cursor,
+              },
+            };
+          }
+          _ => {}
+        },
+        State::StringBackslash => match c {
+          '\0' | '\n' => {
+            break Token {
+              kind: TokenKind::Invalid,
+              span: Span {
+                start,
+                end: self.cursor,
+              },
+            };
+          }
+          _ => state = State::String,
+        },
         State::Symbol => match c {
           '_'
           | '+'
@@ -321,6 +367,8 @@ enum State {
   Minus,
   Integer,
   Float,
+  String,
+  StringBackslash,
   Symbol,
 }
 
@@ -401,6 +449,8 @@ mod test {
   #[case("fn\n" => vec![Token { kind: TokenKind::Fn, span: Span { start: 0, end: 2 } }, Token { kind: TokenKind::Eof, span: Span { start: 3, end: 3 } }] ; "fn whitespace")]
   #[case("fn!" => vec![Token { kind: TokenKind::FnExclamation, span: Span { start: 0, end: 3 } }, Token { kind: TokenKind::Eof, span: Span { start: 3, end: 3 } }] ; "fn exclamation")]
   #[case("fn!\n" => vec![Token { kind: TokenKind::FnExclamation, span: Span { start: 0, end: 3 } }, Token { kind: TokenKind::Eof, span: Span { start: 4, end: 4 } }] ; "fn exclamation whitespace")]
+  #[case("\"hello\"" => vec![Token { kind: TokenKind::String, span: Span { start: 0, end: 7 } }, Token { kind: TokenKind::Eof, span: Span { start: 7, end: 7 } }] ; "string")]
+  #[case("\"hello\"\n" => vec![Token { kind: TokenKind::String, span: Span { start: 0, end: 7 } }, Token { kind: TokenKind::Eof, span: Span { start: 8, end: 8 } }] ; "string whitespace")]
   fn lexer(source: &str) -> Vec<Token> {
     let source = Rc::new(TestSource::new(source));
     let mut lexer = Lexer::new(source);
