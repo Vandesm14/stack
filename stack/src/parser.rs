@@ -96,14 +96,26 @@ impl Parser {
         let slice = &source.content()[token.span.start..token.span.end];
 
         let kind = match slice {
-          "nil" => ExprKind::Nil,
-          "true" => ExprKind::Boolean(true),
-          "false" => ExprKind::Boolean(false),
           "+" => ExprKind::Intrinsic(Intrinsic::Add),
           "-" => ExprKind::Intrinsic(Intrinsic::Sub),
           "*" => ExprKind::Intrinsic(Intrinsic::Mul),
           "/" => ExprKind::Intrinsic(Intrinsic::Div),
           "%" => ExprKind::Intrinsic(Intrinsic::Rem),
+
+          "=" => ExprKind::Intrinsic(Intrinsic::Eq),
+          "!=" => ExprKind::Intrinsic(Intrinsic::Ne),
+          "<" => ExprKind::Intrinsic(Intrinsic::Lt),
+          "<=" => ExprKind::Intrinsic(Intrinsic::Le),
+          ">" => ExprKind::Intrinsic(Intrinsic::Gt),
+          ">=" => ExprKind::Intrinsic(Intrinsic::Ge),
+
+          "or" => ExprKind::Intrinsic(Intrinsic::Or),
+          "and" => ExprKind::Intrinsic(Intrinsic::And),
+
+          "nil" => ExprKind::Nil,
+          "true" => ExprKind::Boolean(true),
+          "false" => ExprKind::Boolean(false),
+
           slice => ExprKind::Symbol(Symbol::from_ref(slice)),
         };
 

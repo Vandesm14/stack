@@ -3,7 +3,14 @@ use stack::prelude::*;
 use std::{path::PathBuf, rc::Rc};
 use test_case::case;
 
-#[case("simple.stack" => vec![Expr { kind: ExprKind::Integer(3), info: None }, Expr { kind: ExprKind::Integer(-1), info: None }, Expr { kind: ExprKind::Integer(6), info: None }, Expr { kind: ExprKind::Integer(2), info: None }, Expr { kind: ExprKind::Integer(0), info: None }] ; "simple")]
+#[inline]
+const fn e(kind: ExprKind) -> Expr {
+  Expr { kind, info: None }
+}
+
+#[case("intrinsics/arithmetic.stack" => vec![e(ExprKind::Integer(3)), e(ExprKind::Integer(-1)), e(ExprKind::Integer(6)), e(ExprKind::Integer(2)), e(ExprKind::Integer(0))] ; "arithmetic")]
+#[case("intrinsics/compare.stack" => vec![e(ExprKind::Boolean(true)), e(ExprKind::Boolean(false)), e(ExprKind::Boolean(false)), e(ExprKind::Boolean(true)), e(ExprKind::Boolean(false)), e(ExprKind::Boolean(false)), e(ExprKind::Boolean(true)), e(ExprKind::Boolean(true)), e(ExprKind::Boolean(false)), e(ExprKind::Boolean(true)), e(ExprKind::Boolean(false)), e(ExprKind::Boolean(true)), e(ExprKind::Boolean(false)), e(ExprKind::Boolean(true)), e(ExprKind::Boolean(true)), e(ExprKind::Boolean(false))] ; "compare")]
+#[case("intrinsics/logical.stack" => vec![e(ExprKind::Boolean(false)), e(ExprKind::Boolean(true)), e(ExprKind::Boolean(true)), e(ExprKind::Boolean(true)), e(ExprKind::Boolean(false)), e(ExprKind::Boolean(false)), e(ExprKind::Boolean(false)), e(ExprKind::Boolean(false)), e(ExprKind::Boolean(false)), e(ExprKind::Boolean(true)), e(ExprKind::Boolean(false)), e(ExprKind::Boolean(false))] ; "logical")]
 fn integration(subpath: &str) -> Vec<Expr> {
   let mut path = PathBuf::from_str("tests").unwrap();
   path.push(subpath);

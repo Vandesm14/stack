@@ -13,6 +13,16 @@ pub enum Intrinsic {
   Mul,
   Div,
   Rem,
+
+  Eq,
+  Ne,
+  Lt,
+  Le,
+  Gt,
+  Ge,
+
+  Or,
+  And,
 }
 
 impl Intrinsic {
@@ -113,6 +123,130 @@ impl Intrinsic {
 
         Ok(context)
       }
+
+      Intrinsic::Eq => {
+        let rhs = context.stack_pop(&expr)?;
+        let lhs = context.stack_pop(&expr)?;
+
+        let kind = ExprKind::Boolean(lhs.kind == rhs.kind);
+
+        context.stack_push(Expr {
+          kind,
+          info: engine.track_info().then(|| ExprInfo::Runtime {
+            components: vec![rhs, lhs, expr],
+          }),
+        });
+
+        Ok(context)
+      }
+      Intrinsic::Ne => {
+        let rhs = context.stack_pop(&expr)?;
+        let lhs = context.stack_pop(&expr)?;
+
+        let kind = ExprKind::Boolean(lhs.kind != rhs.kind);
+
+        context.stack_push(Expr {
+          kind,
+          info: engine.track_info().then(|| ExprInfo::Runtime {
+            components: vec![rhs, lhs, expr],
+          }),
+        });
+
+        Ok(context)
+      }
+      Intrinsic::Lt => {
+        let rhs = context.stack_pop(&expr)?;
+        let lhs = context.stack_pop(&expr)?;
+
+        let kind = ExprKind::Boolean(lhs.kind < rhs.kind);
+
+        context.stack_push(Expr {
+          kind,
+          info: engine.track_info().then(|| ExprInfo::Runtime {
+            components: vec![rhs, lhs, expr],
+          }),
+        });
+
+        Ok(context)
+      }
+      Intrinsic::Le => {
+        let rhs = context.stack_pop(&expr)?;
+        let lhs = context.stack_pop(&expr)?;
+
+        let kind = ExprKind::Boolean(lhs.kind <= rhs.kind);
+
+        context.stack_push(Expr {
+          kind,
+          info: engine.track_info().then(|| ExprInfo::Runtime {
+            components: vec![rhs, lhs, expr],
+          }),
+        });
+
+        Ok(context)
+      }
+      Intrinsic::Gt => {
+        let rhs = context.stack_pop(&expr)?;
+        let lhs = context.stack_pop(&expr)?;
+
+        let kind = ExprKind::Boolean(lhs.kind > rhs.kind);
+
+        context.stack_push(Expr {
+          kind,
+          info: engine.track_info().then(|| ExprInfo::Runtime {
+            components: vec![rhs, lhs, expr],
+          }),
+        });
+
+        Ok(context)
+      }
+      Intrinsic::Ge => {
+        let rhs = context.stack_pop(&expr)?;
+        let lhs = context.stack_pop(&expr)?;
+
+        let kind = ExprKind::Boolean(lhs.kind >= rhs.kind);
+
+        context.stack_push(Expr {
+          kind,
+          info: engine.track_info().then(|| ExprInfo::Runtime {
+            components: vec![rhs, lhs, expr],
+          }),
+        });
+
+        Ok(context)
+      }
+
+      Intrinsic::Or => {
+        let rhs = context.stack_pop(&expr)?;
+        let lhs = context.stack_pop(&expr)?;
+
+        let kind =
+          ExprKind::Boolean(lhs.kind.is_truthy() || rhs.kind.is_truthy());
+
+        context.stack_push(Expr {
+          kind,
+          info: engine.track_info().then(|| ExprInfo::Runtime {
+            components: vec![rhs, lhs, expr],
+          }),
+        });
+
+        Ok(context)
+      }
+      Intrinsic::And => {
+        let rhs = context.stack_pop(&expr)?;
+        let lhs = context.stack_pop(&expr)?;
+
+        let kind =
+          ExprKind::Boolean(lhs.kind.is_truthy() && rhs.kind.is_truthy());
+
+        context.stack_push(Expr {
+          kind,
+          info: engine.track_info().then(|| ExprInfo::Runtime {
+            components: vec![rhs, lhs, expr],
+          }),
+        });
+
+        Ok(context)
+      }
     }
   }
 }
@@ -125,6 +259,16 @@ impl fmt::Display for Intrinsic {
       Self::Mul => write!(f, "*"),
       Self::Div => write!(f, "/"),
       Self::Rem => write!(f, "%"),
+
+      Self::Eq => write!(f, "="),
+      Self::Ne => write!(f, "!="),
+      Self::Lt => write!(f, "<"),
+      Self::Le => write!(f, "<="),
+      Self::Gt => write!(f, ">"),
+      Self::Ge => write!(f, ">="),
+
+      Self::Or => write!(f, "or"),
+      Self::And => write!(f, "and"),
     }
   }
 }
