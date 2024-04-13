@@ -41,6 +41,7 @@ pub enum Intrinsic {
   Cast,
 
   If,
+  Halt,
 }
 
 impl Intrinsic {
@@ -78,6 +79,7 @@ impl Intrinsic {
       "cast" => Some(Self::Cast),
 
       "if" => Some(Self::If),
+      "halt" => Some(Self::Halt),
 
       _ => None,
     }
@@ -313,13 +315,14 @@ impl Intrinsic {
           Ok(context)
         } else {
           Err(RunError {
+            reason: RunErrorReason::AssertionFailed,
+            context,
             expr: Expr {
               info: engine.track_info().then(|| ExprInfo::Runtime {
                 components: vec![message.clone(), bool, expr],
               }),
               kind: message.kind,
             },
-            reason: RunErrorReason::AssertionFailed,
           })
         }
       }
@@ -331,6 +334,7 @@ impl Intrinsic {
       Self::Dupe => {
         let item = context.stack().last().cloned().ok_or_else(|| RunError {
           reason: RunErrorReason::StackUnderflow,
+          context: context.clone(),
           expr,
         })?;
 
@@ -346,6 +350,7 @@ impl Intrinsic {
         } else {
           Err(RunError {
             reason: RunErrorReason::StackUnderflow,
+            context,
             expr,
           })
         }
@@ -361,6 +366,7 @@ impl Intrinsic {
         } else {
           Err(RunError {
             reason: RunErrorReason::StackUnderflow,
+            context,
             expr,
           })
         }
@@ -623,6 +629,11 @@ impl Intrinsic {
 
         Ok(context)
       }
+      Self::Halt => Err(RunError {
+        reason: RunErrorReason::Halt,
+        context,
+        expr,
+      }),
     }
   }
 }
@@ -661,6 +672,7 @@ impl fmt::Display for Intrinsic {
       Self::Cast => write!(f, "cast"),
 
       Self::If => write!(f, "if"),
+      Self::Halt => write!(f, "halt"),
     }
   }
 }

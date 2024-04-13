@@ -31,6 +31,12 @@ fn main() {
         Ok(context) => context,
         Err(err) => {
           eprintln!("error: {err}");
+          eprintln!("stack:");
+
+          core::iter::repeat("  ")
+            .zip(err.context.stack())
+            .for_each(|(sep, x)| println!("{sep}{x}"));
+
           std::process::exit(1);
         }
       };

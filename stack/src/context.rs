@@ -41,6 +41,7 @@ impl Context {
   pub fn stack_pop(&mut self, expr: &Expr) -> Result<Expr, RunError> {
     self.stack.pop().ok_or_else(|| RunError {
       reason: RunErrorReason::StackUnderflow,
+      context: self.clone(),
       expr: expr.clone(),
     })
   }

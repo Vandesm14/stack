@@ -13,7 +13,7 @@ pub mod prelude {
   use super::*;
 
   pub use context::Context;
-  pub use engine::Engine;
+  pub use engine::{Engine, RunError, RunErrorReason};
   pub use expr::{Expr, ExprInfo, ExprKind};
   pub use intrinsic::Intrinsic;
   pub use lexer::Lexer;

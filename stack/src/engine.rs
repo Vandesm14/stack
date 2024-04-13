@@ -81,6 +81,7 @@ impl Engine {
       }
       ExprKind::Error(_) => Err(RunError {
         reason: RunErrorReason::DoubleError,
+        context,
         expr,
       }),
       // TODO: This is temporary until a proper solution is created.
@@ -138,6 +139,7 @@ impl Engine {
 #[derive(Debug, Clone, PartialEq)]
 pub struct RunError {
   pub reason: RunErrorReason,
+  pub context: Context,
   pub expr: Expr,
 }
 
@@ -160,6 +162,7 @@ pub enum RunErrorReason {
   StackUnderflow,
   DoubleError,
   AssertionFailed,
+  Halt,
 }
 
 impl std::error::Error for RunErrorReason {}
@@ -170,6 +173,7 @@ impl fmt::Display for RunErrorReason {
       Self::StackUnderflow => write!(f, "stack underflow"),
       Self::DoubleError => write!(f, "double error"),
       Self::AssertionFailed => write!(f, "assertion failed"),
+      Self::Halt => write!(f, "halt"),
     }
   }
 }
