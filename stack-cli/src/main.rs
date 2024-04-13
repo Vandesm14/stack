@@ -19,10 +19,7 @@ fn main() {
         }
       };
 
-      let lexer = Lexer::new(source);
-      let parser = Parser::new(lexer);
-
-      let exprs = match parser.parse() {
+      let exprs = match Parser::new(Lexer::new(source)).parse() {
         Ok(exprs) => exprs,
         Err(err) => {
           eprintln!("error: {err}");
