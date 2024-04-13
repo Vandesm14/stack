@@ -112,6 +112,8 @@ impl Parser {
           "or" => ExprKind::Intrinsic(Intrinsic::Or),
           "and" => ExprKind::Intrinsic(Intrinsic::And),
 
+          "assert" => ExprKind::Intrinsic(Intrinsic::Assert),
+
           "nil" => ExprKind::Nil,
           "true" => ExprKind::Boolean(true),
           "false" => ExprKind::Boolean(false),

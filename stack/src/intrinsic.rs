@@ -2,7 +2,7 @@ use core::fmt;
 
 use crate::{
   context::Context,
-  engine::{Engine, RunError},
+  engine::{Engine, RunError, RunErrorReason},
   expr::{Expr, ExprInfo, ExprKind},
 };
 
@@ -23,6 +23,8 @@ pub enum Intrinsic {
 
   Or,
   And,
+
+  Assert,
 }
 
 impl Intrinsic {
@@ -33,7 +35,7 @@ impl Intrinsic {
     expr: Expr,
   ) -> Result<Context, RunError> {
     match self {
-      Intrinsic::Add => {
+      Self::Add => {
         let rhs = context.stack_pop(&expr)?;
         let lhs = context.stack_pop(&expr)?;
 
@@ -51,7 +53,7 @@ impl Intrinsic {
 
         Ok(context)
       }
-      Intrinsic::Sub => {
+      Self::Sub => {
         let rhs = context.stack_pop(&expr)?;
         let lhs = context.stack_pop(&expr)?;
 
@@ -69,7 +71,7 @@ impl Intrinsic {
 
         Ok(context)
       }
-      Intrinsic::Mul => {
+      Self::Mul => {
         let rhs = context.stack_pop(&expr)?;
         let lhs = context.stack_pop(&expr)?;
 
@@ -87,7 +89,7 @@ impl Intrinsic {
 
         Ok(context)
       }
-      Intrinsic::Div => {
+      Self::Div => {
         let rhs = context.stack_pop(&expr)?;
         let lhs = context.stack_pop(&expr)?;
 
@@ -105,7 +107,7 @@ impl Intrinsic {
 
         Ok(context)
       }
-      Intrinsic::Rem => {
+      Self::Rem => {
         let rhs = context.stack_pop(&expr)?;
         let lhs = context.stack_pop(&expr)?;
 
@@ -124,7 +126,7 @@ impl Intrinsic {
         Ok(context)
       }
 
-      Intrinsic::Eq => {
+      Self::Eq => {
         let rhs = context.stack_pop(&expr)?;
         let lhs = context.stack_pop(&expr)?;
 
@@ -139,7 +141,7 @@ impl Intrinsic {
 
         Ok(context)
       }
-      Intrinsic::Ne => {
+      Self::Ne => {
         let rhs = context.stack_pop(&expr)?;
         let lhs = context.stack_pop(&expr)?;
 
@@ -154,7 +156,7 @@ impl Intrinsic {
 
         Ok(context)
       }
-      Intrinsic::Lt => {
+      Self::Lt => {
         let rhs = context.stack_pop(&expr)?;
         let lhs = context.stack_pop(&expr)?;
 
@@ -169,7 +171,7 @@ impl Intrinsic {
 
         Ok(context)
       }
-      Intrinsic::Le => {
+      Self::Le => {
         let rhs = context.stack_pop(&expr)?;
         let lhs = context.stack_pop(&expr)?;
 
@@ -184,7 +186,7 @@ impl Intrinsic {
 
         Ok(context)
       }
-      Intrinsic::Gt => {
+      Self::Gt => {
         let rhs = context.stack_pop(&expr)?;
         let lhs = context.stack_pop(&expr)?;
 
@@ -199,7 +201,7 @@ impl Intrinsic {
 
         Ok(context)
       }
-      Intrinsic::Ge => {
+      Self::Ge => {
         let rhs = context.stack_pop(&expr)?;
         let lhs = context.stack_pop(&expr)?;
 
@@ -215,7 +217,7 @@ impl Intrinsic {
         Ok(context)
       }
 
-      Intrinsic::Or => {
+      Self::Or => {
         let rhs = context.stack_pop(&expr)?;
         let lhs = context.stack_pop(&expr)?;
 
@@ -231,7 +233,7 @@ impl Intrinsic {
 
         Ok(context)
       }
-      Intrinsic::And => {
+      Self::And => {
         let rhs = context.stack_pop(&expr)?;
         let lhs = context.stack_pop(&expr)?;
 
@@ -246,6 +248,25 @@ impl Intrinsic {
         });
 
         Ok(context)
+      }
+
+      Self::Assert => {
+        let bool = context.stack_pop(&expr)?;
+        let message = context.stack_pop(&expr)?;
+
+        if bool.kind.is_truthy() {
+          Ok(context)
+        } else {
+          Err(RunError {
+            expr: Expr {
+              kind: message.kind.clone(),
+              info: Some(ExprInfo::Runtime {
+                components: vec![message, bool, expr],
+              }),
+            },
+            reason: RunErrorReason::AssertionFailed,
+          })
+        }
       }
     }
   }
@@ -269,6 +290,8 @@ impl fmt::Display for Intrinsic {
 
       Self::Or => write!(f, "or"),
       Self::And => write!(f, "and"),
+
+      Self::Assert => write!(f, "assert"),
     }
   }
 }

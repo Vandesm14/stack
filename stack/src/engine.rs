@@ -159,6 +159,7 @@ impl fmt::Display for RunError {
 pub enum RunErrorReason {
   StackUnderflow,
   DoubleError,
+  AssertionFailed,
 }
 
 impl fmt::Display for RunErrorReason {
@@ -166,6 +167,7 @@ impl fmt::Display for RunErrorReason {
     match self {
       Self::StackUnderflow => write!(f, "stack underflow"),
       Self::DoubleError => write!(f, "double error"),
+      Self::AssertionFailed => write!(f, "assertion failed"),
     }
   }
 }
