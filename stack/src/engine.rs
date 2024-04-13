@@ -162,6 +162,8 @@ pub enum RunErrorReason {
   AssertionFailed,
 }
 
+impl std::error::Error for RunErrorReason {}
+
 impl fmt::Display for RunErrorReason {
   fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
     match self {
