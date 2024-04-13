@@ -33,11 +33,6 @@ pub enum TokenKind {
   String,
   Symbol,
 
-  Plus,
-  Minus,
-  Asterisk,
-  Slash,
-  Percent,
   Apostrophe,
   LeftParen,
   RightParen,
@@ -59,11 +54,6 @@ impl fmt::Display for TokenKind {
       Self::String => write!(f, "a string literal"),
       Self::Symbol => write!(f, "a symbol"),
 
-      Self::Plus => write!(f, "+"),
-      Self::Minus => write!(f, "-"),
-      Self::Asterisk => write!(f, "*"),
-      Self::Slash => write!(f, "/"),
-      Self::Percent => write!(f, "%"),
       Self::Apostrophe => write!(f, "'"),
       Self::LeftParen => write!(f, "("),
       Self::RightParen => write!(f, ")"),
@@ -137,50 +127,6 @@ impl Lexer {
               },
             };
           }
-          '+' => {
-            self.cursor += c_len;
-
-            break Token {
-              kind: TokenKind::Plus,
-              span: Span {
-                start,
-                end: self.cursor,
-              },
-            };
-          }
-          '*' => {
-            self.cursor += c_len;
-
-            break Token {
-              kind: TokenKind::Asterisk,
-              span: Span {
-                start,
-                end: self.cursor,
-              },
-            };
-          }
-          '/' => {
-            self.cursor += c_len;
-
-            break Token {
-              kind: TokenKind::Slash,
-              span: Span {
-                start,
-                end: self.cursor,
-              },
-            };
-          }
-          '%' => {
-            self.cursor += c_len;
-
-            break Token {
-              kind: TokenKind::Percent,
-              span: Span {
-                start,
-                end: self.cursor,
-              },
-            };
-          }
           '\'' => {
             self.cursor += c_len;
 
@@ -242,7 +188,10 @@ impl Lexer {
           // NOTE: If this is modified, remember to change the other instances
           //       in the other State matches.
           '_'
-          | '\\'
+          | '+'
+          | '*'
+          | '/'
+          | '%'
           | ':'
           | '!'
           | '='
@@ -280,7 +229,7 @@ impl Lexer {
           | '+'
           | '-'
           | '*'
-          | '\\'
+          | '/'
           | '%'
           | ':'
           | '!'
@@ -292,7 +241,7 @@ impl Lexer {
           | 'A'..='Z' => state = State::Symbol,
           _ => {
             break Token {
-              kind: TokenKind::Minus,
+              kind: TokenKind::Symbol,
               span: Span {
                 start,
                 end: self.cursor,
@@ -330,7 +279,7 @@ impl Lexer {
           | '+'
           | '-'
           | '*'
-          | '\\'
+          | '/'
           | '%'
           | ':'
           | '!'
@@ -386,16 +335,26 @@ mod test {
   #[case(" \t\r\n" => vec![Token { kind: TokenKind::Eof, span: Span { start: 4, end: 4 } }] ; "whitespace only")]
   #[case("; Comment" => vec![Token { kind: TokenKind::Eof, span: Span { start: 9, end: 9 } }] ; "comment")]
   #[case("; Comment\n" => vec![Token { kind: TokenKind::Eof, span: Span { start: 10, end: 10 } }] ; "comment whitespace")]
-  #[case("+" => vec![Token { kind: TokenKind::Plus, span: Span { start: 0, end: 1 } }, Token { kind: TokenKind::Eof, span: Span { start: 1, end: 1 } }] ; "plus only")]
-  #[case("+\n" => vec![Token { kind: TokenKind::Plus, span: Span { start: 0, end: 1 } }, Token { kind: TokenKind::Eof, span: Span { start: 2, end: 2 } }] ; "plus whitespace only")]
-  #[case("-" => vec![Token { kind: TokenKind::Minus, span: Span { start: 0, end: 1 } }, Token { kind: TokenKind::Eof, span: Span { start: 1, end: 1 } }] ; "minus only")]
-  #[case("-\n" => vec![Token { kind: TokenKind::Minus, span: Span { start: 0, end: 1 } }, Token { kind: TokenKind::Eof, span: Span { start: 2, end: 2 } }] ; "minus whitespace only")]
-  #[case("*" => vec![Token { kind: TokenKind::Asterisk, span: Span { start: 0, end: 1 } }, Token { kind: TokenKind::Eof, span: Span { start: 1, end: 1 } }] ; "asterisk only")]
-  #[case("*\n" => vec![Token { kind: TokenKind::Asterisk, span: Span { start: 0, end: 1 } }, Token { kind: TokenKind::Eof, span: Span { start: 2, end: 2 } }] ; "asterisk whitespace only")]
-  #[case("/" => vec![Token { kind: TokenKind::Slash, span: Span { start: 0, end: 1 } }, Token { kind: TokenKind::Eof, span: Span { start: 1, end: 1 } }] ; "slash only")]
-  #[case("/\n" => vec![Token { kind: TokenKind::Slash, span: Span { start: 0, end: 1 } }, Token { kind: TokenKind::Eof, span: Span { start: 2, end: 2 } }] ; "slash whitespace only")]
-  #[case("%" => vec![Token { kind: TokenKind::Percent, span: Span { start: 0, end: 1 } }, Token { kind: TokenKind::Eof, span: Span { start: 1, end: 1 } }] ; "percent only")]
-  #[case("%\n" => vec![Token { kind: TokenKind::Percent, span: Span { start: 0, end: 1 } }, Token { kind: TokenKind::Eof, span: Span { start: 2, end: 2 } }] ; "percent whitespace only")]
+  #[case("+" => vec![Token { kind: TokenKind::Symbol, span: Span { start: 0, end: 1 } }, Token { kind: TokenKind::Eof, span: Span { start: 1, end: 1 } }] ; "plus only")]
+  #[case("+\n" => vec![Token { kind: TokenKind::Symbol, span: Span { start: 0, end: 1 } }, Token { kind: TokenKind::Eof, span: Span { start: 2, end: 2 } }] ; "plus whitespace only")]
+  #[case("-" => vec![Token { kind: TokenKind::Symbol, span: Span { start: 0, end: 1 } }, Token { kind: TokenKind::Eof, span: Span { start: 1, end: 1 } }] ; "minus only")]
+  #[case("-\n" => vec![Token { kind: TokenKind::Symbol, span: Span { start: 0, end: 1 } }, Token { kind: TokenKind::Eof, span: Span { start: 2, end: 2 } }] ; "minus whitespace only")]
+  #[case("*" => vec![Token { kind: TokenKind::Symbol, span: Span { start: 0, end: 1 } }, Token { kind: TokenKind::Eof, span: Span { start: 1, end: 1 } }] ; "asterisk only")]
+  #[case("*\n" => vec![Token { kind: TokenKind::Symbol, span: Span { start: 0, end: 1 } }, Token { kind: TokenKind::Eof, span: Span { start: 2, end: 2 } }] ; "asterisk whitespace only")]
+  #[case("/" => vec![Token { kind: TokenKind::Symbol, span: Span { start: 0, end: 1 } }, Token { kind: TokenKind::Eof, span: Span { start: 1, end: 1 } }] ; "slash only")]
+  #[case("/\n" => vec![Token { kind: TokenKind::Symbol, span: Span { start: 0, end: 1 } }, Token { kind: TokenKind::Eof, span: Span { start: 2, end: 2 } }] ; "slash whitespace only")]
+  #[case("%" => vec![Token { kind: TokenKind::Symbol, span: Span { start: 0, end: 1 } }, Token { kind: TokenKind::Eof, span: Span { start: 1, end: 1 } }] ; "percent only")]
+  #[case("%\n" => vec![Token { kind: TokenKind::Symbol, span: Span { start: 0, end: 1 } }, Token { kind: TokenKind::Eof, span: Span { start: 2, end: 2 } }] ; "percent whitespace only")]
+  #[case("+a" => vec![Token { kind: TokenKind::Symbol, span: Span { start: 0, end: 2 } }, Token { kind: TokenKind::Eof, span: Span { start: 2, end: 2 } }] ; "plus symbol only")]
+  #[case("+a\n" => vec![Token { kind: TokenKind::Symbol, span: Span { start: 0, end: 2 } }, Token { kind: TokenKind::Eof, span: Span { start: 3, end: 3 } }] ; "plus symbol whitespace only")]
+  #[case("-a" => vec![Token { kind: TokenKind::Symbol, span: Span { start: 0, end: 2 } }, Token { kind: TokenKind::Eof, span: Span { start: 2, end: 2 } }] ; "minus symbol only")]
+  #[case("-a\n" => vec![Token { kind: TokenKind::Symbol, span: Span { start: 0, end: 2 } }, Token { kind: TokenKind::Eof, span: Span { start: 3, end: 3 } }] ; "minus symbol whitespace only")]
+  #[case("*a" => vec![Token { kind: TokenKind::Symbol, span: Span { start: 0, end: 2 } }, Token { kind: TokenKind::Eof, span: Span { start: 2, end: 2 } }] ; "asterisk symbol only")]
+  #[case("*a\n" => vec![Token { kind: TokenKind::Symbol, span: Span { start: 0, end: 2 } }, Token { kind: TokenKind::Eof, span: Span { start: 3, end: 3 } }] ; "asterisk symbol whitespace only")]
+  #[case("/a" => vec![Token { kind: TokenKind::Symbol, span: Span { start: 0, end: 2 } }, Token { kind: TokenKind::Eof, span: Span { start: 2, end: 2 } }] ; "slash symbol only")]
+  #[case("/a\n" => vec![Token { kind: TokenKind::Symbol, span: Span { start: 0, end: 2 } }, Token { kind: TokenKind::Eof, span: Span { start: 3, end: 3 } }] ; "slash symbol whitespace only")]
+  #[case("%a" => vec![Token { kind: TokenKind::Symbol, span: Span { start: 0, end: 2 } }, Token { kind: TokenKind::Eof, span: Span { start: 2, end: 2 } }] ; "percent symbol only")]
+  #[case("%a\n" => vec![Token { kind: TokenKind::Symbol, span: Span { start: 0, end: 2 } }, Token { kind: TokenKind::Eof, span: Span { start: 3, end: 3 } }] ; "percent symbol whitespace only")]
   #[case("'" => vec![Token { kind: TokenKind::Apostrophe, span: Span { start: 0, end: 1 } }, Token { kind: TokenKind::Eof, span: Span { start: 1, end: 1 } }] ; "apostrophe")]
   #[case("'\n" => vec![Token { kind: TokenKind::Apostrophe, span: Span { start: 0, end: 1 } }, Token { kind: TokenKind::Eof, span: Span { start: 2, end: 2 } }] ; "apostrophe whitespace")]
   #[case("(" => vec![Token { kind: TokenKind::LeftParen, span: Span { start: 0, end: 1 } }, Token { kind: TokenKind::Eof, span: Span { start: 1, end: 1 } }] ; "left paren")]

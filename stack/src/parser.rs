@@ -99,6 +99,11 @@ impl Parser {
           "nil" => ExprKind::Nil,
           "true" => ExprKind::Boolean(true),
           "false" => ExprKind::Boolean(false),
+          "+" => ExprKind::Intrinsic(Intrinsic::Add),
+          "-" => ExprKind::Intrinsic(Intrinsic::Sub),
+          "*" => ExprKind::Intrinsic(Intrinsic::Mul),
+          "/" => ExprKind::Intrinsic(Intrinsic::Div),
+          "%" => ExprKind::Intrinsic(Intrinsic::Rem),
           slice => ExprKind::Symbol(Symbol::from_ref(slice)),
         };
 
@@ -111,41 +116,6 @@ impl Parser {
         }))
       }
 
-      TokenKind::Plus => Ok(Some(Expr {
-        kind: ExprKind::Intrinsic(Intrinsic::Add),
-        info: Some(ExprInfo::Source {
-          source,
-          span: token.span,
-        }),
-      })),
-      TokenKind::Minus => Ok(Some(Expr {
-        kind: ExprKind::Intrinsic(Intrinsic::Sub),
-        info: Some(ExprInfo::Source {
-          source,
-          span: token.span,
-        }),
-      })),
-      TokenKind::Asterisk => Ok(Some(Expr {
-        kind: ExprKind::Intrinsic(Intrinsic::Mul),
-        info: Some(ExprInfo::Source {
-          source,
-          span: token.span,
-        }),
-      })),
-      TokenKind::Slash => Ok(Some(Expr {
-        kind: ExprKind::Intrinsic(Intrinsic::Div),
-        info: Some(ExprInfo::Source {
-          source,
-          span: token.span,
-        }),
-      })),
-      TokenKind::Percent => Ok(Some(Expr {
-        kind: ExprKind::Intrinsic(Intrinsic::Rem),
-        info: Some(ExprInfo::Source {
-          source,
-          span: token.span,
-        }),
-      })),
       TokenKind::Apostrophe => {
         let next_token = self.lexer.next();
 
