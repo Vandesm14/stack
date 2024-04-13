@@ -66,11 +66,6 @@ impl ExprKind {
   pub const fn is_truthy(&self) -> bool {
     matches!(self, Self::Boolean(true))
   }
-
-  #[inline]
-  pub const fn is_falsy(&self) -> bool {
-    !self.is_truthy()
-  }
 }
 
 impl Clone for ExprKind {

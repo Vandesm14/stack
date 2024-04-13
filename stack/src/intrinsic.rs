@@ -39,6 +39,8 @@ pub enum Intrinsic {
   Concat,
 
   Cast,
+
+  If,
 }
 
 impl Intrinsic {
@@ -74,6 +76,8 @@ impl Intrinsic {
       "concat" => Some(Self::Concat),
 
       "cast" => Some(Self::Cast),
+
+      "if" => Some(Self::If),
 
       _ => None,
     }
@@ -608,6 +612,17 @@ impl Intrinsic {
 
         Ok(context)
       }
+
+      Self::If => {
+        let cond = context.stack_pop(&expr)?;
+        let body = context.stack_pop(&expr)?;
+
+        if cond.kind.is_truthy() {
+          context = engine.run_expr(context, body)?;
+        }
+
+        Ok(context)
+      }
     }
   }
 }
@@ -644,6 +659,8 @@ impl fmt::Display for Intrinsic {
       Self::Concat => write!(f, "concat"),
 
       Self::Cast => write!(f, "cast"),
+
+      Self::If => write!(f, "if"),
     }
   }
 }
