@@ -303,10 +303,6 @@ impl Intrinsic {
       Self::Rot => {
         let len = context.stack().len();
 
-        // a b c
-        // c b a
-        // b c a
-
         if len >= 3 {
           context.stack_mut().swap(len - 1, len - 3);
           context.stack_mut().swap(len - 2, len - 3);
