@@ -3,7 +3,7 @@ use std::collections::HashMap;
 use crate::{
   context::Context,
   engine::{Engine, RunError},
-  expr::{Symbol, Expr},
+  expr::{Expr, Symbol},
 };
 
 pub type Func = fn(&Engine, Context, Expr) -> Result<Context, RunError>;
