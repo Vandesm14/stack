@@ -1,4 +1,6 @@
+/Cargo.lock
 /target
+
 /testing
 /docs/.obsidian
 /.cargo
