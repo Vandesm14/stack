@@ -1,12 +1,5 @@
 use core::str::FromStr;
-use stack::{
-  context::Context,
-  engine::Engine,
-  expr::{Expr, ExprKind},
-  lexer::Lexer,
-  parser::Parser,
-  source::FileSource,
-};
+use stack::prelude::*;
 use std::{path::PathBuf, rc::Rc};
 use test_case::case;
 

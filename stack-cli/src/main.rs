@@ -1,10 +1,7 @@
 use std::{path::PathBuf, rc::Rc};
 
 use clap::Parser as _;
-use stack::{
-  context::Context, engine::Engine, lexer::Lexer, parser::Parser,
-  source::FileSource,
-};
+use stack::prelude::*;
 
 fn main() {
   let cli = Cli::parse();
