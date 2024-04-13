@@ -82,7 +82,9 @@ impl Parser {
         }))
       }
       TokenKind::String => {
-        let slice = &source.content()[token.span.start..token.span.end];
+        // NOTE: String tokens include the quotes in their span, so discard them
+        //       when getting the string slice.
+        let slice = &source.content()[token.span.start + 1..token.span.end - 1];
 
         Ok(Some(Expr {
           kind: ExprKind::String(slice.into()),
@@ -96,6 +98,10 @@ impl Parser {
         let slice = &source.content()[token.span.start..token.span.end];
 
         let kind = match slice {
+          "nil" => ExprKind::Nil,
+          "true" => ExprKind::Boolean(true),
+          "false" => ExprKind::Boolean(false),
+
           "+" => ExprKind::Intrinsic(Intrinsic::Add),
           "-" => ExprKind::Intrinsic(Intrinsic::Sub),
           "*" => ExprKind::Intrinsic(Intrinsic::Mul),
@@ -119,9 +125,10 @@ impl Parser {
           "swap" => ExprKind::Intrinsic(Intrinsic::Swap),
           "rot" => ExprKind::Intrinsic(Intrinsic::Rot),
 
-          "nil" => ExprKind::Nil,
-          "true" => ExprKind::Boolean(true),
-          "false" => ExprKind::Boolean(false),
+          "len" => ExprKind::Intrinsic(Intrinsic::Len),
+          "nth" => ExprKind::Intrinsic(Intrinsic::Nth),
+          "split" => ExprKind::Intrinsic(Intrinsic::Split),
+          "concat" => ExprKind::Intrinsic(Intrinsic::Concat),
 
           slice => ExprKind::Symbol(Symbol::from_ref(slice)),
         };

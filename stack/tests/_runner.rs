@@ -11,6 +11,11 @@ const fn e(kind: ExprKind) -> Expr {
   Expr { kind, info: None }
 }
 
+// TODO: Add tests for "intrinsics/len.stack".
+// TODO: Add tests for "intrinsics/nth.stack".
+// TODO: Add tests for "intrinsics/split.stack".
+// TODO: Add tests for "intrinsics/concat.stack".
+
 #[case("intrinsics/arithmetic.stack" => Ok(vec![e(ExprKind::Integer(3)), e(ExprKind::Integer(-1)), e(ExprKind::Integer(6)), e(ExprKind::Integer(2)), e(ExprKind::Integer(0))]) ; "arithmetic")]
 #[case("intrinsics/compare.stack" => Ok(vec![e(ExprKind::Boolean(true)), e(ExprKind::Boolean(false)), e(ExprKind::Boolean(false)), e(ExprKind::Boolean(true)), e(ExprKind::Boolean(false)), e(ExprKind::Boolean(false)), e(ExprKind::Boolean(true)), e(ExprKind::Boolean(true)), e(ExprKind::Boolean(false)), e(ExprKind::Boolean(true)), e(ExprKind::Boolean(false)), e(ExprKind::Boolean(true)), e(ExprKind::Boolean(false)), e(ExprKind::Boolean(true)), e(ExprKind::Boolean(true)), e(ExprKind::Boolean(false))]) ; "compare")]
 #[case("intrinsics/logical.stack" => Ok(vec![e(ExprKind::Boolean(false)), e(ExprKind::Boolean(true)), e(ExprKind::Boolean(true)), e(ExprKind::Boolean(true)), e(ExprKind::Boolean(false)), e(ExprKind::Boolean(false)), e(ExprKind::Boolean(false)), e(ExprKind::Boolean(false)), e(ExprKind::Boolean(false)), e(ExprKind::Boolean(true)), e(ExprKind::Boolean(false)), e(ExprKind::Boolean(false))]) ; "logical")]
