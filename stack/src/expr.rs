@@ -296,6 +296,9 @@ pub trait UserData: Any {
   #[must_use]
   fn partial_cmp(&self, other: &dyn UserData) -> Option<Ordering>;
 
+  /// See [`Display::fmt`].
+  ///
+  /// [`Display`]: fmt::Display
   fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result;
 }
 
