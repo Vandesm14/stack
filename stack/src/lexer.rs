@@ -221,7 +221,10 @@ impl Lexer {
             state = State::Start;
             self.cursor -= c_len;
           }
-          '\n' => state = State::Start,
+          '\n' => {
+            state = State::Start;
+            start = self.cursor + c_len;
+          }
           _ => {}
         },
         State::Minus => match c {
