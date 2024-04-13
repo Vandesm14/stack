@@ -130,6 +130,7 @@ impl Engine {
         Ok(context)
       }
       ExprKind::Intrinsic(x) => x.run(self, context, expr),
+      ExprKind::Fn(_) => todo!(),
     }
   }
 }

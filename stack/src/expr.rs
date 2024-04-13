@@ -52,6 +52,8 @@ pub enum ExprKind {
   UserData(Box<dyn UserData>),
 
   Intrinsic(Intrinsic),
+
+  Fn(Fn),
 }
 
 impl ExprKind {
@@ -90,6 +92,8 @@ impl Clone for ExprKind {
       Self::UserData(x) => Self::UserData(UserData::clone(&**x)),
 
       Self::Intrinsic(x) => Self::Intrinsic(*x),
+
+      Self::Fn(x) => Self::Fn(*x),
     }
   }
 }
@@ -112,6 +116,8 @@ impl PartialEq for ExprKind {
       (Self::UserData(lhs), Self::UserData(rhs)) => lhs.eq(&**rhs),
 
       (Self::Intrinsic(lhs), Self::Intrinsic(rhs)) => lhs == rhs,
+
+      (Self::Fn(lhs), Self::Fn(rhs)) => lhs == rhs,
 
       _ => false,
     }
@@ -240,6 +246,8 @@ impl fmt::Debug for ExprKind {
       Self::UserData(_) => f.debug_tuple("UserData").field(&"..").finish(),
 
       Self::Intrinsic(x) => f.debug_tuple("Intrinsic").field(x).finish(),
+
+      Self::Fn(x) => f.debug_tuple("Fn").field(x).finish(),
     }
   }
 }
@@ -278,6 +286,8 @@ impl fmt::Display for ExprKind {
       Self::UserData(x) => x.fmt(f),
 
       Self::Intrinsic(x) => write!(f, "{x}"),
+
+      Self::Fn(x) => write!(f, "{x}"),
     }
   }
 }
@@ -300,6 +310,17 @@ pub trait UserData: Any {
   ///
   /// [`Display`]: fmt::Display
   fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result;
+}
+
+// TODO: Implement Fn.
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Default)]
+pub struct Fn {}
+
+impl fmt::Display for Fn {
+  fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+    write!(f, "fn(..)")
+  }
 }
 
 #[derive(Clone)]
