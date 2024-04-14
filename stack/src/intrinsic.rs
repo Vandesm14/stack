@@ -400,8 +400,8 @@ impl Intrinsic {
         Ok(context)
       }
       Self::Nth => {
-        let item = context.stack_pop(&expr)?;
         let index = context.stack_pop(&expr)?;
+        let item = context.stack_pop(&expr)?;
 
         // TODO: Can these eager clones be removed?
         let kind = match (item.kind.clone(), index.kind.clone()) {
@@ -423,15 +423,15 @@ impl Intrinsic {
         context.stack_push(Expr {
           kind,
           info: engine.track_info().then(|| ExprInfo::Runtime {
-            components: vec![index, item, expr],
+            components: vec![item, index, expr],
           }),
         });
 
         Ok(context)
       }
       Self::Split => {
-        let item = context.stack_pop(&expr)?;
         let index = context.stack_pop(&expr)?;
+        let item = context.stack_pop(&expr)?;
 
         // TODO: Can these eager clones be removed?
         match (item.kind.clone(), index.kind.clone()) {
@@ -442,28 +442,28 @@ impl Intrinsic {
               context.stack_push(Expr {
                 kind: ExprKind::List(x),
                 info: engine.track_info().then(|| ExprInfo::Runtime {
-                  components: vec![index.clone(), item.clone(), expr.clone()],
+                  components: vec![item.clone(), index.clone(), expr.clone()],
                 }),
               });
 
               context.stack_push(Expr {
                 kind: ExprKind::List(rest),
                 info: engine.track_info().then(|| ExprInfo::Runtime {
-                  components: vec![index, item, expr],
+                  components: vec![item, index, expr],
                 }),
               });
             } else {
               context.stack_push(Expr {
                 kind: ExprKind::List(x),
                 info: engine.track_info().then(|| ExprInfo::Runtime {
-                  components: vec![index.clone(), item.clone(), expr.clone()],
+                  components: vec![item.clone(), index.clone(), expr.clone()],
                 }),
               });
 
               context.stack_push(Expr {
                 kind: ExprKind::Nil,
                 info: engine.track_info().then(|| ExprInfo::Runtime {
-                  components: vec![index, item, expr],
+                  components: vec![item, index, expr],
                 }),
               });
             }
@@ -476,14 +476,14 @@ impl Intrinsic {
                 context.stack_push(Expr {
                   kind: ExprKind::String(x),
                   info: engine.track_info().then(|| ExprInfo::Runtime {
-                    components: vec![index.clone(), item.clone(), expr.clone()],
+                    components: vec![item.clone(), index.clone(), expr.clone()],
                   }),
                 });
 
                 context.stack_push(Expr {
                   kind: ExprKind::String(rest),
                   info: engine.track_info().then(|| ExprInfo::Runtime {
-                    components: vec![index, item, expr],
+                    components: vec![item, index, expr],
                   }),
                 });
               }
@@ -491,14 +491,14 @@ impl Intrinsic {
                 context.stack_push(Expr {
                   kind: ExprKind::String(x),
                   info: engine.track_info().then(|| ExprInfo::Runtime {
-                    components: vec![index.clone(), item.clone(), expr.clone()],
+                    components: vec![item.clone(), index.clone(), expr.clone()],
                   }),
                 });
 
                 context.stack_push(Expr {
                   kind: ExprKind::Nil,
                   info: engine.track_info().then(|| ExprInfo::Runtime {
-                    components: vec![index, item, expr],
+                    components: vec![item, index, expr],
                   }),
                 });
               }
@@ -508,14 +508,14 @@ impl Intrinsic {
             context.stack_push(Expr {
               kind: ExprKind::Nil,
               info: engine.track_info().then(|| ExprInfo::Runtime {
-                components: vec![index.clone(), item.clone(), expr.clone()],
+                components: vec![item.clone(), index.clone(), expr.clone()],
               }),
             });
 
             context.stack_push(Expr {
               kind: ExprKind::Nil,
               info: engine.track_info().then(|| ExprInfo::Runtime {
-                components: vec![index, item, expr],
+                components: vec![item, index, expr],
               }),
             });
           }
