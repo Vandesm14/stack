@@ -1,29 +1,18 @@
-use std::{path::PathBuf, rc::Rc};
+use std::{
+  io::{self, Write},
+  path::PathBuf,
+  rc::Rc,
+};
 
 use clap::Parser as _;
-use stack::prelude::*;
+use notify::{RecommendedWatcher, Watcher as _};
+use stack::{prelude::*, source::Source as _};
 
 fn main() {
   let cli = Cli::parse();
 
   match cli.subcommand {
-    Subcommand::Run { path, fast } => {
-      let source = match FileSource::new(path.clone()) {
-        Ok(source) => Rc::new(source),
-        Err(_) => {
-          eprintln!("error: unable to read file '{}'", path.display());
-          std::process::exit(1);
-        }
-      };
-
-      let exprs = match Parser::new(Lexer::new(source)).parse() {
-        Ok(exprs) => exprs,
-        Err(err) => {
-          eprintln!("error: {err}");
-          std::process::exit(1);
-        }
-      };
-
+    Subcommand::Run { path, fast, watch } => {
       let mut engine = Engine::new().with_track_info(!fast);
 
       #[cfg(feature = "stack-std")]
@@ -37,29 +26,101 @@ fn main() {
         }
       }
 
-      let mut context = Context::new();
-
-      context = match engine.run(context, exprs) {
-        Ok(context) => context,
-        Err(err) => {
-          eprintln!("error: {err}");
-          eprintln!("stack:");
-
-          core::iter::repeat("  ")
-            .zip(err.context.stack())
-            .for_each(|(sep, x)| println!("{sep}{x}"));
-
+      let source = match FileSource::new(path.clone()) {
+        Ok(source) => Rc::new(source),
+        Err(_) => {
+          eprintln!("error: unable to read file '{}'", path.display());
           std::process::exit(1);
         }
       };
 
-      println!("stack:");
+      match run_file_source(&engine, source.clone()) {
+        Ok(context) => print_context(&context),
+        Err(err) => {
+          eprintln!("error: {err}");
+          eprint_context(&err.context);
+        }
+      };
 
-      core::iter::repeat("  ")
-        .zip(context.stack())
-        .for_each(|(sep, x)| println!("{sep}{x}"));
+      if watch {
+        let (tx, rx) = std::sync::mpsc::channel();
+
+        let mut watcher =
+          RecommendedWatcher::new(tx, notify::Config::default()).unwrap();
+
+        watcher
+          .watch(source.path(), notify::RecursiveMode::NonRecursive)
+          .unwrap();
+
+        for event in rx {
+          match event {
+            Ok(notify::Event {
+              kind: notify::EventKind::Modify(_),
+              ..
+            }) => {
+              // Clear screen and reset cursor position to the top-left.
+              const ANSI: &[u8; 10] = b"\x1b[2J\x1b[1;1H";
+
+              io::stdout().write_all(ANSI).unwrap();
+              io::stderr().write_all(ANSI).unwrap();
+
+              let source = match FileSource::new(path.clone()) {
+                Ok(source) => Rc::new(source),
+                Err(_) => {
+                  eprintln!("error: unable to read file '{}'", path.display());
+                  std::process::exit(1);
+                }
+              };
+
+              match run_file_source(&engine, source) {
+                Ok(context) => print_context(&context),
+                Err(err) => {
+                  eprintln!("error: {err}");
+                  eprint_context(&err.context);
+                }
+              };
+            }
+            Ok(_) => {}
+            Err(err) => {
+              eprintln!("error: {err}");
+              std::process::exit(1);
+            }
+          }
+        }
+      }
     }
   }
+}
+
+fn run_file_source(
+  engine: &Engine,
+  source: Rc<FileSource>,
+) -> Result<Context, RunError> {
+  let exprs = match Parser::new(Lexer::new(source)).parse() {
+    Ok(exprs) => exprs,
+    Err(err) => {
+      eprintln!("error: {err}");
+      std::process::exit(1);
+    }
+  };
+
+  engine.run(Context::new(), exprs)
+}
+
+fn print_context(context: &Context) {
+  println!("stack:");
+
+  core::iter::repeat("  ")
+    .zip(context.stack())
+    .for_each(|(sep, x)| println!("{sep}{x}"));
+}
+
+fn eprint_context(context: &Context) {
+  eprintln!("stack:");
+
+  core::iter::repeat("  ")
+    .zip(context.stack())
+    .for_each(|(sep, x)| eprintln!("{sep}{x}"));
 }
 
 #[derive(clap::Parser)]
@@ -93,5 +154,9 @@ enum Subcommand {
     /// Whether to disable tracking extra information for debugging.
     #[arg(short, long)]
     fast: bool,
+
+    /// Whether to watch the file and re-run it if there are changes.
+    #[arg(short, long)]
+    watch: bool,
   },
 }
