@@ -85,11 +85,11 @@ impl Engine {
       }),
       // TODO: This is temporary until a proper solution is created.
       ExprKind::Symbol(x) => {
-        if let Some((a, b)) = x.split_once(':') {
+        if let Some((namespace, func)) = x.split_once(':') {
           if let Some(func) = self
             .modules
-            .get(&Symbol::from_ref(a))
-            .and_then(|module| module.func(Symbol::from_ref(b)))
+            .get(&Symbol::from_ref(namespace))
+            .and_then(|module| module.func(Symbol::from_ref(func)))
           {
             context = func(self, context, expr)?;
             Ok(context)
