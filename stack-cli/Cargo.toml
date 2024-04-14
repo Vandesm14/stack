@@ -3,31 +3,17 @@ name = "stack-cli"
 version = "0.1.0"
 edition = "2021"
 
+[features]
+default = ["stack-std"]
+stack-std = ["dep:stack-std"]
+
 [dependencies]
 clap = { version = "4", features = ["derive"] }
 notify = "6"
 
 stack = { path = "../stack" }
+stack-std = { path = "../stack-std", optional = true }
 
 [[bin]]
 name = "stack"
 path = "src/main.rs"
-
-# codespan-reporting = "0.11.1"
-# crossterm = "0.27.0"
-# itertools = "0.12.0"
-# rustyline = "13"
-# termion = "3.0.0"
-# thiserror = "1"
-
-[dev-dependencies]
-test-case = "3"
-# criterion = "0.5.1"
-
-# [[bench]]
-# name = "eval"
-# harness = false
-
-# [[bin]]
-# name = "stack-generate"
-# path = "src/generate_highlighter.rs"

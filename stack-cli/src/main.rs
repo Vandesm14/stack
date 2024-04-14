@@ -24,7 +24,15 @@ fn main() {
         }
       };
 
-      let engine = Engine::new().with_track_info(!fast);
+      let mut engine = Engine::new().with_track_info(!fast);
+
+      #[cfg(feature = "stack-std")]
+      {
+        if cli.enable_fs {
+          engine.add_module(stack_std::fs::module(cli.sandbox));
+        }
+      }
+
       let mut context = Context::new();
 
       context = match engine.run(context, exprs) {
@@ -55,6 +63,16 @@ fn main() {
 struct Cli {
   #[command(subcommand)]
   subcommand: Subcommand,
+
+  /// Whether to run in a sandbox variant of the enabled standard modules.
+  #[arg(short, long)]
+  #[cfg(feature = "stack-std")]
+  sandbox: bool,
+
+  /// Enable the file-system standard module.
+  #[arg(long)]
+  #[cfg(feature = "stack-std")]
+  enable_fs: bool,
 }
 
 #[derive(clap::Subcommand)]
@@ -63,6 +81,7 @@ enum Subcommand {
   Run {
     /// The input file path.
     path: PathBuf,
+
     /// Whether to disable tracking extra information for debugging.
     #[arg(short, long)]
     fast: bool,

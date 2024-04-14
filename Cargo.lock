@@ -386,7 +386,14 @@ dependencies = [
  "clap",
  "notify",
  "stack",
- "test-case",
+ "stack-std",
+]
+
+[[package]]
+name = "stack-std"
+version = "0.1.0"
+dependencies = [
+ "stack",
 ]
 
 [[package]]
