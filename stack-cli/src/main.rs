@@ -9,7 +9,10 @@ use notify::{RecommendedWatcher, Watcher as _};
 use stack::{prelude::*, source::Source as _};
 
 fn main() {
-  let cli = Cli::parse();
+  let mut cli = Cli::parse();
+
+  cli.enable_str = cli.enable_all || cli.enable_str;
+  cli.enable_fs = cli.enable_all || cli.enable_fs;
 
   match cli.subcommand {
     Subcommand::Run { path, fast, watch } => {
@@ -134,6 +137,10 @@ struct Cli {
   #[cfg(feature = "stack-std")]
   sandbox: bool,
 
+  /// Enable all standard module.
+  #[arg(long)]
+  #[cfg(feature = "stack-std")]
+  enable_all: bool,
   /// Enable the string standard module.
   #[arg(long)]
   #[cfg(feature = "stack-std")]
