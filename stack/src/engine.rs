@@ -116,19 +116,7 @@ impl Engine {
         context.stack_push(*x);
         Ok(context)
       }
-      ExprKind::List(ref x) => {
-        let mut list_context = Context::new();
-        list_context = self.run(list_context, x.clone())?;
-
-        context.stack_push(Expr {
-          kind: ExprKind::List(core::mem::take(list_context.stack_mut())),
-          info: self.track_info.then(|| ExprInfo::Runtime {
-            components: vec![expr],
-          }),
-        });
-
-        Ok(context)
-      }
+      ExprKind::List(x) => self.run(context, x),
       ExprKind::Intrinsic(x) => x.run(self, context, expr),
       ExprKind::Fn(_) => todo!(),
     }
