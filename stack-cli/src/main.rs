@@ -137,7 +137,7 @@ struct Cli {
   #[cfg(feature = "stack-std")]
   sandbox: bool,
 
-  /// Enable all standard module.
+  /// Enable all standard modules.
   #[arg(long)]
   #[cfg(feature = "stack-std")]
   enable_all: bool,
