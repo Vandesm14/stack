@@ -60,8 +60,8 @@ pub fn module() -> Module {
     .with_func(
       Symbol::from_ref("starts-with"),
       |engine, mut context, expr| {
-        let item = context.stack_pop(&expr)?;
         let patt = context.stack_pop(&expr)?;
+        let item = context.stack_pop(&expr)?;
 
         let kind = match (item.kind.clone(), patt.kind.clone()) {
           (ExprKind::String(ref x), ExprKind::String(ref y)) => {
@@ -73,7 +73,7 @@ pub fn module() -> Module {
         context.stack_push(Expr {
           kind,
           info: engine.track_info().then(|| ExprInfo::Runtime {
-            components: vec![patt, item, expr],
+            components: vec![item, patt, expr],
           }),
         });
 
@@ -83,8 +83,8 @@ pub fn module() -> Module {
     .with_func(
       Symbol::from_ref("ends-with"),
       |engine, mut context, expr| {
-        let item = context.stack_pop(&expr)?;
         let patt = context.stack_pop(&expr)?;
+        let item = context.stack_pop(&expr)?;
 
         let kind = match (item.kind.clone(), patt.kind.clone()) {
           (ExprKind::String(ref x), ExprKind::String(ref y)) => {
@@ -96,7 +96,7 @@ pub fn module() -> Module {
         context.stack_push(Expr {
           kind,
           info: engine.track_info().then(|| ExprInfo::Runtime {
-            components: vec![patt, item, expr],
+            components: vec![item, patt, expr],
           }),
         });
 
@@ -104,8 +104,8 @@ pub fn module() -> Module {
       },
     )
     .with_func(Symbol::from_ref("split-by"), |engine, mut context, expr| {
-      let item = context.stack_pop(&expr)?;
       let patt = context.stack_pop(&expr)?;
+      let item = context.stack_pop(&expr)?;
 
       let kind = match (item.kind.clone(), patt.kind.clone()) {
         (ExprKind::String(ref x), ExprKind::String(ref y)) => ExprKind::List(
@@ -113,7 +113,7 @@ pub fn module() -> Module {
             .map(|x| Expr {
               kind: ExprKind::String(x.into()),
               info: engine.track_info().then(|| ExprInfo::Runtime {
-                components: vec![patt.clone(), item.clone(), expr.clone()],
+                components: vec![item.clone(), patt.clone(), expr.clone()],
               }),
             })
             .collect(),
@@ -124,7 +124,7 @@ pub fn module() -> Module {
       context.stack_push(Expr {
         kind,
         info: engine.track_info().then(|| ExprInfo::Runtime {
-          components: vec![patt, item, expr],
+          components: vec![item, patt, expr],
         }),
       });
 
