@@ -28,6 +28,10 @@ fn main() {
 
       #[cfg(feature = "stack-std")]
       {
+        if cli.enable_str {
+          engine.add_module(stack_std::str::module());
+        }
+
         if cli.enable_fs {
           engine.add_module(stack_std::fs::module(cli.sandbox));
         }
@@ -69,6 +73,10 @@ struct Cli {
   #[cfg(feature = "stack-std")]
   sandbox: bool,
 
+  /// Enable the string standard module.
+  #[arg(long)]
+  #[cfg(feature = "stack-std")]
+  enable_str: bool,
   /// Enable the file-system standard module.
   #[arg(long)]
   #[cfg(feature = "stack-std")]

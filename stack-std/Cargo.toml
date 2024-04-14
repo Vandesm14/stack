@@ -5,3 +5,4 @@ edition = "2021"
 
 [dependencies]
 stack = { path = "../stack" }
+unicode-segmentation = "1"

@@ -394,6 +394,7 @@ name = "stack-std"
 version = "0.1.0"
 dependencies = [
  "stack",
+ "unicode-segmentation",
 ]
 
 [[package]]
