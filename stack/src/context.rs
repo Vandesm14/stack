@@ -1,6 +1,8 @@
+use std::collections::HashMap;
+
 use crate::{
   engine::{RunError, RunErrorReason},
-  expr::Expr,
+  expr::{Expr, Symbol},
 };
 
 // TODO: This API could be a lot nicer.
@@ -8,12 +10,16 @@ use crate::{
 #[derive(Debug, Clone, PartialEq, Default)]
 pub struct Context {
   stack: Vec<Expr>,
+  lets: Vec<HashMap<Symbol, Expr>>,
 }
 
 impl Context {
   #[inline]
   pub const fn new() -> Self {
-    Self { stack: Vec::new() }
+    Self {
+      stack: Vec::new(),
+      lets: Vec::new(),
+    }
   }
 
   #[inline]
@@ -44,5 +50,25 @@ impl Context {
       context: self.clone(),
       expr: expr.clone(),
     })
+  }
+
+  #[inline]
+  pub fn let_push(&mut self) {
+    self.lets.push(HashMap::new());
+  }
+
+  #[inline]
+  pub fn let_pop(&mut self) -> Option<HashMap<Symbol, Expr>> {
+    self.lets.pop()
+  }
+
+  #[inline]
+  pub fn let_get(&self, name: Symbol) -> Option<&Expr> {
+    self.lets.iter().rev().find_map(|x| x.get(&name))
+  }
+
+  #[inline]
+  pub fn let_set(&mut self, name: Symbol, expr: Expr) -> Option<Expr> {
+    self.lets.last_mut().and_then(|x| x.insert(name, expr))
   }
 }

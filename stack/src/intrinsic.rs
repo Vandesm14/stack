@@ -44,6 +44,8 @@ pub enum Intrinsic {
   Halt,
 
   Call,
+
+  Let,
 }
 
 impl Intrinsic {
@@ -84,6 +86,8 @@ impl Intrinsic {
       "halt" => Some(Self::Halt),
 
       "call" => Some(Self::Call),
+
+      "let" => Some(Self::Let),
 
       _ => None,
     }
@@ -643,6 +647,49 @@ impl Intrinsic {
         let item = context.stack_pop(&expr)?;
         engine.run_expr(context, item)
       }
+
+      Self::Let => {
+        let names = context.stack_pop(&expr)?;
+        let body = context.stack_pop(&expr)?;
+
+        match names.kind {
+          ExprKind::List(x) => {
+            let x_len = x.len();
+
+            let n = x.into_iter().try_fold(
+              Vec::with_capacity(x_len),
+              |mut v, x| match x.kind {
+                ExprKind::Symbol(x) => {
+                  v.push(x);
+                  Ok(v)
+                }
+                _ => Err(RunError {
+                  reason: RunErrorReason::InvalidLet,
+                  context: context.clone(),
+                  expr: expr.clone(),
+                }),
+              },
+            )?;
+
+            context.let_push();
+
+            for name in n.into_iter().rev() {
+              let expr = context.stack_pop(&expr)?;
+              context.let_set(name, expr);
+            }
+
+            context = engine.run_expr(context, body)?;
+            context.let_pop().unwrap();
+
+            Ok(context)
+          }
+          _ => Err(RunError {
+            reason: RunErrorReason::InvalidLet,
+            context: context.clone(),
+            expr: expr.clone(),
+          }),
+        }
+      }
     }
   }
 }
@@ -684,6 +731,8 @@ impl fmt::Display for Intrinsic {
       Self::Halt => write!(f, "halt"),
 
       Self::Call => write!(f, "call"),
+
+      Self::Let => write!(f, "let"),
     }
   }
 }

@@ -108,6 +108,9 @@ impl Engine {
 
             Ok(context)
           }
+        } else if let Some(r#let) = context.let_get(x).cloned() {
+          context.stack_push(r#let);
+          Ok(context)
         } else {
           todo!()
         }
@@ -150,6 +153,7 @@ pub enum RunErrorReason {
   DoubleError,
   AssertionFailed,
   Halt,
+  InvalidLet,
 }
 
 impl std::error::Error for RunErrorReason {}
@@ -161,6 +165,7 @@ impl fmt::Display for RunErrorReason {
       Self::DoubleError => write!(f, "double error"),
       Self::AssertionFailed => write!(f, "assertion failed"),
       Self::Halt => write!(f, "halt"),
+      Self::InvalidLet => write!(f, "invalid let"),
     }
   }
 }
