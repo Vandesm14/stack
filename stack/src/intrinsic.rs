@@ -42,6 +42,8 @@ pub enum Intrinsic {
 
   If,
   Halt,
+
+  Call,
 }
 
 impl Intrinsic {
@@ -80,6 +82,8 @@ impl Intrinsic {
 
       "if" => Some(Self::If),
       "halt" => Some(Self::Halt),
+
+      "call" => Some(Self::Call),
 
       _ => None,
     }
@@ -634,6 +638,11 @@ impl Intrinsic {
         context,
         expr,
       }),
+
+      Self::Call => {
+        let item = context.stack_pop(&expr)?;
+        engine.run_expr(context, item)
+      }
     }
   }
 }
@@ -673,6 +682,8 @@ impl fmt::Display for Intrinsic {
 
       Self::If => write!(f, "if"),
       Self::Halt => write!(f, "halt"),
+
+      Self::Call => write!(f, "call"),
     }
   }
 }
