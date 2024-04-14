@@ -132,7 +132,7 @@ struct Cli {
   #[command(subcommand)]
   subcommand: Subcommand,
 
-  /// Whether to run in a sandbox variant of the enabled standard modules.
+  /// Whether to run a sandbox variant of the enabled standard modules.
   #[arg(short, long)]
   #[cfg(feature = "stack-std")]
   sandbox: bool,
