@@ -33,7 +33,7 @@ impl fmt::Display for Expr {
   }
 }
 
-#[derive(Default)]
+#[derive(Debug, Clone, PartialEq, Default)]
 pub enum ExprKind {
   #[default]
   Nil,
@@ -63,53 +63,6 @@ impl ExprKind {
   #[inline]
   pub const fn is_truthy(&self) -> bool {
     matches!(self, Self::Boolean(true))
-  }
-}
-
-impl Clone for ExprKind {
-  fn clone(&self) -> Self {
-    match self {
-      Self::Nil => Self::Nil,
-      Self::Error(x) => Self::Error(x.clone()),
-
-      Self::Boolean(x) => Self::Boolean(*x),
-      Self::Integer(x) => Self::Integer(*x),
-      Self::Float(x) => Self::Float(*x),
-      Self::String(x) => Self::String(x.clone()),
-
-      Self::Symbol(x) => Self::Symbol(*x),
-
-      Self::Lazy(x) => Self::Lazy(x.clone()),
-      Self::List(x) => Self::List(x.clone()),
-
-      Self::Intrinsic(x) => Self::Intrinsic(*x),
-
-      Self::Fn(x) => Self::Fn(*x),
-    }
-  }
-}
-
-impl PartialEq for ExprKind {
-  fn eq(&self, other: &Self) -> bool {
-    match (self, other) {
-      (Self::Nil, Self::Nil) => true,
-
-      (Self::Boolean(lhs), Self::Boolean(rhs)) => lhs == rhs,
-      (Self::Integer(lhs), Self::Integer(rhs)) => lhs == rhs,
-      (Self::Float(lhs), Self::Float(rhs)) => lhs == rhs,
-      (Self::String(lhs), Self::String(rhs)) => lhs == rhs,
-
-      (Self::Symbol(lhs), Self::Symbol(rhs)) => lhs == rhs,
-
-      (Self::Lazy(lhs), Self::Lazy(rhs)) => lhs == rhs,
-      (Self::List(lhs), Self::List(rhs)) => *lhs == *rhs,
-
-      (Self::Intrinsic(lhs), Self::Intrinsic(rhs)) => lhs == rhs,
-
-      (Self::Fn(lhs), Self::Fn(rhs)) => lhs == rhs,
-
-      _ => false,
-    }
   }
 }
 
@@ -210,29 +163,6 @@ impl ops::Rem for ExprKind {
       (Self::Float(lhs), Self::Float(rhs)) => Ok(Self::Float(lhs % rhs)),
 
       (lhs, rhs) => Err((lhs, rhs)),
-    }
-  }
-}
-
-impl fmt::Debug for ExprKind {
-  fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-    match self {
-      Self::Nil => write!(f, "Nil"),
-      Self::Error(x) => f.debug_tuple("Error").field(x).finish(),
-
-      Self::Boolean(x) => f.debug_tuple("Boolean").field(x).finish(),
-      Self::Integer(x) => f.debug_tuple("Integer").field(x).finish(),
-      Self::Float(x) => f.debug_tuple("Float").field(x).finish(),
-      Self::String(x) => f.debug_tuple("String").field(x).finish(),
-
-      Self::Symbol(x) => f.debug_tuple("Symbol").field(x).finish(),
-
-      Self::Lazy(x) => f.debug_tuple("Lazy").field(x).finish(),
-      Self::List(x) => f.debug_tuple("List").field(x).finish(),
-
-      Self::Intrinsic(x) => f.debug_tuple("Intrinsic").field(x).finish(),
-
-      Self::Fn(x) => f.debug_tuple("Fn").field(x).finish(),
     }
   }
 }
