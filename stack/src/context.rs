@@ -4,7 +4,7 @@ use std::collections::HashMap;
 use crate::{
   engine::{RunError, RunErrorReason},
   expr::{Expr, Symbol},
-  journal::Journal,
+  journal::{Journal, JournalOp},
   scope::{Scanner, Scope},
 };
 
@@ -144,16 +144,32 @@ impl Context {
       expr
     };
 
-    // TODO: implement
-    // if self.debug {
-    //   self.journal.op(JournalOp::Push(expr.clone()));
-    // }
+    if let Some(journal) = self.journal_mut() {
+      journal.op(JournalOp::Push(expr.clone()));
+    }
 
     self.stack.push(expr);
     // TODO: I don't think we need to commit after each push.
     // self.journal.commit();
 
     Ok(())
+  }
+
+  #[inline]
+  pub fn stack_pop(&mut self, expr: &Expr) -> Result<Expr, RunError> {
+    match self.stack.pop() {
+      Some(expr) => {
+        if let Some(journal) = self.journal_mut() {
+          journal.op(JournalOp::Pop(expr.clone()));
+        }
+        Ok(expr)
+      }
+      None => Err(RunError {
+        reason: RunErrorReason::StackUnderflow,
+        context: self.clone(),
+        expr: expr.clone(),
+      }),
+    }
   }
 
   pub fn scope_item(&self, symbol: Symbol) -> Option<Expr> {
@@ -199,15 +215,6 @@ impl Context {
     self.scopes.pop();
 
     debug_assert!(!self.scopes.is_empty());
-  }
-
-  #[inline]
-  pub fn stack_pop(&mut self, expr: &Expr) -> Result<Expr, RunError> {
-    self.stack.pop().ok_or_else(|| RunError {
-      reason: RunErrorReason::StackUnderflow,
-      context: self.clone(),
-      expr: expr.clone(),
-    })
   }
 
   #[inline]

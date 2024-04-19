@@ -7,7 +7,7 @@ use crate::{
     vec_fn_body, vec_fn_symbol, vec_is_function, Expr, ExprInfo, ExprKind,
     FnIdent, Symbol,
   },
-  journal::{self, JournalOp},
+  journal::JournalOp,
   module::Module,
 };
 
@@ -95,7 +95,13 @@ impl Engine {
             .get(&Symbol::from_ref(namespace))
             .and_then(|module| module.func(Symbol::from_ref(func)))
           {
+            if let Some(journal) = context.journal_mut() {
+              journal.op(JournalOp::Call(expr.clone()));
+            }
             context = func(self, context, expr)?;
+            if let Some(journal) = context.journal_mut() {
+              journal.commit();
+            }
             Ok(context)
           } else {
             context.stack_push(Expr {
@@ -151,8 +157,19 @@ impl Engine {
         }
         false => self.run(context, x.to_vec()),
       },
-      ExprKind::Intrinsic(x) => x.run(self, context, expr),
-      ExprKind::Fn(_) => todo!(),
+      ExprKind::Intrinsic(x) => {
+        if let Some(journal) = context.journal_mut() {
+          journal.commit();
+          journal.op(JournalOp::FnCall(expr.clone()));
+        }
+        let mut context = x.run(self, context, expr)?;
+        if let Some(journal) = context.journal_mut() {
+          journal.commit();
+        }
+
+        Ok(context)
+      }
+      ExprKind::Fn(_) => Ok(context),
     }
   }
 
@@ -166,6 +183,7 @@ impl Engine {
     mut context: Context,
   ) -> Result<Context, RunError> {
     if let Some(journal) = context.journal_mut() {
+      journal.commit();
       journal.op(JournalOp::FnCall(expr.clone()));
     }
 
