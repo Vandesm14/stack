@@ -143,13 +143,13 @@ impl Engine {
         context.stack_push(*x)?;
         Ok(context)
       }
-      ExprKind::List(x) => match vec_is_function(&x) {
+      ExprKind::List(ref x) => match vec_is_function(x) {
         true => {
-          let fn_ident = vec_fn_symbol(&x).unwrap();
-          let fn_body = vec_fn_body(&x).unwrap();
+          let fn_ident = vec_fn_symbol(x).unwrap();
+          let fn_body = vec_fn_body(x).unwrap();
           self.call_fn(&expr, fn_ident, fn_body, context)
         }
-        false => self.run(context, x),
+        false => self.run(context, x.to_vec()),
       },
       ExprKind::Intrinsic(x) => x.run(self, context, expr),
       ExprKind::Fn(_) => todo!(),
