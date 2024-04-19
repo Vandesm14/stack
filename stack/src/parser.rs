@@ -2,7 +2,7 @@ use core::fmt;
 use std::rc::Rc;
 
 use crate::{
-  expr::{Expr, ExprInfo, ExprKind, Fn, Symbol},
+  expr::{Expr, ExprInfo, ExprKind, FnIdent, Symbol},
   intrinsic::Intrinsic,
   lexer::{Lexer, Span, Token, TokenKind},
   source::Source,
@@ -184,8 +184,9 @@ impl Parser {
         self.next(next_token)
       }
 
+      // TODO: handle exclamation for scopeless functions
       TokenKind::Fn | TokenKind::FnExclamation => Ok(Some(Expr {
-        kind: ExprKind::Fn(Fn {}),
+        kind: ExprKind::Fn(FnIdent::default()),
         info: Some(ExprInfo::Source {
           source,
           span: token.span,

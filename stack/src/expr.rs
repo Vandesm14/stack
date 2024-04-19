@@ -3,7 +3,7 @@ use std::rc::Rc;
 
 use internment::Intern;
 
-use crate::{intrinsic::Intrinsic, lexer::Span, source::Source};
+use crate::{intrinsic::Intrinsic, lexer::Span, scope::Scope, source::Source};
 
 pub type Symbol = Intern<String>;
 
@@ -51,7 +51,7 @@ pub enum ExprKind {
 
   Intrinsic(Intrinsic),
 
-  Fn(Fn),
+  Fn(FnIdent),
 }
 
 impl ExprKind {
@@ -63,6 +63,63 @@ impl ExprKind {
   #[inline]
   pub const fn is_truthy(&self) -> bool {
     matches!(self, Self::Boolean(true))
+  }
+
+  #[inline]
+  pub fn is_function(&self) -> bool {
+    match self {
+      Self::List(list) => list
+        .first()
+        .map(|x| {
+          matches!(
+            x,
+            Expr {
+              kind: Self::Fn(_),
+              ..
+            }
+          )
+        })
+        .unwrap_or(false),
+      _ => false,
+    }
+  }
+
+  #[inline]
+  pub fn fn_symbol(&self) -> Option<&FnIdent> {
+    match self {
+      Self::List(list) => list.first().and_then(|x| match &x.kind {
+        Self::Fn(scope) => Some(scope),
+        _ => None,
+      }),
+      _ => None,
+    }
+  }
+
+  #[inline]
+  pub fn fn_body(&self) -> Option<&[Expr]> {
+    match self {
+      Self::List(list) => list.first().and_then(|x| match x.kind {
+        Self::Fn(_) => Some(&list[1..]),
+        _ => None,
+      }),
+      _ => None,
+    }
+  }
+
+  #[inline]
+  pub const fn unlazy(&self) -> &ExprKind {
+    match self {
+      ExprKind::Lazy(x) => x.kind.unlazy(),
+      x => x,
+    }
+  }
+
+  #[inline]
+  pub fn unlazy_mut(&mut self) -> &mut ExprKind {
+    match self {
+      ExprKind::Lazy(x) => x.kind.unlazy_mut(),
+      x => x,
+    }
   }
 }
 
@@ -205,12 +262,13 @@ impl fmt::Display for ExprKind {
   }
 }
 
-// TODO: Implement Fn.
+#[derive(Debug, Clone, PartialEq, Default)]
+pub struct FnIdent {
+  pub scoped: bool,
+  pub scope: Scope,
+}
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Default)]
-pub struct Fn {}
-
-impl fmt::Display for Fn {
+impl fmt::Display for FnIdent {
   fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
     write!(f, "fn(..)")
   }
