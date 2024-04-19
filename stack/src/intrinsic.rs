@@ -6,6 +6,7 @@ use crate::{
   context::Context,
   engine::{Engine, RunError, RunErrorReason},
   expr::{Expr, ExprInfo, ExprKind, Symbol},
+  journal::JournalOp,
 };
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
@@ -715,8 +716,18 @@ impl Intrinsic {
               context.let_set(name, expr);
             }
 
+            if let Some(journal) = context.journal_mut() {
+              journal.commit();
+              journal.op(JournalOp::FnStart(false));
+            }
+
             context = engine.run_expr(context, body)?;
             context.let_pop().unwrap();
+
+            if let Some(journal) = context.journal_mut() {
+              journal.commit();
+              journal.op(JournalOp::FnEnd);
+            }
 
             Ok(context)
           }
