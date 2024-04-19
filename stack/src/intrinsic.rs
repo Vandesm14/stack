@@ -49,6 +49,8 @@ pub enum Intrinsic {
   Def,
   Set,
   Get,
+
+  Print,
 }
 
 impl Intrinsic {
@@ -94,6 +96,8 @@ impl Intrinsic {
       "def" => Some(Self::Def),
       "set" => Some(Self::Set),
       "get" => Some(Self::Get),
+
+      "print" => Some(Self::Print),
 
       _ => None,
     }
@@ -760,7 +764,7 @@ impl Intrinsic {
         }
       }
 
-      // MARK: Set
+      // MARK: Get
       Self::Get => {
         let name = context.stack_pop(&expr)?;
 
@@ -778,6 +782,15 @@ impl Intrinsic {
             expr: expr.clone(),
           }),
         }
+      }
+
+      // MARK: Print
+      Self::Print => {
+        let val = context.stack_pop(&expr)?;
+
+        println!("{}", val);
+
+        Ok(context)
       }
     }
   }
@@ -825,6 +838,8 @@ impl fmt::Display for Intrinsic {
       Self::Def => write!(f, "def"),
       Self::Set => write!(f, "set"),
       Self::Get => write!(f, "get"),
+
+      Self::Print => write!(f, "print"),
     }
   }
 }
