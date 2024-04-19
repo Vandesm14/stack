@@ -54,6 +54,35 @@ pub enum ExprKind {
   Fn(FnIdent),
 }
 
+pub fn vec_is_function(list: &[Expr]) -> bool {
+  list
+    .first()
+    .map(|x| {
+      matches!(
+        x,
+        Expr {
+          kind: ExprKind::Fn(_),
+          ..
+        }
+      )
+    })
+    .unwrap_or(false)
+}
+
+pub fn vec_fn_symbol(list: &[Expr]) -> Option<&FnIdent> {
+  list.first().and_then(|x| match &x.kind {
+    ExprKind::Fn(scope) => Some(scope),
+    _ => None,
+  })
+}
+
+pub fn vec_fn_body(list: &[Expr]) -> Option<&[Expr]> {
+  list.first().and_then(|x| match x.kind {
+    ExprKind::Fn(_) => Some(&list[1..]),
+    _ => None,
+  })
+}
+
 impl ExprKind {
   #[inline]
   pub const fn is_nil(&self) -> bool {
@@ -67,38 +96,21 @@ impl ExprKind {
 
   pub fn is_function(&self) -> bool {
     match self {
-      Self::List(list) => list
-        .first()
-        .map(|x| {
-          matches!(
-            x,
-            Expr {
-              kind: Self::Fn(_),
-              ..
-            }
-          )
-        })
-        .unwrap_or(false),
+      Self::List(list) => vec_is_function(list),
       _ => false,
     }
   }
 
   pub fn fn_symbol(&self) -> Option<&FnIdent> {
     match self {
-      Self::List(list) => list.first().and_then(|x| match &x.kind {
-        Self::Fn(scope) => Some(scope),
-        _ => None,
-      }),
+      Self::List(list) => vec_fn_symbol(list),
       _ => None,
     }
   }
 
   pub fn fn_body(&self) -> Option<&[Expr]> {
     match self {
-      Self::List(list) => list.first().and_then(|x| match x.kind {
-        Self::Fn(_) => Some(&list[1..]),
-        _ => None,
-      }),
+      Self::List(list) => vec_fn_body(list),
       _ => None,
     }
   }

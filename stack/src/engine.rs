@@ -2,8 +2,11 @@ use core::fmt;
 use std::collections::HashMap;
 
 use crate::{
-  context::{self, Context},
-  expr::{Expr, ExprInfo, ExprKind, FnIdent, Symbol},
+  context::Context,
+  expr::{
+    vec_fn_body, vec_fn_symbol, vec_is_function, Expr, ExprInfo, ExprKind,
+    FnIdent, Symbol,
+  },
   module::Module,
 };
 
@@ -141,7 +144,14 @@ impl Engine {
         context.stack_push(*x)?;
         Ok(context)
       }
-      ExprKind::List(x) => self.run(context, x),
+      ExprKind::List(x) => match vec_is_function(&x) {
+        true => {
+          let fn_ident = vec_fn_symbol(&x).unwrap();
+          let fn_body = vec_fn_body(&x).unwrap();
+          self.call_fn(fn_ident, fn_body, context)
+        }
+        false => self.run(context, x),
+      },
       ExprKind::Intrinsic(x) => x.run(self, context, expr),
       ExprKind::Fn(_) => todo!(),
     }

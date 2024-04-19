@@ -48,6 +48,7 @@ pub enum Intrinsic {
   Let,
   Def,
   Set,
+  Get,
 }
 
 impl Intrinsic {
@@ -92,6 +93,7 @@ impl Intrinsic {
       "let" => Some(Self::Let),
       "def" => Some(Self::Def),
       "set" => Some(Self::Set),
+      "get" => Some(Self::Get),
 
       _ => None,
     }
@@ -757,6 +759,26 @@ impl Intrinsic {
           }),
         }
       }
+
+      // MARK: Set
+      Self::Get => {
+        let name = context.stack_pop(&expr)?;
+
+        match name.kind {
+          ExprKind::Symbol(symbol) => context
+            .stack_push(context.scope_item(symbol).ok_or_else(|| RunError {
+              context: context.clone(),
+              expr,
+              reason: RunErrorReason::UnknownCall,
+            })?)
+            .map(|_| context),
+          _ => Err(RunError {
+            reason: RunErrorReason::UnknownCall,
+            context: context.clone(),
+            expr: expr.clone(),
+          }),
+        }
+      }
     }
   }
 }
@@ -802,6 +824,7 @@ impl fmt::Display for Intrinsic {
       Self::Let => write!(f, "let"),
       Self::Def => write!(f, "def"),
       Self::Set => write!(f, "set"),
+      Self::Get => write!(f, "get"),
     }
   }
 }
