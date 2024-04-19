@@ -75,7 +75,7 @@ impl Engine {
       | ExprKind::Integer(_)
       | ExprKind::Float(_)
       | ExprKind::String(_) => {
-        context.stack_push(expr);
+        context.stack_push(expr)?;
         Ok(context)
       }
       ExprKind::Error(_) => Err(RunError {
@@ -104,19 +104,19 @@ impl Engine {
               info: self.track_info.then(|| ExprInfo::Runtime {
                 components: vec![expr],
               }),
-            });
+            })?;
 
             Ok(context)
           }
         } else if let Some(r#let) = context.let_get(x).cloned() {
-          context.stack_push(r#let);
+          context.stack_push(r#let)?;
           Ok(context)
         } else {
           todo!()
         }
       }
       ExprKind::Lazy(x) => {
-        context.stack_push(*x);
+        context.stack_push(*x)?;
         Ok(context)
       }
       ExprKind::List(x) => self.run(context, x),

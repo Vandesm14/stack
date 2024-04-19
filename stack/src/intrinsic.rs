@@ -115,7 +115,7 @@ impl Intrinsic {
           info: engine.track_info().then(|| ExprInfo::Runtime {
             components: vec![rhs, lhs, expr],
           }),
-        });
+        })?;
 
         Ok(context)
       }
@@ -134,7 +134,7 @@ impl Intrinsic {
           info: engine.track_info().then(|| ExprInfo::Runtime {
             components: vec![rhs, lhs, expr],
           }),
-        });
+        })?;
 
         Ok(context)
       }
@@ -153,7 +153,7 @@ impl Intrinsic {
           info: engine.track_info().then(|| ExprInfo::Runtime {
             components: vec![rhs, lhs, expr],
           }),
-        });
+        })?;
 
         Ok(context)
       }
@@ -172,7 +172,7 @@ impl Intrinsic {
           info: engine.track_info().then(|| ExprInfo::Runtime {
             components: vec![rhs, lhs, expr],
           }),
-        });
+        })?;
 
         Ok(context)
       }
@@ -191,7 +191,7 @@ impl Intrinsic {
           info: engine.track_info().then(|| ExprInfo::Runtime {
             components: vec![rhs, lhs, expr],
           }),
-        });
+        })?;
 
         Ok(context)
       }
@@ -208,7 +208,7 @@ impl Intrinsic {
           info: engine.track_info().then(|| ExprInfo::Runtime {
             components: vec![rhs, lhs, expr],
           }),
-        });
+        })?;
 
         Ok(context)
       }
@@ -224,7 +224,7 @@ impl Intrinsic {
           info: engine.track_info().then(|| ExprInfo::Runtime {
             components: vec![rhs, lhs, expr],
           }),
-        });
+        })?;
 
         Ok(context)
       }
@@ -240,7 +240,7 @@ impl Intrinsic {
           info: engine.track_info().then(|| ExprInfo::Runtime {
             components: vec![rhs, lhs, expr],
           }),
-        });
+        })?;
 
         Ok(context)
       }
@@ -256,7 +256,7 @@ impl Intrinsic {
           info: engine.track_info().then(|| ExprInfo::Runtime {
             components: vec![rhs, lhs, expr],
           }),
-        });
+        })?;
 
         Ok(context)
       }
@@ -272,7 +272,7 @@ impl Intrinsic {
           info: engine.track_info().then(|| ExprInfo::Runtime {
             components: vec![rhs, lhs, expr],
           }),
-        });
+        })?;
 
         Ok(context)
       }
@@ -288,7 +288,7 @@ impl Intrinsic {
           info: engine.track_info().then(|| ExprInfo::Runtime {
             components: vec![rhs, lhs, expr],
           }),
-        });
+        })?;
 
         Ok(context)
       }
@@ -306,7 +306,7 @@ impl Intrinsic {
           info: engine.track_info().then(|| ExprInfo::Runtime {
             components: vec![rhs, lhs, expr],
           }),
-        });
+        })?;
 
         Ok(context)
       }
@@ -323,7 +323,7 @@ impl Intrinsic {
           info: engine.track_info().then(|| ExprInfo::Runtime {
             components: vec![rhs, lhs, expr],
           }),
-        });
+        })?;
 
         Ok(context)
       }
@@ -362,7 +362,7 @@ impl Intrinsic {
           expr,
         })?;
 
-        context.stack_push(item);
+        context.stack_push(item)?;
         Ok(context)
       }
       // MARK: Swap
@@ -415,14 +415,14 @@ impl Intrinsic {
           _ => ExprKind::Nil,
         };
 
-        context.stack_push(item.clone());
+        context.stack_push(item.clone())?;
 
         context.stack_push(Expr {
           kind,
           info: engine.track_info().then(|| ExprInfo::Runtime {
             components: vec![item, expr],
           }),
-        });
+        })?;
 
         Ok(context)
       }
@@ -446,14 +446,14 @@ impl Intrinsic {
           _ => ExprKind::Nil,
         };
 
-        context.stack_push(item.clone());
+        context.stack_push(item.clone())?;
 
         context.stack_push(Expr {
           kind,
           info: engine.track_info().then(|| ExprInfo::Runtime {
             components: vec![item, index, expr],
           }),
-        });
+        })?;
 
         Ok(context)
       }
@@ -473,28 +473,28 @@ impl Intrinsic {
                 info: engine.track_info().then(|| ExprInfo::Runtime {
                   components: vec![item.clone(), index.clone(), expr.clone()],
                 }),
-              });
+              })?;
 
               context.stack_push(Expr {
                 kind: ExprKind::List(rest),
                 info: engine.track_info().then(|| ExprInfo::Runtime {
                   components: vec![item, index, expr],
                 }),
-              });
+              })?;
             } else {
               context.stack_push(Expr {
                 kind: ExprKind::List(x),
                 info: engine.track_info().then(|| ExprInfo::Runtime {
                   components: vec![item.clone(), index.clone(), expr.clone()],
                 }),
-              });
+              })?;
 
               context.stack_push(Expr {
                 kind: ExprKind::Nil,
                 info: engine.track_info().then(|| ExprInfo::Runtime {
                   components: vec![item, index, expr],
                 }),
-              });
+              })?;
             }
           }
           (ExprKind::String(mut x), ExprKind::Integer(i)) if i >= 0 => {
@@ -507,14 +507,14 @@ impl Intrinsic {
                   info: engine.track_info().then(|| ExprInfo::Runtime {
                     components: vec![item.clone(), index.clone(), expr.clone()],
                   }),
-                });
+                })?;
 
                 context.stack_push(Expr {
                   kind: ExprKind::String(rest),
                   info: engine.track_info().then(|| ExprInfo::Runtime {
                     components: vec![item, index, expr],
                   }),
-                });
+                })?;
               }
               None => {
                 context.stack_push(Expr {
@@ -522,14 +522,14 @@ impl Intrinsic {
                   info: engine.track_info().then(|| ExprInfo::Runtime {
                     components: vec![item.clone(), index.clone(), expr.clone()],
                   }),
-                });
+                })?;
 
                 context.stack_push(Expr {
                   kind: ExprKind::Nil,
                   info: engine.track_info().then(|| ExprInfo::Runtime {
                     components: vec![item, index, expr],
                   }),
-                });
+                })?;
               }
             }
           }
@@ -539,14 +539,14 @@ impl Intrinsic {
               info: engine.track_info().then(|| ExprInfo::Runtime {
                 components: vec![item.clone(), index.clone(), expr.clone()],
               }),
-            });
+            })?;
 
             context.stack_push(Expr {
               kind: ExprKind::Nil,
               info: engine.track_info().then(|| ExprInfo::Runtime {
                 components: vec![item, index, expr],
               }),
-            });
+            })?;
           }
         }
 
@@ -575,7 +575,7 @@ impl Intrinsic {
           info: engine.track_info().then(|| ExprInfo::Runtime {
             components: vec![rhs, lhs, expr],
           }),
-        });
+        })?;
 
         Ok(context)
       }
@@ -645,7 +645,7 @@ impl Intrinsic {
           info: engine.track_info().then(|| ExprInfo::Runtime {
             components: vec![item, ty, expr],
           }),
-        });
+        })?;
 
         Ok(context)
       }

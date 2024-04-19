@@ -18,7 +18,7 @@ pub fn module() -> Module {
           info: engine.track_info().then(|| ExprInfo::Runtime {
             components: vec![item, expr],
           }),
-        });
+        })?;
 
         Ok(context)
       },
@@ -36,7 +36,7 @@ pub fn module() -> Module {
         info: engine.track_info().then(|| ExprInfo::Runtime {
           components: vec![item, expr],
         }),
-      });
+      })?;
 
       Ok(context)
     })
@@ -53,7 +53,7 @@ pub fn module() -> Module {
         info: engine.track_info().then(|| ExprInfo::Runtime {
           components: vec![item, expr],
         }),
-      });
+      })?;
 
       Ok(context)
     })
@@ -75,7 +75,7 @@ pub fn module() -> Module {
           info: engine.track_info().then(|| ExprInfo::Runtime {
             components: vec![item, patt, expr],
           }),
-        });
+        })?;
 
         Ok(context)
       },
@@ -98,7 +98,7 @@ pub fn module() -> Module {
           info: engine.track_info().then(|| ExprInfo::Runtime {
             components: vec![item, patt, expr],
           }),
-        });
+        })?;
 
         Ok(context)
       },
@@ -126,7 +126,7 @@ pub fn module() -> Module {
         info: engine.track_info().then(|| ExprInfo::Runtime {
           components: vec![item, patt, expr],
         }),
-      });
+      })?;
 
       Ok(context)
     })
@@ -154,7 +154,7 @@ pub fn module() -> Module {
           info: engine.track_info().then(|| ExprInfo::Runtime {
             components: vec![item, expr],
           }),
-        });
+        })?;
 
         Ok(context)
       },
@@ -174,7 +174,7 @@ pub fn module() -> Module {
           info: engine.track_info().then(|| ExprInfo::Runtime {
             components: vec![item, expr],
           }),
-        });
+        })?;
 
         Ok(context)
       },
@@ -194,7 +194,7 @@ pub fn module() -> Module {
           info: engine.track_info().then(|| ExprInfo::Runtime {
             components: vec![item, expr],
           }),
-        });
+        })?;
 
         Ok(context)
       },
@@ -212,7 +212,7 @@ pub fn module() -> Module {
         info: engine.track_info().then(|| ExprInfo::Runtime {
           components: vec![item, expr],
         }),
-      });
+      })?;
 
       Ok(context)
     })
@@ -231,7 +231,7 @@ pub fn module() -> Module {
         info: engine.track_info().then(|| ExprInfo::Runtime {
           components: vec![item, expr],
         }),
-      });
+      })?;
 
       Ok(context)
     })
@@ -259,7 +259,7 @@ pub fn module() -> Module {
         info: engine.track_info().then(|| ExprInfo::Runtime {
           components: vec![item, expr],
         }),
-      });
+      })?;
 
       Ok(context)
     })
@@ -292,7 +292,7 @@ pub fn module() -> Module {
           info: engine.track_info().then(|| ExprInfo::Runtime {
             components: vec![item, expr],
           }),
-        });
+        })?;
 
         Ok(context)
       },
@@ -320,7 +320,7 @@ pub fn module() -> Module {
         info: engine.track_info().then(|| ExprInfo::Runtime {
           components: vec![item, expr],
         }),
-      });
+      })?;
 
       Ok(context)
     })
@@ -349,7 +349,7 @@ pub fn module() -> Module {
           info: engine.track_info().then(|| ExprInfo::Runtime {
             components: vec![item, expr],
           }),
-        });
+        })?;
 
         Ok(context)
       },

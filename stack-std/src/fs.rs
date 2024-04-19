@@ -13,7 +13,7 @@ pub fn module(sandbox: bool) -> Module {
           info: engine.track_info().then(|| ExprInfo::Runtime {
             components: vec![expr],
           }),
-        });
+        })?;
 
         Ok(context)
       })
@@ -41,7 +41,7 @@ pub fn module(sandbox: bool) -> Module {
             info: engine.track_info().then(|| ExprInfo::Runtime {
               components: vec![path, expr],
             }),
-          });
+          })?;
 
           Ok(context)
         },
