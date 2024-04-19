@@ -1,15 +1,13 @@
-use internment::Intern;
-
 use core::fmt;
 use std::{cell::RefCell, collections::HashMap, fmt::Formatter, rc::Rc};
 
-use crate::{chain::Chain, expr::FnIdent, module::Func, prelude::*};
+use crate::{chain::Chain, expr::FnIdent, prelude::*};
 
 pub type Val = Rc<RefCell<Chain<Option<Expr>>>>;
 
 #[derive(Default, PartialEq)]
 pub struct Scope {
-  pub items: HashMap<Intern<String>, Val>,
+  pub items: HashMap<Symbol, Val>,
 }
 
 impl fmt::Debug for Scope {
@@ -39,15 +37,11 @@ impl Scope {
     Self::default()
   }
 
-  pub fn from(items: HashMap<Intern<String>, Val>) -> Self {
+  pub fn from(items: HashMap<Symbol, Val>) -> Self {
     Self { items }
   }
 
-  pub fn define(
-    &mut self,
-    name: Intern<String>,
-    item: Expr,
-  ) -> Result<(), String> {
+  pub fn define(&mut self, name: Symbol, item: Expr) -> Result<(), String> {
     if let Some(chain) = self.items.get(&name) {
       let mut chain = RefCell::borrow_mut(chain);
       match chain.is_root() {
@@ -66,43 +60,40 @@ impl Scope {
     Ok(())
   }
 
-  pub fn reserve(&mut self, name: Intern<String>) -> Result<(), String> {
+  pub fn reserve(&mut self, name: Symbol) {
     if self.items.get(&name).is_none() {
       let val = Rc::new(RefCell::new(Chain::new(None)));
       self.items.insert(name, val);
-      Ok(())
-    } else {
-      Err("Cannot reserve an already existing variable".to_owned())
     }
   }
 
   pub fn set(
     &mut self,
-    name: Intern<String>,
+    name: Symbol,
     item: Expr,
-  ) -> Result<(), String> {
+  ) -> Result<(), RunErrorReason> {
     if let Some(chain) = self.items.get_mut(&name) {
       let mut chain = RefCell::borrow_mut(chain);
       chain.set(Some(item));
       Ok(())
     } else {
-      Err("Cannot set to a nonexistent variable".to_owned())
+      Err(RunErrorReason::CannotSetBeforeDef)
     }
   }
 
-  pub fn remove(&mut self, name: Intern<String>) {
+  pub fn remove(&mut self, name: Symbol) {
     self.items.remove(&name);
   }
 
-  pub fn has(&self, name: Intern<String>) -> bool {
+  pub fn has(&self, name: Symbol) -> bool {
     self.items.contains_key(&name)
   }
 
-  pub fn get_val(&self, name: Intern<String>) -> Option<Expr> {
+  pub fn get_val(&self, name: Symbol) -> Option<Expr> {
     self.items.get(&name).and_then(|item| item.borrow().val())
   }
 
-  pub fn get_ref(&self, name: Intern<String>) -> Option<&Val> {
+  pub fn get_ref(&self, name: Symbol) -> Option<&Val> {
     self.items.get(&name)
   }
 
@@ -130,36 +121,35 @@ impl Scope {
 }
 
 #[derive(Debug)]
-pub struct Scanner<'a> {
+pub struct Scanner {
   pub scope: Scope,
-  pub funcs: &'a HashMap<Intern<String>, Func>,
 }
 
-impl<'a> Scanner<'a> {
-  pub fn new(scope: Scope, funcs: &'a HashMap<Intern<String>, Func>) -> Self {
-    Self { scope, funcs }
+impl Scanner {
+  pub fn new(scope: Scope) -> Self {
+    Self { scope }
   }
 
-  pub fn scan(&mut self, expr: Expr) -> Result<Expr, String> {
+  pub fn scan(&mut self, expr: Expr) -> Result<Expr, RunErrorReason> {
     if expr.kind.is_function() {
       let expr = expr;
       // We can unwrap here because we know the expression is a function
       let fn_symbol = match expr.kind.fn_symbol() {
         Some(fn_symbol) => fn_symbol,
-        None => return Err("Invalid function".to_owned()),
+        None => return Err(RunErrorReason::InvalidFunction),
       };
       let mut fn_body = match expr.kind.fn_body() {
         Some(fn_body) => fn_body.to_vec(),
-        None => return Err("Invalid function".to_owned()),
+        None => return Err(RunErrorReason::InvalidFunction),
       };
 
       for item in fn_body.iter_mut() {
         if let ExprKind::Symbol(call) = item.kind.unlazy() {
-          if !self.funcs.contains_key(call) && !self.scope.has(*call) {
-            self.scope.reserve(*call).unwrap();
+          if !self.scope.has(*call) {
+            self.scope.reserve(*call);
           }
         } else if item.kind.unlazy().is_function() {
-          let mut scanner = Scanner::new(self.scope.clone(), self.funcs);
+          let mut scanner = Scanner::new(self.scope.clone());
           let unlazied_mut = item.kind.unlazy_mut();
           *unlazied_mut = scanner
             .scan(Expr {

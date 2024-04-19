@@ -65,7 +65,6 @@ impl ExprKind {
     matches!(self, Self::Boolean(true))
   }
 
-  #[inline]
   pub fn is_function(&self) -> bool {
     match self {
       Self::List(list) => list
@@ -84,7 +83,6 @@ impl ExprKind {
     }
   }
 
-  #[inline]
   pub fn fn_symbol(&self) -> Option<&FnIdent> {
     match self {
       Self::List(list) => list.first().and_then(|x| match &x.kind {
@@ -95,7 +93,6 @@ impl ExprKind {
     }
   }
 
-  #[inline]
   pub fn fn_body(&self) -> Option<&[Expr]> {
     match self {
       Self::List(list) => list.first().and_then(|x| match x.kind {
@@ -106,7 +103,6 @@ impl ExprKind {
     }
   }
 
-  #[inline]
   pub const fn unlazy(&self) -> &ExprKind {
     match self {
       ExprKind::Lazy(x) => x.kind.unlazy(),
@@ -114,7 +110,6 @@ impl ExprKind {
     }
   }
 
-  #[inline]
   pub fn unlazy_mut(&mut self) -> &mut ExprKind {
     match self {
       ExprKind::Lazy(x) => x.kind.unlazy_mut(),

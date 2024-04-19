@@ -154,6 +154,10 @@ pub enum RunErrorReason {
   AssertionFailed,
   Halt,
   InvalidLet,
+
+  // Scope Errors
+  InvalidFunction,
+  CannotSetBeforeDef,
 }
 
 impl std::error::Error for RunErrorReason {}
@@ -166,6 +170,10 @@ impl fmt::Display for RunErrorReason {
       Self::AssertionFailed => write!(f, "assertion failed"),
       Self::Halt => write!(f, "halt"),
       Self::InvalidLet => write!(f, "invalid let"),
+      Self::InvalidFunction => write!(f, "invalid function"),
+      Self::CannotSetBeforeDef => {
+        write!(f, "cannot set to a nonexistent variable")
+      }
     }
   }
 }
