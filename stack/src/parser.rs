@@ -184,8 +184,17 @@ impl Parser {
         self.next(next_token)
       }
 
-      // TODO: handle exclamation for scopeless functions
-      TokenKind::Fn | TokenKind::FnExclamation => Ok(Some(Expr {
+      TokenKind::Fn => Ok(Some(Expr {
+        kind: ExprKind::Fn(FnIdent {
+          scoped: true,
+          ..Default::default()
+        }),
+        info: Some(ExprInfo::Source {
+          source,
+          span: token.span,
+        }),
+      })),
+      TokenKind::FnExclamation => Ok(Some(Expr {
         kind: ExprKind::Fn(FnIdent::default()),
         info: Some(ExprInfo::Source {
           source,
