@@ -89,6 +89,10 @@ impl Engine {
       }),
       // TODO: This is temporary until a proper solution is created.
       ExprKind::Symbol(x) => {
+        if let Some(journal) = context.journal_mut() {
+          journal.commit();
+        }
+
         if let Some((namespace, func)) = x.split_once(':') {
           if let Some(func) = self
             .modules
@@ -96,7 +100,7 @@ impl Engine {
             .and_then(|module| module.func(Symbol::from_ref(func)))
           {
             if let Some(journal) = context.journal_mut() {
-              journal.op(JournalOp::Call(expr.clone()));
+              journal.op(JournalOp::FnCall(expr.clone()));
             }
             context = func(self, context, expr)?;
             if let Some(journal) = context.journal_mut() {
@@ -183,7 +187,6 @@ impl Engine {
     mut context: Context,
   ) -> Result<Context, RunError> {
     if let Some(journal) = context.journal_mut() {
-      journal.commit();
       journal.op(JournalOp::FnCall(expr.clone()));
     }
 
