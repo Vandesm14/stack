@@ -3,6 +3,7 @@ use std::collections::HashMap;
 use crate::{
   engine::{RunError, RunErrorReason},
   expr::{Expr, Symbol},
+  journal::Journal,
   scope::{Scanner, Scope},
 };
 
@@ -13,7 +14,7 @@ pub struct Context {
   stack: Vec<Expr>,
   lets: Vec<HashMap<Symbol, Expr>>,
   scopes: Vec<Scope>,
-  // journal: Option<Journal>,
+  journal: Option<Journal>,
 }
 
 impl Default for Context {
@@ -29,6 +30,7 @@ impl Context {
       stack: Vec::new(),
       lets: Vec::new(),
       scopes: vec![Scope::new()],
+      journal: None,
     }
   }
 
@@ -46,6 +48,16 @@ impl Context {
   #[inline]
   pub fn stack_mut(&mut self) -> &mut Vec<Expr> {
     &mut self.stack
+  }
+
+  #[inline]
+  pub fn journal(&self) -> &Option<Journal> {
+    &self.journal
+  }
+
+  #[inline]
+  pub fn journal_mut(&mut self) -> &mut Option<Journal> {
+    &mut self.journal
   }
 
   #[inline]

@@ -7,6 +7,7 @@ use crate::{
     vec_fn_body, vec_fn_symbol, vec_is_function, Expr, ExprInfo, ExprKind,
     FnIdent, Symbol,
   },
+  journal::{self, JournalOp},
   module::Module,
 };
 
@@ -115,17 +116,15 @@ impl Engine {
           if item.kind.is_function() {
             let fn_ident = item.kind.fn_symbol().unwrap();
             let fn_body = item.kind.fn_body().unwrap();
-            self.call_fn(fn_ident, fn_body, context)
+            self.call_fn(&expr, fn_ident, fn_body, context)
           } else {
-            // TODO: implement journal
-            // if self.debug {
-            //   self.journal.op(JournalOp::Call(trace_expr.clone()));
-            // }
+            if let Some(journal) = context.journal_mut() {
+              journal.op(JournalOp::Call(expr.clone()));
+            }
             let result = context.stack_push(item);
-            // TODO: implement journal
-            // if self.debug {
-            //   self.journal.commit();
-            // }
+            if let Some(journal) = context.journal_mut() {
+              journal.commit();
+            }
 
             result.map(|_| context)
           }
@@ -148,7 +147,7 @@ impl Engine {
         true => {
           let fn_ident = vec_fn_symbol(&x).unwrap();
           let fn_body = vec_fn_body(&x).unwrap();
-          self.call_fn(fn_ident, fn_body, context)
+          self.call_fn(&expr, fn_ident, fn_body, context)
         }
         false => self.run(context, x),
       },
@@ -161,32 +160,30 @@ impl Engine {
   /// This is also triggered by the `call` keyword
   pub fn call_fn(
     &self,
+    expr: &Expr,
     fn_ident: &FnIdent,
     fn_body: &[Expr],
     mut context: Context,
   ) -> Result<Context, RunError> {
-    // TODO: implement journal
-    // if self.debug {
-    //   self.journal.op(JournalOp::FnCall(trace_expr.clone()));
-    // }
+    if let Some(journal) = context.journal_mut() {
+      journal.op(JournalOp::FnCall(expr.clone()));
+    }
 
     if fn_ident.scoped {
       context.push_scope(fn_ident.scope.clone());
     }
 
-    // TODO: implement journal
-    // if self.debug {
-    //   self.journal.commit();
-    //   self.journal.op(JournalOp::FnStart(fn_ident.scoped));
-    // }
+    if let Some(journal) = context.journal_mut() {
+      journal.commit();
+      journal.op(JournalOp::FnStart(fn_ident.scoped));
+    }
 
     match self.run(context, fn_body.to_vec()) {
       Ok(mut context) => {
-        // TODO: implement journal
-        // if self.debug {
-        //   self.journal.commit();
-        //   self.journal.op(JournalOp::FnEnd);
-        // }
+        if let Some(journal) = context.journal_mut() {
+          journal.commit();
+          journal.op(JournalOp::FnEnd);
+        }
 
         if fn_ident.scoped {
           context.pop_scope();
