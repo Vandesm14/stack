@@ -2,8 +2,8 @@ use core::fmt;
 use std::collections::HashMap;
 
 use crate::{
-  context::Context,
-  expr::{Expr, ExprInfo, ExprKind, Symbol},
+  context::{self, Context},
+  expr::{Expr, ExprInfo, ExprKind, FnIdent, Symbol},
   module::Module,
 };
 
@@ -108,11 +108,33 @@ impl Engine {
 
             Ok(context)
           }
+        } else if let Some(item) = context.scope_item(x) {
+          if item.kind.is_function() {
+            let fn_ident = item.kind.fn_symbol().unwrap();
+            let fn_body = item.kind.fn_body().unwrap();
+            self.call_fn(fn_ident, fn_body, context)
+          } else {
+            // TODO: implement journal
+            // if self.debug {
+            //   self.journal.op(JournalOp::Call(trace_expr.clone()));
+            // }
+            let result = context.stack_push(item);
+            // TODO: implement journal
+            // if self.debug {
+            //   self.journal.commit();
+            // }
+
+            result.map(|_| context)
+          }
         } else if let Some(r#let) = context.let_get(x).cloned() {
           context.stack_push(r#let)?;
           Ok(context)
         } else {
-          todo!()
+          Err(RunError {
+            context: context.clone(),
+            expr,
+            reason: RunErrorReason::UnknownCall,
+          })
         }
       }
       ExprKind::Lazy(x) => {
@@ -122,6 +144,47 @@ impl Engine {
       ExprKind::List(x) => self.run(context, x),
       ExprKind::Intrinsic(x) => x.run(self, context, expr),
       ExprKind::Fn(_) => todo!(),
+    }
+  }
+
+  /// Handles auto-calling symbols (calls) when they're pushed to the stack
+  /// This is also triggered by the `call` keyword
+  pub fn call_fn(
+    &self,
+    fn_ident: &FnIdent,
+    fn_body: &[Expr],
+    mut context: Context,
+  ) -> Result<Context, RunError> {
+    // TODO: implement journal
+    // if self.debug {
+    //   self.journal.op(JournalOp::FnCall(trace_expr.clone()));
+    // }
+
+    if fn_ident.scoped {
+      context.push_scope(fn_ident.scope.clone());
+    }
+
+    // TODO: implement journal
+    // if self.debug {
+    //   self.journal.commit();
+    //   self.journal.op(JournalOp::FnStart(fn_ident.scoped));
+    // }
+
+    match self.run(context, fn_body.to_vec()) {
+      Ok(mut context) => {
+        // TODO: implement journal
+        // if self.debug {
+        //   self.journal.commit();
+        //   self.journal.op(JournalOp::FnEnd);
+        // }
+
+        if fn_ident.scoped {
+          context.pop_scope();
+        }
+
+        Ok(context)
+      }
+      Err(err) => Err(err),
     }
   }
 }
@@ -156,6 +219,8 @@ pub enum RunErrorReason {
   InvalidLet,
 
   // Scope Errors
+  UnknownCall,
+  InvalidDefinition,
   InvalidFunction,
   CannotSetBeforeDef,
 }
@@ -170,6 +235,8 @@ impl fmt::Display for RunErrorReason {
       Self::AssertionFailed => write!(f, "assertion failed"),
       Self::Halt => write!(f, "halt"),
       Self::InvalidLet => write!(f, "invalid let"),
+      Self::UnknownCall => write!(f, "unknown call"),
+      Self::InvalidDefinition => write!(f, "invalid definition"),
       Self::InvalidFunction => write!(f, "invalid function"),
       Self::CannotSetBeforeDef => {
         write!(f, "cannot set to a nonexistent variable")

@@ -46,6 +46,8 @@ pub enum Intrinsic {
   Call,
 
   Let,
+  Def,
+  Set,
 }
 
 impl Intrinsic {
@@ -88,6 +90,8 @@ impl Intrinsic {
       "call" => Some(Self::Call),
 
       "let" => Some(Self::Let),
+      "def" => Some(Self::Def),
+      "set" => Some(Self::Set),
 
       _ => None,
     }
@@ -717,6 +721,42 @@ impl Intrinsic {
           }),
         }
       }
+
+      // MARK: Def
+      Self::Def => {
+        let name = context.stack_pop(&expr)?;
+        let value = context.stack_pop(&expr)?;
+
+        match name.kind {
+          ExprKind::Symbol(symbol) => {
+            context.def_scope_item(symbol, value);
+
+            Ok(context)
+          }
+          _ => Err(RunError {
+            reason: RunErrorReason::InvalidDefinition,
+            context: context.clone(),
+            expr: expr.clone(),
+          }),
+        }
+      }
+
+      // MARK: Set
+      Self::Set => {
+        let name = context.stack_pop(&expr)?;
+        let value = context.stack_pop(&expr)?;
+
+        match name.kind {
+          ExprKind::Symbol(symbol) => {
+            context.set_scope_item(symbol, value).map(|_| context)
+          }
+          _ => Err(RunError {
+            reason: RunErrorReason::InvalidDefinition,
+            context: context.clone(),
+            expr: expr.clone(),
+          }),
+        }
+      }
     }
   }
 }
@@ -760,6 +800,8 @@ impl fmt::Display for Intrinsic {
       Self::Call => write!(f, "call"),
 
       Self::Let => write!(f, "let"),
+      Self::Def => write!(f, "def"),
+      Self::Set => write!(f, "set"),
     }
   }
 }
