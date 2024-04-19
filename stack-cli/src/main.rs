@@ -16,6 +16,12 @@ fn main() {
 
   match cli.subcommand {
     Subcommand::Run { path, fast, watch } => {
+      // Clear screen and reset cursor position to the top-left.
+      const ANSI: &[u8; 10] = b"\x1b[2J\x1b[1;1H";
+
+      io::stdout().write_all(ANSI).unwrap();
+      io::stderr().write_all(ANSI).unwrap();
+
       let mut engine = Engine::new().with_track_info(!fast);
 
       #[cfg(feature = "stack-std")]
@@ -107,23 +113,22 @@ fn run_file_source(
     }
   };
 
-  engine.run(Context::new(), exprs)
+  let context = Context::new();
+  let context = if engine.track_info() {
+    context.add_journal()
+  } else {
+    context
+  };
+
+  engine.run(context, exprs)
 }
 
 fn print_context(context: &Context) {
-  println!("stack:");
-
-  core::iter::repeat("  ")
-    .zip(context.stack())
-    .for_each(|(sep, x)| println!("{sep}{x}"));
+  println!("{}", context);
 }
 
 fn eprint_context(context: &Context) {
-  eprintln!("stack:");
-
-  core::iter::repeat("  ")
-    .zip(context.stack())
-    .for_each(|(sep, x)| eprintln!("{sep}{x}"));
+  eprintln!("{}", context);
 }
 
 #[derive(clap::Parser)]

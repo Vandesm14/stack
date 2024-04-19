@@ -1,7 +1,8 @@
 use core::{cmp::Ordering, fmt, ops};
-use std::rc::Rc;
+use std::{iter, rc::Rc};
 
 use internment::Intern;
+use termion::color;
 
 use crate::{intrinsic::Intrinsic, lexer::Span, scope::Scope, source::Source};
 
@@ -11,6 +12,58 @@ pub type Symbol = Intern<String>;
 pub struct Expr {
   pub kind: ExprKind,
   pub info: Option<ExprInfo>,
+}
+
+impl Expr {
+  pub fn to_pretty_string(&self) -> String {
+    let reset = color::Fg(color::Reset);
+    let result = match &self.kind {
+      ExprKind::Nil => format!("{}nil", color::Fg(color::White)),
+
+      ExprKind::Boolean(x) => {
+        format!("{}{}", color::Fg(color::Yellow), x)
+      }
+      ExprKind::Integer(x) => format!("{}{}", color::Fg(color::Yellow), x),
+      ExprKind::Float(x) => format!("{}{}", color::Fg(color::Yellow), x),
+
+      ExprKind::String(x) => {
+        format!("{}\"{}\"", color::Fg(color::Green), x)
+      }
+
+      ExprKind::List(x) => {
+        let mut string = String::new();
+        string.push('(');
+
+        iter::once("")
+          .chain(iter::repeat(" "))
+          .zip(x.iter())
+          .for_each(|(s, x)| {
+            string.push_str(s);
+            string.push_str(&x.to_pretty_string())
+          });
+
+        string.push(')');
+
+        string
+      }
+
+      ExprKind::Lazy(x) => {
+        format!("'{}", x.to_pretty_string())
+      }
+      ExprKind::Symbol(x) => {
+        format!("{}{}", color::Fg(color::Blue), x.as_ref())
+      }
+      ExprKind::Intrinsic(x) => {
+        format!("{}{}", color::Fg(color::Blue), x)
+      }
+
+      ExprKind::Fn(_) => format!("{}fn", color::Fg(color::Blue)),
+
+      ExprKind::Error(_) => format!("{}fn", color::Fg(color::Red)),
+    };
+
+    format!("{}{}", result, reset)
+  }
 }
 
 impl PartialEq for Expr {

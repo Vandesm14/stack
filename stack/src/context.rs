@@ -1,3 +1,4 @@
+use core::fmt;
 use std::collections::HashMap;
 
 use crate::{
@@ -15,6 +16,64 @@ pub struct Context {
   lets: Vec<HashMap<Symbol, Expr>>,
   scopes: Vec<Scope>,
   journal: Option<Journal>,
+}
+
+impl fmt::Display for Context {
+  fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+    write!(f, "Stack: [")?;
+
+    self.stack.iter().enumerate().try_for_each(|(i, expr)| {
+      if i == self.stack.len() - 1 {
+        write!(f, "{}", expr.to_pretty_string())
+      } else {
+        write!(f, "{}, ", expr.to_pretty_string())
+      }
+    })?;
+    write!(f, "]")?;
+
+    // if !self.scopes.is_empty() {
+    //   writeln!(f, "Scope:")?;
+
+    //   let layer = self.scopes.last().unwrap();
+    //   let items = layer.items.len();
+    //   for (item_i, (key, value)) in
+    //     layer.items.iter().sorted_by_key(|(s, _)| *s).enumerate()
+    //   {
+    //     if item_i == items - 1 {
+    //       write!(
+    //         f,
+    //         " + {}: {}",
+    //         interner().resolve(key),
+    //         match value.borrow().val() {
+    //           Some(expr) => expr.to_string(),
+    //           None => "None".to_owned(),
+    //         }
+    //       )?;
+    //     } else {
+    //       writeln!(
+    //         f,
+    //         " + {}: {}",
+    //         interner().resolve(key),
+    //         match value.borrow().val() {
+    //           Some(expr) => expr.to_string(),
+    //           None => "None".to_owned(),
+    //         }
+    //       )?;
+    //     }
+    //   }
+    // }
+
+    if let Some(journal) = self.journal() {
+      let journal = journal.to_string();
+
+      if !journal.is_empty() {
+        write!(f, "\n\n")?;
+        write!(f, "{}", journal)?;
+      }
+    }
+
+    Ok(())
+  }
 }
 
 impl Default for Context {
@@ -37,6 +96,12 @@ impl Context {
   #[inline]
   pub fn with_stack_capacity(mut self, capacity: usize) -> Self {
     self.stack = Vec::with_capacity(capacity);
+    self
+  }
+
+  #[inline]
+  pub fn add_journal(mut self) -> Self {
+    self.journal = Some(Journal::new());
     self
   }
 
