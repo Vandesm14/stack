@@ -100,6 +100,7 @@ impl Intrinsic {
     expr: Expr,
   ) -> Result<Context, RunError> {
     match self {
+      // MARK: Add
       Self::Add => {
         let rhs = context.stack_pop(&expr)?;
         let lhs = context.stack_pop(&expr)?;
@@ -118,6 +119,7 @@ impl Intrinsic {
 
         Ok(context)
       }
+      // MARK: Sub
       Self::Sub => {
         let rhs = context.stack_pop(&expr)?;
         let lhs = context.stack_pop(&expr)?;
@@ -136,6 +138,7 @@ impl Intrinsic {
 
         Ok(context)
       }
+      // MARK: Mul
       Self::Mul => {
         let rhs = context.stack_pop(&expr)?;
         let lhs = context.stack_pop(&expr)?;
@@ -154,6 +157,7 @@ impl Intrinsic {
 
         Ok(context)
       }
+      // MARK: Div
       Self::Div => {
         let rhs = context.stack_pop(&expr)?;
         let lhs = context.stack_pop(&expr)?;
@@ -172,6 +176,7 @@ impl Intrinsic {
 
         Ok(context)
       }
+      // MARK: Rem
       Self::Rem => {
         let rhs = context.stack_pop(&expr)?;
         let lhs = context.stack_pop(&expr)?;
@@ -191,6 +196,7 @@ impl Intrinsic {
         Ok(context)
       }
 
+      // MARK: Eq
       Self::Eq => {
         let rhs = context.stack_pop(&expr)?;
         let lhs = context.stack_pop(&expr)?;
@@ -206,6 +212,7 @@ impl Intrinsic {
 
         Ok(context)
       }
+      // MARK: Ne
       Self::Ne => {
         let rhs = context.stack_pop(&expr)?;
         let lhs = context.stack_pop(&expr)?;
@@ -221,6 +228,7 @@ impl Intrinsic {
 
         Ok(context)
       }
+      // MARK: Lt
       Self::Lt => {
         let rhs = context.stack_pop(&expr)?;
         let lhs = context.stack_pop(&expr)?;
@@ -236,6 +244,7 @@ impl Intrinsic {
 
         Ok(context)
       }
+      // MARK: Le
       Self::Le => {
         let rhs = context.stack_pop(&expr)?;
         let lhs = context.stack_pop(&expr)?;
@@ -251,6 +260,7 @@ impl Intrinsic {
 
         Ok(context)
       }
+      // MARK: Gt
       Self::Gt => {
         let rhs = context.stack_pop(&expr)?;
         let lhs = context.stack_pop(&expr)?;
@@ -266,6 +276,7 @@ impl Intrinsic {
 
         Ok(context)
       }
+      // MARK: Ge
       Self::Ge => {
         let rhs = context.stack_pop(&expr)?;
         let lhs = context.stack_pop(&expr)?;
@@ -282,6 +293,7 @@ impl Intrinsic {
         Ok(context)
       }
 
+      // MARK: Or
       Self::Or => {
         let rhs = context.stack_pop(&expr)?;
         let lhs = context.stack_pop(&expr)?;
@@ -298,6 +310,7 @@ impl Intrinsic {
 
         Ok(context)
       }
+      // MARK: And
       Self::And => {
         let rhs = context.stack_pop(&expr)?;
         let lhs = context.stack_pop(&expr)?;
@@ -315,6 +328,7 @@ impl Intrinsic {
         Ok(context)
       }
 
+      // MARK: Assert
       Self::Assert => {
         let bool = context.stack_pop(&expr)?;
         let message = context.stack_pop(&expr)?;
@@ -335,10 +349,12 @@ impl Intrinsic {
         }
       }
 
+      // MARK: Drop
       Self::Drop => {
         context.stack_pop(&expr)?;
         Ok(context)
       }
+      // MARK: Dupe
       Self::Dupe => {
         let item = context.stack().last().cloned().ok_or_else(|| RunError {
           reason: RunErrorReason::StackUnderflow,
@@ -349,6 +365,7 @@ impl Intrinsic {
         context.stack_push(item);
         Ok(context)
       }
+      // MARK: Swap
       Self::Swap => {
         let len = context.stack().len();
 
@@ -363,6 +380,7 @@ impl Intrinsic {
           })
         }
       }
+      // MARK: Rot
       Self::Rot => {
         let len = context.stack().len();
 
@@ -380,6 +398,7 @@ impl Intrinsic {
         }
       }
 
+      // MARK: Len
       Self::Len => {
         let item = context.stack_pop(&expr)?;
 
@@ -407,6 +426,7 @@ impl Intrinsic {
 
         Ok(context)
       }
+      // MARK: Nth
       Self::Nth => {
         let index = context.stack_pop(&expr)?;
         let item = context.stack_pop(&expr)?;
@@ -437,6 +457,7 @@ impl Intrinsic {
 
         Ok(context)
       }
+      // MARK: Split
       Self::Split => {
         let index = context.stack_pop(&expr)?;
         let item = context.stack_pop(&expr)?;
@@ -531,6 +552,7 @@ impl Intrinsic {
 
         Ok(context)
       }
+      // MARK: Concat
       Self::Concat => {
         let rhs = context.stack_pop(&expr)?;
         let lhs = context.stack_pop(&expr)?;
@@ -558,6 +580,7 @@ impl Intrinsic {
         Ok(context)
       }
 
+      // MARK: Cast
       Self::Cast => {
         let ty = context.stack_pop(&expr)?;
         let item = context.stack_pop(&expr)?;
@@ -627,6 +650,7 @@ impl Intrinsic {
         Ok(context)
       }
 
+      // MARK: If
       Self::If => {
         let cond = context.stack_pop(&expr)?;
         let body = context.stack_pop(&expr)?;
@@ -637,17 +661,20 @@ impl Intrinsic {
 
         Ok(context)
       }
+      // MARK: Halt
       Self::Halt => Err(RunError {
         reason: RunErrorReason::Halt,
         context,
         expr,
       }),
 
+      // MARK: Call
       Self::Call => {
         let item = context.stack_pop(&expr)?;
         engine.run_expr(context, item)
       }
 
+      // MARK: Let
       Self::Let => {
         let names = context.stack_pop(&expr)?;
         let body = context.stack_pop(&expr)?;
