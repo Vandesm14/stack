@@ -125,9 +125,7 @@ pub struct Scanner {
 
 impl Scanner {
   pub fn new(scope: Scope) -> Self {
-    Self {
-      scope: scope.duplicate(),
-    }
+    Self { scope }
   }
 
   pub fn scan(&mut self, expr: Expr) -> Result<Expr, RunErrorReason> {
@@ -149,7 +147,7 @@ impl Scanner {
             self.scope.reserve(*call);
           }
         } else if item.kind.unlazy().is_function() {
-          let mut scanner = Scanner::new(self.scope.clone());
+          let mut scanner = Scanner::new(self.scope.clone().duplicate());
           let unlazied_mut = item.kind.unlazy_mut();
           *unlazied_mut = scanner
             .scan(Expr {
