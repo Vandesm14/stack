@@ -125,7 +125,9 @@ pub struct Scanner {
 
 impl Scanner {
   pub fn new(scope: Scope) -> Self {
-    Self { scope }
+    Self {
+      scope: scope.duplicate(),
+    }
   }
 
   pub fn scan(&mut self, expr: Expr) -> Result<Expr, RunErrorReason> {
