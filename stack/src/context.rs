@@ -178,7 +178,7 @@ impl Context {
 
   pub fn def_scope_item(&mut self, symbol: Symbol, value: Expr) {
     if let Some(layer) = self.scopes.last_mut() {
-      layer.define(symbol, value).unwrap();
+      layer.define(symbol, value);
     }
   }
 

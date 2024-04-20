@@ -41,7 +41,7 @@ impl Scope {
     Self { items }
   }
 
-  pub fn define(&mut self, name: Symbol, item: Expr) -> Result<(), String> {
+  pub fn define(&mut self, name: Symbol, item: Expr) {
     if let Some(chain) = self.items.get(&name) {
       let mut chain = RefCell::borrow_mut(chain);
       match chain.is_root() {
@@ -56,8 +56,6 @@ impl Scope {
       let val = Rc::new(RefCell::new(Chain::new(Some(item))));
       self.items.insert(name, val);
     }
-
-    Ok(())
   }
 
   pub fn reserve(&mut self, name: Symbol) {
