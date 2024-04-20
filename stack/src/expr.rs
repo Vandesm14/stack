@@ -129,6 +129,13 @@ pub fn vec_fn_symbol(list: &[Expr]) -> Option<&FnIdent> {
   })
 }
 
+pub fn vec_fn_symbol_mut(list: &mut [Expr]) -> Option<&mut FnIdent> {
+  list.first_mut().and_then(|x| match &mut x.kind {
+    ExprKind::Fn(scope) => Some(scope),
+    _ => None,
+  })
+}
+
 pub fn vec_fn_body(list: &[Expr]) -> Option<&[Expr]> {
   list.first().and_then(|x| match x.kind {
     ExprKind::Fn(_) => Some(&list[1..]),
@@ -157,6 +164,13 @@ impl ExprKind {
   pub fn fn_symbol(&self) -> Option<&FnIdent> {
     match self {
       Self::List(list) => vec_fn_symbol(list),
+      _ => None,
+    }
+  }
+
+  pub fn fn_symbol_mut(&mut self) -> Option<&mut FnIdent> {
+    match self {
+      Self::List(list) => vec_fn_symbol_mut(list),
       _ => None,
     }
   }
