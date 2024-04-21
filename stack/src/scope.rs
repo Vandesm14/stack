@@ -147,7 +147,7 @@ impl Scanner {
             self.scope.reserve(*call);
           }
         } else if item.kind.unlazy().is_function() {
-          let mut scanner = Scanner::new(self.scope.clone().duplicate());
+          let mut scanner = Scanner::new(self.scope.duplicate());
           let unlazied_mut = item.kind.unlazy_mut();
           *unlazied_mut = scanner
             .scan(Expr {
