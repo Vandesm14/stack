@@ -273,3 +273,222 @@ impl fmt::Display for RunErrorReason {
     }
   }
 }
+
+#[cfg(test)]
+mod tests {
+  use crate::prelude::*;
+  use std::rc::Rc;
+
+  // TODO: Move test for scopes/vars into src/scope.rs?
+  #[test]
+  fn can_define_vars() {
+    let source = Rc::new(Source::new("", "0 'a def a"));
+    let exprs = Parser::new(Lexer::new(source)).parse().unwrap();
+
+    let engine = Engine::new().with_track_info(false);
+    let mut context = Context::new().with_stack_capacity(32);
+    context = engine.run(context, exprs).unwrap();
+
+    assert_eq!(
+      context
+        .stack()
+        .iter()
+        .map(|expr| &expr.kind)
+        .collect::<Vec<_>>(),
+      vec![&ExprKind::Integer(0),]
+    );
+  }
+
+  #[test]
+  fn can_redefine_vars() {
+    let source = Rc::new(Source::new("", "0 'a def a 1 'a def a"));
+    let exprs = Parser::new(Lexer::new(source)).parse().unwrap();
+
+    let engine = Engine::new().with_track_info(false);
+    let mut context = Context::new().with_stack_capacity(32);
+    context = engine.run(context, exprs).unwrap();
+
+    assert_eq!(
+      context
+        .stack()
+        .iter()
+        .map(|expr| &expr.kind)
+        .collect::<Vec<_>>(),
+      vec![&ExprKind::Integer(0), &ExprKind::Integer(1),]
+    );
+  }
+
+  #[test]
+  fn can_set_vars() {
+    let source = Rc::new(Source::new("", "0 'a def a 1 'a set a"));
+    let exprs = Parser::new(Lexer::new(source)).parse().unwrap();
+
+    let engine = Engine::new().with_track_info(false);
+    let mut context = Context::new().with_stack_capacity(32);
+    context = engine.run(context, exprs).unwrap();
+
+    assert_eq!(
+      context
+        .stack()
+        .iter()
+        .map(|expr| &expr.kind)
+        .collect::<Vec<_>>(),
+      vec![&ExprKind::Integer(0), &ExprKind::Integer(1),]
+    );
+  }
+
+  // TODO: Move test for lets into a better place?
+  #[test]
+  fn can_use_lets() {
+    let source = Rc::new(Source::new("", "10 2 '(a b -) '(a b) let"));
+    let exprs = Parser::new(Lexer::new(source)).parse().unwrap();
+
+    let engine = Engine::new().with_track_info(false);
+    let mut context = Context::new().with_stack_capacity(32);
+    context = engine.run(context, exprs).unwrap();
+
+    assert_eq!(
+      context
+        .stack()
+        .iter()
+        .map(|expr| &expr.kind)
+        .collect::<Vec<_>>(),
+      vec![&ExprKind::Integer(8),]
+    );
+  }
+
+  #[test]
+  fn lets_take_precedence_over_scope() {
+    let source = Rc::new(Source::new("", "0 'a def 1 '(a) '(a) let"));
+    let exprs = Parser::new(Lexer::new(source)).parse().unwrap();
+
+    let engine = Engine::new().with_track_info(false);
+    let mut context = Context::new().with_stack_capacity(32);
+    context = engine.run(context, exprs).unwrap();
+
+    assert_eq!(
+      context
+        .stack()
+        .iter()
+        .map(|expr| &expr.kind)
+        .collect::<Vec<_>>(),
+      vec![&ExprKind::Integer(1),]
+    );
+  }
+
+  #[test]
+  fn lets_act_as_overlays() {
+    let source =
+      Rc::new(Source::new("", "0 'a def 1 '(a 2 'a def a) '(a) let a"));
+    let exprs = Parser::new(Lexer::new(source)).parse().unwrap();
+
+    let engine = Engine::new().with_track_info(false);
+    let mut context = Context::new().with_stack_capacity(32);
+    context = engine.run(context, exprs).unwrap();
+
+    assert_eq!(
+      context
+        .stack()
+        .iter()
+        .map(|expr| &expr.kind)
+        .collect::<Vec<_>>(),
+      vec![
+        &ExprKind::Integer(1),
+        &ExprKind::Integer(2),
+        &ExprKind::Integer(2),
+      ]
+    );
+  }
+
+  #[test]
+  fn functions_work_in_lets() {
+    let source =
+      Rc::new(Source::new("", "0 'a def 1 '(fn a 2 'a def a) '(a) let a"));
+    let exprs = Parser::new(Lexer::new(source)).parse().unwrap();
+
+    let engine = Engine::new().with_track_info(false);
+    let mut context = Context::new().with_stack_capacity(32);
+    context = engine.run(context, exprs).unwrap();
+
+    assert_eq!(
+      context
+        .stack()
+        .iter()
+        .map(|expr| &expr.kind)
+        .collect::<Vec<_>>(),
+      vec![
+        &ExprKind::Integer(1),
+        &ExprKind::Integer(2),
+        &ExprKind::Integer(0),
+      ]
+    );
+  }
+
+  #[test]
+  fn scopeless_functions_work_in_lets() {
+    let source =
+      Rc::new(Source::new("", "0 'a def 1 '(fn! a 2 'a def a) '(a) let a"));
+    let exprs = Parser::new(Lexer::new(source)).parse().unwrap();
+
+    let engine = Engine::new().with_track_info(false);
+    let mut context = Context::new().with_stack_capacity(32);
+    context = engine.run(context, exprs).unwrap();
+
+    assert_eq!(
+      context
+        .stack()
+        .iter()
+        .map(|expr| &expr.kind)
+        .collect::<Vec<_>>(),
+      vec![
+        &ExprKind::Integer(1),
+        &ExprKind::Integer(2),
+        &ExprKind::Integer(2),
+      ]
+    );
+  }
+
+  #[test]
+  fn lets_dont_leak() {
+    let source = Rc::new(Source::new(
+      "",
+      "0 'a def
+      1 '(a) '(a) let
+      1 '(fn! a) '(a) let
+      1 '(fn a) '(a) let
+      a",
+    ));
+    let exprs = Parser::new(Lexer::new(source)).parse().unwrap();
+
+    let engine = Engine::new().with_track_info(false);
+    let mut context = Context::new().with_stack_capacity(32);
+    context = engine.run(context, exprs).unwrap();
+
+    assert_eq!(
+      context
+        .stack()
+        .iter()
+        .map(|expr| &expr.kind)
+        .collect::<Vec<_>>(),
+      vec![
+        &ExprKind::Integer(1),
+        &ExprKind::Integer(1),
+        &ExprKind::Integer(1),
+        &ExprKind::Integer(0),
+      ]
+    );
+  }
+
+  #[test]
+  fn lets_cant_set() {
+    let source = Rc::new(Source::new("", "1 '(2 'a set) '(a) let"));
+    let exprs = Parser::new(Lexer::new(source)).parse().unwrap();
+
+    let engine = Engine::new().with_track_info(false);
+    let context = Context::new().with_stack_capacity(32);
+    assert_eq!(
+      engine.run(context, exprs).map_err(|err| err.reason),
+      Err(RunErrorReason::CannotSetBeforeDef)
+    );
+  }
+}
