@@ -122,6 +122,9 @@ impl Engine {
 
             Ok(context)
           }
+        } else if let Some(r#let) = context.let_get(x).cloned() {
+          context.stack_push(r#let)?;
+          Ok(context)
         } else if let Some(item) = context.scope_item(x) {
           if item.kind.is_function() {
             let fn_ident = item.kind.fn_symbol().unwrap();
@@ -138,9 +141,6 @@ impl Engine {
 
             result.map(|_| context)
           }
-        } else if let Some(r#let) = context.let_get(x).cloned() {
-          context.stack_push(r#let)?;
-          Ok(context)
         } else {
           Err(RunError {
             context: context.clone(),

@@ -179,6 +179,9 @@ impl Context {
   pub fn def_scope_item(&mut self, symbol: Symbol, value: Expr) {
     if let Some(layer) = self.scopes.last_mut() {
       layer.define(symbol, value);
+
+      // Remove the item from our let block since we've defined our own
+      self.let_remove(symbol);
     }
   }
 
@@ -238,5 +241,10 @@ impl Context {
   #[inline]
   pub fn let_set(&mut self, name: Symbol, expr: Expr) -> Option<Expr> {
     self.lets.last_mut().and_then(|x| x.insert(name, expr))
+  }
+
+  #[inline]
+  pub fn let_remove(&mut self, name: Symbol) -> Option<Expr> {
+    self.lets.last_mut().and_then(|x| x.remove(&name))
   }
 }
