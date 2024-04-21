@@ -1,12 +1,18 @@
-use core::fmt;
+use core::{fmt, ops::Range};
 use std::rc::Rc;
 
 use crate::source::Source;
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct Token {
   pub kind: TokenKind,
   pub span: Span,
+}
+
+impl fmt::Display for Token {
+  fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+    write!(f, "{}", self.kind)
+  }
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
@@ -17,21 +23,24 @@ pub struct Span {
   pub end: usize,
 }
 
-impl fmt::Display for Span {
-  fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-    write!(f, "{}..{}", self.start, self.end)
+impl Span {
+  /// Returns the <code>[Range]\<[usize]\></code> of this [`Span`].
+  #[inline]
+  pub const fn to_range(self) -> Range<usize> {
+    Range {
+      start: self.start,
+      end: self.end,
+    }
   }
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub enum TokenKind {
   Invalid,
-  Eof,
 
-  Integer,
-  Float,
-  String,
-  Symbol,
+  Eof,
+  Whitespace,
+  Comment,
 
   Apostrophe,
   LeftParen,
@@ -39,20 +48,20 @@ pub enum TokenKind {
   LeftSquare,
   RightSquare,
 
-  Fn,
-  FnExclamation,
+  Integer,
+  Float,
+  String,
+  Symbol,
 }
 
 impl fmt::Display for TokenKind {
   fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
     match self {
       Self::Invalid => write!(f, "invalid characters"),
-      Self::Eof => write!(f, "end of file"),
 
-      Self::Integer => write!(f, "an integer literal"),
-      Self::Float => write!(f, "a float literal"),
-      Self::String => write!(f, "a string literal"),
-      Self::Symbol => write!(f, "a symbol"),
+      Self::Eof => write!(f, "end of file"),
+      Self::Whitespace => write!(f, "whitespace"),
+      Self::Comment => write!(f, "a comment"),
 
       Self::Apostrophe => write!(f, "'"),
       Self::LeftParen => write!(f, "("),
@@ -60,42 +69,56 @@ impl fmt::Display for TokenKind {
       Self::LeftSquare => write!(f, "["),
       Self::RightSquare => write!(f, "]"),
 
-      Self::Fn => write!(f, "fn"),
-      Self::FnExclamation => write!(f, "fn!"),
+      Self::Integer => write!(f, "an integer literal"),
+      Self::Float => write!(f, "a float literal"),
+      Self::String => write!(f, "a string literal"),
+      Self::Symbol => write!(f, "a symbol literal"),
     }
   }
 }
 
-/// Converts a [`Source`] into a stream of [`Token`]s.
-///
-/// This **does not** implement the [`Copy`] trait, since each *instance* keeps
-/// track of its own cursor.
-#[derive(Clone)]
+/// Converts a <code>&[str]</code> into a stream of [`Token`]s.
+#[derive(Debug)]
 pub struct Lexer {
-  source: Rc<dyn Source>,
+  source: Rc<Source>,
   cursor: usize,
+  peeked: Option<Token>,
 }
 
 impl Lexer {
   /// Creates a [`Lexer`] from a [`Source`].
-  #[inline]
-  pub fn new(source: Rc<dyn Source>) -> Self {
+  pub fn new(source: Rc<Source>) -> Self {
     Self {
       // Skip the UTF-8 BOM, if present.
       #[allow(clippy::obfuscated_if_else)]
       cursor: source
-        .content()
+        .source()
         .as_bytes()
         .starts_with(b"\xef\xbb\xbf")
         .then_some(3)
         .unwrap_or(0),
       source,
+      peeked: None,
     }
   }
 
+  /// Returns a clone of the <code>[Rc]\<[Source]\></code>.
   #[inline]
-  pub fn source(&self) -> Rc<dyn Source> {
+  pub fn source(&self) -> Rc<Source> {
     self.source.clone()
+  }
+
+  /// Returns the next [`Token`] in the stream without consuming it.
+  #[inline]
+  pub fn peek(&mut self) -> Token {
+    match self.peeked {
+      Some(token) => token,
+      None => {
+        let token = self.next();
+        self.peeked = Some(token);
+        token
+      }
+    }
   }
 
   /// Returns the next [`Token`] in the stream.
@@ -106,11 +129,15 @@ impl Lexer {
   /// [`FusedIterator`]: core::iter::FusedIterator
   #[allow(clippy::should_implement_trait)]
   pub fn next(&mut self) -> Token {
-    let source = self.source.content();
+    if let Some(token) = self.peeked.take() {
+      return token;
+    }
+
+    let source = self.source.source();
+    let start = self.cursor;
 
     let mut state = State::Start;
     let mut chars = source[self.cursor..].chars();
-    let mut start = self.cursor;
 
     loop {
       let c = chars.next().unwrap_or('\0');
@@ -201,7 +228,7 @@ impl Lexer {
           | '?'
           | 'a'..='z'
           | 'A'..='Z' => state = State::Symbol,
-          ' ' | '\n' | '\t' | '\r' => start = self.cursor + c_len,
+          ' ' | '\n' | '\t' | '\r' => state = State::Whitespace,
           _ => state = State::Invalid,
         },
         State::Invalid => match c {
@@ -216,14 +243,40 @@ impl Lexer {
           }
           _ => {}
         },
+        State::Whitespace => match c {
+          ' ' | '\n' | '\t' | '\r' => {}
+          _ => {
+            break Token {
+              kind: TokenKind::Whitespace,
+              span: Span {
+                start,
+                end: self.cursor,
+              },
+            };
+          }
+        },
         State::Comment => match c {
           '\0' => {
-            state = State::Start;
-            self.cursor -= c_len;
+            if self.cursor == source.len() {
+              break Token {
+                kind: TokenKind::Comment,
+                span: Span {
+                  start,
+                  end: self.cursor,
+                },
+              };
+            } else {
+              state = State::Invalid;
+            }
           }
           '\n' => {
-            state = State::Start;
-            start = self.cursor + c_len;
+            break Token {
+              kind: TokenKind::Comment,
+              span: Span {
+                start,
+                end: self.cursor,
+              },
+            };
           }
           _ => {}
         },
@@ -340,15 +393,8 @@ impl Lexer {
           | 'A'..='Z'
           | '0'..='9' => {}
           _ => {
-            let slice = &source[start..self.cursor];
-            let kind = match slice {
-              "fn" => TokenKind::Fn,
-              "fn!" => TokenKind::FnExclamation,
-              _ => TokenKind::Symbol,
-            };
-
             break Token {
-              kind,
+              kind: TokenKind::Symbol,
               span: Span {
                 start,
                 end: self.cursor,
@@ -366,6 +412,7 @@ impl Lexer {
 enum State {
   Start,
   Invalid,
+  Whitespace,
   Comment,
   Minus,
   Integer,
@@ -377,87 +424,50 @@ enum State {
 
 #[cfg(test)]
 mod test {
-  use crate::source::test::TestSource;
-
   use super::*;
   use test_case::case;
 
-  #[case("" => vec![Token { kind: TokenKind::Eof, span: Span { start: 0, end: 0 } }] ; "empty")]
-  #[case(" \t\r\n" => vec![Token { kind: TokenKind::Eof, span: Span { start: 4, end: 4 } }] ; "whitespace only")]
-  #[case("; Comment" => vec![Token { kind: TokenKind::Eof, span: Span { start: 9, end: 9 } }] ; "comment")]
-  #[case("; Comment\n" => vec![Token { kind: TokenKind::Eof, span: Span { start: 10, end: 10 } }] ; "comment whitespace")]
+  #[case("" => vec![Token { kind: TokenKind::Eof, span: Span { start: 0, end: 0 } }] ; "eof")]
+  #[case(" \n\t\r" => vec![Token { kind: TokenKind::Whitespace, span: Span { start: 0, end: 4 } }, Token { kind: TokenKind::Eof, span: Span { start: 4, end: 4 } }] ; "whitespace eof")]
+  #[case("; comment" => vec![Token { kind: TokenKind::Comment, span: Span { start: 0, end: 9 } }, Token { kind: TokenKind::Eof, span: Span { start: 9, end: 9 } }] ; "comment eof")]
+  #[case("; comment\n" => vec![Token { kind: TokenKind::Comment, span: Span { start: 0, end: 9 } }, Token { kind: TokenKind::Whitespace, span: Span { start: 9, end: 10 } }, Token { kind: TokenKind::Eof, span: Span { start: 10, end: 10 } }] ; "comment whitespace eof")]
   #[case("+" => vec![Token { kind: TokenKind::Symbol, span: Span { start: 0, end: 1 } }, Token { kind: TokenKind::Eof, span: Span { start: 1, end: 1 } }] ; "plus only")]
-  #[case("+\n" => vec![Token { kind: TokenKind::Symbol, span: Span { start: 0, end: 1 } }, Token { kind: TokenKind::Eof, span: Span { start: 2, end: 2 } }] ; "plus whitespace only")]
   #[case("-" => vec![Token { kind: TokenKind::Symbol, span: Span { start: 0, end: 1 } }, Token { kind: TokenKind::Eof, span: Span { start: 1, end: 1 } }] ; "minus only")]
-  #[case("-\n" => vec![Token { kind: TokenKind::Symbol, span: Span { start: 0, end: 1 } }, Token { kind: TokenKind::Eof, span: Span { start: 2, end: 2 } }] ; "minus whitespace only")]
   #[case("*" => vec![Token { kind: TokenKind::Symbol, span: Span { start: 0, end: 1 } }, Token { kind: TokenKind::Eof, span: Span { start: 1, end: 1 } }] ; "asterisk only")]
-  #[case("*\n" => vec![Token { kind: TokenKind::Symbol, span: Span { start: 0, end: 1 } }, Token { kind: TokenKind::Eof, span: Span { start: 2, end: 2 } }] ; "asterisk whitespace only")]
   #[case("/" => vec![Token { kind: TokenKind::Symbol, span: Span { start: 0, end: 1 } }, Token { kind: TokenKind::Eof, span: Span { start: 1, end: 1 } }] ; "slash only")]
-  #[case("/\n" => vec![Token { kind: TokenKind::Symbol, span: Span { start: 0, end: 1 } }, Token { kind: TokenKind::Eof, span: Span { start: 2, end: 2 } }] ; "slash whitespace only")]
   #[case("%" => vec![Token { kind: TokenKind::Symbol, span: Span { start: 0, end: 1 } }, Token { kind: TokenKind::Eof, span: Span { start: 1, end: 1 } }] ; "percent only")]
-  #[case("%\n" => vec![Token { kind: TokenKind::Symbol, span: Span { start: 0, end: 1 } }, Token { kind: TokenKind::Eof, span: Span { start: 2, end: 2 } }] ; "percent whitespace only")]
   #[case("+a" => vec![Token { kind: TokenKind::Symbol, span: Span { start: 0, end: 2 } }, Token { kind: TokenKind::Eof, span: Span { start: 2, end: 2 } }] ; "plus symbol only")]
-  #[case("+a\n" => vec![Token { kind: TokenKind::Symbol, span: Span { start: 0, end: 2 } }, Token { kind: TokenKind::Eof, span: Span { start: 3, end: 3 } }] ; "plus symbol whitespace only")]
   #[case("-a" => vec![Token { kind: TokenKind::Symbol, span: Span { start: 0, end: 2 } }, Token { kind: TokenKind::Eof, span: Span { start: 2, end: 2 } }] ; "minus symbol only")]
-  #[case("-a\n" => vec![Token { kind: TokenKind::Symbol, span: Span { start: 0, end: 2 } }, Token { kind: TokenKind::Eof, span: Span { start: 3, end: 3 } }] ; "minus symbol whitespace only")]
   #[case("*a" => vec![Token { kind: TokenKind::Symbol, span: Span { start: 0, end: 2 } }, Token { kind: TokenKind::Eof, span: Span { start: 2, end: 2 } }] ; "asterisk symbol only")]
-  #[case("*a\n" => vec![Token { kind: TokenKind::Symbol, span: Span { start: 0, end: 2 } }, Token { kind: TokenKind::Eof, span: Span { start: 3, end: 3 } }] ; "asterisk symbol whitespace only")]
   #[case("/a" => vec![Token { kind: TokenKind::Symbol, span: Span { start: 0, end: 2 } }, Token { kind: TokenKind::Eof, span: Span { start: 2, end: 2 } }] ; "slash symbol only")]
-  #[case("/a\n" => vec![Token { kind: TokenKind::Symbol, span: Span { start: 0, end: 2 } }, Token { kind: TokenKind::Eof, span: Span { start: 3, end: 3 } }] ; "slash symbol whitespace only")]
   #[case("%a" => vec![Token { kind: TokenKind::Symbol, span: Span { start: 0, end: 2 } }, Token { kind: TokenKind::Eof, span: Span { start: 2, end: 2 } }] ; "percent symbol only")]
-  #[case("%a\n" => vec![Token { kind: TokenKind::Symbol, span: Span { start: 0, end: 2 } }, Token { kind: TokenKind::Eof, span: Span { start: 3, end: 3 } }] ; "percent symbol whitespace only")]
   #[case("'" => vec![Token { kind: TokenKind::Apostrophe, span: Span { start: 0, end: 1 } }, Token { kind: TokenKind::Eof, span: Span { start: 1, end: 1 } }] ; "apostrophe")]
-  #[case("'\n" => vec![Token { kind: TokenKind::Apostrophe, span: Span { start: 0, end: 1 } }, Token { kind: TokenKind::Eof, span: Span { start: 2, end: 2 } }] ; "apostrophe whitespace")]
   #[case("(" => vec![Token { kind: TokenKind::LeftParen, span: Span { start: 0, end: 1 } }, Token { kind: TokenKind::Eof, span: Span { start: 1, end: 1 } }] ; "left paren")]
-  #[case("(\n" => vec![Token { kind: TokenKind::LeftParen, span: Span { start: 0, end: 1 } }, Token { kind: TokenKind::Eof, span: Span { start: 2, end: 2 } }] ; "left paren whitespace")]
   #[case(")" => vec![Token { kind: TokenKind::RightParen, span: Span { start: 0, end: 1 } }, Token { kind: TokenKind::Eof, span: Span { start: 1, end: 1 } }] ; "right paren")]
-  #[case(")\n" => vec![Token { kind: TokenKind::RightParen, span: Span { start: 0, end: 1 } }, Token { kind: TokenKind::Eof, span: Span { start: 2, end: 2 } }] ; "right paren whitespace")]
   #[case("[" => vec![Token { kind: TokenKind::LeftSquare, span: Span { start: 0, end: 1 } }, Token { kind: TokenKind::Eof, span: Span { start: 1, end: 1 } }] ; "left square")]
-  #[case("[\n" => vec![Token { kind: TokenKind::LeftSquare, span: Span { start: 0, end: 1 } }, Token { kind: TokenKind::Eof, span: Span { start: 2, end: 2 } }] ; "left square whitespace")]
   #[case("]" => vec![Token { kind: TokenKind::RightSquare, span: Span { start: 0, end: 1 } }, Token { kind: TokenKind::Eof, span: Span { start: 1, end: 1 } }] ; "right square")]
-  #[case("]\n" => vec![Token { kind: TokenKind::RightSquare, span: Span { start: 0, end: 1 } }, Token { kind: TokenKind::Eof, span: Span { start: 2, end: 2 } }] ; "right square whitespace")]
   #[case("123" => vec![Token { kind: TokenKind::Integer, span: Span { start: 0, end: 3 } }, Token { kind: TokenKind::Eof, span: Span { start: 3, end: 3 } }] ; "integer")]
-  #[case("123\n" => vec![Token { kind: TokenKind::Integer, span: Span { start: 0, end: 3 } }, Token { kind: TokenKind::Eof, span: Span { start: 4, end: 4 } }] ; "integer whitespace")]
   #[case("-123" => vec![Token { kind: TokenKind::Integer, span: Span { start: 0, end: 4 } }, Token { kind: TokenKind::Eof, span: Span { start: 4, end: 4 } }] ; "negative integer")]
-  #[case("-123\n" => vec![Token { kind: TokenKind::Integer, span: Span { start: 0, end: 4 } }, Token { kind: TokenKind::Eof, span: Span { start: 5, end: 5 } }] ; "negative integer whitespace")]
   #[case("1.2" => vec![Token { kind: TokenKind::Float, span: Span { start: 0, end: 3 } }, Token { kind: TokenKind::Eof, span: Span { start: 3, end: 3 } }] ; "float")]
-  #[case("1.2\n" => vec![Token { kind: TokenKind::Float, span: Span { start: 0, end: 3 } }, Token { kind: TokenKind::Eof, span: Span { start: 4, end: 4 } }] ; "float whitespace")]
   #[case("-1.2" => vec![Token { kind: TokenKind::Float, span: Span { start: 0, end: 4 } }, Token { kind: TokenKind::Eof, span: Span { start: 4, end: 4 } }] ; "negative float")]
-  #[case("-1.2\n" => vec![Token { kind: TokenKind::Float, span: Span { start: 0, end: 4 } }, Token { kind: TokenKind::Eof, span: Span { start: 5, end: 5 } }] ; "negative float whitespace")]
   #[case("hello" => vec![Token { kind: TokenKind::Symbol, span: Span { start: 0, end: 5 } }, Token { kind: TokenKind::Eof, span: Span { start: 5, end: 5 } }] ; "symbol")]
-  #[case("hello\n" => vec![Token { kind: TokenKind::Symbol, span: Span { start: 0, end: 5 } }, Token { kind: TokenKind::Eof, span: Span { start: 6, end: 6 } }] ; "symbol whitespace")]
   #[case("h3l10" => vec![Token { kind: TokenKind::Symbol, span: Span { start: 0, end: 5 } }, Token { kind: TokenKind::Eof, span: Span { start: 5, end: 5 } }] ; "alphanumeric symbol")]
-  #[case("h3l10\n" => vec![Token { kind: TokenKind::Symbol, span: Span { start: 0, end: 5 } }, Token { kind: TokenKind::Eof, span: Span { start: 6, end: 6 } }] ; "alphanumeric symbol whitespace")]
   #[case("he_lo" => vec![Token { kind: TokenKind::Symbol, span: Span { start: 0, end: 5 } }, Token { kind: TokenKind::Eof, span: Span { start: 5, end: 5 } }] ; "underscore symbol")]
-  #[case("he_lo\n" => vec![Token { kind: TokenKind::Symbol, span: Span { start: 0, end: 5 } }, Token { kind: TokenKind::Eof, span: Span { start: 6, end: 6 } }] ; "underscore symbol whitespace")]
   #[case("he-lo" => vec![Token { kind: TokenKind::Symbol, span: Span { start: 0, end: 5 } }, Token { kind: TokenKind::Eof, span: Span { start: 5, end: 5 } }] ; "hypen symbol")]
-  #[case("he-lo\n" => vec![Token { kind: TokenKind::Symbol, span: Span { start: 0, end: 5 } }, Token { kind: TokenKind::Eof, span: Span { start: 6, end: 6 } }] ; "hypen symbol whitespace")]
   #[case("_" => vec![Token { kind: TokenKind::Symbol, span: Span { start: 0, end: 1 } }, Token { kind: TokenKind::Eof, span: Span { start: 1, end: 1 } }] ; "underscore symbol only")]
-  #[case("_\n" => vec![Token { kind: TokenKind::Symbol, span: Span { start: 0, end: 1 } }, Token { kind: TokenKind::Eof, span: Span { start: 2, end: 2 } }] ; "underscore symbol whitespace only")]
   #[case(":" => vec![Token { kind: TokenKind::Symbol, span: Span { start: 0, end: 1 } }, Token { kind: TokenKind::Eof, span: Span { start: 1, end: 1 } }] ; "colon symbol only")]
-  #[case(":\n" => vec![Token { kind: TokenKind::Symbol, span: Span { start: 0, end: 1 } }, Token { kind: TokenKind::Eof, span: Span { start: 2, end: 2 } }] ; "colon symbol whitespace only")]
   #[case("!" => vec![Token { kind: TokenKind::Symbol, span: Span { start: 0, end: 1 } }, Token { kind: TokenKind::Eof, span: Span { start: 1, end: 1 } }] ; "exclamation symbol only")]
-  #[case("!\n" => vec![Token { kind: TokenKind::Symbol, span: Span { start: 0, end: 1 } }, Token { kind: TokenKind::Eof, span: Span { start: 2, end: 2 } }] ; "exclamation symbol whitespace only")]
   #[case("=" => vec![Token { kind: TokenKind::Symbol, span: Span { start: 0, end: 1 } }, Token { kind: TokenKind::Eof, span: Span { start: 1, end: 1 } }] ; "equals symbol only")]
-  #[case("=\n" => vec![Token { kind: TokenKind::Symbol, span: Span { start: 0, end: 1 } }, Token { kind: TokenKind::Eof, span: Span { start: 2, end: 2 } }] ; "equals symbol whitespace only")]
   #[case("<" => vec![Token { kind: TokenKind::Symbol, span: Span { start: 0, end: 1 } }, Token { kind: TokenKind::Eof, span: Span { start: 1, end: 1 } }] ; "left angle symbol only")]
-  #[case("<\n" => vec![Token { kind: TokenKind::Symbol, span: Span { start: 0, end: 1 } }, Token { kind: TokenKind::Eof, span: Span { start: 2, end: 2 } }] ; "left angle symbol whitespace only")]
   #[case(">" => vec![Token { kind: TokenKind::Symbol, span: Span { start: 0, end: 1 } }, Token { kind: TokenKind::Eof, span: Span { start: 1, end: 1 } }] ; "right angle symbol only")]
-  #[case(">\n" => vec![Token { kind: TokenKind::Symbol, span: Span { start: 0, end: 1 } }, Token { kind: TokenKind::Eof, span: Span { start: 2, end: 2 } }] ; "right angle symbol whitespace only")]
   #[case("?" => vec![Token { kind: TokenKind::Symbol, span: Span { start: 0, end: 1 } }, Token { kind: TokenKind::Eof, span: Span { start: 1, end: 1 } }] ; "question symbol only")]
-  #[case("?\n" => vec![Token { kind: TokenKind::Symbol, span: Span { start: 0, end: 1 } }, Token { kind: TokenKind::Eof, span: Span { start: 2, end: 2 } }] ; "question symbol whitespace only")]
   #[case("nil" => vec![Token { kind: TokenKind::Symbol, span: Span { start: 0, end: 3 } }, Token { kind: TokenKind::Eof, span: Span { start: 3, end: 3 } }] ; "nil")]
-  #[case("nil\n" => vec![Token { kind: TokenKind::Symbol, span: Span { start: 0, end: 3 } }, Token { kind: TokenKind::Eof, span: Span { start: 4, end: 4 } }] ; "nil whitespace")]
-  #[case("fn" => vec![Token { kind: TokenKind::Fn, span: Span { start: 0, end: 2 } }, Token { kind: TokenKind::Eof, span: Span { start: 2, end: 2 } }] ; "fn_")]
-  #[case("fn\n" => vec![Token { kind: TokenKind::Fn, span: Span { start: 0, end: 2 } }, Token { kind: TokenKind::Eof, span: Span { start: 3, end: 3 } }] ; "fn whitespace")]
-  #[case("fn!" => vec![Token { kind: TokenKind::FnExclamation, span: Span { start: 0, end: 3 } }, Token { kind: TokenKind::Eof, span: Span { start: 3, end: 3 } }] ; "fn exclamation")]
-  #[case("fn!\n" => vec![Token { kind: TokenKind::FnExclamation, span: Span { start: 0, end: 3 } }, Token { kind: TokenKind::Eof, span: Span { start: 4, end: 4 } }] ; "fn exclamation whitespace")]
+  #[case("fn" => vec![Token { kind: TokenKind::Symbol, span: Span { start: 0, end: 2 } }, Token { kind: TokenKind::Eof, span: Span { start: 2, end: 2 } }] ; "fn_")]
+  #[case("fn!" => vec![Token { kind: TokenKind::Symbol, span: Span { start: 0, end: 3 } }, Token { kind: TokenKind::Eof, span: Span { start: 3, end: 3 } }] ; "fn exclamation")]
   #[case("\"hello\"" => vec![Token { kind: TokenKind::String, span: Span { start: 0, end: 7 } }, Token { kind: TokenKind::Eof, span: Span { start: 7, end: 7 } }] ; "string")]
-  #[case("\"hello\"\n" => vec![Token { kind: TokenKind::String, span: Span { start: 0, end: 7 } }, Token { kind: TokenKind::Eof, span: Span { start: 8, end: 8 } }] ; "string whitespace")]
   fn lexer(source: &str) -> Vec<Token> {
-    let source = Rc::new(TestSource::new(source));
+    let source = Rc::new(Source::new("", source));
     let mut lexer = Lexer::new(source);
-
     let mut tokens = Vec::new();
 
     loop {
@@ -468,5 +478,62 @@ mod test {
         break tokens;
       }
     }
+  }
+
+  #[test]
+  fn peek() {
+    let source = "1 2";
+    let source = Rc::new(Source::new("", source));
+    let mut lexer = Lexer::new(source);
+
+    assert_eq!(
+      lexer.next(),
+      Token {
+        kind: TokenKind::Integer,
+        span: Span { start: 0, end: 1 }
+      }
+    );
+    assert_eq!(
+      lexer.peek(),
+      Token {
+        kind: TokenKind::Whitespace,
+        span: Span { start: 1, end: 2 }
+      }
+    );
+    assert_eq!(
+      lexer.peek(),
+      Token {
+        kind: TokenKind::Whitespace,
+        span: Span { start: 1, end: 2 }
+      }
+    );
+    assert_eq!(
+      lexer.next(),
+      Token {
+        kind: TokenKind::Whitespace,
+        span: Span { start: 1, end: 2 }
+      }
+    );
+    assert_eq!(
+      lexer.peek(),
+      Token {
+        kind: TokenKind::Integer,
+        span: Span { start: 2, end: 3 }
+      }
+    );
+    assert_eq!(
+      lexer.next(),
+      Token {
+        kind: TokenKind::Integer,
+        span: Span { start: 2, end: 3 }
+      }
+    );
+    assert_eq!(
+      lexer.next(),
+      Token {
+        kind: TokenKind::Eof,
+        span: Span { start: 3, end: 3 }
+      }
+    );
   }
 }
