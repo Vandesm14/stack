@@ -1,0 +1,4 @@
+1 2 orelse
+nil 2 orelse
+1 nil orelse
+nil nil orelse

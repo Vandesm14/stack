@@ -87,6 +87,8 @@ intrinsics! {
   Get => "get",
 
   Print => "print",
+
+  OrElse => "orelse",
 }
 
 impl Intrinsic {
@@ -791,6 +793,19 @@ impl Intrinsic {
         let val = context.stack_pop(&expr)?;
 
         println!("{}", val);
+
+        Ok(context)
+      }
+
+      // MARK: OrElse
+      Self::OrElse => {
+        let rhs = context.stack_pop(&expr)?;
+        let lhs = context.stack_pop(&expr)?;
+
+        match lhs.kind {
+          ExprKind::Nil => context.stack_push(rhs)?,
+          _ => context.stack_push(lhs)?,
+        }
 
         Ok(context)
       }
