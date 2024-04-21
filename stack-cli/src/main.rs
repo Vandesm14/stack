@@ -20,8 +20,8 @@ fn main() {
       // Clear screen and reset cursor position to the top-left.
       const ANSI: &[u8; 10] = b"\x1b[2J\x1b[1;1H";
 
-      // io::stdout().write_all(ANSI).unwrap();
-      // io::stderr().write_all(ANSI).unwrap();
+      io::stdout().write_all(ANSI).unwrap();
+      io::stderr().write_all(ANSI).unwrap();
 
       let mut engine = Engine::new().with_track_info(!cli.fast);
 
