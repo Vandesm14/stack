@@ -43,7 +43,7 @@ fn main() {
         }
       };
 
-      match run_file_source(&engine, source.clone()) {
+      match run_file_source(&engine, source.clone(), cli.journal) {
         Ok(context) => print_context(&context),
         Err(err) => {
           eprintln!("error: {err}");
@@ -84,7 +84,7 @@ fn main() {
                 }
               };
 
-              match run_file_source(&engine, source) {
+              match run_file_source(&engine, source, cli.journal) {
                 Ok(context) => print_context(&context),
                 Err(err) => {
                   eprintln!("error: {err}");
@@ -107,6 +107,7 @@ fn main() {
 fn run_file_source(
   engine: &Engine,
   source: Rc<Source>,
+  journal: bool,
 ) -> Result<Context, RunError> {
   let exprs = match Parser::new(Lexer::new(source)).parse() {
     Ok(exprs) => exprs,
@@ -117,7 +118,7 @@ fn run_file_source(
   };
 
   let context = Context::new();
-  let context = if engine.track_info() {
+  let context = if journal {
     context.add_journal()
   } else {
     context
@@ -144,6 +145,10 @@ struct Cli {
   #[arg(short, long)]
   #[cfg(feature = "stack-std")]
   sandbox: bool,
+
+  /// Whether to enable stack journaling.
+  #[arg(short, long)]
+  journal: bool,
 
   /// Enable all standard modules.
   #[arg(long)]
