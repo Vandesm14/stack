@@ -1,109 +1,95 @@
-use core::{fmt, num::FpCategory};
+use core::{fmt, num::FpCategory, str::FromStr};
 
-use unicode_segmentation::UnicodeSegmentation as _;
+use unicode_segmentation::UnicodeSegmentation;
 
 use crate::{
   context::Context,
-  engine::{Engine, RunError, RunErrorReason},
-  expr::{Expr, ExprInfo, ExprKind, Symbol},
+  expr::{Expr, ExprInfo, ExprKind},
   journal::JournalOp,
+  prelude::{Engine, RunError, RunErrorReason},
+  symbol::Symbol,
 };
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
-pub enum Intrinsic {
-  Add,
-  Sub,
-  Mul,
-  Div,
-  Rem,
+macro_rules! intrinsics {
+  ($($ident:ident => $s:literal),* $(,)?) => {
+    #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+    pub enum Intrinsic {
+      $($ident),*
+    }
 
-  Eq,
-  Ne,
-  Lt,
-  Le,
-  Gt,
-  Ge,
+    impl Intrinsic {
+      /// Returns the <code>&[str]</code> name of this [`Intrinsic`].
+      pub const fn as_str(self) -> &'static str {
+        match self {
+          $(Self::$ident => $s),*
+        }
+      }
+    }
 
-  Or,
-  And,
+    impl FromStr for Intrinsic {
+      type Err = ParseIntrinsicError;
 
-  Assert,
+      fn from_str(s: &str) -> Result<Self, Self::Err> {
+        match s {
+          $($s => Ok(Self::$ident),)*
+          _ => Err(ParseIntrinsicError),
+        }
+      }
+    }
 
-  Drop,
-  Dupe,
-  Swap,
-  Rot,
+    impl fmt::Display for Intrinsic {
+      fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "{}", self.as_str())
+      }
+    }
+  };
+}
 
-  Len,
-  Nth,
-  Split,
-  Concat,
+intrinsics! {
+  Add => "+",
+  Sub => "-",
+  Mul => "*",
+  Div => "/",
+  Rem => "%",
 
-  Cast,
+  Eq => "=",
+  Ne => "!=",
+  Lt => "<",
+  Le => "<=",
+  Gt => ">",
+  Ge => ">=",
 
-  If,
-  Halt,
+  Or => "or",
+  And => "and",
 
-  Call,
+  Assert => "assert",
 
-  Let,
-  Def,
-  Set,
-  Get,
+  Drop => "drop",
+  Dupe => "dupe",
+  Swap => "swap",
+  Rot => "rot",
 
-  Print,
+  Len => "len",
+  Nth => "nth",
+  Split => "split",
+  Concat => "concat",
+
+  Cast => "cast",
+
+  If => "if",
+  Halt => "halt",
+
+  Call => "call",
+
+  Let => "let",
+  Def => "def",
+  Set => "set",
+  Get => "get",
+
+  Print => "print",
 }
 
 impl Intrinsic {
-  #[allow(clippy::should_implement_trait)]
-  pub fn from_str(s: &str) -> Option<Self> {
-    match s {
-      "+" => Some(Self::Add),
-      "-" => Some(Self::Sub),
-      "*" => Some(Self::Mul),
-      "/" => Some(Self::Div),
-      "%" => Some(Self::Rem),
-
-      "=" => Some(Self::Eq),
-      "!=" => Some(Self::Ne),
-      "<" => Some(Self::Lt),
-      "<=" => Some(Self::Le),
-      ">" => Some(Self::Gt),
-      ">=" => Some(Self::Ge),
-
-      "or" => Some(Self::Or),
-      "and" => Some(Self::And),
-
-      "assert" => Some(Self::Assert),
-
-      "drop" => Some(Self::Drop),
-      "dupe" => Some(Self::Dupe),
-      "swap" => Some(Self::Swap),
-      "rot" => Some(Self::Rot),
-
-      "len" => Some(Self::Len),
-      "nth" => Some(Self::Nth),
-      "split" => Some(Self::Split),
-      "concat" => Some(Self::Concat),
-
-      "cast" => Some(Self::Cast),
-
-      "if" => Some(Self::If),
-      "halt" => Some(Self::Halt),
-
-      "call" => Some(Self::Call),
-
-      "let" => Some(Self::Let),
-      "def" => Some(Self::Def),
-      "set" => Some(Self::Set),
-      "get" => Some(Self::Get),
-
-      "print" => Some(Self::Print),
-
-      _ => None,
-    }
-  }
-
   pub fn run(
     &self,
     engine: &Engine,
@@ -638,9 +624,14 @@ impl Intrinsic {
               ExprKind::String(x.to_string())
             }
 
+            // TODO: Make sure these are correct, because the logic is pretty
+            //       nuanced in terms of when to choose a Symbol or Intrinsic.
             (ExprKind::Nil, "symbol") => ExprKind::Nil,
             (ExprKind::Boolean(x), "symbol") => ExprKind::Boolean(x),
-            (ExprKind::String(x), "symbol") => ExprKind::Symbol(Symbol::new(x)),
+            // TODO: Handle conversion into `fn` and `fn!`.
+            (ExprKind::String(x), "symbol") => Self::from_str(&x)
+              .map(ExprKind::Intrinsic)
+              .unwrap_or_else(|_| ExprKind::Symbol(Symbol::new(x))),
             (ExprKind::Symbol(x), "symbol") => Self::from_str(x.as_str())
               .map(ExprKind::Intrinsic)
               .unwrap_or(ExprKind::Symbol(x)),
@@ -807,50 +798,13 @@ impl Intrinsic {
   }
 }
 
-impl fmt::Display for Intrinsic {
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+pub struct ParseIntrinsicError;
+
+impl std::error::Error for ParseIntrinsicError {}
+
+impl fmt::Display for ParseIntrinsicError {
   fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-    match self {
-      Self::Add => write!(f, "+"),
-      Self::Sub => write!(f, "-"),
-      Self::Mul => write!(f, "*"),
-      Self::Div => write!(f, "/"),
-      Self::Rem => write!(f, "%"),
-
-      Self::Eq => write!(f, "="),
-      Self::Ne => write!(f, "!="),
-      Self::Lt => write!(f, "<"),
-      Self::Le => write!(f, "<="),
-      Self::Gt => write!(f, ">"),
-      Self::Ge => write!(f, ">="),
-
-      Self::Or => write!(f, "or"),
-      Self::And => write!(f, "and"),
-
-      Self::Assert => write!(f, "assert"),
-
-      Self::Drop => write!(f, "drop"),
-      Self::Dupe => write!(f, "dupe"),
-      Self::Swap => write!(f, "swap"),
-      Self::Rot => write!(f, "rot"),
-
-      Self::Len => write!(f, "len"),
-      Self::Nth => write!(f, "nth"),
-      Self::Split => write!(f, "split"),
-      Self::Concat => write!(f, "concat"),
-
-      Self::Cast => write!(f, "cast"),
-
-      Self::If => write!(f, "if"),
-      Self::Halt => write!(f, "halt"),
-
-      Self::Call => write!(f, "call"),
-
-      Self::Let => write!(f, "let"),
-      Self::Def => write!(f, "def"),
-      Self::Set => write!(f, "set"),
-      Self::Get => write!(f, "get"),
-
-      Self::Print => write!(f, "print"),
-    }
+    write!(f, "unknown intrinsic")
   }
 }
