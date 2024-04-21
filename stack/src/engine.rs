@@ -56,6 +56,11 @@ impl Engine {
     self.track_info
   }
 
+  #[inline]
+  pub fn module(&self, symbol: &Symbol) -> Option<&Module> {
+    self.modules.get(symbol)
+  }
+
   pub fn run(
     &self,
     mut context: Context,

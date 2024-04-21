@@ -13,14 +13,15 @@ fn main() {
 
   cli.enable_str = cli.enable_all || cli.enable_str;
   cli.enable_fs = cli.enable_all || cli.enable_fs;
+  cli.enable_scope = cli.enable_all || cli.enable_scope;
 
   match cli.subcommand {
     Subcommand::Run { path, watch } => {
       // Clear screen and reset cursor position to the top-left.
       const ANSI: &[u8; 10] = b"\x1b[2J\x1b[1;1H";
 
-      io::stdout().write_all(ANSI).unwrap();
-      io::stderr().write_all(ANSI).unwrap();
+      // io::stdout().write_all(ANSI).unwrap();
+      // io::stderr().write_all(ANSI).unwrap();
 
       let mut engine = Engine::new().with_track_info(!cli.fast);
 
@@ -32,6 +33,10 @@ fn main() {
 
         if cli.enable_fs {
           engine.add_module(stack_std::fs::module(cli.sandbox));
+        }
+
+        if cli.enable_scope {
+          engine.add_module(stack_std::scope::module());
         }
       }
 
@@ -162,6 +167,10 @@ struct Cli {
   #[arg(long)]
   #[cfg(feature = "stack-std")]
   enable_fs: bool,
+  /// Enable the scope standard module.
+  #[arg(long)]
+  #[cfg(feature = "stack-std")]
+  enable_scope: bool,
 }
 
 #[derive(clap::Subcommand)]
