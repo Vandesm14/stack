@@ -2,8 +2,8 @@
 
 Things that need done to get `origin/clean-up` at parity with `origin/main`
 
-- [ ] **Let**
-  - [ ] Consolidate into the scope system if we can
+- [x] **Let**
+  - [x] Consolidate into the scope system if we can
 - [ ] **Tests**
   - [ ] Reimplement all or most tests for
     - [ ] Intrinsics
