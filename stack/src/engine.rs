@@ -4,8 +4,8 @@ use std::collections::HashMap;
 use crate::{
   context::Context,
   expr::{
-    vec_fn_body, vec_fn_symbol, vec_is_function, Expr, ExprInfo, ExprKind,
-    FnIdent,
+    vec_fn_body, vec_fn_symbol, vec_is_function, Error, Expr, ExprInfo,
+    ExprKind, FnIdent,
   },
   journal::JournalOp,
   module::Module,
@@ -110,12 +110,7 @@ impl Engine {
             Ok(context)
           } else {
             context.stack_push(Expr {
-              kind: ExprKind::Error(Box::new(Expr {
-                kind: ExprKind::String("unknown function".into()),
-                info: self.track_info.then(|| ExprInfo::Runtime {
-                  components: vec![expr.clone()],
-                }),
-              })),
+              kind: ExprKind::Error(Error::new("unknown function".into())),
               info: self.track_info.then(|| ExprInfo::Runtime {
                 components: vec![expr],
               }),

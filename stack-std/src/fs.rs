@@ -1,4 +1,4 @@
-use stack::prelude::*;
+use stack::{expr::Error, prelude::*};
 
 pub fn module(sandbox: bool) -> Module {
   let mut module = Module::new(Symbol::from_ref("fs"));
@@ -25,14 +25,7 @@ pub fn module(sandbox: bool) -> Module {
           let kind = match path.kind {
             ExprKind::String(ref x) => std::fs::read_to_string(x)
               .map(ExprKind::String)
-              .unwrap_or_else(|e| {
-                ExprKind::Error(Box::new(Expr {
-                  kind: ExprKind::String(e.to_string()),
-                  info: engine.track_info().then(|| ExprInfo::Runtime {
-                    components: vec![path.clone(), expr.clone()],
-                  }),
-                }))
-              }),
+              .unwrap_or_else(|e| ExprKind::Error(Error::new(e.to_string()))),
             _ => ExprKind::Nil,
           };
 

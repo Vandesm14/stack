@@ -1,6 +1,7 @@
-use core::{cmp::Ordering, fmt, ops};
+use core::{cmp::Ordering, fmt, hash::Hash, ops};
 use std::{iter, rc::Rc};
 
+use internment::Intern;
 use termion::color;
 
 use crate::{
@@ -18,16 +19,16 @@ impl Expr {
   pub fn to_pretty_string(&self) -> String {
     let reset = color::Fg(color::Reset);
     let result = match &self.kind {
-      ExprKind::Nil => format!("{}nil", color::Fg(color::White)),
+      x @ ExprKind::Nil => format!("{}{x}", color::Fg(color::White)),
+      x @ ExprKind::Error(_) => format!("{}{x}", color::Fg(color::Red)),
 
-      ExprKind::Boolean(x) => {
-        format!("{}{}", color::Fg(color::Yellow), x)
+      x @ ExprKind::Boolean(_) => {
+        format!("{}{x}", color::Fg(color::Yellow))
       }
-      ExprKind::Integer(x) => format!("{}{}", color::Fg(color::Yellow), x),
-      ExprKind::Float(x) => format!("{}{}", color::Fg(color::Yellow), x),
-
-      ExprKind::String(x) => {
-        format!("{}\"{}\"", color::Fg(color::Green), x)
+      x @ ExprKind::Integer(_) => format!("{}{x}", color::Fg(color::Yellow)),
+      x @ ExprKind::Float(_) => format!("{}{x}", color::Fg(color::Yellow)),
+      x @ ExprKind::String(_) => {
+        format!("{}\"{x}\"", color::Fg(color::Green))
       }
 
       ExprKind::List(x) => {
@@ -50,16 +51,14 @@ impl Expr {
       ExprKind::Lazy(x) => {
         format!("'{}", x.to_pretty_string())
       }
-      ExprKind::Symbol(x) => {
-        format!("{}{}", color::Fg(color::Blue), x.as_str())
+      x @ ExprKind::Symbol(_) => {
+        format!("{}{x}", color::Fg(color::Blue))
       }
-      ExprKind::Intrinsic(x) => {
-        format!("{}{}", color::Fg(color::Blue), x)
+      x @ ExprKind::Intrinsic(_) => {
+        format!("{}{x}", color::Fg(color::Blue))
       }
 
-      ExprKind::Fn(_) => format!("{}fn", color::Fg(color::Blue)),
-
-      ExprKind::Error(_) => format!("{}fn", color::Fg(color::Red)),
+      x @ ExprKind::Fn(_) => format!("{}{x}", color::Fg(color::Blue)),
     };
 
     format!("{}{}", result, reset)
@@ -89,7 +88,7 @@ impl fmt::Display for Expr {
 #[derive(Debug, Clone)]
 pub enum ExprKind {
   Nil,
-  Error(Box<Expr>),
+  Error(Error),
 
   Boolean(bool),
   Integer(i64),
@@ -187,7 +186,9 @@ impl PartialOrd for ExprKind {
   fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
     match (self, other) {
       (Self::Nil, Self::Nil) => Some(Ordering::Equal),
-      (Self::Error(lhs), Self::Error(rhs)) => lhs.partial_cmp(rhs),
+      (Self::Error(lhs), Self::Error(rhs)) => {
+        lhs.eq(rhs).then_some(Ordering::Equal)
+      }
 
       (Self::Boolean(lhs), Self::Boolean(rhs)) => {
         lhs.eq(rhs).then_some(Ordering::Equal)
@@ -318,6 +319,46 @@ impl fmt::Display for ExprKind {
 
       Self::Fn(x) => write!(f, "{x}"),
     }
+  }
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+#[repr(transparent)]
+pub struct Error(Intern<ErrorInner>);
+
+impl Error {
+  /// Creates a [`Error`].
+  #[inline]
+  pub fn new(value: String) -> Self {
+    Self(Intern::new(ErrorInner(value)))
+  }
+
+  /// Returns the <code>&[str]</code> for this [`Error`].
+  #[inline]
+  pub fn as_str(&self) -> &str {
+    self.0 .0.as_str()
+  }
+}
+
+impl fmt::Display for Error {
+  fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+    write!(f, "\"{}\"", self.as_str())
+  }
+}
+
+#[derive(Clone, PartialEq, Eq, Hash)]
+#[repr(transparent)]
+struct ErrorInner(String);
+
+impl fmt::Debug for ErrorInner {
+  fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+    write!(f, "\"{}\"", self.0)
+  }
+}
+
+impl fmt::Display for ErrorInner {
+  fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+    write!(f, "\"{}\"", self.0)
   }
 }
 
