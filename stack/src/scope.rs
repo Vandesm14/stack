@@ -183,143 +183,232 @@ impl Scanner {
   }
 }
 
-// #[cfg(test)]
-// mod tests {
-//   use crate::{interner::interner, ExprKind, Program};
+#[cfg(test)]
+mod tests {
+  use super::*;
 
-//   #[test]
-//   fn top_level_scopes() {
-//     let mut program = Program::new().with_core().unwrap();
-//     program.eval_string("0 'a def").unwrap();
+  #[test]
+  fn top_level_scopes() {
+    let source = Rc::new(Source::new("", "0 'a def"));
+    let exprs = Parser::new(Lexer::new(source)).parse().unwrap();
 
-//     assert_eq!(
-//       program
-//         .scopes
-//         .last()
-//         .unwrap()
-//         .get_val(interner().get_or_intern("a")),
-//       Some(ExprKind::Integer(0))
-//     );
-//   }
+    let engine = Engine::new().with_track_info(false);
+    let mut context = Context::new().with_stack_capacity(32);
+    context = engine.run(context, exprs).unwrap();
 
-//   #[test]
-//   fn function_scopes_are_isolated() {
-//     let mut program = Program::new().with_core().unwrap();
-//     program.eval_string("'(fn 0 'a def) call").unwrap();
+    assert_eq!(
+      context
+        .scope_item(Symbol::new("a".into()))
+        .map(|expr| expr.kind),
+      Some(ExprKind::Integer(0))
+    );
+  }
 
-//     assert_eq!(
-//       program
-//         .scopes
-//         .last()
-//         .unwrap()
-//         .get_val(interner().get_or_intern("a")),
-//       None
-//     );
-//   }
+  #[test]
+  fn function_scopes_are_isolated() {
+    let source = Rc::new(Source::new("", "'(fn 0 'a def) call"));
+    let exprs = Parser::new(Lexer::new(source)).parse().unwrap();
 
-//   #[test]
-//   fn functions_can_set_to_outer() {
-//     let mut program = Program::new().with_core().unwrap();
-//     program.eval_string("0 'a def '(fn 1 'a set) call").unwrap();
+    let engine = Engine::new().with_track_info(false);
+    let mut context = Context::new().with_stack_capacity(32);
+    context = engine.run(context, exprs).unwrap();
 
-//     assert_eq!(
-//       program
-//         .scopes
-//         .last()
-//         .unwrap()
-//         .get_val(interner().get_or_intern("a")),
-//       Some(ExprKind::Integer(1))
-//     );
-//   }
+    assert_eq!(context.scope_item(Symbol::new("a".into())), None);
+  }
 
-//   #[test]
-//   fn functions_can_shadow_outer() {
-//     let mut program = Program::new().with_core().unwrap();
-//     program.eval_string("0 'a def '(fn 1 'a def) call").unwrap();
+  #[test]
+  fn nested_function_scopes_are_isolated() {
+    let source = Rc::new(Source::new(
+      "",
+      "0 'a def a '(fn 1 'a def a '(fn 2 'a def a) call a) call a",
+    ));
+    let exprs = Parser::new(Lexer::new(source)).parse().unwrap();
 
-//     assert_eq!(
-//       program
-//         .scopes
-//         .last()
-//         .unwrap()
-//         .get_val(interner().get_or_intern("a")),
-//       Some(ExprKind::Integer(0))
-//     );
-//   }
+    let engine = Engine::new().with_track_info(false);
+    let mut context = Context::new().with_stack_capacity(32);
+    context = engine.run(context, exprs).unwrap();
 
-//   #[test]
-//   fn closures_can_access_vars() {
-//     let mut program = Program::new().with_core().unwrap();
-//     program
-//       .eval_string("0 'a def '(fn 1 'a def '(fn a)) call call")
-//       .unwrap();
+    assert_eq!(
+      context
+        .stack()
+        .iter()
+        .map(|expr| &expr.kind)
+        .collect::<Vec<_>>(),
+      vec![
+        &ExprKind::Integer(0),
+        &ExprKind::Integer(1),
+        &ExprKind::Integer(2),
+        &ExprKind::Integer(1),
+        &ExprKind::Integer(0)
+      ]
+    );
+  }
 
-//     assert_eq!(program.stack, vec![ExprKind::Integer(1)]);
-//   }
+  #[test]
+  fn functions_can_set_to_outer() {
+    let source =
+      Rc::new(Source::new("", "0 'a def a '(fn a 1 'a set a) call a"));
+    let exprs = Parser::new(Lexer::new(source)).parse().unwrap();
 
-//   #[test]
-//   fn closures_can_mutate_vars() {
-//     let mut program = Program::new().with_core().unwrap();
-//     program
-//       .eval_string("0 'a def '(fn 1 'a def '(fn 2 'a set a)) call call")
-//       .unwrap();
+    let engine = Engine::new().with_track_info(false);
+    let mut context = Context::new().with_stack_capacity(32);
+    context = engine.run(context, exprs).unwrap();
 
-//     assert_eq!(program.stack, vec![ExprKind::Integer(2)],);
-//   }
+    assert_eq!(
+      context
+        .stack()
+        .iter()
+        .map(|expr| &expr.kind)
+        .collect::<Vec<_>>(),
+      vec![
+        &ExprKind::Integer(0),
+        &ExprKind::Integer(0),
+        &ExprKind::Integer(1),
+        &ExprKind::Integer(1),
+      ]
+    );
+  }
 
-//   #[test]
-//   fn scopeless_functions_can_def_outer() {
-//     let mut program = Program::new().with_core().unwrap();
-//     program.eval_string("'(fn! 0 'a def) call").unwrap();
+  #[test]
+  fn closures_can_access_vars() {
+    let source = Rc::new(Source::new(
+      "",
+      "0 'a def '(fn 1 'a def '(fn a)) call call a",
+    ));
+    let exprs = Parser::new(Lexer::new(source)).parse().unwrap();
 
-//     assert_eq!(
-//       program
-//         .scopes
-//         .last()
-//         .unwrap()
-//         .get_val(interner().get_or_intern("a")),
-//       Some(ExprKind::Integer(0))
-//     );
-//   }
+    let engine = Engine::new().with_track_info(false);
+    let mut context = Context::new().with_stack_capacity(32);
+    context = engine.run(context, exprs).unwrap();
 
-//   #[test]
-//   fn scopeless_function_macro_test() {
-//     let mut program = Program::new().with_core().unwrap();
-//     program
-//       .eval_string("'(fn! def) 'define def 0 'a define")
-//       .unwrap();
+    assert_eq!(
+      context
+        .stack()
+        .iter()
+        .map(|expr| &expr.kind)
+        .collect::<Vec<_>>(),
+      vec![&ExprKind::Integer(1), &ExprKind::Integer(0),]
+    );
+  }
 
-//     assert_eq!(
-//       program
-//         .scopes
-//         .last()
-//         .unwrap()
-//         .get_val(interner().get_or_intern("a")),
-//       Some(ExprKind::Integer(0))
-//     );
-//   }
+  #[test]
+  fn closures_can_mutate_vars() {
+    let source = Rc::new(Source::new(
+      "",
+      "0 'a def '(fn 1 'a def '(fn a 2 'a set a)) call call a",
+    ));
+    let exprs = Parser::new(Lexer::new(source)).parse().unwrap();
 
-//   #[test]
-//   fn should_fail_on_invalid_symbol() {
-//     let mut program = Program::new().with_core().unwrap();
-//     let result = program.eval_string("a").unwrap_err();
+    let engine = Engine::new().with_track_info(false);
+    let mut context = Context::new().with_stack_capacity(32);
+    context = engine.run(context, exprs).unwrap();
 
-//     assert_eq!(result.message, "unknown call a");
-//   }
+    assert_eq!(
+      context
+        .stack()
+        .iter()
+        .map(|expr| &expr.kind)
+        .collect::<Vec<_>>(),
+      vec![
+        &ExprKind::Integer(1),
+        &ExprKind::Integer(2),
+        &ExprKind::Integer(0),
+      ]
+    );
+  }
 
-//   #[test]
-//   fn should_fail_on_invalid_symbol_in_fn() {
-//     let mut program = Program::new().with_core().unwrap();
-//     let result = program.eval_string("'(fn a) call").unwrap_err();
+  #[test]
+  fn scopeless_functions_can_def_outer() {
+    let source = Rc::new(Source::new("", "'(fn! 0 'a def) call a"));
+    let exprs = Parser::new(Lexer::new(source)).parse().unwrap();
 
-//     assert_eq!(result.message, "unknown call a");
-//   }
+    let engine = Engine::new().with_track_info(false);
+    let mut context = Context::new().with_stack_capacity(32);
+    context = engine.run(context, exprs).unwrap();
 
-//   #[test]
-//   fn variables_defined_from_scopeless_should_be_usable() {
-//     let mut program = Program::new().with_core().unwrap();
-//     program
-//       .eval_string("'(fn! 0 'a def) '(fn call '(fn a)) call call")
-//       .unwrap();
-//   }
-// }
+    assert_eq!(
+      context
+        .stack()
+        .iter()
+        .map(|expr| &expr.kind)
+        .collect::<Vec<_>>(),
+      vec![&ExprKind::Integer(0),]
+    );
+
+    let source = Rc::new(Source::new("", "0 'a def '(fn! a 1 'a def) call a"));
+    let exprs = Parser::new(Lexer::new(source)).parse().unwrap();
+
+    let engine = Engine::new().with_track_info(false);
+    let mut context = Context::new().with_stack_capacity(32);
+    context = engine.run(context, exprs).unwrap();
+
+    assert_eq!(
+      context
+        .stack()
+        .iter()
+        .map(|expr| &expr.kind)
+        .collect::<Vec<_>>(),
+      vec![&ExprKind::Integer(0), &ExprKind::Integer(1),]
+    );
+  }
+
+  #[test]
+  fn scopeless_function_can_reuse_define() {
+    let source =
+      Rc::new(Source::new("", "'(fn! def) 'define def 0 'a define a"));
+    let exprs = Parser::new(Lexer::new(source)).parse().unwrap();
+
+    let engine = Engine::new().with_track_info(false);
+    let mut context = Context::new().with_stack_capacity(32);
+    context = engine.run(context, exprs).unwrap();
+
+    assert_eq!(
+      context
+        .stack()
+        .iter()
+        .map(|expr| &expr.kind)
+        .collect::<Vec<_>>(),
+      vec![&ExprKind::Integer(0)]
+    );
+  }
+
+  // TODO: test failure cases
+  // #[test]
+  // fn should_fail_on_invalid_symbol() {
+  //   let mut program = Program::new().with_core().unwrap();
+  //   let result = program.eval_string("a").unwrap_err();
+
+  //   assert_eq!(result.message, "unknown call a");
+  // }
+
+  // #[test]
+  // fn should_fail_on_invalid_symbol_in_fn() {
+  //   let mut program = Program::new().with_core().unwrap();
+  //   let result = program.eval_string("'(fn a) call").unwrap_err();
+
+  //   assert_eq!(result.message, "unknown call a");
+  // }
+
+  #[test]
+  fn variables_defined_from_scopeless_should_be_usable() {
+    let source = Rc::new(Source::new(
+      "",
+      "'(fn! 0 'a def) '(fn call '(fn a)) call call",
+    ));
+    let exprs = Parser::new(Lexer::new(source)).parse().unwrap();
+
+    let engine = Engine::new().with_track_info(false);
+    let mut context = Context::new().with_stack_capacity(32);
+    context = engine.run(context, exprs).unwrap();
+
+    assert_eq!(context.scope_item(Symbol::new("a".into())), None);
+    assert_eq!(
+      context
+        .stack()
+        .iter()
+        .map(|expr| &expr.kind)
+        .collect::<Vec<_>>(),
+      vec![&ExprKind::Integer(0),]
+    );
+  }
+}
