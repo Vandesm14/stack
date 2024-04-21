@@ -1,13 +1,17 @@
 use core::fmt;
-use std::{io::Read, rc::Rc};
+use std::{io::Read, path::PathBuf, rc::Rc};
 
 use clap::Parser;
+use reedline::{DefaultPrompt, DefaultPromptSegment, Reedline, Signal};
 use stack::prelude::*;
 
 fn main() {
   let cli = Cli::parse();
 
+  let new_context = || Context::new().with_journal(cli.journal);
+
   let mut engine = Engine::new();
+  let mut context = new_context();
 
   #[cfg(feature = "stack-std")]
   {
@@ -25,7 +29,6 @@ fn main() {
   }
 
   match cli.subcommand {
-    Subcommand::Repl => todo!(),
     Subcommand::Stdin => {
       let mut stdin = std::io::stdin();
       let mut source = String::new();
@@ -36,9 +39,63 @@ fn main() {
       let mut lexer = Lexer::new(source);
       let exprs = ok_or_exit(parse(&mut lexer));
 
-      let mut context = Context::new().with_journal(cli.journal);
       context = ok_or_exit(engine.run(context, exprs));
+      display_stack(&context);
+    }
+    Subcommand::Repl => {
+      let mut repl = Reedline::create();
+      let prompt = DefaultPrompt::new(
+        DefaultPromptSegment::Empty,
+        DefaultPromptSegment::Empty,
+      );
 
+      loop {
+        let signal = ok_or_exit(repl.read_line(&prompt));
+
+        match signal {
+          Signal::CtrlC | Signal::CtrlD => {
+            println!("aborted");
+            break;
+          }
+          Signal::Success(line) => {
+            if line.starts_with(':') {
+              match &line.as_str()[1..] {
+                "exit" => break,
+                "clear" => {
+                  ok_or_exit(repl.clear_screen());
+                }
+                "reset" => {
+                  context = new_context();
+                  println!("Reset context");
+                }
+                command => eprintln!("error: unknown command '{command}'"),
+              }
+            } else {
+              let source = Rc::new(Source::new("repl", line));
+              let mut lexer = Lexer::new(source);
+              let exprs = ok_or_exit(parse(&mut lexer));
+
+              context = match engine.run(context, exprs) {
+                Ok(context) => {
+                  display_stack(&context);
+                  context
+                }
+                Err(e) => {
+                  eprintln!("error: {e}");
+                  e.context
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+    Subcommand::Run { input } => {
+      let source = Rc::new(ok_or_exit(Source::from_path(input)));
+      let mut lexer = Lexer::new(source);
+      let exprs = ok_or_exit(parse(&mut lexer));
+
+      context = ok_or_exit(engine.run(context, exprs));
       display_stack(&context);
     }
   }
@@ -58,16 +115,14 @@ where
 }
 
 fn display_stack(context: &Context) {
-  println!("stack:");
+  print!("stack:");
 
   core::iter::repeat(" ")
     .zip(context.stack())
     .for_each(|(sep, x)| print!("{sep}{x:#}"));
-
-  println!();
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Default, clap::Parser)]
+#[derive(Debug, Clone, PartialEq, Eq, Default, clap::Parser)]
 #[command(author, version, about, long_about = None)]
 #[command(propagate_version = true)]
 struct Cli {
@@ -101,7 +156,7 @@ struct Cli {
   enable_scope: bool,
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Default, clap::Subcommand)]
+#[derive(Debug, Clone, PartialEq, Eq, Default, clap::Subcommand)]
 enum Subcommand {
   /// Runs a REPL [alias >].
   #[default]
@@ -110,6 +165,8 @@ enum Subcommand {
   /// Runs the code supplied via STDIN [alias -].
   #[command(alias = "-")]
   Stdin,
+  /// Runs the code from an input file path.
+  Run { input: PathBuf },
 }
 
 ////////////////////////////////////////////////////////////////////////////////
