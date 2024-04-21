@@ -1,6 +1,8 @@
 use stack::prelude::*;
 use unicode_segmentation::UnicodeSegmentation;
 
+// TODO: Add str:escape and str:unescape.
+
 pub fn module() -> Module {
   Module::new(Symbol::from_ref("str"))
     .with_func(Symbol::from_ref("trim-start"), |_, mut context, expr| {
