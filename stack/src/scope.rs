@@ -12,10 +12,7 @@ pub struct Scope {
 
 impl fmt::Debug for Scope {
   fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
-    let iter = self
-      .items
-      .iter()
-      .map(|(name, item)| (name.as_ref().as_str(), item));
+    let iter = self.items.iter().map(|(name, item)| (name.as_str(), item));
     write!(f, "{:?}", HashMap::<&str, &Val>::from_iter(iter))
   }
 }

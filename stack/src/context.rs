@@ -3,9 +3,10 @@ use std::collections::HashMap;
 
 use crate::{
   engine::{RunError, RunErrorReason},
-  expr::{Expr, Symbol},
+  expr::Expr,
   journal::{Journal, JournalOp},
   scope::{Scanner, Scope},
+  symbol::Symbol,
 };
 
 // TODO: This API could be a lot nicer.

@@ -8,12 +8,7 @@ const fn e(kind: ExprKind) -> Expr {
   Expr { kind, info: None }
 }
 
-// TODO: Add tests for "intrinsics/len.stack".
-// TODO: Add tests for "intrinsics/nth.stack".
-// TODO: Add tests for "intrinsics/split.stack".
-// TODO: Add tests for "intrinsics/concat.stack".
-// TODO: Add tests for "intrinsics/cast.stack".
-// TODO: Add tests for "intrinsics/branch.stack".
+// TODO: Add tests for missing intrinsics.
 
 #[case("intrinsics/arithmetic.stack" => Ok(vec![e(ExprKind::Integer(3)), e(ExprKind::Integer(-1)), e(ExprKind::Integer(6)), e(ExprKind::Integer(2)), e(ExprKind::Integer(0))]) ; "arithmetic")]
 #[case("intrinsics/compare.stack" => Ok(vec![e(ExprKind::Boolean(true)), e(ExprKind::Boolean(false)), e(ExprKind::Boolean(false)), e(ExprKind::Boolean(true)), e(ExprKind::Boolean(false)), e(ExprKind::Boolean(false)), e(ExprKind::Boolean(true)), e(ExprKind::Boolean(true)), e(ExprKind::Boolean(false)), e(ExprKind::Boolean(true)), e(ExprKind::Boolean(false)), e(ExprKind::Boolean(true)), e(ExprKind::Boolean(false)), e(ExprKind::Boolean(true)), e(ExprKind::Boolean(true)), e(ExprKind::Boolean(false))]) ; "compare")]
@@ -26,7 +21,7 @@ fn integration(subpath: &str) -> Result<Vec<Expr>, RunError> {
   let mut path = PathBuf::from_str("tests").unwrap();
   path.push(subpath);
 
-  let source = Rc::new(FileSource::new(path).unwrap());
+  let source = Rc::new(Source::from_path(path).unwrap());
   let exprs = Parser::new(Lexer::new(source)).parse().unwrap();
 
   let engine = Engine::new().with_track_info(false);

@@ -1,12 +1,12 @@
 use core::{cmp::Ordering, fmt, ops};
 use std::{iter, rc::Rc};
 
-use internment::Intern;
 use termion::color;
 
-use crate::{intrinsic::Intrinsic, lexer::Span, scope::Scope, source::Source};
-
-pub type Symbol = Intern<String>;
+use crate::{
+  intrinsic::Intrinsic, lexer::Span, scope::Scope, source::Source,
+  symbol::Symbol,
+};
 
 #[derive(Debug, Clone)]
 pub struct Expr {
@@ -51,7 +51,7 @@ impl Expr {
         format!("'{}", x.to_pretty_string())
       }
       ExprKind::Symbol(x) => {
-        format!("{}{}", color::Fg(color::Blue), x.as_ref())
+        format!("{}{}", color::Fg(color::Blue), x.as_str())
       }
       ExprKind::Intrinsic(x) => {
         format!("{}{}", color::Fg(color::Blue), x)
@@ -86,9 +86,8 @@ impl fmt::Display for Expr {
   }
 }
 
-#[derive(Debug, Clone, PartialEq, Default)]
+#[derive(Debug, Clone)]
 pub enum ExprKind {
-  #[default]
   Nil,
   Error(Box<Expr>),
 
@@ -197,28 +196,56 @@ impl ExprKind {
   }
 }
 
+impl PartialEq for ExprKind {
+  fn eq(&self, other: &Self) -> bool {
+    match (self, other) {
+      (Self::Nil, Self::Nil) => true,
+      (Self::Error(lhs), Self::Error(rhs)) => lhs == rhs,
+
+      (Self::Boolean(lhs), Self::Boolean(rhs)) => lhs == rhs,
+      (Self::Integer(lhs), Self::Integer(rhs)) => lhs == rhs,
+      (Self::Float(lhs), Self::Float(rhs)) => lhs == rhs,
+      (Self::String(lhs), Self::String(rhs)) => lhs == rhs,
+
+      (Self::Symbol(lhs), Self::Symbol(rhs)) => lhs == rhs,
+
+      (Self::Lazy(lhs), Self::Lazy(rhs)) => lhs == rhs,
+      (Self::List(lhs), Self::List(rhs)) => lhs == rhs,
+
+      (Self::Intrinsic(lhs), Self::Intrinsic(rhs)) => lhs == rhs,
+
+      _ => false,
+    }
+  }
+}
+
 impl PartialOrd for ExprKind {
   fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
     match (self, other) {
       (Self::Nil, Self::Nil) => Some(Ordering::Equal),
+      (Self::Error(lhs), Self::Error(rhs)) => lhs.partial_cmp(rhs),
 
-      (Self::Boolean(lhs), Self::Boolean(rhs)) => lhs.partial_cmp(rhs),
+      (Self::Boolean(lhs), Self::Boolean(rhs)) => {
+        lhs.eq(rhs).then_some(Ordering::Equal)
+      }
       (Self::Integer(lhs), Self::Integer(rhs)) => lhs.partial_cmp(rhs),
       (Self::Float(lhs), Self::Float(rhs)) => lhs.partial_cmp(rhs),
-      (Self::String(lhs), Self::String(rhs)) => lhs.partial_cmp(rhs),
+      (Self::String(lhs), Self::String(rhs)) => {
+        lhs.eq(rhs).then_some(Ordering::Equal)
+      }
 
       (Self::Symbol(lhs), Self::Symbol(rhs)) => {
-        if lhs == rhs {
-          Some(Ordering::Equal)
-        } else {
-          None
-        }
+        lhs.eq(rhs).then_some(Ordering::Equal)
       }
 
       (Self::Lazy(lhs), Self::Lazy(rhs)) => lhs.partial_cmp(rhs),
-      (Self::List(_), Self::List(_)) => None,
+      (Self::List(lhs), Self::List(rhs)) => {
+        lhs.eq(rhs).then_some(Ordering::Equal)
+      }
 
-      (Self::Intrinsic(_), Self::Intrinsic(_)) => None,
+      (Self::Intrinsic(lhs), Self::Intrinsic(rhs)) => {
+        lhs.eq(rhs).then_some(Ordering::Equal)
+      }
 
       _ => None,
     }
@@ -307,26 +334,20 @@ impl fmt::Display for ExprKind {
       Self::Boolean(x) => write!(f, "{x}"),
       Self::Integer(x) => write!(f, "{x}"),
       Self::Float(x) => write!(f, "{x}"),
-      Self::String(x) => {
-        if f.alternate() {
-          write!(f, "{x}")
-        } else {
-          write!(f, "\"{x}\"")
-        }
-      }
+      Self::String(x) => write!(f, "{x}"),
 
-      Self::Symbol(x) => write!(f, "{}", x.as_ref()),
+      Self::Symbol(x) => write!(f, "{}", x.as_str()),
 
-      Self::Lazy(x) => write!(f, "'{}", x.kind),
+      Self::Lazy(x) => write!(f, "{x}"),
       Self::List(x) => {
         write!(f, "(")?;
 
         core::iter::once("")
           .chain(core::iter::repeat(" "))
           .zip(x.iter())
-          .try_for_each(|(sep, x)| write!(f, "{sep}{}", x.kind))?;
+          .try_for_each(|(sep, x)| write!(f, "{sep}{x}"))?;
 
-        write!(f, ")")
+        write!(f, "(")
       }
 
       Self::Intrinsic(x) => write!(f, "{x}"),
@@ -335,6 +356,44 @@ impl fmt::Display for ExprKind {
     }
   }
 }
+
+// impl fmt::Display for ExprKind {
+//   fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+//     match self {
+//       Self::Nil => write!(f, "nil"),
+//       Self::Error(x) => write!(f, "error({x})"),
+
+//       Self::Boolean(x) => write!(f, "{x}"),
+//       Self::Integer(x) => write!(f, "{x}"),
+//       Self::Float(x) => write!(f, "{x}"),
+//       Self::String(x) => {
+//         if f.alternate() {
+//           write!(f, "{x}")
+//         } else {
+//           write!(f, "\"{x}\"")
+//         }
+//       }
+
+//       Self::Symbol(x) => write!(f, "{}", x.as_str()),
+
+//       Self::Lazy(x) => write!(f, "'{}", x.kind),
+//       Self::List(x) => {
+//         write!(f, "(")?;
+
+//         core::iter::once("")
+//           .chain(core::iter::repeat(" "))
+//           .zip(x.iter())
+//           .try_for_each(|(sep, x)| write!(f, "{sep}{}", x.kind))?;
+
+//         write!(f, ")")
+//       }
+
+//       Self::Intrinsic(x) => write!(f, "{x}"),
+
+//       Self::Fn(x) => write!(f, "{x}"),
+//     }
+//   }
+// }
 
 #[derive(Debug, Clone, PartialEq, Default)]
 pub struct FnIdent {
@@ -351,7 +410,7 @@ impl fmt::Display for FnIdent {
 #[derive(Clone)]
 pub enum ExprInfo {
   /// Comes from a [`Source`].
-  Source { source: Rc<dyn Source>, span: Span },
+  Source { source: Rc<Source>, span: Span },
   /// Comes from evaluation.
   Runtime { components: Vec<Expr> },
 }
@@ -361,7 +420,7 @@ impl fmt::Debug for ExprInfo {
     match self {
       Self::Source { source, span } => f
         .debug_struct("Source")
-        .field("source", &source.path())
+        .field("source", &source.name())
         .field("span", span)
         .finish(),
       Self::Runtime { components } => f
@@ -375,14 +434,18 @@ impl fmt::Debug for ExprInfo {
 impl fmt::Display for ExprInfo {
   fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
     match self {
-      // TODO: This should output line and column numbers instead of the span.
-      Self::Source { source, span } => write!(
-        f,
-        "'{}' at {}:{}",
-        &source.content()[span.start..span.end],
-        source.path().display(),
-        span
-      ),
+      Self::Source { source, span } => {
+        write!(
+          f,
+          "'{}' at {}:{}",
+          &source.source()[span.start..span.end],
+          source.name(),
+          source
+            .location(span.start)
+            .map(|x| x.to_string())
+            .unwrap_or_else(|| "?:?".into())
+        )
+      }
       Self::Runtime { components } => core::iter::once("")
         .chain(core::iter::repeat(" "))
         .zip(components.iter())

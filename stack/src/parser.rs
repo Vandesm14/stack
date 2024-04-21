@@ -1,14 +1,15 @@
-use core::fmt;
+use core::{fmt, str::FromStr};
 use std::rc::Rc;
 
 use crate::{
-  expr::{Expr, ExprInfo, ExprKind, FnIdent, Symbol},
+  expr::{Expr, ExprInfo, ExprKind, FnIdent},
   intrinsic::Intrinsic,
   lexer::{Lexer, Span, Token, TokenKind},
   source::Source,
+  symbol::Symbol,
 };
 
-#[derive(Clone)]
+#[derive(Debug)]
 pub struct Parser {
   lexer: Lexer,
 }
@@ -20,7 +21,7 @@ impl Parser {
   }
 
   #[inline]
-  pub fn source(&self) -> Rc<dyn Source> {
+  pub fn source(&self) -> Rc<Source> {
     self.lexer.source()
   }
 
@@ -47,73 +48,11 @@ impl Parser {
         token,
         reason: ParseErrorReason::UnexpectedToken,
       }),
+
       TokenKind::Eof => Ok(None),
-
-      TokenKind::Integer => {
-        let slice = &source.content()[token.span.start..token.span.end];
-        let integer = slice.parse().map_err(|_| ParseError {
-          source,
-          token,
-          reason: ParseErrorReason::InvalidInteger,
-        })?;
-
-        Ok(Some(Expr {
-          kind: ExprKind::Integer(integer),
-          info: Some(ExprInfo::Source {
-            source: self.source(),
-            span: token.span,
-          }),
-        }))
-      }
-      TokenKind::Float => {
-        let slice = &source.content()[token.span.start..token.span.end];
-        let float = slice.parse().map_err(|_| ParseError {
-          source,
-          token,
-          reason: ParseErrorReason::InvalidFloat,
-        })?;
-
-        Ok(Some(Expr {
-          kind: ExprKind::Float(float),
-          info: Some(ExprInfo::Source {
-            source: self.source(),
-            span: token.span,
-          }),
-        }))
-      }
-      TokenKind::String => {
-        // NOTE: String tokens include the quotes in their span, so discard them
-        //       when getting the string slice.
-        let slice = &source.content()[token.span.start + 1..token.span.end - 1];
-
-        Ok(Some(Expr {
-          kind: ExprKind::String(slice.into()),
-          info: Some(ExprInfo::Source {
-            source,
-            span: token.span,
-          }),
-        }))
-      }
-      TokenKind::Symbol => {
-        let slice = &source.content()[token.span.start..token.span.end];
-
-        let kind = Intrinsic::from_str(slice)
-          .map(ExprKind::Intrinsic)
-          .unwrap_or_else(|| match slice {
-            "nil" => ExprKind::Nil,
-            "true" => ExprKind::Boolean(true),
-            "false" => ExprKind::Boolean(false),
-
-            slice => ExprKind::Symbol(Symbol::from_ref(slice)),
-          });
-
-        Ok(Some(Expr {
-          kind,
-          info: Some(ExprInfo::Source {
-            source,
-            span: token.span,
-          }),
-        }))
+      TokenKind::Whitespace | TokenKind::Comment => {
+        let next_token = self.lexer.next();
+        self.next(next_token)
       }
 
       TokenKind::Apostrophe => {
@@ -184,30 +123,89 @@ impl Parser {
         self.next(next_token)
       }
 
-      TokenKind::Fn => Ok(Some(Expr {
-        kind: ExprKind::Fn(FnIdent {
-          scoped: true,
-          ..Default::default()
-        }),
-        info: Some(ExprInfo::Source {
+      TokenKind::Integer => {
+        let slice = &source.source()[token.span.start..token.span.end];
+        let integer = slice.parse().map_err(|_| ParseError {
           source,
-          span: token.span,
-        }),
-      })),
-      TokenKind::FnExclamation => Ok(Some(Expr {
-        kind: ExprKind::Fn(FnIdent::default()),
-        info: Some(ExprInfo::Source {
+          token,
+          reason: ParseErrorReason::InvalidInteger,
+        })?;
+
+        Ok(Some(Expr {
+          kind: ExprKind::Integer(integer),
+          info: Some(ExprInfo::Source {
+            source: self.source(),
+            span: token.span,
+          }),
+        }))
+      }
+      TokenKind::Float => {
+        let slice = &source.source()[token.span.start..token.span.end];
+        let float = slice.parse().map_err(|_| ParseError {
           source,
-          span: token.span,
-        }),
-      })),
+          token,
+          reason: ParseErrorReason::InvalidFloat,
+        })?;
+
+        Ok(Some(Expr {
+          kind: ExprKind::Float(float),
+          info: Some(ExprInfo::Source {
+            source: self.source(),
+            span: token.span,
+          }),
+        }))
+      }
+      TokenKind::String => {
+        // Discard the quotation marks from the slice.
+        let slice = &source.source()[token.span.start + 1..token.span.end - 1];
+
+        Ok(Some(Expr {
+          kind: ExprKind::String(
+            slice
+              .replace("\\n", "\n")
+              .replace("\\t", "\t")
+              .replace("\\r", "\r")
+              .replace("\\0", "\0"),
+          ),
+          info: Some(ExprInfo::Source {
+            source,
+            span: token.span,
+          }),
+        }))
+      }
+      TokenKind::Symbol => {
+        let slice = &source.source()[token.span.start..token.span.end];
+
+        let kind = Intrinsic::from_str(slice)
+          .map(ExprKind::Intrinsic)
+          .unwrap_or_else(|_| match slice {
+            "nil" => ExprKind::Nil,
+            "true" => ExprKind::Boolean(true),
+            "false" => ExprKind::Boolean(false),
+            "fn" => ExprKind::Fn(FnIdent {
+              scoped: true,
+              ..Default::default()
+            }),
+            "fn!" => ExprKind::Fn(FnIdent::default()),
+
+            slice => ExprKind::Symbol(Symbol::from_ref(slice)),
+          });
+
+        Ok(Some(Expr {
+          kind,
+          info: Some(ExprInfo::Source {
+            source,
+            span: token.span,
+          }),
+        }))
+      }
     }
   }
 }
 
 #[derive(Clone)]
 pub struct ParseError {
-  pub source: Rc<dyn Source>,
+  pub source: Rc<Source>,
   pub token: Token,
   pub reason: ParseErrorReason,
 }
@@ -216,8 +214,8 @@ impl PartialEq for ParseError {
   fn eq(&self, other: &Self) -> bool {
     self.token == other.token
       && self.reason == other.reason
-      && self.source.path() == other.source.path()
-      && self.source.content() == other.source.content()
+      && self.source.name() == other.source.name()
+      && self.source.source() == other.source.source()
   }
 }
 
@@ -240,9 +238,13 @@ impl fmt::Display for ParseError {
       "{} {} '{}' at {}:{}",
       self.reason,
       self.token.kind,
-      &self.source.content()[self.token.span.start..self.token.span.end],
-      self.source.path().display(),
-      self.token.span
+      &self.source.source()[self.token.span.start..self.token.span.end],
+      self.source.name(),
+      self
+        .source
+        .location(self.token.span.start)
+        .map(|x| x.to_string())
+        .unwrap_or_else(|| "?:?".into())
     )
   }
 }
@@ -266,8 +268,6 @@ impl fmt::Display for ParseErrorReason {
 
 #[cfg(test)]
 mod test {
-  use crate::source::test::TestSource;
-
   use super::*;
   use test_case::case;
 
@@ -301,7 +301,7 @@ mod test {
   #[case("(true -123)" => Ok(vec![Expr { kind: ExprKind::List(vec![Expr { kind: ExprKind::Boolean(true), info: None }, Expr { kind: ExprKind::Integer(-123), info: None }]), info: None }]) ; "list of boolean and negative integer")]
   #[case("'(false h-llo)" => Ok(vec![Expr { kind: ExprKind::Lazy(Box::new(Expr { kind: ExprKind::List(vec![Expr { kind: ExprKind::Boolean(false), info: None }, Expr { kind: ExprKind::Symbol(Symbol::from_ref("h-llo")), info: None }]), info: None })), info: None }]) ; "lazy list of boolean and symbol")]
   fn parser(source: &str) -> Result<Vec<Expr>, ParseError> {
-    let source = Rc::new(TestSource::new(source));
+    let source = Rc::new(Source::new("", source));
     let lexer = Lexer::new(source);
     let parser = Parser::new(lexer);
 

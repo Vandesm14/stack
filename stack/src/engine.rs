@@ -5,10 +5,11 @@ use crate::{
   context::Context,
   expr::{
     vec_fn_body, vec_fn_symbol, vec_is_function, Expr, ExprInfo, ExprKind,
-    FnIdent, Symbol,
+    FnIdent,
   },
   journal::JournalOp,
   module::Module,
+  symbol::Symbol,
 };
 
 #[derive(Debug, Clone, PartialEq, Eq, Default)]
@@ -93,7 +94,7 @@ impl Engine {
           journal.commit();
         }
 
-        if let Some((namespace, func)) = x.split_once(':') {
+        if let Some((namespace, func)) = x.as_str().split_once(':') {
           if let Some(func) = self
             .modules
             .get(&Symbol::from_ref(namespace))

@@ -1,12 +1,12 @@
 use std::{
   io::{self, Write},
-  path::PathBuf,
+  path::{Path, PathBuf},
   rc::Rc,
 };
 
 use clap::Parser as _;
 use notify::{RecommendedWatcher, Watcher as _};
-use stack::{prelude::*, source::Source as _};
+use stack::prelude::*;
 
 fn main() {
   let mut cli = Cli::parse();
@@ -35,7 +35,7 @@ fn main() {
         }
       }
 
-      let source = match FileSource::new(path.clone()) {
+      let source = match Source::from_path(path.clone()) {
         Ok(source) => Rc::new(source),
         Err(_) => {
           eprintln!("error: unable to read file '{}'", path.display());
@@ -58,7 +58,10 @@ fn main() {
           RecommendedWatcher::new(tx, notify::Config::default()).unwrap();
 
         watcher
-          .watch(source.path(), notify::RecursiveMode::NonRecursive)
+          .watch(
+            Path::new(source.name()),
+            notify::RecursiveMode::NonRecursive,
+          )
           .unwrap();
 
         for event in rx {
@@ -73,7 +76,7 @@ fn main() {
               io::stdout().write_all(ANSI).unwrap();
               io::stderr().write_all(ANSI).unwrap();
 
-              let source = match FileSource::new(path.clone()) {
+              let source = match Source::from_path(path.clone()) {
                 Ok(source) => Rc::new(source),
                 Err(_) => {
                   eprintln!("error: unable to read file '{}'", path.display());
@@ -103,7 +106,7 @@ fn main() {
 
 fn run_file_source(
   engine: &Engine,
-  source: Rc<FileSource>,
+  source: Rc<Source>,
 ) -> Result<Context, RunError> {
   let exprs = match Parser::new(Lexer::new(source)).parse() {
     Ok(exprs) => exprs,

@@ -3,12 +3,13 @@ use std::collections::HashMap;
 use crate::{
   context::Context,
   engine::{Engine, RunError},
-  expr::{Expr, Symbol},
+  expr::Expr,
+  symbol::Symbol,
 };
 
 pub type Func = fn(&Engine, Context, Expr) -> Result<Context, RunError>;
 
-#[derive(Debug, Clone, PartialEq, Eq, Default)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Module {
   name: Symbol,
   funcs: HashMap<Symbol, Func>,
