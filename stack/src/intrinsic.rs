@@ -4,7 +4,7 @@ use unicode_segmentation::UnicodeSegmentation;
 
 use crate::{
   context::Context,
-  expr::{Expr, ExprInfo, ExprKind},
+  expr::{Expr, ExprKind},
   journal::JournalOp,
   prelude::{Engine, RunError, RunErrorReason},
   symbol::Symbol,
@@ -111,12 +111,7 @@ impl Intrinsic {
           Err(_) => ExprKind::Nil,
         };
 
-        context.stack_push(Expr {
-          kind,
-          info: engine.track_info().then(|| ExprInfo::Runtime {
-            components: vec![rhs, lhs, expr],
-          }),
-        })?;
+        context.stack_push(Expr { kind, info: None })?;
 
         Ok(context)
       }
@@ -130,12 +125,7 @@ impl Intrinsic {
           Err(_) => ExprKind::Nil,
         };
 
-        context.stack_push(Expr {
-          kind,
-          info: engine.track_info().then(|| ExprInfo::Runtime {
-            components: vec![rhs, lhs, expr],
-          }),
-        })?;
+        context.stack_push(Expr { kind, info: None })?;
 
         Ok(context)
       }
@@ -149,12 +139,7 @@ impl Intrinsic {
           Err(_) => ExprKind::Nil,
         };
 
-        context.stack_push(Expr {
-          kind,
-          info: engine.track_info().then(|| ExprInfo::Runtime {
-            components: vec![rhs, lhs, expr],
-          }),
-        })?;
+        context.stack_push(Expr { kind, info: None })?;
 
         Ok(context)
       }
@@ -168,12 +153,7 @@ impl Intrinsic {
           Err(_) => ExprKind::Nil,
         };
 
-        context.stack_push(Expr {
-          kind,
-          info: engine.track_info().then(|| ExprInfo::Runtime {
-            components: vec![rhs, lhs, expr],
-          }),
-        })?;
+        context.stack_push(Expr { kind, info: None })?;
 
         Ok(context)
       }
@@ -187,12 +167,7 @@ impl Intrinsic {
           Err(_) => ExprKind::Nil,
         };
 
-        context.stack_push(Expr {
-          kind,
-          info: engine.track_info().then(|| ExprInfo::Runtime {
-            components: vec![rhs, lhs, expr],
-          }),
-        })?;
+        context.stack_push(Expr { kind, info: None })?;
 
         Ok(context)
       }
@@ -204,12 +179,7 @@ impl Intrinsic {
 
         let kind = ExprKind::Boolean(lhs.kind == rhs.kind);
 
-        context.stack_push(Expr {
-          kind,
-          info: engine.track_info().then(|| ExprInfo::Runtime {
-            components: vec![rhs, lhs, expr],
-          }),
-        })?;
+        context.stack_push(Expr { kind, info: None })?;
 
         Ok(context)
       }
@@ -220,12 +190,7 @@ impl Intrinsic {
 
         let kind = ExprKind::Boolean(lhs.kind != rhs.kind);
 
-        context.stack_push(Expr {
-          kind,
-          info: engine.track_info().then(|| ExprInfo::Runtime {
-            components: vec![rhs, lhs, expr],
-          }),
-        })?;
+        context.stack_push(Expr { kind, info: None })?;
 
         Ok(context)
       }
@@ -236,12 +201,7 @@ impl Intrinsic {
 
         let kind = ExprKind::Boolean(lhs.kind < rhs.kind);
 
-        context.stack_push(Expr {
-          kind,
-          info: engine.track_info().then(|| ExprInfo::Runtime {
-            components: vec![rhs, lhs, expr],
-          }),
-        })?;
+        context.stack_push(Expr { kind, info: None })?;
 
         Ok(context)
       }
@@ -252,12 +212,7 @@ impl Intrinsic {
 
         let kind = ExprKind::Boolean(lhs.kind <= rhs.kind);
 
-        context.stack_push(Expr {
-          kind,
-          info: engine.track_info().then(|| ExprInfo::Runtime {
-            components: vec![rhs, lhs, expr],
-          }),
-        })?;
+        context.stack_push(Expr { kind, info: None })?;
 
         Ok(context)
       }
@@ -268,12 +223,7 @@ impl Intrinsic {
 
         let kind = ExprKind::Boolean(lhs.kind > rhs.kind);
 
-        context.stack_push(Expr {
-          kind,
-          info: engine.track_info().then(|| ExprInfo::Runtime {
-            components: vec![rhs, lhs, expr],
-          }),
-        })?;
+        context.stack_push(Expr { kind, info: None })?;
 
         Ok(context)
       }
@@ -284,12 +234,7 @@ impl Intrinsic {
 
         let kind = ExprKind::Boolean(lhs.kind >= rhs.kind);
 
-        context.stack_push(Expr {
-          kind,
-          info: engine.track_info().then(|| ExprInfo::Runtime {
-            components: vec![rhs, lhs, expr],
-          }),
-        })?;
+        context.stack_push(Expr { kind, info: None })?;
 
         Ok(context)
       }
@@ -302,12 +247,7 @@ impl Intrinsic {
         let kind =
           ExprKind::Boolean(lhs.kind.is_truthy() || rhs.kind.is_truthy());
 
-        context.stack_push(Expr {
-          kind,
-          info: engine.track_info().then(|| ExprInfo::Runtime {
-            components: vec![rhs, lhs, expr],
-          }),
-        })?;
+        context.stack_push(Expr { kind, info: None })?;
 
         Ok(context)
       }
@@ -319,12 +259,7 @@ impl Intrinsic {
         let kind =
           ExprKind::Boolean(lhs.kind.is_truthy() && rhs.kind.is_truthy());
 
-        context.stack_push(Expr {
-          kind,
-          info: engine.track_info().then(|| ExprInfo::Runtime {
-            components: vec![rhs, lhs, expr],
-          }),
-        })?;
+        context.stack_push(Expr { kind, info: None })?;
 
         Ok(context)
       }
@@ -341,9 +276,7 @@ impl Intrinsic {
             reason: RunErrorReason::AssertionFailed,
             context,
             expr: Expr {
-              info: engine.track_info().then(|| ExprInfo::Runtime {
-                components: vec![message.clone(), bool, expr],
-              }),
+              info: None,
               kind: message.kind,
             },
           })
@@ -418,12 +351,7 @@ impl Intrinsic {
 
         context.stack_push(item.clone())?;
 
-        context.stack_push(Expr {
-          kind,
-          info: engine.track_info().then(|| ExprInfo::Runtime {
-            components: vec![item, expr],
-          }),
-        })?;
+        context.stack_push(Expr { kind, info: None })?;
 
         Ok(context)
       }
@@ -449,12 +377,7 @@ impl Intrinsic {
 
         context.stack_push(item.clone())?;
 
-        context.stack_push(Expr {
-          kind,
-          info: engine.track_info().then(|| ExprInfo::Runtime {
-            components: vec![item, index, expr],
-          }),
-        })?;
+        context.stack_push(Expr { kind, info: None })?;
 
         Ok(context)
       }
@@ -471,30 +394,22 @@ impl Intrinsic {
 
               context.stack_push(Expr {
                 kind: ExprKind::List(x),
-                info: engine.track_info().then(|| ExprInfo::Runtime {
-                  components: vec![item.clone(), index.clone(), expr.clone()],
-                }),
+                info: None,
               })?;
 
               context.stack_push(Expr {
                 kind: ExprKind::List(rest),
-                info: engine.track_info().then(|| ExprInfo::Runtime {
-                  components: vec![item, index, expr],
-                }),
+                info: None,
               })?;
             } else {
               context.stack_push(Expr {
                 kind: ExprKind::List(x),
-                info: engine.track_info().then(|| ExprInfo::Runtime {
-                  components: vec![item.clone(), index.clone(), expr.clone()],
-                }),
+                info: None,
               })?;
 
               context.stack_push(Expr {
                 kind: ExprKind::Nil,
-                info: engine.track_info().then(|| ExprInfo::Runtime {
-                  components: vec![item, index, expr],
-                }),
+                info: None,
               })?;
             }
           }
@@ -505,31 +420,23 @@ impl Intrinsic {
 
                 context.stack_push(Expr {
                   kind: ExprKind::String(x),
-                  info: engine.track_info().then(|| ExprInfo::Runtime {
-                    components: vec![item.clone(), index.clone(), expr.clone()],
-                  }),
+                  info: None,
                 })?;
 
                 context.stack_push(Expr {
                   kind: ExprKind::String(rest),
-                  info: engine.track_info().then(|| ExprInfo::Runtime {
-                    components: vec![item, index, expr],
-                  }),
+                  info: None,
                 })?;
               }
               None => {
                 context.stack_push(Expr {
                   kind: ExprKind::String(x),
-                  info: engine.track_info().then(|| ExprInfo::Runtime {
-                    components: vec![item.clone(), index.clone(), expr.clone()],
-                  }),
+                  info: None,
                 })?;
 
                 context.stack_push(Expr {
                   kind: ExprKind::Nil,
-                  info: engine.track_info().then(|| ExprInfo::Runtime {
-                    components: vec![item, index, expr],
-                  }),
+                  info: None,
                 })?;
               }
             }
@@ -537,16 +444,12 @@ impl Intrinsic {
           _ => {
             context.stack_push(Expr {
               kind: ExprKind::Nil,
-              info: engine.track_info().then(|| ExprInfo::Runtime {
-                components: vec![item.clone(), index.clone(), expr.clone()],
-              }),
+              info: None,
             })?;
 
             context.stack_push(Expr {
               kind: ExprKind::Nil,
-              info: engine.track_info().then(|| ExprInfo::Runtime {
-                components: vec![item, index, expr],
-              }),
+              info: None,
             })?;
           }
         }
@@ -571,12 +474,7 @@ impl Intrinsic {
           _ => ExprKind::Nil,
         };
 
-        context.stack_push(Expr {
-          kind,
-          info: engine.track_info().then(|| ExprInfo::Runtime {
-            components: vec![rhs, lhs, expr],
-          }),
-        })?;
+        context.stack_push(Expr { kind, info: None })?;
 
         Ok(context)
       }
@@ -610,12 +508,7 @@ impl Intrinsic {
           _ => ExprKind::Nil,
         };
 
-        context.stack_push(Expr {
-          kind,
-          info: engine.track_info().then(|| ExprInfo::Runtime {
-            components: vec![item, list, expr],
-          }),
-        })?;
+        context.stack_push(Expr { kind, info: None })?;
 
         Ok(context)
       }
@@ -627,9 +520,7 @@ impl Intrinsic {
           ExprKind::List(mut x) => {
             let e = x.pop().unwrap_or(Expr {
               kind: ExprKind::Nil,
-              info: engine.track_info().then(|| ExprInfo::Runtime {
-                components: vec![list.clone(), expr],
-              }),
+              info: None,
             });
 
             context.stack_push(Expr {
@@ -643,15 +534,11 @@ impl Intrinsic {
               .pop()
               .map(|e| Expr {
                 kind: ExprKind::String(e.to_string()),
-                info: engine.track_info().then(|| ExprInfo::Runtime {
-                  components: vec![list.clone(), expr.clone()],
-                }),
+                info: None,
               })
               .unwrap_or(Expr {
                 kind: ExprKind::Nil,
-                info: engine.track_info().then(|| ExprInfo::Runtime {
-                  components: vec![list.clone(), expr.clone()],
-                }),
+                info: None,
               });
 
             context.stack_push(Expr {
@@ -664,9 +551,7 @@ impl Intrinsic {
             context.stack_push(list.clone())?;
             context.stack_push(Expr {
               kind: ExprKind::Nil,
-              info: engine.track_info().then(|| ExprInfo::Runtime {
-                components: vec![list, expr],
-              }),
+              info: None,
             })?;
           }
         }
@@ -717,34 +602,21 @@ impl Intrinsic {
             (ExprKind::Symbol(x), "string") => {
               ExprKind::String(x.as_str().into())
             }
-            (ExprKind::Intrinsic(x), "string") => {
-              ExprKind::String(x.to_string())
-            }
 
             // TODO: Make sure these are correct, because the logic is pretty
             //       nuanced in terms of when to choose a Symbol or Intrinsic.
             (ExprKind::Nil, "symbol") => ExprKind::Nil,
             (ExprKind::Boolean(x), "symbol") => ExprKind::Boolean(x),
             // TODO: Handle conversion into `fn` and `fn!`.
-            (ExprKind::String(x), "symbol") => Self::from_str(&x)
-              .map(ExprKind::Intrinsic)
-              .unwrap_or_else(|_| ExprKind::Symbol(Symbol::new(x))),
-            (ExprKind::Symbol(x), "symbol") => Self::from_str(x.as_str())
-              .map(ExprKind::Intrinsic)
-              .unwrap_or(ExprKind::Symbol(x)),
-            (ExprKind::Intrinsic(x), "symbol") => ExprKind::Intrinsic(x),
+            (ExprKind::String(x), "symbol") => ExprKind::Symbol(Symbol::new(x)),
+            (ExprKind::Symbol(x), "symbol") => ExprKind::Symbol(x),
 
             _ => ExprKind::Nil,
           },
           _ => ExprKind::Nil,
         };
 
-        context.stack_push(Expr {
-          kind,
-          info: engine.track_info().then(|| ExprInfo::Runtime {
-            components: vec![item, ty, expr],
-          }),
-        })?;
+        context.stack_push(Expr { kind, info: None })?;
 
         Ok(context)
       }

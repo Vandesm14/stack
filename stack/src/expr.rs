@@ -4,10 +4,7 @@ use std::{iter, rc::Rc};
 use internment::Intern;
 use termion::color;
 
-use crate::{
-  intrinsic::Intrinsic, lexer::Span, scope::Scope, source::Source,
-  symbol::Symbol,
-};
+use crate::{lexer::Span, scope::Scope, source::Source, symbol::Symbol};
 
 #[derive(Debug, Clone)]
 pub struct Expr {
@@ -54,9 +51,6 @@ impl Expr {
       x @ ExprKind::Symbol(_) => {
         format!("{}{x}", color::Fg(color::Blue))
       }
-      x @ ExprKind::Intrinsic(_) => {
-        format!("{}{x}", color::Fg(color::Blue))
-      }
 
       x @ ExprKind::Fn(_) => format!("{}{x}", color::Fg(color::Blue)),
     };
@@ -99,8 +93,6 @@ pub enum ExprKind {
 
   Lazy(Box<Expr>),
   List(Vec<Expr>),
-
-  Intrinsic(Intrinsic),
 
   Fn(FnIdent),
 }
@@ -175,8 +167,6 @@ impl PartialEq for ExprKind {
       (Self::Lazy(lhs), Self::Lazy(rhs)) => lhs == rhs,
       (Self::List(lhs), Self::List(rhs)) => lhs == rhs,
 
-      (Self::Intrinsic(lhs), Self::Intrinsic(rhs)) => lhs == rhs,
-
       _ => false,
     }
   }
@@ -205,10 +195,6 @@ impl PartialOrd for ExprKind {
 
       (Self::Lazy(lhs), Self::Lazy(rhs)) => lhs.partial_cmp(rhs),
       (Self::List(lhs), Self::List(rhs)) => {
-        lhs.eq(rhs).then_some(Ordering::Equal)
-      }
-
-      (Self::Intrinsic(lhs), Self::Intrinsic(rhs)) => {
         lhs.eq(rhs).then_some(Ordering::Equal)
       }
 
@@ -315,8 +301,6 @@ impl fmt::Display for ExprKind {
         write!(f, "(")
       }
 
-      Self::Intrinsic(x) => write!(f, "{x}"),
-
       Self::Fn(x) => write!(f, "{x}"),
     }
   }
@@ -362,7 +346,7 @@ impl fmt::Display for ErrorInner {
   }
 }
 
-#[derive(Debug, Clone, PartialEq, Default)]
+#[derive(Debug, Clone, PartialEq)]
 pub struct FnIdent {
   pub scoped: bool,
   pub scope: Scope,
@@ -374,51 +358,24 @@ impl fmt::Display for FnIdent {
   }
 }
 
-#[derive(Clone)]
-pub enum ExprInfo {
-  /// Comes from a [`Source`].
-  Source { source: Rc<Source>, span: Span },
-  /// Comes from evaluation.
-  Runtime { components: Vec<Expr> },
-}
-
-impl fmt::Debug for ExprInfo {
-  fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-    match self {
-      Self::Source { source, span } => f
-        .debug_struct("Source")
-        .field("source", &source.name())
-        .field("span", span)
-        .finish(),
-      Self::Runtime { components } => f
-        .debug_struct("Runtime")
-        .field("components", components)
-        .finish(),
-    }
-  }
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct ExprInfo {
+  pub source: Rc<Source>,
+  pub span: Span,
 }
 
 impl fmt::Display for ExprInfo {
   fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-    match self {
-      Self::Source { source, span } => {
-        write!(
-          f,
-          "'{}' at {}:{}",
-          &source.source()[span.start..span.end],
-          source.name(),
-          source
-            .location(span.start)
-            .map(|x| x.to_string())
-            .unwrap_or_else(|| "?:?".into())
-        )
-      }
-      Self::Runtime { components } => core::iter::once("")
-        .chain(core::iter::repeat(" "))
-        .zip(components.iter())
-        .filter_map(|(sep, x)| x.info.as_ref().map(|x| (sep, x)))
-        .try_for_each(|(sep, x)| write!(f, "{sep}{}", x)),
-    }
+    write!(
+      f,
+      "{}:{}",
+      self.source.name(),
+      self
+        .source
+        .location(self.span.start)
+        .map(|x| x.to_string())
+        .unwrap_or_else(|| "?:?".into())
+    )
   }
 }
 

@@ -23,7 +23,7 @@ fn main() {
       io::stdout().write_all(ANSI).unwrap();
       io::stderr().write_all(ANSI).unwrap();
 
-      let mut engine = Engine::new().with_track_info(!cli.fast);
+      let mut engine = Engine::new();
 
       #[cfg(feature = "stack-std")]
       {
@@ -111,7 +111,8 @@ fn run_file_source(
   source: Rc<Source>,
   journal: bool,
 ) -> Result<Context, RunError> {
-  let exprs = match Parser::new(Lexer::new(source)).parse() {
+  let mut lexer = Lexer::new(source);
+  let exprs = match stack::parser::parse(&mut lexer) {
     Ok(exprs) => exprs,
     Err(err) => {
       eprintln!("error: {err}");
@@ -148,9 +149,6 @@ struct Cli {
   #[cfg(feature = "stack-std")]
   sandbox: bool,
 
-  /// Whether to disable tracking extra information for debugging.
-  #[arg(short, long)]
-  fast: bool,
   /// Whether to enable stack journaling.
   #[arg(short, long)]
   journal: bool,

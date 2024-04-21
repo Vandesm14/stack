@@ -1,12 +1,12 @@
-use core::fmt;
+use core::{fmt, str::FromStr};
 use std::collections::HashMap;
 
 use crate::{
   context::Context,
   expr::{
-    vec_fn_body, vec_fn_symbol, vec_is_function, Error, Expr, ExprInfo,
-    ExprKind, FnIdent,
+    vec_fn_body, vec_fn_symbol, vec_is_function, Error, Expr, ExprKind, FnIdent,
   },
+  intrinsic::Intrinsic,
   journal::JournalOp,
   module::Module,
   symbol::Symbol,
@@ -15,7 +15,6 @@ use crate::{
 #[derive(Debug, Clone, PartialEq, Eq, Default)]
 pub struct Engine {
   modules: HashMap<Symbol, Module>,
-  track_info: bool,
 }
 
 impl Engine {
@@ -23,7 +22,6 @@ impl Engine {
   pub fn new() -> Self {
     Self {
       modules: HashMap::new(),
-      track_info: true,
     }
   }
 
@@ -34,26 +32,9 @@ impl Engine {
   }
 
   #[inline]
-  pub fn with_track_info(mut self, track_info: bool) -> Self {
-    self.set_track_info(track_info);
-    self
-  }
-
-  #[inline]
   pub fn add_module(&mut self, module: Module) -> &mut Self {
     self.modules.insert(module.name(), module);
     self
-  }
-
-  #[inline]
-  pub fn set_track_info(&mut self, track_info: bool) -> &mut Self {
-    self.track_info = track_info;
-    self
-  }
-
-  #[inline]
-  pub const fn track_info(&self) -> bool {
-    self.track_info
   }
 
   #[inline]
@@ -99,7 +80,18 @@ impl Engine {
           journal.commit();
         }
 
-        if let Some((namespace, func)) = x.as_str().split_once(':') {
+        if let Ok(intrinsic) = Intrinsic::from_str(x.as_str()) {
+          if let Some(journal) = context.journal_mut() {
+            journal.commit();
+            journal.op(JournalOp::FnCall(expr.clone()));
+          }
+          let mut context = intrinsic.run(self, context, expr)?;
+          if let Some(journal) = context.journal_mut() {
+            journal.commit();
+          }
+
+          Ok(context)
+        } else if let Some((namespace, func)) = x.as_str().split_once(':') {
           if let Some(func) = self
             .modules
             .get(&Symbol::from_ref(namespace))
@@ -116,9 +108,7 @@ impl Engine {
           } else {
             context.stack_push(Expr {
               kind: ExprKind::Error(Error::new("unknown function".into())),
-              info: self.track_info.then(|| ExprInfo::Runtime {
-                components: vec![expr],
-              }),
+              info: None,
             })?;
 
             Ok(context)
@@ -162,18 +152,6 @@ impl Engine {
         }
         false => self.run(context, x.to_vec()),
       },
-      ExprKind::Intrinsic(x) => {
-        if let Some(journal) = context.journal_mut() {
-          journal.commit();
-          journal.op(JournalOp::FnCall(expr.clone()));
-        }
-        let mut context = x.run(self, context, expr)?;
-        if let Some(journal) = context.journal_mut() {
-          journal.commit();
-        }
-
-        Ok(context)
-      }
       ExprKind::Fn(_) => Ok(context),
     }
   }
@@ -283,9 +261,10 @@ mod tests {
   #[test]
   fn can_define_vars() {
     let source = Rc::new(Source::new("", "0 'a def a"));
-    let exprs = Parser::new(Lexer::new(source)).parse().unwrap();
+    let mut lexer = Lexer::new(source);
+    let exprs = crate::parser::parse(&mut lexer).unwrap();
 
-    let engine = Engine::new().with_track_info(false);
+    let engine = Engine::new();
     let mut context = Context::new().with_stack_capacity(32);
     context = engine.run(context, exprs).unwrap();
 
@@ -302,9 +281,10 @@ mod tests {
   #[test]
   fn can_redefine_vars() {
     let source = Rc::new(Source::new("", "0 'a def a 1 'a def a"));
-    let exprs = Parser::new(Lexer::new(source)).parse().unwrap();
+    let mut lexer = Lexer::new(source);
+    let exprs = crate::parser::parse(&mut lexer).unwrap();
 
-    let engine = Engine::new().with_track_info(false);
+    let engine = Engine::new();
     let mut context = Context::new().with_stack_capacity(32);
     context = engine.run(context, exprs).unwrap();
 
@@ -321,9 +301,10 @@ mod tests {
   #[test]
   fn can_set_vars() {
     let source = Rc::new(Source::new("", "0 'a def a 1 'a set a"));
-    let exprs = Parser::new(Lexer::new(source)).parse().unwrap();
+    let mut lexer = Lexer::new(source);
+    let exprs = crate::parser::parse(&mut lexer).unwrap();
 
-    let engine = Engine::new().with_track_info(false);
+    let engine = Engine::new();
     let mut context = Context::new().with_stack_capacity(32);
     context = engine.run(context, exprs).unwrap();
 
@@ -341,9 +322,10 @@ mod tests {
   #[test]
   fn can_use_lets() {
     let source = Rc::new(Source::new("", "10 2 '(a b -) '(a b) let"));
-    let exprs = Parser::new(Lexer::new(source)).parse().unwrap();
+    let mut lexer = Lexer::new(source);
+    let exprs = crate::parser::parse(&mut lexer).unwrap();
 
-    let engine = Engine::new().with_track_info(false);
+    let engine = Engine::new();
     let mut context = Context::new().with_stack_capacity(32);
     context = engine.run(context, exprs).unwrap();
 
@@ -360,9 +342,10 @@ mod tests {
   #[test]
   fn lets_take_precedence_over_scope() {
     let source = Rc::new(Source::new("", "0 'a def 1 '(a) '(a) let"));
-    let exprs = Parser::new(Lexer::new(source)).parse().unwrap();
+    let mut lexer = Lexer::new(source);
+    let exprs = crate::parser::parse(&mut lexer).unwrap();
 
-    let engine = Engine::new().with_track_info(false);
+    let engine = Engine::new();
     let mut context = Context::new().with_stack_capacity(32);
     context = engine.run(context, exprs).unwrap();
 
@@ -380,9 +363,10 @@ mod tests {
   fn lets_act_as_overlays() {
     let source =
       Rc::new(Source::new("", "0 'a def 1 '(a 2 'a def a) '(a) let a"));
-    let exprs = Parser::new(Lexer::new(source)).parse().unwrap();
+    let mut lexer = Lexer::new(source);
+    let exprs = crate::parser::parse(&mut lexer).unwrap();
 
-    let engine = Engine::new().with_track_info(false);
+    let engine = Engine::new();
     let mut context = Context::new().with_stack_capacity(32);
     context = engine.run(context, exprs).unwrap();
 
@@ -404,9 +388,10 @@ mod tests {
   fn functions_work_in_lets() {
     let source =
       Rc::new(Source::new("", "0 'a def 1 '(fn a 2 'a def a) '(a) let a"));
-    let exprs = Parser::new(Lexer::new(source)).parse().unwrap();
+    let mut lexer = Lexer::new(source);
+    let exprs = crate::parser::parse(&mut lexer).unwrap();
 
-    let engine = Engine::new().with_track_info(false);
+    let engine = Engine::new();
     let mut context = Context::new().with_stack_capacity(32);
     context = engine.run(context, exprs).unwrap();
 
@@ -428,9 +413,10 @@ mod tests {
   fn scopeless_functions_work_in_lets() {
     let source =
       Rc::new(Source::new("", "0 'a def 1 '(fn! a 2 'a def a) '(a) let a"));
-    let exprs = Parser::new(Lexer::new(source)).parse().unwrap();
+    let mut lexer = Lexer::new(source);
+    let exprs = crate::parser::parse(&mut lexer).unwrap();
 
-    let engine = Engine::new().with_track_info(false);
+    let engine = Engine::new();
     let mut context = Context::new().with_stack_capacity(32);
     context = engine.run(context, exprs).unwrap();
 
@@ -458,9 +444,10 @@ mod tests {
       1 '(fn a) '(a) let
       a",
     ));
-    let exprs = Parser::new(Lexer::new(source)).parse().unwrap();
+    let mut lexer = Lexer::new(source);
+    let exprs = crate::parser::parse(&mut lexer).unwrap();
 
-    let engine = Engine::new().with_track_info(false);
+    let engine = Engine::new();
     let mut context = Context::new().with_stack_capacity(32);
     context = engine.run(context, exprs).unwrap();
 
@@ -482,9 +469,10 @@ mod tests {
   #[test]
   fn lets_cant_set() {
     let source = Rc::new(Source::new("", "1 '(2 'a set) '(a) let"));
-    let exprs = Parser::new(Lexer::new(source)).parse().unwrap();
+    let mut lexer = Lexer::new(source);
+    let exprs = crate::parser::parse(&mut lexer).unwrap();
 
-    let engine = Engine::new().with_track_info(false);
+    let engine = Engine::new();
     let context = Context::new().with_stack_capacity(32);
     assert_eq!(
       engine.run(context, exprs).map_err(|err| err.reason),

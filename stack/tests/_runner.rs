@@ -25,9 +25,10 @@ fn integration(subpath: &str) -> Result<Vec<Expr>, RunError> {
   path.push(subpath);
 
   let source = Rc::new(Source::from_path(path).unwrap());
-  let exprs = Parser::new(Lexer::new(source)).parse().unwrap();
+  let mut lexer = Lexer::new(source);
+  let exprs = crate::parse(&mut lexer).unwrap();
 
-  let engine = Engine::new().with_track_info(false);
+  let engine = Engine::new();
   let mut context = Context::new().with_stack_capacity(32);
   context = engine.run(context, exprs)?;
 

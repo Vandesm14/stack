@@ -190,9 +190,10 @@ mod tests {
   #[test]
   fn top_level_scopes() {
     let source = Rc::new(Source::new("", "0 'a def"));
-    let exprs = Parser::new(Lexer::new(source)).parse().unwrap();
+    let mut lexer = Lexer::new(source);
+    let exprs = crate::parser::parse(&mut lexer).unwrap();
 
-    let engine = Engine::new().with_track_info(false);
+    let engine = Engine::new();
     let mut context = Context::new().with_stack_capacity(32);
     context = engine.run(context, exprs).unwrap();
 
@@ -207,9 +208,10 @@ mod tests {
   #[test]
   fn function_scopes_are_isolated() {
     let source = Rc::new(Source::new("", "'(fn 0 'a def) call"));
-    let exprs = Parser::new(Lexer::new(source)).parse().unwrap();
+    let mut lexer = Lexer::new(source);
+    let exprs = crate::parser::parse(&mut lexer).unwrap();
 
-    let engine = Engine::new().with_track_info(false);
+    let engine = Engine::new();
     let mut context = Context::new().with_stack_capacity(32);
     context = engine.run(context, exprs).unwrap();
 
@@ -222,9 +224,10 @@ mod tests {
       "",
       "0 'a def a '(fn 1 'a def a '(fn 2 'a def a) call a) call a",
     ));
-    let exprs = Parser::new(Lexer::new(source)).parse().unwrap();
+    let mut lexer = Lexer::new(source);
+    let exprs = crate::parser::parse(&mut lexer).unwrap();
 
-    let engine = Engine::new().with_track_info(false);
+    let engine = Engine::new();
     let mut context = Context::new().with_stack_capacity(32);
     context = engine.run(context, exprs).unwrap();
 
@@ -248,9 +251,10 @@ mod tests {
   fn functions_can_set_to_outer() {
     let source =
       Rc::new(Source::new("", "0 'a def a '(fn a 1 'a set a) call a"));
-    let exprs = Parser::new(Lexer::new(source)).parse().unwrap();
+    let mut lexer = Lexer::new(source);
+    let exprs = crate::parser::parse(&mut lexer).unwrap();
 
-    let engine = Engine::new().with_track_info(false);
+    let engine = Engine::new();
     let mut context = Context::new().with_stack_capacity(32);
     context = engine.run(context, exprs).unwrap();
 
@@ -275,9 +279,10 @@ mod tests {
       "",
       "0 'a def '(fn 1 'a def '(fn a)) call call a",
     ));
-    let exprs = Parser::new(Lexer::new(source)).parse().unwrap();
+    let mut lexer = Lexer::new(source);
+    let exprs = crate::parser::parse(&mut lexer).unwrap();
 
-    let engine = Engine::new().with_track_info(false);
+    let engine = Engine::new();
     let mut context = Context::new().with_stack_capacity(32);
     context = engine.run(context, exprs).unwrap();
 
@@ -297,9 +302,10 @@ mod tests {
       "",
       "0 'a def '(fn 1 'a def '(fn a 2 'a set a)) call call a",
     ));
-    let exprs = Parser::new(Lexer::new(source)).parse().unwrap();
+    let mut lexer = Lexer::new(source);
+    let exprs = crate::parser::parse(&mut lexer).unwrap();
 
-    let engine = Engine::new().with_track_info(false);
+    let engine = Engine::new();
     let mut context = Context::new().with_stack_capacity(32);
     context = engine.run(context, exprs).unwrap();
 
@@ -320,9 +326,10 @@ mod tests {
   #[test]
   fn scopeless_functions_can_def_outer() {
     let source = Rc::new(Source::new("", "'(fn! 0 'a def) call a"));
-    let exprs = Parser::new(Lexer::new(source)).parse().unwrap();
+    let mut lexer = Lexer::new(source);
+    let exprs = crate::parser::parse(&mut lexer).unwrap();
 
-    let engine = Engine::new().with_track_info(false);
+    let engine = Engine::new();
     let mut context = Context::new().with_stack_capacity(32);
     context = engine.run(context, exprs).unwrap();
 
@@ -336,9 +343,10 @@ mod tests {
     );
 
     let source = Rc::new(Source::new("", "0 'a def '(fn! a 1 'a def) call a"));
-    let exprs = Parser::new(Lexer::new(source)).parse().unwrap();
+    let mut lexer = Lexer::new(source);
+    let exprs = crate::parser::parse(&mut lexer).unwrap();
 
-    let engine = Engine::new().with_track_info(false);
+    let engine = Engine::new();
     let mut context = Context::new().with_stack_capacity(32);
     context = engine.run(context, exprs).unwrap();
 
@@ -356,9 +364,10 @@ mod tests {
   fn scopeless_function_can_reuse_define() {
     let source =
       Rc::new(Source::new("", "'(fn! def) 'define def 0 'a define a"));
-    let exprs = Parser::new(Lexer::new(source)).parse().unwrap();
+    let mut lexer = Lexer::new(source);
+    let exprs = crate::parser::parse(&mut lexer).unwrap();
 
-    let engine = Engine::new().with_track_info(false);
+    let engine = Engine::new();
     let mut context = Context::new().with_stack_capacity(32);
     context = engine.run(context, exprs).unwrap();
 
@@ -395,9 +404,10 @@ mod tests {
       "",
       "'(fn! 0 'a def) '(fn call '(fn a)) call call",
     ));
-    let exprs = Parser::new(Lexer::new(source)).parse().unwrap();
+    let mut lexer = Lexer::new(source);
+    let exprs = crate::parser::parse(&mut lexer).unwrap();
 
-    let engine = Engine::new().with_track_info(false);
+    let engine = Engine::new();
     let mut context = Context::new().with_stack_capacity(32);
     context = engine.run(context, exprs).unwrap();
 

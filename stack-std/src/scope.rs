@@ -1,3 +1,5 @@
+use core::str::FromStr;
+
 use stack::prelude::*;
 
 pub fn module() -> Module {
@@ -7,48 +9,37 @@ pub fn module() -> Module {
     let symbol = context.stack_pop(&expr)?;
 
     match symbol.kind {
-      ExprKind::Intrinsic(_) => context.stack_push(Expr {
-        kind: ExprKind::String("intrinsic".into()),
-        info: engine.track_info().then(|| ExprInfo::Runtime {
-          components: vec![symbol, expr],
-        }),
-      }),
       ExprKind::Symbol(ref x) => {
-        if engine.module(x).is_some() {
+        if Intrinsic::from_str(x.as_str()).is_ok() {
+          context.stack_push(Expr {
+            kind: ExprKind::String("intrinsic".into()),
+            info: None,
+          })
+        } else if engine.module(x).is_some() {
           context.stack_push(Expr {
             kind: ExprKind::String("module".into()),
-            info: engine.track_info().then(|| ExprInfo::Runtime {
-              components: vec![symbol, expr],
-            }),
+            info: None,
           })
         } else if context.let_get(*x).is_some() {
           context.stack_push(Expr {
             kind: ExprKind::String("let".into()),
-            info: engine.track_info().then(|| ExprInfo::Runtime {
-              components: vec![symbol, expr],
-            }),
+            info: None,
           })
         } else if context.scope_item(*x).is_some() {
           context.stack_push(Expr {
             kind: ExprKind::String("scope".into()),
-            info: engine.track_info().then(|| ExprInfo::Runtime {
-              components: vec![symbol, expr],
-            }),
+            info: None,
           })
         } else {
           context.stack_push(Expr {
             kind: ExprKind::Nil,
-            info: engine.track_info().then(|| ExprInfo::Runtime {
-              components: vec![symbol, expr],
-            }),
+            info: None,
           })
         }
       }
       _ => context.stack_push(Expr {
         kind: ExprKind::Nil,
-        info: engine.track_info().then(|| ExprInfo::Runtime {
-          components: vec![symbol, expr],
-        }),
+        info: None,
       }),
     }
     .map(|_| context)

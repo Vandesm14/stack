@@ -22,7 +22,7 @@ pub mod prelude {
   pub use intrinsic::Intrinsic;
   pub use lexer::Lexer;
   pub use module::Module;
-  pub use parser::Parser;
+  pub use parser::{parse, ParseError, ParseErrorKind};
   pub use source::Source;
   pub use symbol::Symbol;
 }
