@@ -9,6 +9,7 @@ stack-std = ["dep:stack-std"]
 
 [dependencies]
 clap = { version = "4", features = ["derive"] }
+reedline = "0.31.0"
 notify = "6"
 
 stack = { path = "../stack" }
