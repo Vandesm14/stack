@@ -253,7 +253,7 @@ impl fmt::Display for ExprKind {
             .zip(x.iter())
             .try_for_each(|(sep, x)| write!(f, "{sep}{x:#}"))?;
 
-          write!(f, "{}", "(".yellow())
+          write!(f, "{}", ")".yellow())
         }
 
         Self::Fn(x) => write!(f, "{}", x.to_string().yellow()),
