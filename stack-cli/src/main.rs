@@ -120,9 +120,24 @@ fn main() {
 
         let run_file = |input| {
           let context = new_context();
-          let source = Rc::new(ok_or_exit(Source::from_path(input)));
+
+          let source = match Source::from_path(input).map(Rc::new) {
+            Ok(source) => source,
+            Err(e) => {
+              eprintln!("error: {e}");
+              return context;
+            }
+          };
+
           let mut lexer = Lexer::new(source);
-          let exprs = ok_or_exit(parse(&mut lexer));
+
+          let exprs = match parse(&mut lexer) {
+            Ok(exprs) => exprs,
+            Err(e) => {
+              eprintln!("error: {e}");
+              return context;
+            }
+          };
 
           match engine.run(context, exprs) {
             Ok(context) => {
