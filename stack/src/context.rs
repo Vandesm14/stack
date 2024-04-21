@@ -125,7 +125,6 @@ impl Context {
     &mut self.journal
   }
 
-  #[inline]
   pub fn stack_push(&mut self, expr: Expr) -> Result<(), RunError> {
     let expr = if expr.kind.is_function() {
       let mut scanner = Scanner::new(self.scopes.last().unwrap().duplicate());
@@ -155,7 +154,6 @@ impl Context {
     Ok(())
   }
 
-  #[inline]
   pub fn stack_pop(&mut self, expr: &Expr) -> Result<Expr, RunError> {
     match self.stack.pop() {
       Some(expr) => {
@@ -172,10 +170,12 @@ impl Context {
     }
   }
 
+  #[inline]
   pub fn scope_item(&self, symbol: Symbol) -> Option<Expr> {
     self.scopes.last().and_then(|layer| layer.get_val(symbol))
   }
 
+  #[inline]
   pub fn def_scope_item(&mut self, symbol: Symbol, value: Expr) {
     if let Some(layer) = self.scopes.last_mut() {
       layer.define(symbol, value);
@@ -201,16 +201,19 @@ impl Context {
     }
   }
 
+  #[inline]
   pub fn remove_scope_item(&mut self, symbol: Symbol) {
     if let Some(layer) = self.scopes.last_mut() {
       layer.remove(symbol);
     }
   }
 
+  #[inline]
   pub fn push_scope(&mut self, scope: Scope) {
     self.scopes.push(scope);
   }
 
+  #[inline]
   pub fn pop_scope(&mut self) {
     self.scopes.pop();
 
