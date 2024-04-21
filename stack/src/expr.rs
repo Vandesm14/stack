@@ -106,42 +106,6 @@ pub enum ExprKind {
   Fn(FnIdent),
 }
 
-pub fn vec_is_function(list: &[Expr]) -> bool {
-  list
-    .first()
-    .map(|x| {
-      matches!(
-        x,
-        Expr {
-          kind: ExprKind::Fn(_),
-          ..
-        }
-      )
-    })
-    .unwrap_or(false)
-}
-
-pub fn vec_fn_symbol(list: &[Expr]) -> Option<&FnIdent> {
-  list.first().and_then(|x| match &x.kind {
-    ExprKind::Fn(scope) => Some(scope),
-    _ => None,
-  })
-}
-
-pub fn vec_fn_symbol_mut(list: &mut [Expr]) -> Option<&mut FnIdent> {
-  list.first_mut().and_then(|x| match &mut x.kind {
-    ExprKind::Fn(scope) => Some(scope),
-    _ => None,
-  })
-}
-
-pub fn vec_fn_body(list: &[Expr]) -> Option<&[Expr]> {
-  list.first().and_then(|x| match x.kind {
-    ExprKind::Fn(_) => Some(&list[1..]),
-    _ => None,
-  })
-}
-
 impl ExprKind {
   #[inline]
   pub const fn is_nil(&self) -> bool {
@@ -357,44 +321,6 @@ impl fmt::Display for ExprKind {
   }
 }
 
-// impl fmt::Display for ExprKind {
-//   fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-//     match self {
-//       Self::Nil => write!(f, "nil"),
-//       Self::Error(x) => write!(f, "error({x})"),
-
-//       Self::Boolean(x) => write!(f, "{x}"),
-//       Self::Integer(x) => write!(f, "{x}"),
-//       Self::Float(x) => write!(f, "{x}"),
-//       Self::String(x) => {
-//         if f.alternate() {
-//           write!(f, "{x}")
-//         } else {
-//           write!(f, "\"{x}\"")
-//         }
-//       }
-
-//       Self::Symbol(x) => write!(f, "{}", x.as_str()),
-
-//       Self::Lazy(x) => write!(f, "'{}", x.kind),
-//       Self::List(x) => {
-//         write!(f, "(")?;
-
-//         core::iter::once("")
-//           .chain(core::iter::repeat(" "))
-//           .zip(x.iter())
-//           .try_for_each(|(sep, x)| write!(f, "{sep}{}", x.kind))?;
-
-//         write!(f, ")")
-//       }
-
-//       Self::Intrinsic(x) => write!(f, "{x}"),
-
-//       Self::Fn(x) => write!(f, "{x}"),
-//     }
-//   }
-// }
-
 #[derive(Debug, Clone, PartialEq, Default)]
 pub struct FnIdent {
   pub scoped: bool,
@@ -453,4 +379,40 @@ impl fmt::Display for ExprInfo {
         .try_for_each(|(sep, x)| write!(f, "{sep}{}", x)),
     }
   }
+}
+
+pub fn vec_is_function(list: &[Expr]) -> bool {
+  list
+    .first()
+    .map(|x| {
+      matches!(
+        x,
+        Expr {
+          kind: ExprKind::Fn(_),
+          ..
+        }
+      )
+    })
+    .unwrap_or(false)
+}
+
+pub fn vec_fn_symbol(list: &[Expr]) -> Option<&FnIdent> {
+  list.first().and_then(|x| match &x.kind {
+    ExprKind::Fn(scope) => Some(scope),
+    _ => None,
+  })
+}
+
+pub fn vec_fn_symbol_mut(list: &mut [Expr]) -> Option<&mut FnIdent> {
+  list.first_mut().and_then(|x| match &mut x.kind {
+    ExprKind::Fn(scope) => Some(scope),
+    _ => None,
+  })
+}
+
+pub fn vec_fn_body(list: &[Expr]) -> Option<&[Expr]> {
+  list.first().and_then(|x| match x.kind {
+    ExprKind::Fn(_) => Some(&list[1..]),
+    _ => None,
+  })
 }
