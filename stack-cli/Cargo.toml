@@ -11,6 +11,7 @@ stack-std = ["dep:stack-std"]
 clap = { version = "4", features = ["derive"] }
 reedline = { version = "0.31.0", features = ["system_clipboard"] }
 notify = "6"
+crossterm = "0.27.0"
 
 stack = { path = "../stack" }
 stack-std = { path = "../stack-std", optional = true }

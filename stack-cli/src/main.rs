@@ -1,7 +1,19 @@
 use core::fmt;
-use std::{io::Read, path::PathBuf, rc::Rc};
+use std::{
+  io::{self, prelude::Write, Read},
+  path::PathBuf,
+  rc::Rc,
+};
 
 use clap::Parser;
+use crossterm::{
+  cursor::{self, MoveTo},
+  style::Print,
+  terminal, QueueableCommand,
+};
+use notify::{
+  Config, Event, EventKind, RecommendedWatcher, RecursiveMode, Watcher,
+};
 use reedline::{DefaultPrompt, DefaultPromptSegment, Reedline, Signal};
 use stack::prelude::*;
 
@@ -40,7 +52,7 @@ fn main() {
       let exprs = ok_or_exit(parse(&mut lexer));
 
       context = ok_or_exit(engine.run(context, exprs));
-      display_stack(&context);
+      print_stack(&context);
     }
     Subcommand::Repl => {
       let mut repl = Reedline::create();
@@ -77,11 +89,12 @@ fn main() {
 
               context = match engine.run(context, exprs) {
                 Ok(context) => {
-                  display_stack(&context);
+                  print_stack(&context);
                   context
                 }
                 Err(e) => {
                   eprintln!("error: {e}");
+                  eprint_stack(&e.context);
                   e.context
                 }
               }
@@ -90,13 +103,54 @@ fn main() {
         }
       }
     }
-    Subcommand::Run { input } => {
-      let source = Rc::new(ok_or_exit(Source::from_path(input)));
-      let mut lexer = Lexer::new(source);
-      let exprs = ok_or_exit(parse(&mut lexer));
+    Subcommand::Run { input, watch } => {
+      if !watch {
+        let source = Rc::new(ok_or_exit(Source::from_path(input)));
+        let mut lexer = Lexer::new(source);
+        let exprs = ok_or_exit(parse(&mut lexer));
 
-      context = ok_or_exit(engine.run(context, exprs));
-      display_stack(&context);
+        context = ok_or_exit(engine.run(context, exprs));
+        print_stack(&context);
+      } else {
+        let (tx, rx) = std::sync::mpsc::channel();
+
+        let mut watcher =
+          ok_or_exit(RecommendedWatcher::new(tx, Config::default()));
+        ok_or_exit(watcher.watch(&input, RecursiveMode::NonRecursive));
+
+        let run_file = |input| {
+          let context = new_context();
+          let source = Rc::new(ok_or_exit(Source::from_path(input)));
+          let mut lexer = Lexer::new(source);
+          let exprs = ok_or_exit(parse(&mut lexer));
+
+          match engine.run(context, exprs) {
+            Ok(context) => {
+              print_stack(&context);
+              context
+            }
+            Err(e) => {
+              eprintln!("error: {e}");
+              eprint_stack(&e.context);
+              e.context
+            }
+          }
+        };
+
+        ok_or_exit(clear_screen());
+        run_file(&input);
+
+        for event in rx {
+          if let Event {
+            kind: EventKind::Modify(_),
+            ..
+          } = ok_or_exit(event)
+          {
+            ok_or_exit(clear_screen());
+            run_file(&input);
+          }
+        }
+      }
     }
   }
 }
@@ -114,12 +168,38 @@ where
   }
 }
 
-fn display_stack(context: &Context) {
+fn print_stack(context: &Context) {
   print!("stack:");
 
   core::iter::repeat(" ")
     .zip(context.stack())
     .for_each(|(sep, x)| print!("{sep}{x:#}"));
+
+  println!()
+}
+
+fn eprint_stack(context: &Context) {
+  eprint!("stack:");
+
+  core::iter::repeat(" ")
+    .zip(context.stack())
+    .for_each(|(sep, x)| eprint!("{sep}{x:#}"));
+
+  eprintln!()
+}
+
+fn clear_screen() -> io::Result<()> {
+  let mut stdout = std::io::stdout();
+
+  stdout.queue(cursor::Hide)?;
+  let (_, num_lines) = terminal::size()?;
+  for _ in 0..2 * num_lines {
+    stdout.queue(Print("\n"))?;
+  }
+  stdout.queue(MoveTo(0, 0))?;
+  stdout.queue(cursor::Show)?;
+
+  stdout.flush()
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Default, clap::Parser)]
@@ -166,7 +246,14 @@ enum Subcommand {
   #[command(alias = "-")]
   Stdin,
   /// Runs the code from an input file path.
-  Run { input: PathBuf },
+  Run {
+    /// The input file path.
+    input: PathBuf,
+
+    /// Whether to watch the file and re-run it if there are changes.
+    #[arg(short, long)]
+    watch: bool,
+  },
 }
 
 ////////////////////////////////////////////////////////////////////////////////

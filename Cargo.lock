@@ -895,6 +895,7 @@ name = "stack-cli"
 version = "0.1.0"
 dependencies = [
  "clap",
+ "crossterm",
  "notify",
  "reedline",
  "stack",
