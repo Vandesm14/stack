@@ -17,5 +17,5 @@ Things that need done to get `origin/clean-up` at parity with `origin/main`
   - [ ] **Imports**
     - [ ] Either use namespaces or just get the old import behavior working
     - [ ] Keep a list of sources based on runtime imports
-  - [ ] **Errors**
+  - [ ] **Error Reporting**
     - [ ] Bring back the errors that pointed to sources
