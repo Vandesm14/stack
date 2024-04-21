@@ -18,6 +18,8 @@ const fn e(kind: ExprKind) -> Expr {
 #[case("intrinsics/assert_okay.stack" => Ok(vec![]) ; "assert okay")]
 #[case("intrinsics/stack.stack" => Ok(vec![e(ExprKind::Integer(1)), e(ExprKind::Integer(3)), e(ExprKind::Integer(3)), e(ExprKind::Integer(5)), e(ExprKind::Integer(4)), e(ExprKind::Integer(7)), e(ExprKind::Integer(8)), e(ExprKind::Integer(6))]) ; "stack")]
 #[case("intrinsics/orelse.stack" => Ok(vec![e(ExprKind::Integer(1)), e(ExprKind::Integer(2)), e(ExprKind::Integer(1)), e(ExprKind::Nil)]) ; "orelse")]
+#[case("intrinsics/push.stack" => Ok(vec![e(ExprKind::List(vec![e(ExprKind::Integer(1)), e(ExprKind::Integer(2)), e(ExprKind::Integer(3))])), e(ExprKind::String("he".into())), e(ExprKind::String("he".into()))]) ; "push")]
+#[case("intrinsics/pop.stack" => Ok(vec![e(ExprKind::List(vec![e(ExprKind::Integer(1)), e(ExprKind::Integer(2))])), e(ExprKind::Integer(3)), e(ExprKind::String("h".into())), e(ExprKind::String("e".into()))]) ; "pop")]
 fn integration(subpath: &str) -> Result<Vec<Expr>, RunError> {
   let mut path = PathBuf::from_str("tests").unwrap();
   path.push(subpath);

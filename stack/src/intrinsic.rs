@@ -73,6 +73,8 @@ intrinsics! {
   Nth => "nth",
   Split => "split",
   Concat => "concat",
+  Push => "push",
+  Pop => "pop",
 
   Cast => "cast",
 
@@ -575,6 +577,99 @@ impl Intrinsic {
             components: vec![rhs, lhs, expr],
           }),
         })?;
+
+        Ok(context)
+      }
+      // MARK: Push
+      Self::Push => {
+        let list = context.stack_pop(&expr)?;
+        let item = context.stack_pop(&expr)?;
+
+        let kind = match (list.kind.clone(), item.kind.clone()) {
+          (ExprKind::List(mut x), i) => {
+            x.push(Expr {
+              kind: i,
+              info: item.info.clone(),
+            });
+            ExprKind::List(x)
+          }
+          (ExprKind::String(mut x), ExprKind::String(s)) => {
+            x.push_str(&s);
+            ExprKind::String(x)
+          }
+          (ExprKind::String(mut x), ExprKind::Integer(c))
+            if c >= 0 && c <= u32::MAX as i64 =>
+          {
+            if let Some(c) = char::from_u32(c as u32) {
+              x.push(c);
+              ExprKind::String(x)
+            } else {
+              ExprKind::Nil
+            }
+          }
+          _ => ExprKind::Nil,
+        };
+
+        context.stack_push(Expr {
+          kind,
+          info: engine.track_info().then(|| ExprInfo::Runtime {
+            components: vec![item, list, expr],
+          }),
+        })?;
+
+        Ok(context)
+      }
+      // MARK: Pop
+      Self::Pop => {
+        let list = context.stack_pop(&expr)?;
+
+        match list.kind.clone() {
+          ExprKind::List(mut x) => {
+            let e = x.pop().unwrap_or(Expr {
+              kind: ExprKind::Nil,
+              info: engine.track_info().then(|| ExprInfo::Runtime {
+                components: vec![list.clone(), expr],
+              }),
+            });
+
+            context.stack_push(Expr {
+              kind: ExprKind::List(x),
+              info: list.info,
+            })?;
+            context.stack_push(e)?;
+          }
+          ExprKind::String(mut x) => {
+            let e = x
+              .pop()
+              .map(|e| Expr {
+                kind: ExprKind::String(e.to_string()),
+                info: engine.track_info().then(|| ExprInfo::Runtime {
+                  components: vec![list.clone(), expr.clone()],
+                }),
+              })
+              .unwrap_or(Expr {
+                kind: ExprKind::Nil,
+                info: engine.track_info().then(|| ExprInfo::Runtime {
+                  components: vec![list.clone(), expr.clone()],
+                }),
+              });
+
+            context.stack_push(Expr {
+              kind: ExprKind::String(x),
+              info: list.info,
+            })?;
+            context.stack_push(e)?;
+          }
+          _ => {
+            context.stack_push(list.clone())?;
+            context.stack_push(Expr {
+              kind: ExprKind::Nil,
+              info: engine.track_info().then(|| ExprInfo::Runtime {
+                components: vec![list, expr],
+              }),
+            })?;
+          }
+        }
 
         Ok(context)
       }
