@@ -1,8 +1,8 @@
 use core::{cmp::Ordering, fmt, hash::Hash, ops};
-use std::{iter, rc::Rc};
+use std::rc::Rc;
 
 use internment::Intern;
-use termion::color;
+use yansi::Paint;
 
 use crate::{lexer::Span, scope::Scope, source::Source, symbol::Symbol};
 
@@ -10,53 +10,6 @@ use crate::{lexer::Span, scope::Scope, source::Source, symbol::Symbol};
 pub struct Expr {
   pub kind: ExprKind,
   pub info: Option<ExprInfo>,
-}
-
-impl Expr {
-  pub fn to_pretty_string(&self) -> String {
-    let reset = color::Fg(color::Reset);
-    let result = match &self.kind {
-      x @ ExprKind::Nil => format!("{}{x}", color::Fg(color::White)),
-      x @ ExprKind::Error(_) => format!("{}{x}", color::Fg(color::Red)),
-
-      x @ ExprKind::Boolean(_) => {
-        format!("{}{x}", color::Fg(color::Yellow))
-      }
-      x @ ExprKind::Integer(_) => format!("{}{x}", color::Fg(color::Yellow)),
-      x @ ExprKind::Float(_) => format!("{}{x}", color::Fg(color::Yellow)),
-      x @ ExprKind::String(_) => {
-        format!("{}\"{x}\"", color::Fg(color::Green))
-      }
-
-      ExprKind::List(x) => {
-        let mut string = String::new();
-        string.push('(');
-
-        iter::once("")
-          .chain(iter::repeat(" "))
-          .zip(x.iter())
-          .for_each(|(s, x)| {
-            string.push_str(s);
-            string.push_str(&x.to_pretty_string())
-          });
-
-        string.push(')');
-
-        string
-      }
-
-      ExprKind::Lazy(x) => {
-        format!("'{}", x.to_pretty_string())
-      }
-      x @ ExprKind::Symbol(_) => {
-        format!("{}{x}", color::Fg(color::Blue))
-      }
-
-      x @ ExprKind::Fn(_) => format!("{}{x}", color::Fg(color::Blue)),
-    };
-
-    format!("{}{}", result, reset)
-  }
 }
 
 impl PartialEq for Expr {
@@ -75,7 +28,7 @@ impl PartialOrd for Expr {
 
 impl fmt::Display for Expr {
   fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-    write!(f, "{}", self.kind)
+    write!(f, "{:#}", self.kind)
   }
 }
 
@@ -278,30 +231,59 @@ impl ops::Rem for ExprKind {
 
 impl fmt::Display for ExprKind {
   fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-    match self {
-      Self::Nil => write!(f, "nil"),
-      Self::Error(x) => write!(f, "error({x})"),
+    // TODO: Is there a nicer way to do this that avoids the duplication?
+    if f.alternate() {
+      match self {
+        Self::Nil => write!(f, "{}", "nil".green()),
+        Self::Error(x) => write!(f, "error({})", x.to_string().red()),
 
-      Self::Boolean(x) => write!(f, "{x}"),
-      Self::Integer(x) => write!(f, "{x}"),
-      Self::Float(x) => write!(f, "{x}"),
-      Self::String(x) => write!(f, "{x}"),
+        Self::Boolean(x) => write!(f, "{}", x.to_string().green()),
+        Self::Integer(x) => write!(f, "{}", x.to_string().blue()),
+        Self::Float(x) => write!(f, "{}", x.to_string().blue()),
+        Self::String(x) => write!(f, "\"{}\"", x.green()),
 
-      Self::Symbol(x) => write!(f, "{}", x.as_str()),
+        Self::Symbol(x) => write!(f, "{}", x.as_str().blue()),
 
-      Self::Lazy(x) => write!(f, "{x}"),
-      Self::List(x) => {
-        write!(f, "(")?;
+        Self::Lazy(x) => write!(f, "{}{x:#}", "'".yellow()),
+        Self::List(x) => {
+          write!(f, "{}", "(".yellow())?;
 
-        core::iter::once("")
-          .chain(core::iter::repeat(" "))
-          .zip(x.iter())
-          .try_for_each(|(sep, x)| write!(f, "{sep}{x}"))?;
+          core::iter::once("")
+            .chain(core::iter::repeat(" "))
+            .zip(x.iter())
+            .try_for_each(|(sep, x)| write!(f, "{sep}{x:#}"))?;
 
-        write!(f, "(")
+          write!(f, "{}", "(".yellow())
+        }
+
+        Self::Fn(x) => write!(f, "{}", x.to_string().yellow()),
       }
+    } else {
+      match self {
+        Self::Nil => write!(f, "nil"),
+        Self::Error(x) => write!(f, "error({x})"),
 
-      Self::Fn(x) => write!(f, "{x}"),
+        Self::Boolean(x) => write!(f, "{x}"),
+        Self::Integer(x) => write!(f, "{x}"),
+        Self::Float(x) => write!(f, "{x}"),
+        Self::String(x) => write!(f, "{x}"),
+
+        Self::Symbol(x) => write!(f, "{}", x.as_str()),
+
+        Self::Lazy(x) => write!(f, "{x}"),
+        Self::List(x) => {
+          write!(f, "(")?;
+
+          core::iter::once("")
+            .chain(core::iter::repeat(" "))
+            .zip(x.iter())
+            .try_for_each(|(sep, x)| write!(f, "{sep}{x}"))?;
+
+          write!(f, "(")
+        }
+
+        Self::Fn(x) => write!(f, "{x}"),
+      }
     }
   }
 }

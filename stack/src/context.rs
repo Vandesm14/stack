@@ -23,13 +23,19 @@ impl fmt::Display for Context {
   fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
     write!(f, "Stack: [")?;
 
-    self.stack.iter().enumerate().try_for_each(|(i, expr)| {
-      if i == self.stack.len() - 1 {
-        write!(f, "{}", expr.to_pretty_string())
-      } else {
-        write!(f, "{}, ", expr.to_pretty_string())
-      }
-    })?;
+    // self.stack.iter().enumerate().try_for_each(|(i, expr)| {
+    //   if i == self.stack.len() - 1 {
+    //     write!(f, "{expr:#}")
+    //   } else {
+    //     write!(f, "{expr:#}, ")
+    //   }
+    // })?;
+
+    core::iter::once("")
+      .chain(core::iter::repeat(" "))
+      .zip(self.stack.iter())
+      .try_for_each(|(sep, x)| write!(f, "{sep}{x:#}"))?;
+
     write!(f, "]")?;
 
     // if !self.scopes.is_empty() {
@@ -101,8 +107,8 @@ impl Context {
   }
 
   #[inline]
-  pub fn add_journal(mut self) -> Self {
-    self.journal = Some(Journal::new());
+  pub fn with_journal(mut self, journal: bool) -> Self {
+    self.journal = if journal { Some(Journal::new()) } else { None };
     self
   }
 

@@ -1,7 +1,7 @@
 use core::fmt;
 use itertools::Itertools;
 use std::mem;
-use termion::color;
+use yansi::Paint;
 
 use crate::expr::Expr;
 
@@ -57,25 +57,25 @@ impl fmt::Display for Journal {
 
         match op {
           JournalOp::Call(call) => {
-            line.push_str(&format!("{}", color::Fg(color::White)));
+            line.push_str(&format!("{}", "c".white()));
             line.push_str(&format!("{}", call));
 
             should_print = true;
           }
           JournalOp::FnCall(fn_call) => {
-            line.push_str(&format!("{}", color::Fg(color::Yellow)));
+            line.push_str(&format!("{}", "c".yellow()));
             line.push_str(&format!("{}", fn_call));
 
             should_print = true;
           }
           JournalOp::Push(push) => {
-            line.push_str(&format!("{}", color::Fg(color::Green)));
+            line.push_str(&format!("{}", "+".green()));
             line.push_str(&format!("{}", push));
 
             should_print = true;
           }
           JournalOp::Pop(pop) => {
-            line.push_str(&format!("{}", color::Fg(color::Red)));
+            line.push_str(&format!("{}", "-".red()));
             line.push_str(&format!("{}", pop));
 
             should_print = true;
@@ -85,8 +85,6 @@ impl fmt::Display for Journal {
       }
 
       if should_print {
-        line.push_str(&format!("{}", color::Fg(color::Reset)));
-
         let bullet_symbol = match entry.scoped {
           true => format!("{}*", "  ".repeat(entry.scope)),
           false => {
@@ -129,9 +127,9 @@ impl Journal {
   }
 
   pub fn clear(&mut self) {
-    self.ops.clear();
-    self.current.clear();
-    self.commits.clear();
+    Vec::clear(&mut self.ops);
+    Vec::clear(&mut self.current);
+    Vec::clear(&mut self.commits);
   }
 
   fn entries(&self, max_commits: usize) -> Vec<JournalEntry> {
