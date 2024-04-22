@@ -6,6 +6,14 @@ use std::{
 };
 
 use clap::Parser;
+use codespan_reporting::{
+  diagnostic::{Diagnostic, Label},
+  files::SimpleFiles,
+  term::{
+    self,
+    termcolor::{ColorChoice, StandardStream},
+  },
+};
 use crossterm::{
   cursor::{self, MoveTo},
   style::Print,
@@ -15,7 +23,7 @@ use notify::{
   Config, Event, EventKind, RecommendedWatcher, RecursiveMode, Watcher,
 };
 use reedline::{DefaultPrompt, DefaultPromptSegment, Reedline, Signal};
-use stack::prelude::*;
+use stack::{lexer::Span, prelude::*};
 
 fn main() {
   let cli = Cli::parse();
@@ -119,7 +127,7 @@ fn main() {
         ok_or_exit(watcher.watch(&input, RecursiveMode::NonRecursive));
 
         let run_file = |input| {
-          let context = new_context();
+          let mut context = new_context();
 
           let source = match Source::from_path(input).map(Rc::new) {
             Ok(source) => source,
@@ -128,6 +136,8 @@ fn main() {
               return context;
             }
           };
+
+          context.add_source(source.clone());
 
           let mut lexer = Lexer::new(source);
 
@@ -142,11 +152,47 @@ fn main() {
           match engine.run(context, exprs) {
             Ok(context) => {
               print_stack(&context);
+              if let Some(journal) = context.journal() {
+                eprintln!("{}", journal);
+              }
+
               context
             }
             Err(e) => {
-              eprintln!("error: {e}");
+              if let Some(info) = &e.expr.info {
+                let span: Span = info.span;
+                let span = span.start..span.end;
+
+                let mut files = SimpleFiles::new();
+                let mut file_id = 0;
+                for (name, source) in e.context.sources() {
+                  let source = source.as_ref();
+                  let id = files.add(name, source.source());
+
+                  if info.source.name() == name {
+                    file_id = id;
+                  }
+                }
+
+                let diagnostic = Diagnostic::error()
+                  .with_message(e.clone().to_string())
+                  .with_labels(vec![Label::primary(file_id, span)
+                    .with_message("error occurs here")]);
+
+                let writer = StandardStream::stderr(ColorChoice::Always);
+                let config = codespan_reporting::term::Config::default();
+
+                // TODO: Should we do anything for this error or can we just unwrap?
+                let _ =
+                  term::emit(&mut writer.lock(), &config, &files, &diagnostic);
+              }
+
+              // eprintln!("error: {e}");
               eprint_stack(&e.context);
+              if let Some(journal) = e.context.journal() {
+                eprintln!("{}", journal);
+              }
+
               e.context
             }
           }
