@@ -7,13 +7,13 @@ Things that need done to get `origin/clean-up` at parity with `origin/main`
 - [ ] **Tests**
   - [ ] Reimplement all or most tests for
     - [ ] Intrinsics
-    - [ ] Evaluation (scopes, etc)
-    - [ ] E2E (test some of the old std lib)
+    - [x] Evaluation (scopes, etc)
 - [ ] **Compare**
   - [ ] New behavior with the old, using the documentation as a reference for what **should** happen
+    - **Note:** Lists get evaluated if they're not lazied (when pushed to the stack by the user)
 - [ ] **Reimplement**
-  - [ ] **Intrinsics**
-    - [ ] All old intrinsics: List, String, etc
+  - [x] **Intrinsics**
+    - [x] All old intrinsics: List, String, etc
   - [ ] **Imports**
     - [ ] Either use namespaces or just get the old import behavior working
     - [ ] Keep a list of sources based on runtime imports
