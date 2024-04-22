@@ -50,7 +50,7 @@ pub fn module() -> Module {
       }
       .map(|_| context)
     })
-    .add_func(Symbol::from_ref("dump"), |engine, mut context, erpx| {
+    .add_func(Symbol::from_ref("dump"), |_, mut context, _| {
       let items: Vec<Expr> = context
         .scope_items()
         .map(|(name, content)| {
