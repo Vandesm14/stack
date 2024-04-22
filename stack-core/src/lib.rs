@@ -10,7 +10,6 @@ pub mod parser;
 pub mod scope;
 pub mod source;
 pub mod symbol;
-pub mod unit;
 
 pub mod prelude {
   //! Re-exports commonly used items.
