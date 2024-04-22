@@ -1,5 +1,4 @@
 use core::fmt;
-use itertools::Itertools;
 use std::mem;
 
 use crate::expr::Expr;
@@ -169,6 +168,6 @@ impl Journal {
       }
     }
 
-    entries.into_iter().rev().collect_vec()
+    entries.into_iter().rev().collect::<Vec<_>>()
   }
 }

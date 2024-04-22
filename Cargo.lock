@@ -907,7 +907,6 @@ name = "stack-core"
 version = "0.1.0"
 dependencies = [
  "internment",
- "itertools",
  "test-case",
  "unicode-segmentation",
  "yansi",
