@@ -1,0 +1,9 @@
+[package]
+name = "stack-std"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+stack-core = { path = "../stack-core" }
+unicode-segmentation.workspace = true
+compact_str.workspace = true

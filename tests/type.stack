@@ -1,8 +1,0 @@
-"std/type.stack" import
-"std/assert.stack" import
-
-['(fn) is-function] ["functions are functions" assert]
-['(fn!) is-function] ["unscoped functions are functions" assert]
-
-['() is-function] ["lazy lists are lists" assert]
-[() is-function] ["lists are lists" assert]

@@ -1,0 +1,22 @@
+[package]
+name = "stack-cli"
+version = "0.1.0"
+edition = "2021"
+
+[features]
+default = ["stack-std"]
+stack-std = ["dep:stack-std"]
+
+[dependencies]
+clap = { version = "4", features = ["derive"] }
+reedline = { version = "0.31.0", features = ["system_clipboard"] }
+notify = "6"
+crossterm = "0.27.0"
+
+stack-core = { path = "../stack-core" }
+stack-std = { path = "../stack-std", optional = true }
+codespan-reporting = "0.11.1"
+
+[[bin]]
+name = "stack"
+path = "src/main.rs"

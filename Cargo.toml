@@ -1,37 +1,9 @@
-[package]
-name = "stack"
-version = "0.1.0"
-edition = "2021"
+[workspace]
+resolver = "2"
+members = ["stack-core", "stack-std", "stack-cli"]
 
-[profile.release]
-opt-level = 3
-strip = "debuginfo"
-lto = "fat"
-codegen-units = 1
+[workspace.dependencies]
+unicode-segmentation = "1"
+compact_str = "=0.8.0-beta"
 
-[dependencies]
-clap = { version = "4", features = ["derive"] }
-codespan-reporting = "0.11.1"
-crossterm = "0.27.0"
-itertools = "0.12.0"
-notify = "6"
-rustyline = "13"
-termion = "3.0.0"
-thiserror = "1"
-internment = "0.7.4"
-
-[dev-dependencies]
 test-case = "3"
-criterion = "0.5.1"
-
-[[bench]]
-name = "eval"
-harness = false
-
-[[bin]]
-name = "stack"
-path = "src/main.rs"
-
-# [[bin]]
-# name = "stack-generate"
-# path = "src/generate_highlighter.rs"
