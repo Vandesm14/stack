@@ -1,4 +1,5 @@
 use core::{fmt, num::FpCategory, str::FromStr};
+use std::rc::Rc;
 
 use unicode_segmentation::UnicodeSegmentation;
 
@@ -6,7 +7,9 @@ use crate::{
   context::Context,
   expr::{Expr, ExprKind},
   journal::JournalOp,
-  prelude::{Engine, RunError, RunErrorReason},
+  lexer::Lexer,
+  prelude::{parse, Engine, RunError, RunErrorReason},
+  source::Source,
   symbol::Symbol,
 };
 
@@ -91,6 +94,8 @@ intrinsics! {
   Print => "print",
 
   OrElse => "orelse",
+
+  Import => "import",
 }
 
 impl Intrinsic {
@@ -772,6 +777,29 @@ impl Intrinsic {
         match lhs.kind {
           ExprKind::Nil => context.stack_push(rhs)?,
           _ => context.stack_push(lhs)?,
+        }
+
+        Ok(context)
+      }
+
+      // MARK: Import
+      Self::Import => {
+        let path = context.stack_pop(&expr)?;
+
+        match path.kind {
+          ExprKind::String(str) => {
+            if let Ok(source) = Source::from_path(str) {
+              let source = Rc::new(source);
+              context.add_source(source.clone());
+              let mut lexer = Lexer::new(source);
+              if let Ok(exprs) = parse(&mut lexer) {
+                return engine.run(context, exprs);
+              }
+            }
+          }
+          _ => {
+            todo!()
+          }
         }
 
         Ok(context)
