@@ -23,7 +23,7 @@ use notify::{
   Config, Event, EventKind, RecommendedWatcher, RecursiveMode, Watcher,
 };
 use reedline::{DefaultPrompt, DefaultPromptSegment, Reedline, Signal};
-use stack::{lexer::Span, prelude::*};
+use stack_core::prelude::*;
 
 fn main() {
   let cli = Cli::parse();
@@ -160,7 +160,7 @@ fn main() {
             }
             Err(e) => {
               if let Some(info) = &e.expr.info {
-                let span: Span = info.span;
+                let span = info.span;
                 let span = span.start..span.end;
 
                 let mut files = SimpleFiles::new();

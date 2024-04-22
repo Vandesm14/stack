@@ -1,6 +1,6 @@
 use core::str::FromStr;
 
-use stack::prelude::*;
+use stack_core::prelude::*;
 
 pub fn module() -> Module {
   let mut module = Module::new(Symbol::from_ref("scope"));

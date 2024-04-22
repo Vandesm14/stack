@@ -890,7 +890,20 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "3c5e1a9a646d36c3599cd173a41282daf47c44583ad367b8e6837255952e5c67"
 
 [[package]]
-name = "stack"
+name = "stack-cli"
+version = "0.1.0"
+dependencies = [
+ "clap",
+ "codespan-reporting",
+ "crossterm",
+ "notify",
+ "reedline",
+ "stack-core",
+ "stack-std",
+]
+
+[[package]]
+name = "stack-core"
 version = "0.1.0"
 dependencies = [
  "internment",
@@ -901,23 +914,10 @@ dependencies = [
 ]
 
 [[package]]
-name = "stack-cli"
-version = "0.1.0"
-dependencies = [
- "clap",
- "codespan-reporting",
- "crossterm",
- "notify",
- "reedline",
- "stack",
- "stack-std",
-]
-
-[[package]]
 name = "stack-std"
 version = "0.1.0"
 dependencies = [
- "stack",
+ "stack-core",
  "unicode-segmentation",
 ]
 

@@ -4,5 +4,5 @@ version = "0.1.0"
 edition = "2021"
 
 [dependencies]
-stack = { path = "../stack" }
+stack-core = { path = "../stack-core" }
 unicode-segmentation = "1"

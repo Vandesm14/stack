@@ -1,4 +1,4 @@
-use stack::{expr::Error, prelude::*};
+use stack_core::prelude::*;
 
 pub fn module(sandbox: bool) -> Module {
   let mut module = Module::new(Symbol::from_ref("fs"));

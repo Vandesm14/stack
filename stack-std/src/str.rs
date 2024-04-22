@@ -1,4 +1,4 @@
-use stack::prelude::*;
+use stack_core::prelude::*;
 use unicode_segmentation::UnicodeSegmentation;
 
 // TODO: Add str:escape and str:unescape.

@@ -1,6 +1,7 @@
 use core::str::FromStr;
-use stack::prelude::*;
 use std::{path::PathBuf, rc::Rc};
+
+use stack_core::prelude::*;
 use test_case::case;
 
 #[inline]

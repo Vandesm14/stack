@@ -18,7 +18,7 @@ pub mod prelude {
 
   pub use context::Context;
   pub use engine::{Engine, RunError, RunErrorReason};
-  pub use expr::{Expr, ExprInfo, ExprKind};
+  pub use expr::{Error, Expr, ExprInfo, ExprKind};
   pub use intrinsic::Intrinsic;
   pub use lexer::Lexer;
   pub use module::Module;
