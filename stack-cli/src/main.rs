@@ -1,7 +1,7 @@
 use core::fmt;
 use std::{
   io::{self, prelude::Write, Read},
-  path::PathBuf,
+  path::{Path, PathBuf},
   rc::Rc,
 };
 
@@ -153,7 +153,12 @@ fn main() {
         };
 
         ok_or_exit(clear_screen());
-        run_file(&input);
+        let context = run_file(&input);
+
+        ok_or_exit(context.sources().try_for_each(|source| {
+          watcher
+            .watch(Path::new(source.0.as_str()), RecursiveMode::NonRecursive)
+        }));
 
         for event in rx {
           if let Event {

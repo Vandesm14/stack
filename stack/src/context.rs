@@ -126,6 +126,13 @@ impl Context {
   }
 
   #[inline]
+  pub fn sources(
+    &self,
+  ) -> std::collections::hash_map::Iter<'_, Symbol, Rc<Source>> {
+    self.sources.iter()
+  }
+
+  #[inline]
   pub fn remove_source(&mut self, name: &Symbol) {
     self.sources.remove(name);
   }
