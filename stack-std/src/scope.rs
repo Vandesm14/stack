@@ -15,7 +15,12 @@ pub fn module() -> Module {
             kind: ExprKind::String("intrinsic".into()),
             info: None,
           })
-        } else if engine.module(x).is_some() {
+        } else if engine
+          .module(&Symbol::new(
+            x.as_str().split(':').next().unwrap_or_default().into(),
+          ))
+          .is_some()
+        {
           context.stack_push(Expr {
             kind: ExprKind::String("module".into()),
             info: None,
