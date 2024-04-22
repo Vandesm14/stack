@@ -28,7 +28,11 @@ impl PartialOrd for Expr {
 
 impl fmt::Display for Expr {
   fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-    write!(f, "{}", self.kind)
+    if f.alternate() {
+      write!(f, "{:#}", self.kind)
+    } else {
+      write!(f, "{}", self.kind)
+    }
   }
 }
 
