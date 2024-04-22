@@ -14,8 +14,8 @@ Things that need done to get `origin/clean-up` at parity with `origin/main`
 - [ ] **Reimplement**
   - [x] **Intrinsics**
     - [x] All old intrinsics: List, String, etc
-  - [ ] **Imports**
-    - [ ] Either use namespaces or just get the old import behavior working
-    - [ ] Keep a list of sources based on runtime imports
+  - [x] **Imports**
+    - [x] Either use namespaces or just get the old import behavior working
+    - [x] Keep a list of sources based on runtime imports
   - [ ] **Error Reporting**
     - [ ] Bring back the errors that pointed to sources
