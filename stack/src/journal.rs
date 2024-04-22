@@ -1,7 +1,6 @@
 use core::fmt;
 use itertools::Itertools;
 use std::mem;
-use yansi::Paint;
 
 use crate::expr::Expr;
 
@@ -41,6 +40,8 @@ pub struct Journal {
 
 impl fmt::Display for Journal {
   fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+    use yansi::Paint;
+
     let entries = self.entries(20);
     if !entries.is_empty() {
       writeln!(f, "Stack History (most recent first):")?;
@@ -57,26 +58,22 @@ impl fmt::Display for Journal {
 
         match op {
           JournalOp::Call(call) => {
-            line.push_str(&format!("{}", "c".white()));
-            line.push_str(&format!("{}", call));
+            line.push_str(&format!("{}", call.white()));
 
             should_print = true;
           }
           JournalOp::FnCall(fn_call) => {
-            line.push_str(&format!("{}", "c".yellow()));
-            line.push_str(&format!("{}", fn_call));
+            line.push_str(&format!("{}", fn_call.yellow()));
 
             should_print = true;
           }
           JournalOp::Push(push) => {
-            line.push_str(&format!("{}", "+".green()));
-            line.push_str(&format!("{}", push));
+            line.push_str(&format!("{}", push.green()));
 
             should_print = true;
           }
           JournalOp::Pop(pop) => {
-            line.push_str(&format!("{}", "-".red()));
-            line.push_str(&format!("{}", pop));
+            line.push_str(&format!("{}", pop.red()));
 
             should_print = true;
           }
@@ -127,9 +124,9 @@ impl Journal {
   }
 
   pub fn clear(&mut self) {
-    Vec::clear(&mut self.ops);
-    Vec::clear(&mut self.current);
-    Vec::clear(&mut self.commits);
+    self.ops.clear();
+    self.current.clear();
+    self.commits.clear();
   }
 
   fn entries(&self, max_commits: usize) -> Vec<JournalEntry> {

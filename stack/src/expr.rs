@@ -28,7 +28,7 @@ impl PartialOrd for Expr {
 
 impl fmt::Display for Expr {
   fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-    write!(f, "{:#}", self.kind)
+    write!(f, "{}", self.kind)
   }
 }
 
@@ -281,7 +281,7 @@ impl fmt::Display for ExprKind {
             .zip(x.iter())
             .try_for_each(|(sep, x)| write!(f, "{sep}{x}"))?;
 
-          write!(f, "(")
+          write!(f, ")")
         }
 
         Self::Fn(x) => write!(f, "{x}"),
