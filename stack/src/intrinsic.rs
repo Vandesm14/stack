@@ -80,6 +80,7 @@ intrinsics! {
   Pop => "pop",
 
   Cast => "cast",
+  Lazy => "lazy",
 
   If => "if",
   Halt => "halt",
@@ -622,6 +623,18 @@ impl Intrinsic {
         };
 
         context.stack_push(Expr { kind, info: None })?;
+
+        Ok(context)
+      }
+
+      // MARK: Lazy
+      Self::Lazy => {
+        let expr = context.stack_pop(&expr)?;
+
+        context.stack_push(Expr {
+          kind: ExprKind::Lazy(Box::new(expr)),
+          info: None,
+        })?;
 
         Ok(context)
       }
