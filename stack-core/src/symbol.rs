@@ -1,15 +1,16 @@
 use core::{borrow::Borrow, fmt, hash::Hash};
 
+use compact_str::CompactString;
 use internment::Intern;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 #[repr(transparent)]
-pub struct Symbol(Intern<String>);
+pub struct Symbol(Intern<CompactString>);
 
 impl Symbol {
   /// Creates a [`Symbol`].
   #[inline]
-  pub fn new(value: String) -> Self {
+  pub fn new(value: CompactString) -> Self {
     Self(Intern::new(value))
   }
 
@@ -18,7 +19,7 @@ impl Symbol {
   pub fn from_ref<'q, Q>(value: &'q Q) -> Self
   where
     Q: 'q + ?Sized + Eq + Hash,
-    String: Borrow<Q> + From<&'q Q>,
+    CompactString: Borrow<Q> + From<&'q Q>,
   {
     Self(Intern::from_ref(value))
   }
