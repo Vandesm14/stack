@@ -1,11 +1,12 @@
 use core::fmt;
-use std::collections::HashMap;
+use std::{collections::HashMap, rc::Rc};
 
 use crate::{
   engine::{RunError, RunErrorReason},
   expr::Expr,
   journal::{Journal, JournalOp},
   scope::{Scanner, Scope},
+  source::Source,
   symbol::Symbol,
 };
 
@@ -17,6 +18,7 @@ pub struct Context {
   lets: Vec<HashMap<Symbol, Expr>>,
   scopes: Vec<Scope>,
   journal: Option<Journal>,
+  sources: HashMap<Symbol, Rc<Source>>,
 }
 
 impl fmt::Display for Context {
@@ -97,6 +99,7 @@ impl Context {
       lets: Vec::new(),
       scopes: vec![Scope::new()],
       journal: None,
+      sources: HashMap::new(),
     }
   }
 
@@ -110,6 +113,21 @@ impl Context {
   pub fn with_journal(mut self, journal: bool) -> Self {
     self.journal = if journal { Some(Journal::new()) } else { None };
     self
+  }
+
+  #[inline]
+  pub fn add_source(&mut self, source: Rc<Source>) {
+    self.sources.insert(*source.name(), source);
+  }
+
+  #[inline]
+  pub fn source(&mut self, name: &Symbol) -> Option<&Rc<Source>> {
+    self.sources.get(name)
+  }
+
+  #[inline]
+  pub fn remove_source(&mut self, name: &Symbol) {
+    self.sources.remove(name);
   }
 
   #[inline]

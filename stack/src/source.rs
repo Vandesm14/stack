@@ -1,23 +1,24 @@
 use core::fmt;
 use std::{io, path::Path, rc::Rc};
 
+use crate::symbol::Symbol;
+
 /// Contains information for a source.
 #[derive(Debug, Clone, Eq)]
 pub struct Source {
-  name: Rc<str>,
+  name: Symbol,
   source: Rc<str>,
   line_starts: Rc<[usize]>,
 }
 
 impl Source {
   /// Creates a [`Source`].
-  pub fn new<N, S>(name: N, source: S) -> Self
+  pub fn new<S>(name: Symbol, source: S) -> Self
   where
-    N: AsRef<str>,
     S: AsRef<str>,
   {
     Self {
-      name: name.as_ref().into(),
+      name,
       source: source.as_ref().into(),
       line_starts: core::iter::once(0)
         .chain(
@@ -38,14 +39,14 @@ impl Source {
     P: AsRef<Path>,
   {
     let source = std::fs::read_to_string(&path)?;
-    let name = path.as_ref().to_string_lossy();
+    let name = Symbol::new(path.as_ref().to_string_lossy().into());
 
     Ok(Self::new(name, source))
   }
 
   /// Returns a reference to the name.
   #[inline]
-  pub fn name(&self) -> &str {
+  pub fn name(&self) -> &Symbol {
     &self.name
   }
 
@@ -118,7 +119,9 @@ mod test {
   #[case("hello\n" => vec![0, 6] ; "one")]
   #[case("hello\nthere\r\nworld\n" => vec![0, 6, 13, 19] ; "multiple")]
   fn line_starts(source: &str) -> Vec<usize> {
-    Source::new("", source).line_starts.to_vec()
+    Source::new(Symbol::from_ref(""), source)
+      .line_starts
+      .to_vec()
   }
 
   #[case("", 0 => Some(Location { line: 0, column: 0 }) ; "empty 0")]
@@ -138,7 +141,7 @@ mod test {
   #[case("hello\nworld\n", 6 => Some(Location { line: 1, column: 0 }) ; "multiple 6")]
   #[case("hello\nworld\n", 9 => Some(Location { line: 1, column: 3 }) ; "multiple 9")]
   fn location(source: &str, index: usize) -> Option<Location> {
-    Source::new("", source).location(index)
+    Source::new(Symbol::from_ref(""), source).location(index)
   }
 
   #[case("", 0 => Some("".into()) ; "empty 0")]
@@ -152,6 +155,8 @@ mod test {
   #[case("hello\nworld", 1 => Some("world".into()) ; "multiple 1")]
   #[case("hello\nworld", 2 => None ; "multiple 2")]
   fn line(source: &str, line: usize) -> Option<String> {
-    Source::new("", source).line(line).map(Into::into)
+    Source::new(Symbol::from_ref(""), source)
+      .line(line)
+      .map(Into::into)
   }
 }

@@ -205,7 +205,7 @@ mod test {
   use test_case::case;
 
   fn s(source: &str) -> Rc<Source> {
-    Rc::new(Source::new("", source))
+    Rc::new(Source::new(Symbol::from_ref(""), source))
   }
 
   #[case("" => Ok(Vec::<Expr>::new()) ; "empty")]

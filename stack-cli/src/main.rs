@@ -47,7 +47,7 @@ fn main() {
 
       ok_or_exit(stdin.read_to_string(&mut source));
 
-      let source = Rc::new(Source::new("stdin", source));
+      let source = Rc::new(Source::new(Symbol::from_ref("stdin"), source));
       let mut lexer = Lexer::new(source);
       let exprs = ok_or_exit(parse(&mut lexer));
 
@@ -83,7 +83,7 @@ fn main() {
                 command => eprintln!("error: unknown command '{command}'"),
               }
             } else {
-              let source = Rc::new(Source::new("repl", line));
+              let source = Rc::new(Source::new(Symbol::from_ref("repl"), line));
               let mut lexer = Lexer::new(source);
               let exprs = ok_or_exit(parse(&mut lexer));
 

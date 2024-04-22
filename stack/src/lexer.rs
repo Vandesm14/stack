@@ -391,6 +391,8 @@ enum State {
 
 #[cfg(test)]
 mod test {
+  use crate::symbol::Symbol;
+
   use super::*;
   use test_case::case;
 
@@ -433,7 +435,7 @@ mod test {
   #[case("fn!" => vec![Token { kind: TokenKind::Symbol, span: Span { start: 0, end: 3 } }, Token { kind: TokenKind::Eof, span: Span { start: 3, end: 3 } }] ; "fn exclamation")]
   #[case("\"hello\"" => vec![Token { kind: TokenKind::String, span: Span { start: 0, end: 7 } }, Token { kind: TokenKind::Eof, span: Span { start: 7, end: 7 } }] ; "string")]
   fn lexer(source: &str) -> Vec<Token> {
-    let source = Rc::new(Source::new("", source));
+    let source = Rc::new(Source::new(Symbol::from_ref(""), source));
     let mut lexer = Lexer::new(source);
     let mut tokens = Vec::new();
 
@@ -450,7 +452,7 @@ mod test {
   #[test]
   fn peek() {
     let source = "1 2";
-    let source = Rc::new(Source::new("", source));
+    let source = Rc::new(Source::new(Symbol::from_ref(""), source));
     let mut lexer = Lexer::new(source);
 
     assert_eq!(

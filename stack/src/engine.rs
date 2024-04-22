@@ -260,7 +260,7 @@ mod tests {
   // TODO: Move test for scopes/vars into src/scope.rs?
   #[test]
   fn can_define_vars() {
-    let source = Rc::new(Source::new("", "0 'a def a"));
+    let source = Rc::new(Source::new(Symbol::from_ref(""), "0 'a def a"));
     let mut lexer = Lexer::new(source);
     let exprs = crate::parser::parse(&mut lexer).unwrap();
 
@@ -280,7 +280,8 @@ mod tests {
 
   #[test]
   fn can_redefine_vars() {
-    let source = Rc::new(Source::new("", "0 'a def a 1 'a def a"));
+    let source =
+      Rc::new(Source::new(Symbol::from_ref(""), "0 'a def a 1 'a def a"));
     let mut lexer = Lexer::new(source);
     let exprs = crate::parser::parse(&mut lexer).unwrap();
 
@@ -300,7 +301,8 @@ mod tests {
 
   #[test]
   fn can_set_vars() {
-    let source = Rc::new(Source::new("", "0 'a def a 1 'a set a"));
+    let source =
+      Rc::new(Source::new(Symbol::from_ref(""), "0 'a def a 1 'a set a"));
     let mut lexer = Lexer::new(source);
     let exprs = crate::parser::parse(&mut lexer).unwrap();
 
@@ -321,7 +323,10 @@ mod tests {
   // TODO: Move test for lets into a better place?
   #[test]
   fn can_use_lets() {
-    let source = Rc::new(Source::new("", "10 2 '(a b -) '(a b) let"));
+    let source = Rc::new(Source::new(
+      Symbol::from_ref(""),
+      "10 2 '(a b -) '(a b) let",
+    ));
     let mut lexer = Lexer::new(source);
     let exprs = crate::parser::parse(&mut lexer).unwrap();
 
@@ -341,7 +346,10 @@ mod tests {
 
   #[test]
   fn lets_take_precedence_over_scope() {
-    let source = Rc::new(Source::new("", "0 'a def 1 '(a) '(a) let"));
+    let source = Rc::new(Source::new(
+      Symbol::from_ref(""),
+      "0 'a def 1 '(a) '(a) let",
+    ));
     let mut lexer = Lexer::new(source);
     let exprs = crate::parser::parse(&mut lexer).unwrap();
 
@@ -361,8 +369,10 @@ mod tests {
 
   #[test]
   fn lets_act_as_overlays() {
-    let source =
-      Rc::new(Source::new("", "0 'a def 1 '(a 2 'a def a) '(a) let a"));
+    let source = Rc::new(Source::new(
+      Symbol::from_ref(""),
+      "0 'a def 1 '(a 2 'a def a) '(a) let a",
+    ));
     let mut lexer = Lexer::new(source);
     let exprs = crate::parser::parse(&mut lexer).unwrap();
 
@@ -386,8 +396,10 @@ mod tests {
 
   #[test]
   fn functions_work_in_lets() {
-    let source =
-      Rc::new(Source::new("", "0 'a def 1 '(fn a 2 'a def a) '(a) let a"));
+    let source = Rc::new(Source::new(
+      Symbol::from_ref(""),
+      "0 'a def 1 '(fn a 2 'a def a) '(a) let a",
+    ));
     let mut lexer = Lexer::new(source);
     let exprs = crate::parser::parse(&mut lexer).unwrap();
 
@@ -411,8 +423,10 @@ mod tests {
 
   #[test]
   fn scopeless_functions_work_in_lets() {
-    let source =
-      Rc::new(Source::new("", "0 'a def 1 '(fn! a 2 'a def a) '(a) let a"));
+    let source = Rc::new(Source::new(
+      Symbol::from_ref(""),
+      "0 'a def 1 '(fn! a 2 'a def a) '(a) let a",
+    ));
     let mut lexer = Lexer::new(source);
     let exprs = crate::parser::parse(&mut lexer).unwrap();
 
@@ -437,7 +451,7 @@ mod tests {
   #[test]
   fn lets_dont_leak() {
     let source = Rc::new(Source::new(
-      "",
+      Symbol::from_ref(""),
       "0 'a def
       1 '(a) '(a) let
       1 '(fn! a) '(a) let
@@ -468,7 +482,8 @@ mod tests {
 
   #[test]
   fn lets_cant_set() {
-    let source = Rc::new(Source::new("", "1 '(2 'a set) '(a) let"));
+    let source =
+      Rc::new(Source::new(Symbol::from_ref(""), "1 '(2 'a set) '(a) let"));
     let mut lexer = Lexer::new(source);
     let exprs = crate::parser::parse(&mut lexer).unwrap();
 
