@@ -1,5 +1,4 @@
 use core::fmt;
-use std::rc::Rc;
 
 use crate::{
   expr::{Expr, ExprInfo, ExprKind, FnIdent},
@@ -153,7 +152,7 @@ fn parse_list(lexer: &mut Lexer) -> Result<(Vec<Expr>, Span), ParseError> {
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct ParseError {
-  pub source: Rc<Source>,
+  pub source: Source,
   pub kind: ParseErrorKind,
 }
 
@@ -204,8 +203,8 @@ mod test {
   use super::*;
   use test_case::case;
 
-  fn s(source: &str) -> Rc<Source> {
-    Rc::new(Source::new(Symbol::from_ref(""), source))
+  fn s(source: &str) -> Source {
+    Source::new("", source)
   }
 
   #[case("" => Ok(Vec::<Expr>::new()) ; "empty")]

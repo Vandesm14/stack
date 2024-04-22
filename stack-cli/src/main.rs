@@ -2,7 +2,6 @@ use core::fmt;
 use std::{
   io::{self, prelude::Write, Read},
   path::{Path, PathBuf},
-  rc::Rc,
 };
 
 use clap::Parser;
@@ -55,7 +54,7 @@ fn main() {
 
       ok_or_exit(stdin.read_to_string(&mut source));
 
-      let source = Rc::new(Source::new(Symbol::from_ref("stdin"), source));
+      let source = Source::new("stdin", source);
       let mut lexer = Lexer::new(source);
       let exprs = ok_or_exit(parse(&mut lexer));
 
@@ -91,7 +90,7 @@ fn main() {
                 command => eprintln!("error: unknown command '{command}'"),
               }
             } else {
-              let source = Rc::new(Source::new(Symbol::from_ref("repl"), line));
+              let source = Source::new("repl", line);
               let mut lexer = Lexer::new(source);
               let exprs = ok_or_exit(parse(&mut lexer));
 
@@ -113,7 +112,7 @@ fn main() {
     }
     Subcommand::Run { input, watch } => {
       if !watch {
-        let source = Rc::new(ok_or_exit(Source::from_path(input)));
+        let source = ok_or_exit(Source::from_path(input));
         let mut lexer = Lexer::new(source);
         let exprs = ok_or_exit(parse(&mut lexer));
 
@@ -129,7 +128,7 @@ fn main() {
         let run_file = |input| {
           let mut context = new_context();
 
-          let source = match Source::from_path(input).map(Rc::new) {
+          let source = match Source::from_path(input) {
             Ok(source) => source,
             Err(e) => {
               eprintln!("error: {e}");
@@ -166,10 +165,9 @@ fn main() {
                 let mut files = SimpleFiles::new();
                 let mut file_id = 0;
                 for (name, source) in e.context.sources() {
-                  let source = source.as_ref();
                   let id = files.add(name, source.source());
 
-                  if info.source.name() == name {
+                  if info.source.name() == name.as_str() {
                     file_id = id;
                   }
                 }

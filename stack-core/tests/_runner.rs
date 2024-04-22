@@ -1,5 +1,5 @@
 use core::str::FromStr;
-use std::{path::PathBuf, rc::Rc};
+use std::path::PathBuf;
 
 use stack_core::prelude::*;
 use test_case::case;
@@ -25,7 +25,7 @@ fn integration(subpath: &str) -> Result<Vec<Expr>, RunError> {
   let mut path = PathBuf::from_str("tests").unwrap();
   path.push(subpath);
 
-  let source = Rc::new(Source::from_path(path).unwrap());
+  let source = Source::from_path(path).unwrap();
   let mut lexer = Lexer::new(source);
   let exprs = crate::parse(&mut lexer).unwrap();
 

@@ -1,5 +1,4 @@
 use core::{cmp::Ordering, fmt, hash::Hash, ops};
-use std::rc::Rc;
 
 use internment::Intern;
 use yansi::Paint;
@@ -348,7 +347,7 @@ impl fmt::Display for FnIdent {
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct ExprInfo {
-  pub source: Rc<Source>,
+  pub source: Source,
   pub span: Span,
 }
 

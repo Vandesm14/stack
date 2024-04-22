@@ -189,7 +189,7 @@ mod tests {
 
   #[test]
   fn top_level_scopes() {
-    let source = Rc::new(Source::new(Symbol::from_ref(""), "0 'a def"));
+    let source = Source::new("", "0 'a def");
     let mut lexer = Lexer::new(source);
     let exprs = crate::parser::parse(&mut lexer).unwrap();
 
@@ -207,8 +207,7 @@ mod tests {
 
   #[test]
   fn function_scopes_are_isolated() {
-    let source =
-      Rc::new(Source::new(Symbol::from_ref(""), "'(fn 0 'a def) call"));
+    let source = Source::new("", "'(fn 0 'a def) call");
     let mut lexer = Lexer::new(source);
     let exprs = crate::parser::parse(&mut lexer).unwrap();
 
@@ -221,10 +220,10 @@ mod tests {
 
   #[test]
   fn nested_function_scopes_are_isolated() {
-    let source = Rc::new(Source::new(
-      Symbol::from_ref(""),
+    let source = Source::new(
+      "",
       "0 'a def a '(fn 1 'a def a '(fn 2 'a def a) call a) call a",
-    ));
+    );
     let mut lexer = Lexer::new(source);
     let exprs = crate::parser::parse(&mut lexer).unwrap();
 
@@ -250,10 +249,7 @@ mod tests {
 
   #[test]
   fn functions_can_set_to_outer() {
-    let source = Rc::new(Source::new(
-      Symbol::from_ref(""),
-      "0 'a def a '(fn a 1 'a set a) call a",
-    ));
+    let source = Source::new("", "0 'a def a '(fn a 1 'a set a) call a");
     let mut lexer = Lexer::new(source);
     let exprs = crate::parser::parse(&mut lexer).unwrap();
 
@@ -278,10 +274,7 @@ mod tests {
 
   #[test]
   fn closures_can_access_vars() {
-    let source = Rc::new(Source::new(
-      Symbol::from_ref(""),
-      "0 'a def '(fn 1 'a def '(fn a)) call call a",
-    ));
+    let source = Source::new("", "0 'a def '(fn 1 'a def '(fn a)) call call a");
     let mut lexer = Lexer::new(source);
     let exprs = crate::parser::parse(&mut lexer).unwrap();
 
@@ -301,10 +294,8 @@ mod tests {
 
   #[test]
   fn closures_can_mutate_vars() {
-    let source = Rc::new(Source::new(
-      Symbol::from_ref(""),
-      "0 'a def '(fn 1 'a def '(fn a 2 'a set a)) call call a",
-    ));
+    let source =
+      Source::new("", "0 'a def '(fn 1 'a def '(fn a 2 'a set a)) call call a");
     let mut lexer = Lexer::new(source);
     let exprs = crate::parser::parse(&mut lexer).unwrap();
 
@@ -328,8 +319,7 @@ mod tests {
 
   #[test]
   fn scopeless_functions_can_def_outer() {
-    let source =
-      Rc::new(Source::new(Symbol::from_ref(""), "'(fn! 0 'a def) call a"));
+    let source = Source::new("", "'(fn! 0 'a def) call a");
     let mut lexer = Lexer::new(source);
     let exprs = crate::parser::parse(&mut lexer).unwrap();
 
@@ -346,10 +336,7 @@ mod tests {
       vec![&ExprKind::Integer(0),]
     );
 
-    let source = Rc::new(Source::new(
-      Symbol::from_ref(""),
-      "0 'a def '(fn! a 1 'a def) call a",
-    ));
+    let source = Source::new("", "0 'a def '(fn! a 1 'a def) call a");
     let mut lexer = Lexer::new(source);
     let exprs = crate::parser::parse(&mut lexer).unwrap();
 
@@ -369,10 +356,7 @@ mod tests {
 
   #[test]
   fn scopeless_function_can_reuse_define() {
-    let source = Rc::new(Source::new(
-      Symbol::from_ref(""),
-      "'(fn! def) 'define def 0 'a define a",
-    ));
+    let source = Source::new("", "'(fn! def) 'define def 0 'a define a");
     let mut lexer = Lexer::new(source);
     let exprs = crate::parser::parse(&mut lexer).unwrap();
 
@@ -409,10 +393,8 @@ mod tests {
 
   #[test]
   fn variables_defined_from_scopeless_should_be_usable() {
-    let source = Rc::new(Source::new(
-      Symbol::from_ref(""),
-      "'(fn! 0 'a def) '(fn call '(fn a)) call call",
-    ));
+    let source =
+      Source::new("", "'(fn! 0 'a def) '(fn call '(fn a)) call call");
     let mut lexer = Lexer::new(source);
     let exprs = crate::parser::parse(&mut lexer).unwrap();
 

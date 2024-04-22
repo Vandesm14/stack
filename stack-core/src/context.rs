@@ -20,7 +20,7 @@ pub struct Context {
   lets: Vec<HashMap<Symbol, Expr>>,
   scopes: VecOne<Scope>,
   journal: Option<Journal>,
-  sources: HashMap<Symbol, Rc<Source>>,
+  sources: HashMap<Symbol, Source>,
 }
 
 impl fmt::Display for Context {
@@ -112,19 +112,19 @@ impl Context {
   }
 
   #[inline]
-  pub fn add_source(&mut self, source: Rc<Source>) {
-    self.sources.insert(*source.name(), source);
+  pub fn add_source(&mut self, source: Source) {
+    self.sources.insert(Symbol::from_ref(source.name()), source);
   }
 
   #[inline]
-  pub fn source(&mut self, name: &Symbol) -> Option<&Rc<Source>> {
+  pub fn source(&mut self, name: &Symbol) -> Option<&Source> {
     self.sources.get(name)
   }
 
   #[inline]
   pub fn sources(
     &self,
-  ) -> std::collections::hash_map::Iter<'_, Symbol, Rc<Source>> {
+  ) -> std::collections::hash_map::Iter<'_, Symbol, Source> {
     self.sources.iter()
   }
 

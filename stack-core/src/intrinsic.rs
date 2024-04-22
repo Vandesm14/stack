@@ -1,5 +1,4 @@
 use core::{fmt, num::FpCategory, str::FromStr};
-use std::rc::Rc;
 
 use unicode_segmentation::UnicodeSegmentation;
 
@@ -802,7 +801,6 @@ impl Intrinsic {
         match path.kind {
           ExprKind::String(str) => {
             if let Ok(source) = Source::from_path(str) {
-              let source = Rc::new(source);
               context.add_source(source.clone());
               let mut lexer = Lexer::new(source);
               if let Ok(exprs) = parse(&mut lexer) {
