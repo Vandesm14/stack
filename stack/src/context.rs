@@ -1,7 +1,8 @@
 use core::fmt;
-use std::{collections::HashMap, rc::Rc};
+use std::{cell::RefCell, collections::HashMap, rc::Rc};
 
 use crate::{
+  chain::Chain,
   engine::{RunError, RunErrorReason},
   expr::Expr,
   journal::{Journal, JournalOp},
@@ -205,6 +206,13 @@ impl Context {
   #[inline]
   pub fn scope_item(&self, symbol: Symbol) -> Option<Expr> {
     self.scopes.last().and_then(|layer| layer.get_val(symbol))
+  }
+
+  #[inline]
+  pub fn scope_items(
+    &self,
+  ) -> impl Iterator<Item = (&Symbol, &Rc<RefCell<Chain<Option<Expr>>>>)> {
+    self.scopes.last().unwrap().items.iter()
   }
 
   #[inline]
