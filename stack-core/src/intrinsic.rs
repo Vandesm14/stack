@@ -1,5 +1,6 @@
 use core::{fmt, num::FpCategory, str::FromStr};
 
+use compact_str::ToCompactString;
 use unicode_segmentation::UnicodeSegmentation;
 
 use crate::{
@@ -538,7 +539,7 @@ impl Intrinsic {
             let e = x
               .pop()
               .map(|e| Expr {
-                kind: ExprKind::String(e.to_string()),
+                kind: ExprKind::String(e.to_compact_string()),
                 info: None,
               })
               .unwrap_or(Expr {
@@ -600,9 +601,15 @@ impl Intrinsic {
             (ExprKind::Float(x), "float") => ExprKind::Float(x),
 
             (ExprKind::Nil, "string") => ExprKind::String("nil".into()),
-            (ExprKind::Boolean(x), "string") => ExprKind::String(x.to_string()),
-            (ExprKind::Integer(x), "string") => ExprKind::String(x.to_string()),
-            (ExprKind::Float(x), "string") => ExprKind::String(x.to_string()),
+            (ExprKind::Boolean(x), "string") => {
+              ExprKind::String(x.to_compact_string())
+            }
+            (ExprKind::Integer(x), "string") => {
+              ExprKind::String(x.to_compact_string())
+            }
+            (ExprKind::Float(x), "string") => {
+              ExprKind::String(x.to_compact_string())
+            }
             (ExprKind::String(x), "string") => ExprKind::String(x),
             (ExprKind::Symbol(x), "string") => {
               ExprKind::String(x.as_str().into())
@@ -800,7 +807,7 @@ impl Intrinsic {
 
         match path.kind {
           ExprKind::String(str) => {
-            if let Ok(source) = Source::from_path(str) {
+            if let Ok(source) = Source::from_path(str.as_str()) {
               context.add_source(source.clone());
               let mut lexer = Lexer::new(source);
               if let Ok(exprs) = parse(&mut lexer) {

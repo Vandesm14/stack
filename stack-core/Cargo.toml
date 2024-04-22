@@ -5,8 +5,9 @@ edition = "2021"
 
 [dependencies]
 internment = "0.7.4"
+unicode-segmentation.workspace = true
+compact_str.workspace = true
 yansi = "1"
-unicode-segmentation = "1"
 
 [dev-dependencies]
-test-case = "3"
+test-case.workspace = true

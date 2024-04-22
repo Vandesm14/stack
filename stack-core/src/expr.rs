@@ -1,5 +1,6 @@
 use core::{cmp::Ordering, fmt, hash::Hash, ops};
 
+use compact_str::CompactString;
 use internment::Intern;
 use yansi::Paint;
 
@@ -43,7 +44,7 @@ pub enum ExprKind {
   Boolean(bool),
   Integer(i64),
   Float(f64),
-  String(String),
+  String(CompactString),
 
   Symbol(Symbol),
 

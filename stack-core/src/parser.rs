@@ -1,5 +1,7 @@
 use core::fmt;
 
+use compact_str::ToCompactString;
+
 use crate::{
   expr::{Expr, ExprInfo, ExprKind, FnIdent},
   lexer::{Lexer, Span, Token, TokenKind},
@@ -102,7 +104,8 @@ fn parse_expr(lexer: &mut Lexer) -> Result<Expr, ParseError> {
             .replace("\\n", "\n")
             .replace("\\t", "\t")
             .replace("\\r", "\r")
-            .replace("\\0", "\0"),
+            .replace("\\0", "\0")
+            .to_compact_string(),
         ),
         info: Some(ExprInfo {
           source,

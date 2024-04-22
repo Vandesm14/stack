@@ -1,3 +1,4 @@
+use compact_str::ToCompactString;
 use stack_core::prelude::*;
 
 pub fn module(sandbox: bool) -> Module {
@@ -8,7 +9,11 @@ pub fn module(sandbox: bool) -> Module {
       .add_func(Symbol::from_ref("cwd"), |_, mut context, _| {
         context.stack_push(Expr {
           kind: std::env::current_dir()
-            .map(|x| ExprKind::String(x.to_string_lossy().into_owned()))
+            .map(|x| {
+              ExprKind::String(
+                x.to_string_lossy().into_owned().to_compact_string(),
+              )
+            })
             .unwrap_or(ExprKind::Nil),
           info: None,
         })?;
@@ -19,7 +24,8 @@ pub fn module(sandbox: bool) -> Module {
         let path = context.stack_pop(&expr)?;
 
         let kind = match path.kind {
-          ExprKind::String(ref x) => std::fs::read_to_string(x)
+          ExprKind::String(ref x) => std::fs::read_to_string(x.as_str())
+            .map(|x| x.to_compact_string())
             .map(ExprKind::String)
             .unwrap_or_else(|e| ExprKind::Error(Error::new(e.to_string()))),
           _ => ExprKind::Nil,

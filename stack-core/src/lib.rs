@@ -10,7 +10,7 @@ pub mod parser;
 pub mod scope;
 pub mod source;
 pub mod symbol;
-mod vec_one;
+pub mod unit;
 
 pub mod prelude {
   //! Re-exports commonly used items.
@@ -27,3 +27,5 @@ pub mod prelude {
   pub use source::Source;
   pub use symbol::Symbol;
 }
+
+mod vec_one;

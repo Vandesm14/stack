@@ -1,3 +1,4 @@
+use compact_str::{CompactString, ToCompactString};
 use stack_core::prelude::*;
 use unicode_segmentation::UnicodeSegmentation;
 
@@ -47,7 +48,7 @@ pub fn module() -> Module {
 
       let kind = match (item.kind.clone(), patt.kind.clone()) {
         (ExprKind::String(ref x), ExprKind::String(ref y)) => {
-          ExprKind::Boolean(x.starts_with(y))
+          ExprKind::Boolean(x.starts_with(y.as_str()))
         }
         _ => ExprKind::Nil,
       };
@@ -62,7 +63,7 @@ pub fn module() -> Module {
 
       let kind = match (item.kind.clone(), patt.kind.clone()) {
         (ExprKind::String(ref x), ExprKind::String(ref y)) => {
-          ExprKind::Boolean(x.ends_with(y))
+          ExprKind::Boolean(x.ends_with(y.as_str()))
         }
         _ => ExprKind::Nil,
       };
@@ -77,7 +78,7 @@ pub fn module() -> Module {
 
       let kind = match (item.kind.clone(), patt.kind.clone()) {
         (ExprKind::String(ref x), ExprKind::String(ref y)) => ExprKind::List(
-          x.split(y)
+          x.split(y.as_str())
             .map(|x| Expr {
               kind: ExprKind::String(x.into()),
               info: None,
@@ -198,7 +199,7 @@ pub fn module() -> Module {
             _ => Err(()),
           })
           .map(|x| {
-            String::from_utf8(x)
+            CompactString::from_utf8(x)
               .map(ExprKind::String)
               .unwrap_or(ExprKind::Nil)
           })
@@ -243,6 +244,7 @@ pub fn module() -> Module {
             }
             _ => Err(()),
           })
+          .map(|x| x.to_compact_string())
           .map(ExprKind::String)
           .unwrap_or(ExprKind::Nil),
         _ => ExprKind::Nil,

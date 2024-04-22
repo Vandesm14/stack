@@ -1,7 +1,38 @@
 use core::{fmt, num::NonZeroUsize};
-use std::{fs, io, path::Path, rc::Rc};
+use std::{collections::HashMap, fs, io, path::Path, rc::Rc};
 
 use unicode_segmentation::UnicodeSegmentation;
+
+// pub struct Sources {
+//   sources: HashMap<&str, Source>,
+// }
+
+// /// A
+// #[derive(Debug, Clone, PartialEq, Eq, Hash, PartialOrd, Ord)]
+// pub struct SourceName(ArcIntern<String>);
+
+// impl SourceName {
+//   #[inline]
+//   pub fn new(name: String) -> Self {
+//     Self(ArcIntern::new(name))
+//   }
+
+//   #[inline]
+//   pub fn from_ref(name: &str) -> Self {
+//     Self(ArcIntern::from_ref(name))
+//   }
+
+//   #[inline]
+//   pub fn as_str(&self) -> &str {
+//     self.0.as_str()
+//   }
+// }
+
+// impl fmt::Display for SourceName {
+//   fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+//     write!(f, "{}", self.as_str())
+//   }
+// }
 
 /// Contains metadata for a source.
 ///
