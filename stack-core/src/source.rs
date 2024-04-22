@@ -1,38 +1,7 @@
 use core::{fmt, num::NonZeroUsize};
-use std::{collections::HashMap, fs, io, path::Path, rc::Rc};
+use std::{fs, io, path::Path, rc::Rc};
 
 use unicode_segmentation::UnicodeSegmentation;
-
-// pub struct Sources {
-//   sources: HashMap<&str, Source>,
-// }
-
-// /// A
-// #[derive(Debug, Clone, PartialEq, Eq, Hash, PartialOrd, Ord)]
-// pub struct SourceName(ArcIntern<String>);
-
-// impl SourceName {
-//   #[inline]
-//   pub fn new(name: String) -> Self {
-//     Self(ArcIntern::new(name))
-//   }
-
-//   #[inline]
-//   pub fn from_ref(name: &str) -> Self {
-//     Self(ArcIntern::from_ref(name))
-//   }
-
-//   #[inline]
-//   pub fn as_str(&self) -> &str {
-//     self.0.as_str()
-//   }
-// }
-
-// impl fmt::Display for SourceName {
-//   fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-//     write!(f, "{}", self.as_str())
-//   }
-// }
 
 /// Contains metadata for a source.
 ///
@@ -78,12 +47,14 @@ impl Source {
 
   /// Returns the name as a <code>&[str]</code>.
   #[inline]
+  #[must_use]
   pub fn name(&self) -> &str {
     self.0.name.as_str()
   }
 
   /// Returns the source as a <code>&[str]</code>.
   #[inline]
+  #[must_use]
   pub fn source(&self) -> &str {
     self.0.source.as_str()
   }
@@ -94,6 +65,7 @@ impl Source {
   /// UTF-8 sequence boundaries.
   ///
   /// This internally uses a binary search.
+  #[must_use]
   pub fn location(&self, index: usize) -> Option<Location> {
     if index > self.0.source.len() {
       None
@@ -121,6 +93,7 @@ impl Source {
   /// The line number can be calculated via [`location`].
   ///
   /// [`location`]: Self::location
+  #[must_use]
   pub fn line(&self, line: usize) -> Option<&str> {
     if let Some(&line_start) = self.0.line_starts.get(line) {
       let line_end = self
