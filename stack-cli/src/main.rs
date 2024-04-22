@@ -187,7 +187,6 @@ fn main() {
                   term::emit(&mut writer.lock(), &config, &files, &diagnostic);
               }
 
-              // eprintln!("error: {e}");
               eprint_stack(&e.context);
               if let Some(journal) = e.context.journal() {
                 eprintln!("{}", journal);
