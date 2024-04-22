@@ -10,6 +10,7 @@ pub mod parser;
 pub mod scope;
 pub mod source;
 pub mod symbol;
+mod vec_one;
 
 pub mod prelude {
   //! Re-exports commonly used items.

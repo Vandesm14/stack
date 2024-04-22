@@ -9,15 +9,16 @@ use crate::{
   scope::{Scanner, Scope},
   source::Source,
   symbol::Symbol,
+  vec_one::VecOne,
 };
 
 // TODO: This API could be a lot nicer.
 
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq, Default)]
 pub struct Context {
   stack: Vec<Expr>,
   lets: Vec<HashMap<Symbol, Expr>>,
-  scopes: Vec<Scope>,
+  scopes: VecOne<Scope>,
   journal: Option<Journal>,
   sources: HashMap<Symbol, Rc<Source>>,
 }
@@ -86,19 +87,13 @@ impl fmt::Display for Context {
   }
 }
 
-impl Default for Context {
-  fn default() -> Self {
-    Self::new()
-  }
-}
-
 impl Context {
   #[inline]
   pub fn new() -> Self {
     Self {
       stack: Vec::new(),
       lets: Vec::new(),
-      scopes: vec![Scope::new()],
+      scopes: VecOne::new(Scope::new()),
       journal: None,
       sources: HashMap::new(),
     }
@@ -160,7 +155,7 @@ impl Context {
 
   pub fn stack_push(&mut self, expr: Expr) -> Result<(), RunError> {
     let expr = if expr.kind.is_function() {
-      let mut scanner = Scanner::new(self.scopes.last().unwrap().duplicate());
+      let mut scanner = Scanner::new(self.scopes.last().duplicate());
 
       match scanner.scan(expr.clone()) {
         Ok(expr) => expr,
@@ -205,24 +200,23 @@ impl Context {
 
   #[inline]
   pub fn scope_item(&self, symbol: Symbol) -> Option<Expr> {
-    self.scopes.last().and_then(|layer| layer.get_val(symbol))
+    self.scopes.last().get_val(symbol)
   }
 
   #[inline]
   pub fn scope_items(
     &self,
   ) -> impl Iterator<Item = (&Symbol, &Rc<RefCell<Chain<Option<Expr>>>>)> {
-    self.scopes.last().unwrap().items.iter()
+    self.scopes.last().items.iter()
   }
 
   #[inline]
   pub fn def_scope_item(&mut self, symbol: Symbol, value: Expr) {
-    if let Some(layer) = self.scopes.last_mut() {
-      layer.define(symbol, value);
+    let layer = self.scopes.last_mut();
 
-      // Remove the item from our let block since we've defined our own
-      self.let_remove(symbol);
-    }
+    layer.define(symbol, value);
+    // Remove the item from our let block since we've defined our own
+    self.let_remove(symbol);
   }
 
   pub fn set_scope_item(
@@ -230,25 +224,21 @@ impl Context {
     symbol: Symbol,
     expr: Expr,
   ) -> Result<(), RunError> {
-    if let Some(layer) = self.scopes.last_mut() {
-      match layer.set(symbol, expr.clone()) {
-        Ok(_) => Ok(()),
-        Err(reason) => Err(RunError {
-          reason,
-          context: self.clone(),
-          expr,
-        }),
-      }
-    } else {
-      panic!("context has no scopes!");
+    let layer = self.scopes.last_mut();
+
+    match layer.set(symbol, expr.clone()) {
+      Ok(_) => Ok(()),
+      Err(reason) => Err(RunError {
+        reason,
+        context: self.clone(),
+        expr,
+      }),
     }
   }
 
   #[inline]
   pub fn remove_scope_item(&mut self, symbol: Symbol) {
-    if let Some(layer) = self.scopes.last_mut() {
-      layer.remove(symbol);
-    }
+    self.scopes.last_mut().remove(symbol);
   }
 
   #[inline]
@@ -258,9 +248,7 @@ impl Context {
 
   #[inline]
   pub fn pop_scope(&mut self) {
-    self.scopes.pop();
-
-    debug_assert!(!self.scopes.is_empty());
+    self.scopes.try_pop();
   }
 
   #[inline]
