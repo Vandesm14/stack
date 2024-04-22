@@ -1,3 +1,5 @@
+#![allow(dead_code)]
+
 use core::slice::{Iter, IterMut, SliceIndex};
 use std::vec::IntoIter;
 
