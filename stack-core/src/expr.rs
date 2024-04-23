@@ -267,7 +267,7 @@ impl fmt::Display for ExprKind {
           write!(f, "{{")?;
 
           core::iter::once("")
-            .chain(core::iter::repeat(" "))
+            .chain(core::iter::repeat(", "))
             .zip(x.iter())
             .try_for_each(|(sep, (key, value))| {
               let key = Expr {
@@ -309,7 +309,7 @@ impl fmt::Display for ExprKind {
           write!(f, "{{")?;
 
           core::iter::once("")
-            .chain(core::iter::repeat(" "))
+            .chain(core::iter::repeat(", "))
             .zip(x.iter())
             .try_for_each(|(sep, (key, value))| {
               write!(f, "{sep}{key}: {value}")
