@@ -290,7 +290,7 @@ impl fmt::Display for ExprKind {
         Self::Boolean(x) => write!(f, "{x}"),
         Self::Integer(x) => write!(f, "{x}"),
         Self::Float(x) => write!(f, "{x}"),
-        Self::String(x) => write!(f, "\"{x}\""),
+        Self::String(x) => write!(f, "{x}"),
 
         Self::Symbol(x) => write!(f, "{}", x.as_str()),
 
