@@ -11,6 +11,19 @@ use crate::{lexer::Span, scope::Scope, source::Source, symbol::Symbol};
 pub struct Expr {
   pub kind: ExprKind,
   pub info: Option<ExprInfo>,
+  pub tags: HashMap<Symbol, Expr>,
+}
+
+impl Expr {
+  pub fn with_tags(mut self, tags: HashMap<Symbol, Expr>) -> Self {
+    self.tags = tags;
+    self
+  }
+
+  pub fn with_info(mut self, info: Option<ExprInfo>) -> Self {
+    self.info = info;
+    self
+  }
 }
 
 impl From<ExprKind> for Expr {
@@ -18,6 +31,7 @@ impl From<ExprKind> for Expr {
     Self {
       info: None,
       kind: value,
+      tags: HashMap::new(),
     }
   }
 }
@@ -66,6 +80,11 @@ pub enum ExprKind {
 }
 
 impl ExprKind {
+  #[inline]
+  pub fn into_expr(self) -> Expr {
+    self.into()
+  }
+
   #[inline]
   pub const fn is_nil(&self) -> bool {
     matches!(self, Self::Nil)

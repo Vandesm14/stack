@@ -483,10 +483,7 @@ impl Intrinsic {
 
         let kind = match (list.kind.clone(), item.kind.clone()) {
           (ExprKind::List(mut x), i) => {
-            x.push(Expr {
-              kind: i,
-              info: item.info.clone(),
-            });
+            x.push(i.into_expr().with_info(item.info));
             ExprKind::List(x)
           }
           (ExprKind::String(mut x), ExprKind::String(s)) => {

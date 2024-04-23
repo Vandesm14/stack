@@ -144,10 +144,13 @@ impl<'s> Scanner<'s> {
           let mut scanner = Scanner::new(&mut duplicate);
           let unlazied_mut = item.kind.unlazy_mut();
           *unlazied_mut = scanner
-            .scan(Expr {
-              kind: unlazied_mut.clone(),
-              info: item.info.clone(),
-            })
+            .scan(
+              unlazied_mut
+                .clone()
+                .into_expr()
+                .with_info(item.info.clone())
+                .with_tags(item.tags.clone()),
+            )
             .unwrap()
             .kind
         }
@@ -161,18 +164,20 @@ impl<'s> Scanner<'s> {
         scoped: fn_symbol.scoped,
       });
 
-      let mut list_items = vec![Expr {
-        kind: fn_ident,
-        info: expr.info.clone(),
-      }];
+      let mut list_items = vec![fn_ident
+        .into_expr()
+        .with_info(expr.info.clone())
+        .with_tags(expr.tags.clone())];
       list_items.extend(fn_body);
 
       let new_expr = ExprKind::List(list_items);
 
-      Ok(Expr {
-        kind: new_expr,
-        info: expr.info,
-      })
+      Ok(
+        new_expr
+          .into_expr()
+          .with_info(expr.info)
+          .with_tags(expr.tags),
+      )
     } else {
       // If the expression is not a function, we just return it
       Ok(expr)
