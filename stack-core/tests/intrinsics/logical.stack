@@ -11,3 +11,6 @@ true false and
 true true and
 0 0 and
 1 1 and
+
+false not
+true not

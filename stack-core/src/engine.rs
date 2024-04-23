@@ -9,6 +9,7 @@ use crate::{
   intrinsic::Intrinsic,
   journal::JournalOp,
   module::Module,
+  scope::Scanner,
   symbol::Symbol,
 };
 
@@ -60,6 +61,13 @@ impl Engine {
     mut context: Context,
     expr: Expr,
   ) -> Result<Context, RunError> {
+    let expr = Scanner::new(context.scope_mut()).scan(expr).map_err(
+      |(expr, reason)| RunError {
+        expr,
+        context: context.clone(),
+        reason,
+      },
+    )?;
     match expr.kind {
       ExprKind::Nil
       | ExprKind::Boolean(_)
@@ -120,7 +128,7 @@ impl Engine {
           if item.kind.is_function() {
             let fn_ident = item.kind.fn_symbol().unwrap();
             let fn_body = item.kind.fn_body().unwrap();
-            self.call_fn(&expr, fn_ident, fn_body, context)
+            self.call_fn(&expr, fn_ident, fn_body, context, false)
           } else {
             if let Some(journal) = context.journal_mut() {
               journal.op(JournalOp::Call(expr.clone()));
@@ -148,7 +156,7 @@ impl Engine {
         true => {
           let fn_ident = vec_fn_symbol(x).unwrap();
           let fn_body = vec_fn_body(x).unwrap();
-          self.call_fn(&expr, fn_ident, fn_body, context)
+          self.call_fn(&expr, fn_ident, fn_body, context, false)
         }
         false => self.run(context, x.to_vec()),
       },
@@ -164,12 +172,13 @@ impl Engine {
     fn_ident: &FnIdent,
     fn_body: &[Expr],
     mut context: Context,
+    is_recur: bool,
   ) -> Result<Context, RunError> {
     if let Some(journal) = context.journal_mut() {
       journal.op(JournalOp::FnCall(expr.clone()));
     }
 
-    if fn_ident.scoped {
+    if fn_ident.scoped && !is_recur {
       context.push_scope(fn_ident.scope.clone());
     }
 
@@ -178,11 +187,19 @@ impl Engine {
       journal.op(JournalOp::FnStart(fn_ident.scoped));
     }
 
+    // TODO: we avoided Stack recursion but not Rust recursion...
     match self.run(context, fn_body.to_vec()) {
       Ok(mut context) => {
         if let Some(journal) = context.journal_mut() {
           journal.commit();
           journal.op(JournalOp::FnEnd);
+        }
+
+        if context.stack().last().map(|e| &e.kind)
+          == Some(&ExprKind::Symbol(Symbol::from_ref("recur")))
+        {
+          context.stack_pop(expr)?;
+          return self.call_fn(expr, fn_ident, fn_body, context, true);
         }
 
         if fn_ident.scoped {

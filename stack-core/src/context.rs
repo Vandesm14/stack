@@ -1,4 +1,3 @@
-use core::fmt;
 use std::{cell::RefCell, collections::HashMap, rc::Rc};
 
 use crate::{
@@ -13,7 +12,6 @@ use crate::{
 };
 
 // TODO: This API could be a lot nicer.
-
 #[derive(Debug, Clone, PartialEq, Default)]
 pub struct Context {
   stack: Vec<Expr>,
@@ -21,70 +19,6 @@ pub struct Context {
   scopes: VecOne<Scope>,
   journal: Option<Journal>,
   sources: HashMap<Symbol, Source>,
-}
-
-impl fmt::Display for Context {
-  fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-    write!(f, "Stack: [")?;
-
-    // self.stack.iter().enumerate().try_for_each(|(i, expr)| {
-    //   if i == self.stack.len() - 1 {
-    //     write!(f, "{expr:#}")
-    //   } else {
-    //     write!(f, "{expr:#}, ")
-    //   }
-    // })?;
-
-    core::iter::once("")
-      .chain(core::iter::repeat(" "))
-      .zip(self.stack.iter())
-      .try_for_each(|(sep, x)| write!(f, "{sep}{x:#}"))?;
-
-    write!(f, "]")?;
-
-    // if !self.scopes.is_empty() {
-    //   writeln!(f, "Scope:")?;
-
-    //   let layer = self.scopes.last().unwrap();
-    //   let items = layer.items.len();
-    //   for (item_i, (key, value)) in
-    //     layer.items.iter().sorted_by_key(|(s, _)| *s).enumerate()
-    //   {
-    //     if item_i == items - 1 {
-    //       write!(
-    //         f,
-    //         " + {}: {}",
-    //         interner().resolve(key),
-    //         match value.borrow().val() {
-    //           Some(expr) => expr.to_string(),
-    //           None => "None".to_owned(),
-    //         }
-    //       )?;
-    //     } else {
-    //       writeln!(
-    //         f,
-    //         " + {}: {}",
-    //         interner().resolve(key),
-    //         match value.borrow().val() {
-    //           Some(expr) => expr.to_string(),
-    //           None => "None".to_owned(),
-    //         }
-    //       )?;
-    //     }
-    //   }
-    // }
-
-    if let Some(journal) = self.journal() {
-      let journal = journal.to_string();
-
-      if !journal.is_empty() {
-        write!(f, "\n\n")?;
-        write!(f, "{}", journal)?;
-      }
-    }
-
-    Ok(())
-  }
 }
 
 impl Context {
@@ -106,8 +40,8 @@ impl Context {
   }
 
   #[inline]
-  pub fn with_journal(mut self, journal: bool) -> Self {
-    self.journal = if journal { Some(Journal::new()) } else { None };
+  pub fn with_journal(mut self, journal: Option<usize>) -> Self {
+    self.journal = Some(journal.map(Journal::new).unwrap_or_default());
     self
   }
 
@@ -155,11 +89,12 @@ impl Context {
 
   pub fn stack_push(&mut self, expr: Expr) -> Result<(), RunError> {
     let expr = if expr.kind.is_function() {
-      let mut scanner = Scanner::new(self.scopes.last().duplicate());
+      let mut duplicate = self.scopes.last().duplicate();
+      let mut scanner = Scanner::new(&mut duplicate);
 
-      match scanner.scan(expr.clone()) {
+      match scanner.scan(expr) {
         Ok(expr) => expr,
-        Err(reason) => {
+        Err((expr, reason)) => {
           return Err(RunError {
             reason,
             context: self.clone(),
@@ -208,6 +143,16 @@ impl Context {
     &self,
   ) -> impl Iterator<Item = (&Symbol, &Rc<RefCell<Chain<Option<Expr>>>>)> {
     self.scopes.last().items.iter()
+  }
+
+  #[inline]
+  pub fn scope(&self) -> &Scope {
+    self.scopes.last()
+  }
+
+  #[inline]
+  pub fn scope_mut(&mut self) -> &mut Scope {
+    self.scopes.last_mut()
   }
 
   #[inline]
