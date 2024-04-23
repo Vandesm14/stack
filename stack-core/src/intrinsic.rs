@@ -64,6 +64,7 @@ intrinsics! {
 
   Or => "or",
   And => "and",
+  Not => "not",
 
   Assert => "assert",
 
@@ -93,6 +94,7 @@ intrinsics! {
   Get => "get",
 
   Print => "print",
+  Pretty => "pretty",
 
   OrElse => "orelse",
 
@@ -264,6 +266,16 @@ impl Intrinsic {
 
         let kind =
           ExprKind::Boolean(lhs.kind.is_truthy() && rhs.kind.is_truthy());
+
+        context.stack_push(Expr { kind, info: None })?;
+
+        Ok(context)
+      }
+      // MARK: Not
+      Self::Not => {
+        let rhs = context.stack_pop(&expr)?;
+
+        let kind = ExprKind::Boolean(!rhs.kind.is_truthy());
 
         context.stack_push(Expr { kind, info: None })?;
 
@@ -784,6 +796,14 @@ impl Intrinsic {
         let val = context.stack_pop(&expr)?;
 
         println!("{}", val);
+
+        Ok(context)
+      }
+      // MARK: Pretty
+      Self::Pretty => {
+        let val = context.stack_pop(&expr)?;
+
+        println!("{:#}", val);
 
         Ok(context)
       }
