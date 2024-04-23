@@ -264,8 +264,20 @@ impl fmt::Display for ExprKind {
           write!(f, "{}", ")".yellow())
         }
         Self::Record(x) => {
-          // TODO: add display for Record
-          write!(f, "{:?}", x)
+          write!(f, "{{")?;
+
+          core::iter::once("")
+            .chain(core::iter::repeat(" "))
+            .zip(x.iter())
+            .try_for_each(|(sep, (key, value))| {
+              let key = Expr {
+                info: None,
+                kind: ExprKind::Symbol(*key),
+              };
+              write!(f, "{sep}{key:#}: {value:#}")
+            })?;
+
+          write!(f, "}}")
         }
 
         Self::Fn(x) => write!(f, "{}", x.to_string().yellow()),
@@ -278,7 +290,7 @@ impl fmt::Display for ExprKind {
         Self::Boolean(x) => write!(f, "{x}"),
         Self::Integer(x) => write!(f, "{x}"),
         Self::Float(x) => write!(f, "{x}"),
-        Self::String(x) => write!(f, "{x}"),
+        Self::String(x) => write!(f, "\"{x}\""),
 
         Self::Symbol(x) => write!(f, "{}", x.as_str()),
 
@@ -294,8 +306,16 @@ impl fmt::Display for ExprKind {
           write!(f, ")")
         }
         Self::Record(x) => {
-          // TODO: add display for Record
-          write!(f, "{:?}", x)
+          write!(f, "{{")?;
+
+          core::iter::once("")
+            .chain(core::iter::repeat(" "))
+            .zip(x.iter())
+            .try_for_each(|(sep, (key, value))| {
+              write!(f, "{sep}{key}: {value}")
+            })?;
+
+          write!(f, "}}")
         }
 
         Self::Fn(x) => write!(f, "{x}"),
