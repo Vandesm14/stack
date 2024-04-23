@@ -3,6 +3,8 @@ use core::{borrow::Borrow, fmt, hash::Hash};
 use compact_str::CompactString;
 use internment::Intern;
 
+use crate::expr::ExprKind;
+
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 #[repr(transparent)]
 pub struct Symbol(Intern<CompactString>);
@@ -34,5 +36,11 @@ impl Symbol {
 impl fmt::Display for Symbol {
   fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
     write!(f, "{}", self.as_str())
+  }
+}
+
+impl From<ExprKind> for Symbol {
+  fn from(value: ExprKind) -> Self {
+    Self::from_ref(value.to_string().as_str())
   }
 }
