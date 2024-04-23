@@ -1,4 +1,5 @@
 use core::{cmp::Ordering, fmt, hash::Hash, ops};
+use std::collections::HashMap;
 
 use compact_str::CompactString;
 use internment::Intern;
@@ -50,6 +51,7 @@ pub enum ExprKind {
 
   Lazy(Box<Expr>),
   List(Vec<Expr>),
+  Record(HashMap<Symbol, Expr>),
 
   Fn(FnIdent),
 }
@@ -261,6 +263,10 @@ impl fmt::Display for ExprKind {
 
           write!(f, "{}", ")".yellow())
         }
+        Self::Record(x) => {
+          // TODO: add display for Record
+          write!(f, "{:?}", x)
+        }
 
         Self::Fn(x) => write!(f, "{}", x.to_string().yellow()),
       }
@@ -286,6 +292,10 @@ impl fmt::Display for ExprKind {
             .try_for_each(|(sep, x)| write!(f, "{sep}{x}"))?;
 
           write!(f, ")")
+        }
+        Self::Record(x) => {
+          // TODO: add display for Record
+          write!(f, "{:?}", x)
         }
 
         Self::Fn(x) => write!(f, "{x}"),

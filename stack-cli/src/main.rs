@@ -51,6 +51,10 @@ fn main() {
     if cli.enable_all || cli.enable_scope {
       engine.add_module(stack_std::scope::module());
     }
+
+    if cli.enable_all || cli.enable_record {
+      engine.add_module(stack_std::record::module());
+    }
   }
 
   match cli.subcommand {
@@ -307,6 +311,10 @@ struct Cli {
   #[arg(long)]
   #[cfg(feature = "stack-std")]
   enable_scope: bool,
+  /// Enable the record standard module.
+  #[arg(long)]
+  #[cfg(feature = "stack-std")]
+  enable_record: bool,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Default, clap::Subcommand)]
