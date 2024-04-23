@@ -1,4 +1,3 @@
-use core::fmt;
 use std::{cell::RefCell, collections::HashMap, rc::Rc};
 
 use crate::{
@@ -13,7 +12,6 @@ use crate::{
 };
 
 // TODO: This API could be a lot nicer.
-
 #[derive(Debug, Clone, PartialEq, Default)]
 pub struct Context {
   stack: Vec<Expr>,
@@ -21,70 +19,6 @@ pub struct Context {
   scopes: VecOne<Scope>,
   journal: Option<Journal>,
   sources: HashMap<Symbol, Source>,
-}
-
-impl fmt::Display for Context {
-  fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-    write!(f, "Stack: [")?;
-
-    // self.stack.iter().enumerate().try_for_each(|(i, expr)| {
-    //   if i == self.stack.len() - 1 {
-    //     write!(f, "{expr:#}")
-    //   } else {
-    //     write!(f, "{expr:#}, ")
-    //   }
-    // })?;
-
-    core::iter::once("")
-      .chain(core::iter::repeat(" "))
-      .zip(self.stack.iter())
-      .try_for_each(|(sep, x)| write!(f, "{sep}{x:#}"))?;
-
-    write!(f, "]")?;
-
-    // if !self.scopes.is_empty() {
-    //   writeln!(f, "Scope:")?;
-
-    //   let layer = self.scopes.last().unwrap();
-    //   let items = layer.items.len();
-    //   for (item_i, (key, value)) in
-    //     layer.items.iter().sorted_by_key(|(s, _)| *s).enumerate()
-    //   {
-    //     if item_i == items - 1 {
-    //       write!(
-    //         f,
-    //         " + {}: {}",
-    //         interner().resolve(key),
-    //         match value.borrow().val() {
-    //           Some(expr) => expr.to_string(),
-    //           None => "None".to_owned(),
-    //         }
-    //       )?;
-    //     } else {
-    //       writeln!(
-    //         f,
-    //         " + {}: {}",
-    //         interner().resolve(key),
-    //         match value.borrow().val() {
-    //           Some(expr) => expr.to_string(),
-    //           None => "None".to_owned(),
-    //         }
-    //       )?;
-    //     }
-    //   }
-    // }
-
-    if let Some(journal) = self.journal() {
-      let journal = journal.to_string();
-
-      if !journal.is_empty() {
-        write!(f, "\n\n")?;
-        write!(f, "{}", journal)?;
-      }
-    }
-
-    Ok(())
-  }
 }
 
 impl Context {
