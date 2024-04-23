@@ -29,19 +29,21 @@ pub enum JournalOp {
   Commit,
 }
 
-#[derive(Debug, Clone, PartialEq, PartialOrd, Default)]
+#[derive(Debug, Clone, PartialEq, PartialOrd)]
 // TODO: implement this as a ring buffer with max_commits so we never go over
 pub struct Journal {
   ops: Vec<JournalOp>,
   current: Vec<JournalOp>,
   commits: Vec<usize>,
+
+  size: usize,
 }
 
 impl fmt::Display for Journal {
   fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
     use yansi::Paint;
 
-    let entries = self.entries(20);
+    let entries = self.entries(self.size);
     if !entries.is_empty() {
       writeln!(f, "Stack History (most recent first):")?;
     }
@@ -101,9 +103,22 @@ impl fmt::Display for Journal {
   }
 }
 
+impl Default for Journal {
+  #[inline]
+  fn default() -> Self {
+    Self::new(20)
+  }
+}
+
 impl Journal {
-  pub fn new() -> Self {
-    Self::default()
+  #[inline]
+  pub const fn new(size: usize) -> Self {
+    Self {
+      commits: Vec::new(),
+      current: Vec::new(),
+      ops: Vec::new(),
+      size,
+    }
   }
 
   pub fn op(&mut self, op: JournalOp) {

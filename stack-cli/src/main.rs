@@ -27,7 +27,13 @@ use stack_core::prelude::*;
 fn main() {
   let cli = Cli::parse();
 
-  let new_context = || Context::new().with_journal(cli.journal);
+  let new_context = || {
+    if cli.journal {
+      Context::new().with_journal(cli.journal_length)
+    } else {
+      Context::new()
+    }
+  };
 
   let mut engine = Engine::new();
   let mut context = new_context();
@@ -275,6 +281,10 @@ struct Cli {
   /// Whether to enable stack journaling.
   #[arg(short, long)]
   journal: bool,
+
+  /// Provide a max size for the journal
+  #[arg(long, alias = "jl")]
+  journal_length: Option<usize>,
 
   /// Whether to run a sandbox variant of the enabled standard modules.
   #[arg(short, long)]

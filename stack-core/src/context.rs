@@ -106,8 +106,8 @@ impl Context {
   }
 
   #[inline]
-  pub fn with_journal(mut self, journal: bool) -> Self {
-    self.journal = if journal { Some(Journal::new()) } else { None };
+  pub fn with_journal(mut self, journal: Option<usize>) -> Self {
+    self.journal = Some(journal.map(Journal::new).unwrap_or_default());
     self
   }
 
