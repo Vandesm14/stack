@@ -85,6 +85,57 @@ pub fn module() -> Module {
       }
       .map(|_| context)
     })
+    .add_func(Symbol::from_ref("keys"), |_, mut context, expr| {
+      let record = context.stack_pop(&expr)?;
+
+      match record.kind {
+        ExprKind::Record(ref r) => {
+          let result = r
+            .keys()
+            .copied()
+            .map(|s| Expr {
+              info: None,
+              kind: ExprKind::Symbol(s),
+            })
+            .collect::<Vec<_>>();
+
+          context.stack_push(record.clone())?;
+          context.stack_push(Expr {
+            info: None,
+            kind: ExprKind::List(result),
+          })?;
+
+          Ok(())
+        }
+        _ => context.stack_push(Expr {
+          kind: ExprKind::Nil,
+          info: None,
+        }),
+      }
+      .map(|_| context)
+    })
+    .add_func(Symbol::from_ref("values"), |_, mut context, expr| {
+      let record = context.stack_pop(&expr)?;
+
+      match record.kind {
+        ExprKind::Record(ref r) => {
+          let result = r.values().cloned().collect::<Vec<_>>();
+
+          context.stack_push(record.clone())?;
+          context.stack_push(Expr {
+            info: None,
+            kind: ExprKind::List(result),
+          })?;
+
+          Ok(())
+        }
+        _ => context.stack_push(Expr {
+          kind: ExprKind::Nil,
+          info: None,
+        }),
+      }
+      .map(|_| context)
+    })
     .add_func(Symbol::from_ref("into-list"), |_, mut context, expr| {
       let record = context.stack_pop(&expr)?;
 
