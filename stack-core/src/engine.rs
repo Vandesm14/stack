@@ -187,6 +187,7 @@ impl Engine {
       journal.op(JournalOp::FnStart(fn_ident.scoped));
     }
 
+    // TODO: we avoided Stack recursion but not Rust recursion...
     match self.run(context, fn_body.to_vec()) {
       Ok(mut context) => {
         if let Some(journal) = context.journal_mut() {

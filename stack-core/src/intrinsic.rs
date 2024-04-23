@@ -95,6 +95,7 @@ intrinsics! {
 
   Print => "print",
   Pretty => "pretty",
+  Recur => "recur",
 
   OrElse => "orelse",
 
@@ -804,6 +805,16 @@ impl Intrinsic {
         let val = context.stack_pop(&expr)?;
 
         println!("{:#}", val);
+
+        Ok(context)
+      }
+      // MARK: Recur
+      // Functionality is implemented in [`Engine::call_fn`]
+      Self::Recur => {
+        context.stack_push(Expr {
+          kind: ExprKind::Symbol(Symbol::from_ref("recur")),
+          info: None,
+        })?;
 
         Ok(context)
       }
