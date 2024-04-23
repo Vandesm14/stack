@@ -16,12 +16,12 @@ pub fn module() -> Module {
     })
     .add_func(Symbol::from_ref("insert"), |_, mut context, expr| {
       let record = context.stack_pop(&expr)?;
+      let name = context.stack_pop(&expr)?;
       let value = context.stack_pop(&expr)?;
-      let symbol = context.stack_pop(&expr)?;
 
       match record.kind {
         ExprKind::Record(ref record) => {
-          let symbol = match symbol.kind {
+          let symbol = match name.kind {
             ExprKind::Symbol(s) => s,
             ExprKind::String(s) => Symbol::from_ref(s.as_str()),
             _ => {
