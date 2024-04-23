@@ -139,11 +139,7 @@ impl Scanner {
       };
 
       for item in fn_body.iter_mut() {
-        if let ExprKind::Symbol(call) = item.kind.unlazy() {
-          if !self.scope.has(*call) {
-            self.scope.reserve(*call);
-          }
-        } else if item.kind.unlazy().is_function() {
+        if item.kind.unlazy().is_function() {
           let mut scanner = Scanner::new(self.scope.duplicate());
           let unlazied_mut = item.kind.unlazy_mut();
           *unlazied_mut = scanner
