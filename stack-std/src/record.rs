@@ -85,6 +85,76 @@ pub fn module() -> Module {
       }
       .map(|_| context)
     })
+    .add_func(Symbol::from_ref("has"), |_, mut context, expr| {
+      let symbol = context.stack_pop(&expr)?;
+      let record = context.stack_pop(&expr)?;
+
+      match record.kind {
+        ExprKind::Record(ref r) => {
+          let symbol = match symbol.kind {
+            ExprKind::Symbol(s) => s,
+            ExprKind::String(s) => Symbol::from_ref(s.as_str()),
+            _ => {
+              return Err(RunError {
+                context,
+                expr,
+                reason: RunErrorReason::UnknownCall,
+              })
+            }
+          };
+
+          let result = r.contains_key(&symbol);
+
+          context.stack_push(record.clone())?;
+          context.stack_push(Expr {
+            info: None,
+            kind: ExprKind::Boolean(result),
+          })?;
+
+          Ok(())
+        }
+        _ => context.stack_push(Expr {
+          kind: ExprKind::Nil,
+          info: None,
+        }),
+      }
+      .map(|_| context)
+    })
+    .add_func(Symbol::from_ref("remove"), |_, mut context, expr| {
+      let record = context.stack_pop(&expr)?;
+      let name = context.stack_pop(&expr)?;
+
+      match record.kind {
+        ExprKind::Record(ref record) => {
+          let symbol = match name.kind {
+            ExprKind::Symbol(s) => s,
+            ExprKind::String(s) => Symbol::from_ref(s.as_str()),
+            _ => {
+              return Err(RunError {
+                context,
+                expr,
+                reason: RunErrorReason::UnknownCall,
+              })
+            }
+          };
+
+          let mut new_record = record.clone();
+          new_record.remove(&symbol);
+
+          context.stack_push(Expr {
+            kind: ExprKind::Record(new_record),
+            info: None,
+          })?;
+
+          Ok(())
+        }
+        _ => context.stack_push(Expr {
+          kind: ExprKind::Nil,
+          info: None,
+        }),
+      }
+      .map(|_| context)
+    })
     .add_func(Symbol::from_ref("keys"), |_, mut context, expr| {
       let record = context.stack_pop(&expr)?;
 
