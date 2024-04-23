@@ -342,7 +342,11 @@ pub struct FnIdent {
 
 impl fmt::Display for FnIdent {
   fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-    write!(f, "fn")
+    if self.scoped {
+      write!(f, "fn")
+    } else {
+      write!(f, "fn!")
+    }
   }
 }
 
