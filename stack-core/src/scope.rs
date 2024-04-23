@@ -116,31 +116,32 @@ impl Scope {
 }
 
 #[derive(Debug)]
-pub struct Scanner {
-  pub scope: Scope,
+pub struct Scanner<'s> {
+  pub scope: &'s mut Scope,
 }
 
-impl Scanner {
-  pub fn new(scope: Scope) -> Self {
+impl<'s> Scanner<'s> {
+  pub fn new(scope: &'s mut Scope) -> Self {
     Self { scope }
   }
 
-  pub fn scan(&mut self, expr: Expr) -> Result<Expr, RunErrorReason> {
+  pub fn scan(&mut self, expr: Expr) -> Result<Expr, (Expr, RunErrorReason)> {
     if expr.kind.is_function() {
       let expr = expr;
       // We can unwrap here because we know the expression is a function
       let fn_symbol = match expr.kind.fn_symbol() {
         Some(fn_symbol) => fn_symbol,
-        None => return Err(RunErrorReason::InvalidFunction),
+        None => return Err((expr, RunErrorReason::InvalidFunction)),
       };
       let mut fn_body = match expr.kind.fn_body() {
         Some(fn_body) => fn_body.to_vec(),
-        None => return Err(RunErrorReason::InvalidFunction),
+        None => return Err((expr, RunErrorReason::InvalidFunction)),
       };
 
       for item in fn_body.iter_mut() {
         if item.kind.unlazy().is_function() {
-          let mut scanner = Scanner::new(self.scope.duplicate());
+          let mut duplicate = self.scope.duplicate();
+          let mut scanner = Scanner::new(&mut duplicate);
           let unlazied_mut = item.kind.unlazy_mut();
           *unlazied_mut = scanner
             .scan(Expr {

@@ -9,6 +9,7 @@ use crate::{
   intrinsic::Intrinsic,
   journal::JournalOp,
   module::Module,
+  scope::Scanner,
   symbol::Symbol,
 };
 
@@ -60,6 +61,13 @@ impl Engine {
     mut context: Context,
     expr: Expr,
   ) -> Result<Context, RunError> {
+    let expr = Scanner::new(context.scope_mut()).scan(expr).map_err(
+      |(expr, reason)| RunError {
+        expr,
+        context: context.clone(),
+        reason,
+      },
+    )?;
     match expr.kind {
       ExprKind::Nil
       | ExprKind::Boolean(_)

@@ -155,11 +155,12 @@ impl Context {
 
   pub fn stack_push(&mut self, expr: Expr) -> Result<(), RunError> {
     let expr = if expr.kind.is_function() {
-      let mut scanner = Scanner::new(self.scopes.last().duplicate());
+      let mut duplicate = self.scopes.last().duplicate();
+      let mut scanner = Scanner::new(&mut duplicate);
 
-      match scanner.scan(expr.clone()) {
+      match scanner.scan(expr) {
         Ok(expr) => expr,
-        Err(reason) => {
+        Err((expr, reason)) => {
           return Err(RunError {
             reason,
             context: self.clone(),
@@ -208,6 +209,16 @@ impl Context {
     &self,
   ) -> impl Iterator<Item = (&Symbol, &Rc<RefCell<Chain<Option<Expr>>>>)> {
     self.scopes.last().items.iter()
+  }
+
+  #[inline]
+  pub fn scope(&self) -> &Scope {
+    self.scopes.last()
+  }
+
+  #[inline]
+  pub fn scope_mut(&mut self) -> &mut Scope {
+    self.scopes.last_mut()
   }
 
   #[inline]
