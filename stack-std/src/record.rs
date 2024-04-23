@@ -55,7 +55,7 @@ pub fn module() -> Module {
       let symbol = context.stack_pop(&expr)?;
 
       match record.kind {
-        ExprKind::Record(ref record) => {
+        ExprKind::Record(ref r) => {
           let symbol = match symbol.kind {
             ExprKind::Symbol(s) => s,
             ExprKind::String(s) => Symbol::from_ref(s.as_str()),
@@ -68,11 +68,12 @@ pub fn module() -> Module {
             }
           };
 
-          let result = record.get(&symbol).unwrap_or_else(|| &Expr {
+          let result = r.get(&symbol).unwrap_or_else(|| &Expr {
             info: None,
             kind: ExprKind::Nil,
           });
 
+          context.stack_push(record.clone())?;
           context.stack_push(result.clone())?;
 
           Ok(())
