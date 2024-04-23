@@ -51,8 +51,8 @@ pub fn module() -> Module {
       .map(|_| context)
     })
     .add_func(Symbol::from_ref("get"), |_, mut context, expr| {
-      let record = context.stack_pop(&expr)?;
       let symbol = context.stack_pop(&expr)?;
+      let record = context.stack_pop(&expr)?;
 
       match record.kind {
         ExprKind::Record(ref r) => {
