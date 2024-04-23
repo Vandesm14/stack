@@ -1,7 +1,6 @@
+use compact_str::ToCompactString;
 use core::fmt;
 use std::collections::HashMap;
-
-use compact_str::ToCompactString;
 
 use crate::{
   expr::{Expr, ExprInfo, ExprKind, FnIdent},
