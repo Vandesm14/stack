@@ -14,7 +14,7 @@ pub fn module() -> Module {
         _ => ExprKind::Nil,
       };
 
-      context.stack_push(Expr { kind, info: None })?;
+      context.stack_push(kind.into())?;
 
       Ok(context)
     })
@@ -26,7 +26,7 @@ pub fn module() -> Module {
         _ => ExprKind::Nil,
       };
 
-      context.stack_push(Expr { kind, info: None })?;
+      context.stack_push(kind.into())?;
 
       Ok(context)
     })
@@ -38,7 +38,7 @@ pub fn module() -> Module {
         _ => ExprKind::Nil,
       };
 
-      context.stack_push(Expr { kind, info: None })?;
+      context.stack_push(kind.into())?;
 
       Ok(context)
     })
@@ -53,7 +53,7 @@ pub fn module() -> Module {
         _ => ExprKind::Nil,
       };
 
-      context.stack_push(Expr { kind, info: None })?;
+      context.stack_push(kind.into())?;
 
       Ok(context)
     })
@@ -68,7 +68,7 @@ pub fn module() -> Module {
         _ => ExprKind::Nil,
       };
 
-      context.stack_push(Expr { kind, info: None })?;
+      context.stack_push(kind.into())?;
 
       Ok(context)
     })
@@ -79,16 +79,13 @@ pub fn module() -> Module {
       let kind = match (item.kind.clone(), patt.kind.clone()) {
         (ExprKind::String(ref x), ExprKind::String(ref y)) => ExprKind::List(
           x.split(y.as_str())
-            .map(|x| Expr {
-              kind: ExprKind::String(x.into()),
-              info: None,
-            })
+            .map(|x| ExprKind::String(x.into()).into())
             .collect(),
         ),
         _ => ExprKind::Nil,
       };
 
-      context.stack_push(Expr { kind, info: None })?;
+      context.stack_push(kind.into())?;
 
       Ok(context)
     })
@@ -100,16 +97,13 @@ pub fn module() -> Module {
         let kind = match item.kind {
           ExprKind::String(ref x) => ExprKind::List(
             x.split_whitespace()
-              .map(|x| Expr {
-                kind: ExprKind::String(x.into()),
-                info: None,
-              })
+              .map(|x| ExprKind::String(x.into()).into())
               .collect(),
           ),
           _ => ExprKind::Nil,
         };
 
-        context.stack_push(Expr { kind, info: None })?;
+        context.stack_push(kind.into())?;
 
         Ok(context)
       },
@@ -122,7 +116,7 @@ pub fn module() -> Module {
         _ => ExprKind::Nil,
       };
 
-      context.stack_push(Expr { kind, info: None })?;
+      context.stack_push(kind.into())?;
 
       Ok(context)
     })
@@ -134,7 +128,7 @@ pub fn module() -> Module {
         _ => ExprKind::Nil,
       };
 
-      context.stack_push(Expr { kind, info: None })?;
+      context.stack_push(kind.into())?;
 
       Ok(context)
     })
@@ -146,7 +140,7 @@ pub fn module() -> Module {
         _ => ExprKind::Nil,
       };
 
-      context.stack_push(Expr { kind, info: None })?;
+      context.stack_push(kind.into())?;
 
       Ok(context)
     })
@@ -160,7 +154,7 @@ pub fn module() -> Module {
         _ => ExprKind::Nil,
       };
 
-      context.stack_push(Expr { kind, info: None })?;
+      context.stack_push(kind.into())?;
 
       Ok(context)
     })
@@ -172,16 +166,13 @@ pub fn module() -> Module {
           x.as_bytes()
             .iter()
             .copied()
-            .map(|x| Expr {
-              kind: ExprKind::Integer(x as i64),
-              info: None,
-            })
+            .map(|x| ExprKind::Integer(x as i64).into())
             .collect(),
         ),
         _ => ExprKind::Nil,
       };
 
-      context.stack_push(Expr { kind, info: None })?;
+      context.stack_push(kind.into())?;
 
       Ok(context)
     })
@@ -207,7 +198,7 @@ pub fn module() -> Module {
         _ => ExprKind::Nil,
       };
 
-      context.stack_push(Expr { kind, info: None })?;
+      context.stack_push(kind.into())?;
 
       Ok(context)
     })
@@ -218,16 +209,13 @@ pub fn module() -> Module {
         ExprKind::String(ref x) => ExprKind::List(
           x.as_str()
             .graphemes(true)
-            .map(|x| Expr {
-              kind: ExprKind::String(x.into()),
-              info: None,
-            })
+            .map(|x| ExprKind::String(x.into()).into())
             .collect(),
         ),
         _ => ExprKind::Nil,
       };
 
-      context.stack_push(Expr { kind, info: None })?;
+      context.stack_push(kind.into())?;
 
       Ok(context)
     })
@@ -250,7 +238,7 @@ pub fn module() -> Module {
         _ => ExprKind::Nil,
       };
 
-      context.stack_push(Expr { kind, info: None })?;
+      context.stack_push(kind.into())?;
 
       Ok(context)
     })

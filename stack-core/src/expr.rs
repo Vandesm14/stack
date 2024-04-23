@@ -13,6 +13,15 @@ pub struct Expr {
   pub info: Option<ExprInfo>,
 }
 
+impl From<ExprKind> for Expr {
+  fn from(value: ExprKind) -> Self {
+    Self {
+      info: None,
+      kind: value,
+    }
+  }
+}
+
 impl PartialEq for Expr {
   #[inline]
   fn eq(&self, other: &Self) -> bool {
