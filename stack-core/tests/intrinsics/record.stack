@@ -11,8 +11,8 @@ drop
 drop
 
 ;; Test insertion
-"name" "john"
-"type" "person"
+"john" "name"
+"person" "type"
 {}
 insert
 insert
@@ -24,8 +24,8 @@ insert
 "name" has swap
 "type" has swap
 
-"name" swap remove
-"type" swap remove
+"name" remove
+"type" remove
 
 "name" has swap
 "type" has swap
