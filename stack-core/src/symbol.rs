@@ -1,6 +1,6 @@
 use core::{borrow::Borrow, fmt, hash::Hash};
 
-use compact_str::CompactString;
+use compact_str::{CompactString, ToCompactString};
 use internment::Intern;
 
 use crate::expr::ExprKind;
@@ -41,6 +41,6 @@ impl fmt::Display for Symbol {
 
 impl From<ExprKind> for Symbol {
   fn from(value: ExprKind) -> Self {
-    Self::from_ref(value.to_string().as_str())
+    Self::from_ref(value.to_compact_string().as_str())
   }
 }
