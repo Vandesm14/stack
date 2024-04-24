@@ -80,6 +80,13 @@ intrinsics! {
   Push => "push",
   Pop => "pop",
 
+  Insert => "insert",
+  Prop => "prop",
+  Has => "has",
+  Remove => "remove",
+  Keys => "keys",
+  Values => "values",
+
   Cast => "cast",
   Lazy => "lazy",
 
@@ -576,6 +583,205 @@ impl Intrinsic {
         }
 
         Ok(context)
+      }
+
+      // MARK: Insert
+      Self::Insert => {
+        let record = context.stack_pop(&expr)?;
+        let value = context.stack_pop(&expr)?;
+        let name = context.stack_pop(&expr)?;
+
+        match record.kind {
+          ExprKind::Record(ref record) => {
+            let symbol = match name.kind {
+              ExprKind::Symbol(s) => s,
+              ExprKind::String(s) => Symbol::from_ref(s.as_str()),
+              _ => {
+                return Err(RunError {
+                  context,
+                  expr,
+                  reason: RunErrorReason::UnknownCall,
+                })
+              }
+            };
+
+            let mut new_record = record.clone();
+            new_record.insert(symbol, value);
+
+            context.stack_push(Expr {
+              kind: ExprKind::Record(new_record),
+              info: None,
+            })?;
+
+            Ok(())
+          }
+          _ => context.stack_push(Expr {
+            kind: ExprKind::Nil,
+            info: None,
+          }),
+        }
+        .map(|_| context)
+      }
+      // MARK: Prop
+      Self::Prop => {
+        let symbol = context.stack_pop(&expr)?;
+        let record = context.stack_pop(&expr)?;
+
+        match record.kind {
+          ExprKind::Record(ref r) => {
+            let symbol = match symbol.kind {
+              ExprKind::Symbol(s) => s,
+              ExprKind::String(s) => Symbol::from_ref(s.as_str()),
+              _ => {
+                return Err(RunError {
+                  context,
+                  expr,
+                  reason: RunErrorReason::UnknownCall,
+                })
+              }
+            };
+
+            let result = r.get(&symbol).unwrap_or_else(|| &Expr {
+              info: None,
+              kind: ExprKind::Nil,
+            });
+
+            context.stack_push(record.clone())?;
+            context.stack_push(result.clone())?;
+
+            Ok(())
+          }
+          _ => context.stack_push(Expr {
+            kind: ExprKind::Nil,
+            info: None,
+          }),
+        }
+        .map(|_| context)
+      }
+      // MARK: Has
+      Self::Has => {
+        let symbol = context.stack_pop(&expr)?;
+        let record = context.stack_pop(&expr)?;
+
+        match record.kind {
+          ExprKind::Record(ref r) => {
+            let symbol = match symbol.kind {
+              ExprKind::Symbol(s) => s,
+              ExprKind::String(s) => Symbol::from_ref(s.as_str()),
+              _ => {
+                return Err(RunError {
+                  context,
+                  expr,
+                  reason: RunErrorReason::UnknownCall,
+                })
+              }
+            };
+
+            let result = r.contains_key(&symbol);
+
+            context.stack_push(record.clone())?;
+            context.stack_push(Expr {
+              info: None,
+              kind: ExprKind::Boolean(result),
+            })?;
+
+            Ok(())
+          }
+          _ => context.stack_push(Expr {
+            kind: ExprKind::Nil,
+            info: None,
+          }),
+        }
+        .map(|_| context)
+      }
+      // MARK: Remove
+      Self::Remove => {
+        let record = context.stack_pop(&expr)?;
+        let name = context.stack_pop(&expr)?;
+
+        match record.kind {
+          ExprKind::Record(ref record) => {
+            let symbol = match name.kind {
+              ExprKind::Symbol(s) => s,
+              ExprKind::String(s) => Symbol::from_ref(s.as_str()),
+              _ => {
+                return Err(RunError {
+                  context,
+                  expr,
+                  reason: RunErrorReason::UnknownCall,
+                })
+              }
+            };
+
+            let mut new_record = record.clone();
+            new_record.remove(&symbol);
+
+            context.stack_push(Expr {
+              kind: ExprKind::Record(new_record),
+              info: None,
+            })?;
+
+            Ok(())
+          }
+          _ => context.stack_push(Expr {
+            kind: ExprKind::Nil,
+            info: None,
+          }),
+        }
+        .map(|_| context)
+      }
+      // MARK: Keys
+      Self::Keys => {
+        let record = context.stack_pop(&expr)?;
+
+        match record.kind {
+          ExprKind::Record(ref r) => {
+            let result = r
+              .keys()
+              .copied()
+              .map(|s| Expr {
+                info: None,
+                kind: ExprKind::Symbol(s),
+              })
+              .collect::<Vec<_>>();
+
+            context.stack_push(record.clone())?;
+            context.stack_push(Expr {
+              info: None,
+              kind: ExprKind::List(result),
+            })?;
+
+            Ok(())
+          }
+          _ => context.stack_push(Expr {
+            kind: ExprKind::Nil,
+            info: None,
+          }),
+        }
+        .map(|_| context)
+      }
+      // MARK: Values
+      Self::Values => {
+        let record = context.stack_pop(&expr)?;
+
+        match record.kind {
+          ExprKind::Record(ref r) => {
+            let result = r.values().cloned().collect::<Vec<_>>();
+
+            context.stack_push(record.clone())?;
+            context.stack_push(Expr {
+              info: None,
+              kind: ExprKind::List(result),
+            })?;
+
+            Ok(())
+          }
+          _ => context.stack_push(Expr {
+            kind: ExprKind::Nil,
+            info: None,
+          }),
+        }
+        .map(|_| context)
       }
 
       // MARK: Cast
