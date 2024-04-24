@@ -1,4 +1,5 @@
 use core::{fmt, num::FpCategory, str::FromStr};
+use std::collections::HashMap;
 
 use compact_str::ToCompactString;
 use unicode_segmentation::UnicodeSegmentation;
@@ -841,6 +842,39 @@ impl Intrinsic {
             // TODO: Handle conversion into `fn` and `fn!`.
             (ExprKind::String(x), "symbol") => ExprKind::Symbol(Symbol::new(x)),
             (ExprKind::Symbol(x), "symbol") => ExprKind::Symbol(x),
+
+            (ExprKind::Record(x), "record") => ExprKind::Record(x),
+            (ExprKind::Record(x), "list") => {
+              let mut list: Vec<Expr> = Vec::new();
+              x.into_iter().for_each(|(key, value)| {
+                list.push(Expr {
+                  info: None,
+                  kind: ExprKind::List(vec![
+                    Expr {
+                      info: None,
+                      kind: ExprKind::Symbol(key),
+                    },
+                    value,
+                  ]),
+                });
+              });
+
+              ExprKind::List(list)
+            }
+
+            (ExprKind::List(x), "record") => {
+              let mut record: HashMap<Symbol, Expr> = HashMap::new();
+              x.into_iter().for_each(|item| {
+                if let ExprKind::List(chunk) = item.kind {
+                  let key =
+                    Symbol::from_ref(chunk[0].kind.to_string().as_str());
+                  let value = &chunk[1];
+                  record.insert(key, value.clone());
+                }
+              });
+
+              ExprKind::Record(record)
+            }
 
             _ => ExprKind::Nil,
           },
