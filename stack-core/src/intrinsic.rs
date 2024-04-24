@@ -388,8 +388,7 @@ impl Intrinsic {
         let index = context.stack_pop(&expr)?;
         let item = context.stack_pop(&expr)?;
 
-        // TODO: Can these eager clones be removed?
-        let kind = match (item.kind.clone(), index.kind.clone()) {
+        let kind = match (item.kind.clone(), index.kind) {
           (ExprKind::List(x), ExprKind::Integer(i)) if i >= 0 => x
             .get(i as usize)
             .map(|x| x.kind.clone())
@@ -414,8 +413,7 @@ impl Intrinsic {
         let index = context.stack_pop(&expr)?;
         let item = context.stack_pop(&expr)?;
 
-        // TODO: Can these eager clones be removed?
-        match (item.kind.clone(), index.kind.clone()) {
+        match (item.kind, index.kind) {
           (ExprKind::List(mut x), ExprKind::Integer(i)) if i >= 0 => {
             if (i as usize) < x.len() {
               let rest = x.split_off(i as usize);
@@ -459,8 +457,7 @@ impl Intrinsic {
         let rhs = context.stack_pop(&expr)?;
         let lhs = context.stack_pop(&expr)?;
 
-        // TODO: Can these eager clones be removed?
-        let kind = match (lhs.kind.clone(), rhs.kind.clone()) {
+        let kind = match (lhs.kind, rhs.kind) {
           (ExprKind::List(mut lhs), ExprKind::List(rhs)) => {
             lhs.extend(rhs);
             ExprKind::List(lhs)
@@ -547,17 +544,7 @@ impl Intrinsic {
 
         match record.kind {
           ExprKind::Record(ref record) => {
-            let symbol = match name.kind {
-              ExprKind::Symbol(s) => s,
-              ExprKind::String(s) => Symbol::from_ref(s.as_str()),
-              _ => {
-                return Err(RunError {
-                  context,
-                  expr,
-                  reason: RunErrorReason::UnknownCall,
-                })
-              }
-            };
+            let symbol: Symbol = name.kind.into();
 
             let mut new_record = record.clone();
             new_record.insert(symbol, value);
@@ -578,22 +565,12 @@ impl Intrinsic {
       }
       // MARK: Prop
       Self::Prop => {
-        let symbol = context.stack_pop(&expr)?;
+        let name = context.stack_pop(&expr)?;
         let record = context.stack_pop(&expr)?;
 
         match record.kind {
           ExprKind::Record(ref r) => {
-            let symbol = match symbol.kind {
-              ExprKind::Symbol(s) => s,
-              ExprKind::String(s) => Symbol::from_ref(s.as_str()),
-              _ => {
-                return Err(RunError {
-                  context,
-                  expr,
-                  reason: RunErrorReason::UnknownCall,
-                })
-              }
-            };
+            let symbol: Symbol = name.kind.into();
 
             let result = r.get(&symbol).unwrap_or_else(|| &Expr {
               info: None,
@@ -614,22 +591,12 @@ impl Intrinsic {
       }
       // MARK: Has
       Self::Has => {
-        let symbol = context.stack_pop(&expr)?;
+        let name = context.stack_pop(&expr)?;
         let record = context.stack_pop(&expr)?;
 
         match record.kind {
           ExprKind::Record(ref r) => {
-            let symbol = match symbol.kind {
-              ExprKind::Symbol(s) => s,
-              ExprKind::String(s) => Symbol::from_ref(s.as_str()),
-              _ => {
-                return Err(RunError {
-                  context,
-                  expr,
-                  reason: RunErrorReason::UnknownCall,
-                })
-              }
-            };
+            let symbol: Symbol = name.kind.into();
 
             let result = r.contains_key(&symbol);
 
@@ -655,17 +622,7 @@ impl Intrinsic {
 
         match record.kind {
           ExprKind::Record(ref record) => {
-            let symbol = match name.kind {
-              ExprKind::Symbol(s) => s,
-              ExprKind::String(s) => Symbol::from_ref(s.as_str()),
-              _ => {
-                return Err(RunError {
-                  context,
-                  expr,
-                  reason: RunErrorReason::UnknownCall,
-                })
-              }
-            };
+            let symbol: Symbol = name.kind.into();
 
             let mut new_record = record.clone();
             new_record.remove(&symbol);

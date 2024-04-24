@@ -183,10 +183,7 @@ fn parse_record(
       TokenKind::RightCurly => break Ok((record, lexer.next().span)),
       _ => {
         if key.is_none() {
-          // TODO: Use `.into()` once we have the change that implements From<ExprKind> for Symbol
-          key = Some(Symbol::from_ref(
-            parse_expr(lexer)?.kind.to_compact_string().as_str(),
-          ));
+          key = Some(parse_expr(lexer)?.kind.into());
 
           continue;
         }
