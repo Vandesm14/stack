@@ -89,6 +89,7 @@ intrinsics! {
   Values => "values",
 
   Cast => "cast",
+  TypeOf => "typeof",
   Lazy => "lazy",
 
   If => "if",
@@ -792,6 +793,15 @@ impl Intrinsic {
         };
 
         context.stack_push(kind.into())?;
+
+        Ok(context)
+      }
+      // MARK: TypeOf
+      Self::TypeOf => {
+        let expr = context.stack_pop(&expr)?;
+
+        context
+          .stack_push(ExprKind::String(expr.kind.type_of().into()).into())?;
 
         Ok(context)
       }

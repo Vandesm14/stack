@@ -117,6 +117,26 @@ impl ExprKind {
       x => x,
     }
   }
+
+  pub fn type_of(&self) -> &str {
+    match self {
+      ExprKind::Nil => "nil",
+      ExprKind::Error(_) => "error",
+
+      ExprKind::Boolean(_) => "boolean",
+      ExprKind::Integer(_) => "integer",
+      ExprKind::Float(_) => "float",
+      ExprKind::String(_) => "string",
+
+      ExprKind::Symbol(_) => "symbol",
+
+      ExprKind::Lazy(_) => "lazy",
+      ExprKind::List(_) => "list",
+      ExprKind::Record(_) => "record",
+
+      ExprKind::Fn(_) => "function",
+    }
+  }
 }
 
 impl PartialEq for ExprKind {
