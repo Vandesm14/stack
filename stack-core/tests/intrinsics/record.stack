@@ -1,0 +1,39 @@
+;; Test syntax
+{"name" "john" "type" "person"}
+"name" prop "john" = swap
+"type" prop "person" = swap
+drop
+
+;; Test casting
+'(("name" "john") ("type" "person")) "record" cast
+"name" prop "john" = swap
+"type" prop "person" = swap
+drop
+
+;; Test insertion
+"john" "name"
+"person" "type"
+{}
+insert
+insert
+
+"name" prop "john" = swap
+"type" prop "person" = swap
+
+;; Test has
+"name" has swap
+"type" has swap
+
+"name" remove
+"type" remove
+
+"name" has swap
+"type" has swap
+drop
+
+;; Test keys, values, and len
+{"name" "john" "type" "person"}
+;; keys swap
+;; values swap
+len swap
+drop

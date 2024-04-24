@@ -1,4 +1,5 @@
 use core::{fmt, num::FpCategory, str::FromStr};
+use std::collections::HashMap;
 
 use compact_str::ToCompactString;
 use unicode_segmentation::UnicodeSegmentation;
@@ -79,6 +80,13 @@ intrinsics! {
   Concat => "concat",
   Push => "push",
   Pop => "pop",
+
+  Insert => "insert",
+  Prop => "prop",
+  Has => "has",
+  Remove => "remove",
+  Keys => "keys",
+  Values => "values",
 
   Cast => "cast",
   Lazy => "lazy",
@@ -365,6 +373,10 @@ impl Intrinsic {
             debug_assert!(len <= i64::MAX as usize);
             ExprKind::Integer(len as i64)
           }
+          ExprKind::Record(ref x) => {
+            debug_assert!(x.len() <= i64::MAX as usize);
+            ExprKind::Integer(x.len() as i64)
+          }
           _ => ExprKind::Nil,
         };
 
@@ -578,6 +590,205 @@ impl Intrinsic {
         Ok(context)
       }
 
+      // MARK: Insert
+      Self::Insert => {
+        let record = context.stack_pop(&expr)?;
+        let name = context.stack_pop(&expr)?;
+        let value = context.stack_pop(&expr)?;
+
+        match record.kind {
+          ExprKind::Record(ref record) => {
+            let symbol = match name.kind {
+              ExprKind::Symbol(s) => s,
+              ExprKind::String(s) => Symbol::from_ref(s.as_str()),
+              _ => {
+                return Err(RunError {
+                  context,
+                  expr,
+                  reason: RunErrorReason::UnknownCall,
+                })
+              }
+            };
+
+            let mut new_record = record.clone();
+            new_record.insert(symbol, value);
+
+            context.stack_push(Expr {
+              kind: ExprKind::Record(new_record),
+              info: None,
+            })?;
+
+            Ok(())
+          }
+          _ => context.stack_push(Expr {
+            kind: ExprKind::Nil,
+            info: None,
+          }),
+        }
+        .map(|_| context)
+      }
+      // MARK: Prop
+      Self::Prop => {
+        let symbol = context.stack_pop(&expr)?;
+        let record = context.stack_pop(&expr)?;
+
+        match record.kind {
+          ExprKind::Record(ref r) => {
+            let symbol = match symbol.kind {
+              ExprKind::Symbol(s) => s,
+              ExprKind::String(s) => Symbol::from_ref(s.as_str()),
+              _ => {
+                return Err(RunError {
+                  context,
+                  expr,
+                  reason: RunErrorReason::UnknownCall,
+                })
+              }
+            };
+
+            let result = r.get(&symbol).unwrap_or_else(|| &Expr {
+              info: None,
+              kind: ExprKind::Nil,
+            });
+
+            context.stack_push(record.clone())?;
+            context.stack_push(result.clone())?;
+
+            Ok(())
+          }
+          _ => context.stack_push(Expr {
+            kind: ExprKind::Nil,
+            info: None,
+          }),
+        }
+        .map(|_| context)
+      }
+      // MARK: Has
+      Self::Has => {
+        let symbol = context.stack_pop(&expr)?;
+        let record = context.stack_pop(&expr)?;
+
+        match record.kind {
+          ExprKind::Record(ref r) => {
+            let symbol = match symbol.kind {
+              ExprKind::Symbol(s) => s,
+              ExprKind::String(s) => Symbol::from_ref(s.as_str()),
+              _ => {
+                return Err(RunError {
+                  context,
+                  expr,
+                  reason: RunErrorReason::UnknownCall,
+                })
+              }
+            };
+
+            let result = r.contains_key(&symbol);
+
+            context.stack_push(record.clone())?;
+            context.stack_push(Expr {
+              info: None,
+              kind: ExprKind::Boolean(result),
+            })?;
+
+            Ok(())
+          }
+          _ => context.stack_push(Expr {
+            kind: ExprKind::Nil,
+            info: None,
+          }),
+        }
+        .map(|_| context)
+      }
+      // MARK: Remove
+      Self::Remove => {
+        let name = context.stack_pop(&expr)?;
+        let record = context.stack_pop(&expr)?;
+
+        match record.kind {
+          ExprKind::Record(ref record) => {
+            let symbol = match name.kind {
+              ExprKind::Symbol(s) => s,
+              ExprKind::String(s) => Symbol::from_ref(s.as_str()),
+              _ => {
+                return Err(RunError {
+                  context,
+                  expr,
+                  reason: RunErrorReason::UnknownCall,
+                })
+              }
+            };
+
+            let mut new_record = record.clone();
+            new_record.remove(&symbol);
+
+            context.stack_push(Expr {
+              kind: ExprKind::Record(new_record),
+              info: None,
+            })?;
+
+            Ok(())
+          }
+          _ => context.stack_push(Expr {
+            kind: ExprKind::Nil,
+            info: None,
+          }),
+        }
+        .map(|_| context)
+      }
+      // MARK: Keys
+      Self::Keys => {
+        let record = context.stack_pop(&expr)?;
+
+        match record.kind {
+          ExprKind::Record(ref r) => {
+            let result = r
+              .keys()
+              .copied()
+              .map(|s| Expr {
+                info: None,
+                kind: ExprKind::Symbol(s),
+              })
+              .collect::<Vec<_>>();
+
+            context.stack_push(record.clone())?;
+            context.stack_push(Expr {
+              info: None,
+              kind: ExprKind::List(result),
+            })?;
+
+            Ok(())
+          }
+          _ => context.stack_push(Expr {
+            kind: ExprKind::Nil,
+            info: None,
+          }),
+        }
+        .map(|_| context)
+      }
+      // MARK: Values
+      Self::Values => {
+        let record = context.stack_pop(&expr)?;
+
+        match record.kind {
+          ExprKind::Record(ref r) => {
+            let result = r.values().cloned().collect::<Vec<_>>();
+
+            context.stack_push(record.clone())?;
+            context.stack_push(Expr {
+              info: None,
+              kind: ExprKind::List(result),
+            })?;
+
+            Ok(())
+          }
+          _ => context.stack_push(Expr {
+            kind: ExprKind::Nil,
+            info: None,
+          }),
+        }
+        .map(|_| context)
+      }
+
       // MARK: Cast
       Self::Cast => {
         let ty = context.stack_pop(&expr)?;
@@ -635,6 +846,39 @@ impl Intrinsic {
             // TODO: Handle conversion into `fn` and `fn!`.
             (ExprKind::String(x), "symbol") => ExprKind::Symbol(Symbol::new(x)),
             (ExprKind::Symbol(x), "symbol") => ExprKind::Symbol(x),
+
+            (ExprKind::Record(x), "record") => ExprKind::Record(x),
+            (ExprKind::Record(x), "list") => {
+              let mut list: Vec<Expr> = Vec::new();
+              x.into_iter().for_each(|(key, value)| {
+                list.push(Expr {
+                  info: None,
+                  kind: ExprKind::List(vec![
+                    Expr {
+                      info: None,
+                      kind: ExprKind::Symbol(key),
+                    },
+                    value,
+                  ]),
+                });
+              });
+
+              ExprKind::List(list)
+            }
+
+            (ExprKind::List(x), "record") => {
+              let mut record: HashMap<Symbol, Expr> = HashMap::new();
+              x.into_iter().for_each(|item| {
+                if let ExprKind::List(chunk) = item.kind {
+                  let key =
+                    Symbol::from_ref(chunk[0].kind.to_string().as_str());
+                  let value = &chunk[1];
+                  record.insert(key, value.clone());
+                }
+              });
+
+              ExprKind::Record(record)
+            }
 
             _ => ExprKind::Nil,
           },

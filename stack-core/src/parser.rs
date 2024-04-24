@@ -1,4 +1,5 @@
 use core::fmt;
+use std::collections::HashMap;
 
 use compact_str::ToCompactString;
 
@@ -27,12 +28,13 @@ fn parse_expr(lexer: &mut Lexer) -> Result<Expr, ParseError> {
   let token = lexer.next();
 
   match token.kind {
-    TokenKind::Invalid | TokenKind::Eof | TokenKind::RightParen => {
-      Err(ParseError {
-        source,
-        kind: ParseErrorKind::UnexpectedToken(token),
-      })
-    }
+    TokenKind::Invalid
+    | TokenKind::Eof
+    | TokenKind::RightParen
+    | TokenKind::RightCurly => Err(ParseError {
+      source,
+      kind: ParseErrorKind::UnexpectedToken(token),
+    }),
 
     TokenKind::Apostrophe => {
       let next_token = lexer.peek();
@@ -54,6 +56,21 @@ fn parse_expr(lexer: &mut Lexer) -> Result<Expr, ParseError> {
 
       Ok(Expr {
         kind: ExprKind::List(list),
+        info: Some(ExprInfo {
+          source,
+          span: Span {
+            start: token.span.start,
+            end: end_span.end,
+          },
+        }),
+      })
+    }
+
+    TokenKind::LeftCurly => {
+      let (record, end_span) = parse_record(lexer)?;
+
+      Ok(Expr {
+        kind: ExprKind::Record(record),
         info: Some(ExprInfo {
           source,
           span: Span {
@@ -149,6 +166,43 @@ fn parse_list(lexer: &mut Lexer) -> Result<(Vec<Expr>, Span), ParseError> {
     match token.kind {
       TokenKind::RightParen => break Ok((list, lexer.next().span)),
       _ => list.push(parse_expr(lexer)?),
+    }
+  }
+}
+
+fn parse_record(
+  lexer: &mut Lexer,
+) -> Result<(HashMap<Symbol, Expr>, Span), ParseError> {
+  let mut record = HashMap::new();
+  let mut key: Option<Symbol> = None;
+  let mut val: Option<Expr> = None;
+
+  loop {
+    let token = lexer.peek();
+
+    match token.kind {
+      TokenKind::RightCurly => break Ok((record, lexer.next().span)),
+      _ => {
+        if key.is_none() {
+          // TODO: Use `.into()` once we have the change that implements From<ExprKind> for Symbol
+          key = Some(Symbol::from_ref(
+            parse_expr(lexer)?.kind.to_compact_string().as_str(),
+          ));
+
+          continue;
+        }
+
+        if val.is_none() {
+          val = Some(parse_expr(lexer)?)
+        }
+
+        if let (Some(k), Some(v)) = (key, val.clone()) {
+          record.insert(k, v);
+
+          key = None;
+          val = None;
+        }
+      }
     }
   }
 }
