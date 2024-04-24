@@ -128,7 +128,7 @@ impl Intrinsic {
           Err(_) => ExprKind::Nil,
         };
 
-        context.stack_push(Expr { kind, info: None })?;
+        context.stack_push(kind.into())?;
 
         Ok(context)
       }
@@ -142,7 +142,7 @@ impl Intrinsic {
           Err(_) => ExprKind::Nil,
         };
 
-        context.stack_push(Expr { kind, info: None })?;
+        context.stack_push(kind.into())?;
 
         Ok(context)
       }
@@ -156,7 +156,7 @@ impl Intrinsic {
           Err(_) => ExprKind::Nil,
         };
 
-        context.stack_push(Expr { kind, info: None })?;
+        context.stack_push(kind.into())?;
 
         Ok(context)
       }
@@ -170,7 +170,7 @@ impl Intrinsic {
           Err(_) => ExprKind::Nil,
         };
 
-        context.stack_push(Expr { kind, info: None })?;
+        context.stack_push(kind.into())?;
 
         Ok(context)
       }
@@ -184,7 +184,7 @@ impl Intrinsic {
           Err(_) => ExprKind::Nil,
         };
 
-        context.stack_push(Expr { kind, info: None })?;
+        context.stack_push(kind.into())?;
 
         Ok(context)
       }
@@ -196,7 +196,7 @@ impl Intrinsic {
 
         let kind = ExprKind::Boolean(lhs.kind == rhs.kind);
 
-        context.stack_push(Expr { kind, info: None })?;
+        context.stack_push(kind.into())?;
 
         Ok(context)
       }
@@ -207,7 +207,7 @@ impl Intrinsic {
 
         let kind = ExprKind::Boolean(lhs.kind != rhs.kind);
 
-        context.stack_push(Expr { kind, info: None })?;
+        context.stack_push(kind.into())?;
 
         Ok(context)
       }
@@ -218,7 +218,7 @@ impl Intrinsic {
 
         let kind = ExprKind::Boolean(lhs.kind < rhs.kind);
 
-        context.stack_push(Expr { kind, info: None })?;
+        context.stack_push(kind.into())?;
 
         Ok(context)
       }
@@ -229,7 +229,7 @@ impl Intrinsic {
 
         let kind = ExprKind::Boolean(lhs.kind <= rhs.kind);
 
-        context.stack_push(Expr { kind, info: None })?;
+        context.stack_push(kind.into())?;
 
         Ok(context)
       }
@@ -240,7 +240,7 @@ impl Intrinsic {
 
         let kind = ExprKind::Boolean(lhs.kind > rhs.kind);
 
-        context.stack_push(Expr { kind, info: None })?;
+        context.stack_push(kind.into())?;
 
         Ok(context)
       }
@@ -251,7 +251,7 @@ impl Intrinsic {
 
         let kind = ExprKind::Boolean(lhs.kind >= rhs.kind);
 
-        context.stack_push(Expr { kind, info: None })?;
+        context.stack_push(kind.into())?;
 
         Ok(context)
       }
@@ -264,7 +264,7 @@ impl Intrinsic {
         let kind =
           ExprKind::Boolean(lhs.kind.is_truthy() || rhs.kind.is_truthy());
 
-        context.stack_push(Expr { kind, info: None })?;
+        context.stack_push(kind.into())?;
 
         Ok(context)
       }
@@ -276,7 +276,7 @@ impl Intrinsic {
         let kind =
           ExprKind::Boolean(lhs.kind.is_truthy() && rhs.kind.is_truthy());
 
-        context.stack_push(Expr { kind, info: None })?;
+        context.stack_push(kind.into())?;
 
         Ok(context)
       }
@@ -286,7 +286,7 @@ impl Intrinsic {
 
         let kind = ExprKind::Boolean(!rhs.kind.is_truthy());
 
-        context.stack_push(Expr { kind, info: None })?;
+        context.stack_push(kind.into())?;
 
         Ok(context)
       }
@@ -302,10 +302,7 @@ impl Intrinsic {
           Err(RunError {
             reason: RunErrorReason::AssertionFailed,
             context,
-            expr: Expr {
-              info: None,
-              kind: message.kind,
-            },
+            expr: message.kind.into(),
           })
         }
       }
@@ -382,7 +379,7 @@ impl Intrinsic {
 
         context.stack_push(item.clone())?;
 
-        context.stack_push(Expr { kind, info: None })?;
+        context.stack_push(kind.into())?;
 
         Ok(context)
       }
@@ -408,7 +405,7 @@ impl Intrinsic {
 
         context.stack_push(item.clone())?;
 
-        context.stack_push(Expr { kind, info: None })?;
+        context.stack_push(kind.into())?;
 
         Ok(context)
       }
@@ -423,25 +420,13 @@ impl Intrinsic {
             if (i as usize) < x.len() {
               let rest = x.split_off(i as usize);
 
-              context.stack_push(Expr {
-                kind: ExprKind::List(x),
-                info: None,
-              })?;
+              context.stack_push(ExprKind::List(x).into())?;
 
-              context.stack_push(Expr {
-                kind: ExprKind::List(rest),
-                info: None,
-              })?;
+              context.stack_push(ExprKind::List(rest).into())?;
             } else {
-              context.stack_push(Expr {
-                kind: ExprKind::List(x),
-                info: None,
-              })?;
+              context.stack_push(ExprKind::List(x).into())?;
 
-              context.stack_push(Expr {
-                kind: ExprKind::Nil,
-                info: None,
-              })?;
+              context.stack_push(ExprKind::Nil.into())?;
             }
           }
           (ExprKind::String(mut x), ExprKind::Integer(i)) if i >= 0 => {
@@ -449,39 +434,21 @@ impl Intrinsic {
               Some((i, _)) => {
                 let rest = x.split_off(i);
 
-                context.stack_push(Expr {
-                  kind: ExprKind::String(x),
-                  info: None,
-                })?;
+                context.stack_push(ExprKind::String(x).into())?;
 
-                context.stack_push(Expr {
-                  kind: ExprKind::String(rest),
-                  info: None,
-                })?;
+                context.stack_push(ExprKind::String(rest).into())?;
               }
               None => {
-                context.stack_push(Expr {
-                  kind: ExprKind::String(x),
-                  info: None,
-                })?;
+                context.stack_push(ExprKind::String(x).into())?;
 
-                context.stack_push(Expr {
-                  kind: ExprKind::Nil,
-                  info: None,
-                })?;
+                context.stack_push(ExprKind::Nil.into())?;
               }
             }
           }
           _ => {
-            context.stack_push(Expr {
-              kind: ExprKind::Nil,
-              info: None,
-            })?;
+            context.stack_push(ExprKind::Nil.into())?;
 
-            context.stack_push(Expr {
-              kind: ExprKind::Nil,
-              info: None,
-            })?;
+            context.stack_push(ExprKind::Nil.into())?;
           }
         }
 
@@ -505,7 +472,7 @@ impl Intrinsic {
           _ => ExprKind::Nil,
         };
 
-        context.stack_push(Expr { kind, info: None })?;
+        context.stack_push(kind.into())?;
 
         Ok(context)
       }
@@ -516,10 +483,7 @@ impl Intrinsic {
 
         let kind = match (list.kind.clone(), item.kind.clone()) {
           (ExprKind::List(mut x), i) => {
-            x.push(Expr {
-              kind: i,
-              info: item.info.clone(),
-            });
+            x.push(i.into_expr().with_info(item.info));
             ExprKind::List(x)
           }
           (ExprKind::String(mut x), ExprKind::String(s)) => {
@@ -539,7 +503,7 @@ impl Intrinsic {
           _ => ExprKind::Nil,
         };
 
-        context.stack_push(Expr { kind, info: None })?;
+        context.stack_push(kind.into())?;
 
         Ok(context)
       }
@@ -549,41 +513,23 @@ impl Intrinsic {
 
         match list.kind.clone() {
           ExprKind::List(mut x) => {
-            let e = x.pop().unwrap_or(Expr {
-              kind: ExprKind::Nil,
-              info: None,
-            });
+            let e = x.pop().unwrap_or(ExprKind::Nil.into());
 
-            context.stack_push(Expr {
-              kind: ExprKind::List(x),
-              info: list.info,
-            })?;
+            context.stack_push(ExprKind::List(x).into())?;
             context.stack_push(e)?;
           }
           ExprKind::String(mut x) => {
             let e = x
               .pop()
-              .map(|e| Expr {
-                kind: ExprKind::String(e.to_compact_string()),
-                info: None,
-              })
-              .unwrap_or(Expr {
-                kind: ExprKind::Nil,
-                info: None,
-              });
+              .map(|e| ExprKind::String(e.to_compact_string()).into())
+              .unwrap_or(ExprKind::Nil.into());
 
-            context.stack_push(Expr {
-              kind: ExprKind::String(x),
-              info: list.info,
-            })?;
+            context.stack_push(ExprKind::String(x).into())?;
             context.stack_push(e)?;
           }
           _ => {
             context.stack_push(list.clone())?;
-            context.stack_push(Expr {
-              kind: ExprKind::Nil,
-              info: None,
-            })?;
+            context.stack_push(ExprKind::Nil.into())?;
           }
         }
 
@@ -885,7 +831,7 @@ impl Intrinsic {
           _ => ExprKind::Nil,
         };
 
-        context.stack_push(Expr { kind, info: None })?;
+        context.stack_push(kind.into())?;
 
         Ok(context)
       }
@@ -894,10 +840,7 @@ impl Intrinsic {
       Self::Lazy => {
         let expr = context.stack_pop(&expr)?;
 
-        context.stack_push(Expr {
-          kind: ExprKind::Lazy(Box::new(expr)),
-          info: None,
-        })?;
+        context.stack_push(ExprKind::Lazy(Box::new(expr)).into())?;
 
         Ok(context)
       }
@@ -1055,10 +998,8 @@ impl Intrinsic {
       // MARK: Recur
       // Functionality is implemented in [`Engine::call_fn`]
       Self::Recur => {
-        context.stack_push(Expr {
-          kind: ExprKind::Symbol(Symbol::from_ref("recur")),
-          info: None,
-        })?;
+        context
+          .stack_push(ExprKind::Symbol(Symbol::from_ref("recur")).into())?;
 
         Ok(context)
       }

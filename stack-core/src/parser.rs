@@ -1,7 +1,6 @@
+use compact_str::ToCompactString;
 use core::fmt;
 use std::collections::HashMap;
-
-use compact_str::ToCompactString;
 
 use crate::{
   expr::{Expr, ExprInfo, ExprKind, FnIdent},
@@ -49,6 +48,7 @@ fn parse_expr(lexer: &mut Lexer) -> Result<Expr, ParseError> {
             end: next_token.span.end,
           },
         }),
+        tags: HashMap::new(),
       })
     }
     TokenKind::LeftParen => {
@@ -63,6 +63,7 @@ fn parse_expr(lexer: &mut Lexer) -> Result<Expr, ParseError> {
             end: end_span.end,
           },
         }),
+        tags: HashMap::new(),
       })
     }
 
@@ -94,6 +95,7 @@ fn parse_expr(lexer: &mut Lexer) -> Result<Expr, ParseError> {
           source,
           span: token.span,
         }),
+        tags: HashMap::new(),
       })
     }
     TokenKind::Float => {
@@ -109,6 +111,7 @@ fn parse_expr(lexer: &mut Lexer) -> Result<Expr, ParseError> {
           source,
           span: token.span,
         }),
+        tags: HashMap::new(),
       })
     }
     TokenKind::String => {
@@ -128,6 +131,7 @@ fn parse_expr(lexer: &mut Lexer) -> Result<Expr, ParseError> {
           source,
           span: token.span,
         }),
+        tags: HashMap::new(),
       })
     }
     TokenKind::Symbol => {
@@ -152,6 +156,7 @@ fn parse_expr(lexer: &mut Lexer) -> Result<Expr, ParseError> {
           source,
           span: token.span,
         }),
+        tags: HashMap::new(),
       })
     }
   }
@@ -265,7 +270,7 @@ mod test {
   }
 
   #[case("" => Ok(Vec::<Expr>::new()) ; "empty")]
-  #[case("1" => Ok(vec![Expr { kind: ExprKind::Integer(1), info: Some(ExprInfo { source: s("1"), span: Span { start: 0, end: 1 } }) }]))]
+  #[case("1" => Ok(vec![Expr { kind: ExprKind::Integer(1), info: Some(ExprInfo { source: s("1"), span: Span { start: 0, end: 1 } }), tags: HashMap::new() }]))]
   fn parse(source: &str) -> Result<Vec<Expr>, ParseError> {
     let mut lexer = Lexer::new(s(source));
     super::parse(&mut lexer)

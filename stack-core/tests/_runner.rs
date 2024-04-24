@@ -5,8 +5,8 @@ use stack_core::prelude::*;
 use test_case::case;
 
 #[inline]
-const fn e(kind: ExprKind) -> Expr {
-  Expr { kind, info: None }
+fn e(kind: ExprKind) -> Expr {
+  kind.into()
 }
 
 // TODO: Add tests for missing intrinsics.

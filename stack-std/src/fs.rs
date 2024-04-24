@@ -7,16 +7,16 @@ pub fn module(sandbox: bool) -> Module {
   if !sandbox {
     module
       .add_func(Symbol::from_ref("cwd"), |_, mut context, _| {
-        context.stack_push(Expr {
-          kind: std::env::current_dir()
+        context.stack_push(
+          std::env::current_dir()
             .map(|x| {
               ExprKind::String(
                 x.to_string_lossy().into_owned().to_compact_string(),
               )
             })
-            .unwrap_or(ExprKind::Nil),
-          info: None,
-        })?;
+            .unwrap_or(ExprKind::Nil)
+            .into(),
+        )?;
 
         Ok(context)
       })
@@ -31,7 +31,7 @@ pub fn module(sandbox: bool) -> Module {
           _ => ExprKind::Nil,
         };
 
-        context.stack_push(Expr { kind, info: None })?;
+        context.stack_push(kind.into())?;
 
         Ok(context)
       });
