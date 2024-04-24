@@ -41,6 +41,13 @@ pub enum TokenKind {
   Apostrophe,
   LeftParen,
   RightParen,
+
+  // TODO: We should probably treat `,` as whitespace so that records can contain them:
+  // `{"key" "value", "foo" "bar"}`
+  //
+  // Or, instead, add stricter syntax for both `:` and `,` within records
+  LeftCurly,
+  RightCurly,
   // LeftSquare,
   // RightSquare,
   Integer,
@@ -58,6 +65,8 @@ impl fmt::Display for TokenKind {
       Self::Apostrophe => write!(f, "'"),
       Self::LeftParen => write!(f, "("),
       Self::RightParen => write!(f, ")"),
+      Self::LeftCurly => write!(f, "{{"),
+      Self::RightCurly => write!(f, "}}"),
       // Self::LeftSquare => write!(f, "["),
       // Self::RightSquare => write!(f, "]"),
       Self::Integer => write!(f, "an integer literal"),
@@ -172,6 +181,28 @@ impl Lexer {
 
             break Token {
               kind: TokenKind::RightParen,
+              span: Span {
+                start,
+                end: self.cursor,
+              },
+            };
+          }
+          '{' => {
+            self.cursor += c_len;
+
+            break Token {
+              kind: TokenKind::LeftCurly,
+              span: Span {
+                start,
+                end: self.cursor,
+              },
+            };
+          }
+          '}' => {
+            self.cursor += c_len;
+
+            break Token {
+              kind: TokenKind::RightCurly,
               span: Span {
                 start,
                 end: self.cursor,
