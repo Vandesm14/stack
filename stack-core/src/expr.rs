@@ -299,10 +299,7 @@ impl fmt::Display for ExprKind {
             .chain(core::iter::repeat(", "))
             .zip(x.iter())
             .try_for_each(|(sep, (key, value))| {
-              let key = Expr {
-                info: None,
-                kind: ExprKind::Symbol(*key),
-              };
+              let key: Expr = ExprKind::Symbol(*key).into();
               write!(f, "{sep}{key:#}: {value:#}")
             })?;
 

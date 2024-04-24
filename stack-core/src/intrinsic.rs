@@ -550,17 +550,11 @@ impl Intrinsic {
             let mut new_record = record.clone();
             new_record.insert(symbol, value);
 
-            context.stack_push(Expr {
-              kind: ExprKind::Record(new_record),
-              info: None,
-            })?;
+            context.stack_push(ExprKind::Record(new_record).into())?;
 
             Ok(())
           }
-          _ => context.stack_push(Expr {
-            kind: ExprKind::Nil,
-            info: None,
-          }),
+          _ => context.stack_push(ExprKind::Nil.into()),
         }
         .map(|_| context)
       }
@@ -583,10 +577,7 @@ impl Intrinsic {
 
             Ok(())
           }
-          _ => context.stack_push(Expr {
-            kind: ExprKind::Nil,
-            info: None,
-          }),
+          _ => context.stack_push(ExprKind::Nil.into()),
         }
         .map(|_| context)
       }
@@ -602,17 +593,11 @@ impl Intrinsic {
             let result = r.contains_key(&symbol);
 
             context.stack_push(record.clone())?;
-            context.stack_push(Expr {
-              info: None,
-              kind: ExprKind::Boolean(result),
-            })?;
+            context.stack_push(ExprKind::Boolean(result).into())?;
 
             Ok(())
           }
-          _ => context.stack_push(Expr {
-            kind: ExprKind::Nil,
-            info: None,
-          }),
+          _ => context.stack_push(ExprKind::Nil.into()),
         }
         .map(|_| context)
       }
@@ -628,17 +613,11 @@ impl Intrinsic {
             let mut new_record = record.clone();
             new_record.remove(&symbol);
 
-            context.stack_push(Expr {
-              kind: ExprKind::Record(new_record),
-              info: None,
-            })?;
+            context.stack_push(ExprKind::Record(new_record).into())?;
 
             Ok(())
           }
-          _ => context.stack_push(Expr {
-            kind: ExprKind::Nil,
-            info: None,
-          }),
+          _ => context.stack_push(ExprKind::Nil.into()),
         }
         .map(|_| context)
       }
@@ -658,17 +637,11 @@ impl Intrinsic {
               .collect::<Vec<_>>();
 
             context.stack_push(record.clone())?;
-            context.stack_push(Expr {
-              info: None,
-              kind: ExprKind::List(result),
-            })?;
+            context.stack_push(ExprKind::List(result).into())?;
 
             Ok(())
           }
-          _ => context.stack_push(Expr {
-            kind: ExprKind::Nil,
-            info: None,
-          }),
+          _ => context.stack_push(ExprKind::Nil.into()),
         }
         .map(|_| context)
       }
@@ -681,17 +654,11 @@ impl Intrinsic {
             let result = r.values().cloned().collect::<Vec<_>>();
 
             context.stack_push(record.clone())?;
-            context.stack_push(Expr {
-              info: None,
-              kind: ExprKind::List(result),
-            })?;
+            context.stack_push(ExprKind::List(result).into())?;
 
             Ok(())
           }
-          _ => context.stack_push(Expr {
-            kind: ExprKind::Nil,
-            info: None,
-          }),
+          _ => context.stack_push(ExprKind::Nil.into()),
         }
         .map(|_| context)
       }
@@ -758,16 +725,10 @@ impl Intrinsic {
             (ExprKind::Record(x), "list") => {
               let mut list: Vec<Expr> = Vec::new();
               x.into_iter().for_each(|(key, value)| {
-                list.push(Expr {
-                  info: None,
-                  kind: ExprKind::List(vec![
-                    Expr {
-                      info: None,
-                      kind: ExprKind::Symbol(key),
-                    },
-                    value,
-                  ]),
-                });
+                list.push(
+                  ExprKind::List(vec![ExprKind::Symbol(key).into(), value])
+                    .into(),
+                );
               });
 
               ExprKind::List(list)
