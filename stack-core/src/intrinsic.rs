@@ -373,6 +373,10 @@ impl Intrinsic {
             debug_assert!(len <= i64::MAX as usize);
             ExprKind::Integer(len as i64)
           }
+          ExprKind::Record(ref x) => {
+            debug_assert!(x.len() <= i64::MAX as usize);
+            ExprKind::Integer(x.len() as i64)
+          }
           _ => ExprKind::Nil,
         };
 
