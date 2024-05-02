@@ -12,41 +12,23 @@ pub fn module() -> Module {
       match symbol.kind {
         ExprKind::Symbol(ref x) => {
           if Intrinsic::from_str(x.as_str()).is_ok() {
-            context.stack_push(Expr {
-              kind: ExprKind::String("intrinsic".into()),
-              info: None,
-            })
+            context.stack_push(ExprKind::String("intrinsic".into()).into())
           } else if engine
             .module(&Symbol::new(
               x.as_str().split(':').next().unwrap_or_default().into(),
             ))
             .is_some()
           {
-            context.stack_push(Expr {
-              kind: ExprKind::String("module".into()),
-              info: None,
-            })
+            context.stack_push(ExprKind::String("module".into()).into())
           } else if context.let_get(*x).is_some() {
-            context.stack_push(Expr {
-              kind: ExprKind::String("let".into()),
-              info: None,
-            })
+            context.stack_push(ExprKind::String("let".into()).into())
           } else if context.scope_item(*x).is_some() {
-            context.stack_push(Expr {
-              kind: ExprKind::String("scope".into()),
-              info: None,
-            })
+            context.stack_push(ExprKind::String("scope".into()).into())
           } else {
-            context.stack_push(Expr {
-              kind: ExprKind::Nil,
-              info: None,
-            })
+            context.stack_push(ExprKind::Nil.into())
           }
         }
-        _ => context.stack_push(Expr {
-          kind: ExprKind::Nil,
-          info: None,
-        }),
+        _ => context.stack_push(ExprKind::Nil.into()),
       }
       .map(|_| context)
     })
@@ -55,32 +37,21 @@ pub fn module() -> Module {
         .scope_items()
         .map(|(name, content)| {
           let list: Vec<Expr> = vec![
-            Expr {
-              kind: ExprKind::Symbol(*name),
-              info: None,
-            },
-            Expr {
-              kind: content
-                .borrow()
-                .val()
-                .map(|e| e.kind)
-                .unwrap_or(ExprKind::Nil),
-              info: None,
-            },
+            ExprKind::Symbol(*name).into(),
+            content
+              .borrow()
+              .val()
+              .map(|e| e.kind)
+              .unwrap_or(ExprKind::Nil)
+              .into(),
           ];
 
-          Expr {
-            kind: ExprKind::List(list),
-            info: None,
-          }
+          ExprKind::List(list).into()
         })
         .collect();
 
       context
-        .stack_push(Expr {
-          kind: ExprKind::List(items),
-          info: None,
-        })
+        .stack_push(ExprKind::List(items).into())
         .map(|_| context)
     });
 

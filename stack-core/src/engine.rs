@@ -115,10 +115,9 @@ impl Engine {
             }
             Ok(context)
           } else {
-            context.stack_push(Expr {
-              kind: ExprKind::Error(Error::new("unknown function".into())),
-              info: None,
-            })?;
+            context.stack_push(
+              ExprKind::Error(Error::new("unknown function".into())).into(),
+            )?;
 
             Ok(context)
           }

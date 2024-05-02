@@ -13,6 +13,15 @@ pub struct Expr {
   pub info: Option<ExprInfo>,
 }
 
+impl From<ExprKind> for Expr {
+  fn from(value: ExprKind) -> Self {
+    Self {
+      info: None,
+      kind: value,
+    }
+  }
+}
+
 impl PartialEq for Expr {
   #[inline]
   fn eq(&self, other: &Self) -> bool {
@@ -106,6 +115,26 @@ impl ExprKind {
     match self {
       ExprKind::Lazy(x) => x.kind.unlazy_mut(),
       x => x,
+    }
+  }
+
+  pub fn type_of(&self) -> &str {
+    match self {
+      ExprKind::Nil => "nil",
+      ExprKind::Error(_) => "error",
+
+      ExprKind::Boolean(_) => "boolean",
+      ExprKind::Integer(_) => "integer",
+      ExprKind::Float(_) => "float",
+      ExprKind::String(_) => "string",
+
+      ExprKind::Symbol(_) => "symbol",
+
+      ExprKind::Lazy(_) => "lazy",
+      ExprKind::List(_) => "list",
+      ExprKind::Record(_) => "record",
+
+      ExprKind::Fn(_) => "function",
     }
   }
 }
@@ -270,10 +299,7 @@ impl fmt::Display for ExprKind {
             .chain(core::iter::repeat(", "))
             .zip(x.iter())
             .try_for_each(|(sep, (key, value))| {
-              let key = Expr {
-                info: None,
-                kind: ExprKind::Symbol(*key),
-              };
+              let key: Expr = ExprKind::Symbol(*key).into();
               write!(f, "{sep}{key:#}: {value:#}")
             })?;
 
