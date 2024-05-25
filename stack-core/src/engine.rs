@@ -1,5 +1,8 @@
 use core::{fmt, str::FromStr};
-use std::collections::HashMap;
+use std::{
+  collections::HashMap,
+  time::{Duration, Instant},
+};
 
 use crate::{
   context::Context,
@@ -16,6 +19,8 @@ use crate::{
 #[derive(Debug, Clone, PartialEq, Eq, Default)]
 pub struct Engine {
   modules: HashMap<Symbol, Module>,
+  start_time: Option<Instant>,
+  timeout: Option<Duration>,
 }
 
 #[derive(Debug, Clone, PartialEq)]
@@ -30,6 +35,8 @@ impl Engine {
   pub fn new() -> Self {
     Self {
       modules: HashMap::new(),
+      start_time: None,
+      timeout: None,
     }
   }
 
@@ -62,12 +69,38 @@ impl Engine {
     Ok(context)
   }
 
+  pub fn run_with_timeout(
+    &mut self,
+    mut context: Context,
+    exprs: Vec<Expr>,
+    timeout: Duration,
+  ) -> Result<Context, RunError> {
+    self.start_time = Some(Instant::now());
+    self.timeout = Some(timeout);
+
+    for expr in exprs {
+      context = self.run_expr(context, expr)?;
+    }
+
+    Ok(context)
+  }
+
   #[allow(clippy::only_used_in_recursion)]
   pub fn run_expr(
     &self,
     mut context: Context,
     expr: Expr,
   ) -> Result<Context, RunError> {
+    if let (Some(start_time), Some(timeout)) = (self.start_time, self.timeout) {
+      if start_time.elapsed() > timeout {
+        return Err(RunError {
+          context,
+          expr,
+          reason: RunErrorReason::Timeout,
+        });
+      }
+    }
+
     let expr = Scanner::new(context.scope_mut()).scan(expr).map_err(
       |(expr, reason)| RunError {
         expr,
@@ -274,6 +307,7 @@ pub enum RunErrorReason {
   AssertionFailed,
   Halt,
   InvalidLet,
+  Timeout,
 
   // Scope Errors
   UnknownCall,
@@ -292,6 +326,7 @@ impl fmt::Display for RunErrorReason {
       Self::AssertionFailed => write!(f, "assertion failed"),
       Self::Halt => write!(f, "halt"),
       Self::InvalidLet => write!(f, "invalid let"),
+      Self::Timeout => write!(f, "exceeded timeout"),
       Self::UnknownCall => write!(f, "unknown call"),
       Self::InvalidDefinition => write!(f, "invalid definition"),
       Self::InvalidFunction => write!(f, "invalid function"),
