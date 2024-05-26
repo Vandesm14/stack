@@ -1,9 +1,9 @@
 use core::fmt;
-use std::{cell::RefCell, collections::HashMap, fmt::Formatter, rc::Rc};
+use std::{cell::RefCell, collections::HashMap, fmt::Formatter, sync::Arc};
 
 use crate::{chain::Chain, expr::FnIdent, prelude::*};
 
-pub type Val = Rc<RefCell<Chain<Option<Expr>>>>;
+pub type Val = Arc<RefCell<Chain<Option<Expr>>>>;
 
 #[derive(Default, PartialEq)]
 pub struct Scope {
@@ -50,14 +50,14 @@ impl Scope {
         }
       }
     } else {
-      let val = Rc::new(RefCell::new(Chain::new(Some(item))));
+      let val = Arc::new(RefCell::new(Chain::new(Some(item))));
       self.items.insert(name, val);
     }
   }
 
   pub fn reserve(&mut self, name: Symbol) {
     if self.items.get(&name).is_none() {
-      let val = Rc::new(RefCell::new(Chain::new(None)));
+      let val = Arc::new(RefCell::new(Chain::new(None)));
       self.items.insert(name, val);
     }
   }
