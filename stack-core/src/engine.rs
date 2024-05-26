@@ -30,13 +30,6 @@ pub enum CallResult {
   None,
 }
 
-#[derive(Debug, Clone, PartialEq)]
-pub enum CallResult {
-  Once(Result<Context, RunError>),
-  Recur(Context),
-  None,
-}
-
 impl Engine {
   #[inline]
   pub fn new() -> Self {
