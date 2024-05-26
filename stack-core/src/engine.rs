@@ -176,11 +176,12 @@ impl Engine {
           let fn_ident = vec_fn_symbol(x).unwrap();
           let fn_body = vec_fn_body(x).unwrap();
 
-          let mut context = context;
           let mut _call_result = CallResult::None;
+          let mut is_recur = false;
           loop {
             _call_result =
-              self.call_fn(&expr, fn_ident, fn_body, context, true);
+              self.call_fn(&expr, fn_ident, fn_body, context, is_recur);
+            is_recur = true;
 
             match _call_result {
               CallResult::Recur(c) => context = c,
@@ -228,10 +229,10 @@ impl Engine {
         if context.stack().last().map(|e| &e.kind)
           == Some(&ExprKind::Symbol(Symbol::from_ref("recur")))
         {
-          match context.stack_pop(expr) {
-            Ok(_) => return CallResult::Recur(context),
-            Err(err) => return CallResult::Once(Err(err)),
-          }
+          return match context.stack_pop(expr) {
+            Ok(_) => CallResult::Recur(context),
+            Err(err) => CallResult::Once(Err(err)),
+          };
         }
 
         if fn_ident.scoped {
