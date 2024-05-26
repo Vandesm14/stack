@@ -18,6 +18,13 @@ pub struct Engine {
   modules: HashMap<Symbol, Module>,
 }
 
+#[derive(Debug, Clone, PartialEq)]
+pub enum CallResult {
+  Once(Result<Context, RunError>),
+  Recur(Context),
+  None,
+}
+
 impl Engine {
   #[inline]
   pub fn new() -> Self {
@@ -128,7 +135,19 @@ impl Engine {
           if item.kind.is_function() {
             let fn_ident = item.kind.fn_symbol().unwrap();
             let fn_body = item.kind.fn_body().unwrap();
-            self.call_fn(&expr, fn_ident, fn_body, context, false)
+
+            let mut context = context;
+            let mut _call_result = CallResult::None;
+            loop {
+              _call_result =
+                self.call_fn(&expr, fn_ident, fn_body, context, true);
+
+              match _call_result {
+                CallResult::Recur(c) => context = c,
+                CallResult::Once(result) => return result,
+                CallResult::None => unreachable!(),
+              }
+            }
           } else {
             if let Some(journal) = context.journal_mut() {
               journal.op(JournalOp::Call(expr.clone()));
@@ -156,7 +175,20 @@ impl Engine {
         true => {
           let fn_ident = vec_fn_symbol(x).unwrap();
           let fn_body = vec_fn_body(x).unwrap();
-          self.call_fn(&expr, fn_ident, fn_body, context, false)
+
+          let mut _call_result = CallResult::None;
+          let mut is_recur = false;
+          loop {
+            _call_result =
+              self.call_fn(&expr, fn_ident, fn_body, context, is_recur);
+            is_recur = true;
+
+            match _call_result {
+              CallResult::Recur(c) => context = c,
+              CallResult::Once(result) => return result,
+              CallResult::None => unreachable!(),
+            }
+          }
         }
         false => self.run(context, x.to_vec()),
       },
@@ -173,7 +205,7 @@ impl Engine {
     fn_body: &[Expr],
     mut context: Context,
     is_recur: bool,
-  ) -> Result<Context, RunError> {
+  ) -> CallResult {
     if let Some(journal) = context.journal_mut() {
       journal.op(JournalOp::FnCall(expr.clone()));
     }
@@ -187,7 +219,6 @@ impl Engine {
       journal.op(JournalOp::FnStart(fn_ident.scoped));
     }
 
-    // TODO: we avoided Stack recursion but not Rust recursion...
     match self.run(context, fn_body.to_vec()) {
       Ok(mut context) => {
         if let Some(journal) = context.journal_mut() {
@@ -198,17 +229,19 @@ impl Engine {
         if context.stack().last().map(|e| &e.kind)
           == Some(&ExprKind::Symbol(Symbol::from_ref("recur")))
         {
-          context.stack_pop(expr)?;
-          return self.call_fn(expr, fn_ident, fn_body, context, true);
+          return match context.stack_pop(expr) {
+            Ok(_) => CallResult::Recur(context),
+            Err(err) => CallResult::Once(Err(err)),
+          };
         }
 
         if fn_ident.scoped {
           context.pop_scope();
         }
 
-        Ok(context)
+        CallResult::Once(Ok(context))
       }
-      Err(err) => Err(err),
+      Err(err) => CallResult::Once(Err(err)),
     }
   }
 }
