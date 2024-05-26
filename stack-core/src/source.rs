@@ -1,5 +1,5 @@
 use core::{fmt, num::NonZeroUsize};
-use std::{fs, io, path::Path, rc::Rc};
+use std::{fs, io, path::Path, sync::Arc};
 
 use unicode_segmentation::UnicodeSegmentation;
 
@@ -7,7 +7,7 @@ use unicode_segmentation::UnicodeSegmentation;
 ///
 /// This internally stores an [`Rc`], hence it is *cheap* to clone.
 #[derive(Debug, Clone, PartialEq, Eq)]
-pub struct Source(Rc<SourceInner>);
+pub struct Source(Arc<SourceInner>);
 
 impl Source {
   /// Creates a new [`Source`].
@@ -27,7 +27,7 @@ impl Source {
       )
       .collect::<Vec<_>>();
 
-    Self(Rc::new(SourceInner {
+    Self(Arc::new(SourceInner {
       name,
       source,
       line_starts,

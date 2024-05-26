@@ -1,24 +1,24 @@
 use core::cell::RefCell;
-use std::{borrow::BorrowMut, rc::Rc};
+use std::{borrow::BorrowMut, sync::Arc};
 
 #[derive(Debug, PartialEq, Clone)]
 pub struct Chain<T> {
-  value: Rc<RefCell<T>>,
-  child: Option<Rc<RefCell<Chain<T>>>>,
+  value: Arc<RefCell<T>>,
+  child: Option<Arc<RefCell<Chain<T>>>>,
   root: bool,
 }
 
 impl<T> Chain<T> {
   pub fn new(value: T) -> Self {
     Self {
-      value: Rc::new(RefCell::new(value)),
+      value: Arc::new(RefCell::new(value)),
       child: None,
       root: true,
     }
   }
 
-  pub fn link(&mut self) -> Rc<RefCell<Self>> {
-    let child = Rc::new(RefCell::new(Self {
+  pub fn link(&mut self) -> Arc<RefCell<Self>> {
+    let child = Arc::new(RefCell::new(Self {
       value: self.value.clone(),
       child: None,
       root: false,
@@ -28,7 +28,7 @@ impl<T> Chain<T> {
     child
   }
 
-  pub fn root(&self) -> Rc<RefCell<T>> {
+  pub fn root(&self) -> Arc<RefCell<T>> {
     self.value.clone()
   }
 
@@ -45,7 +45,7 @@ where
     self.value.borrow().clone()
   }
 
-  fn unlink_with_rc(&mut self, value: Rc<RefCell<T>>, new_root: bool) {
+  fn unlink_with_rc(&mut self, value: Arc<RefCell<T>>, new_root: bool) {
     let mut new_root = new_root;
 
     if new_root {
@@ -61,7 +61,7 @@ where
   }
 
   pub fn unlink_with(&mut self, val: T) {
-    self.unlink_with_rc(Rc::new(RefCell::new(val)), true);
+    self.unlink_with_rc(Arc::new(RefCell::new(val)), true);
   }
 
   pub fn set(&mut self, val: T) {
