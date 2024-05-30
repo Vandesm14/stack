@@ -21,6 +21,7 @@ pub struct Engine {
   modules: HashMap<Symbol, Module>,
   start_time: Option<Instant>,
   timeout: Option<Duration>,
+  debug_hook: Option<fn(String)>,
 }
 
 #[derive(Debug, Clone, PartialEq)]
@@ -37,6 +38,7 @@ impl Engine {
       modules: HashMap::new(),
       start_time: None,
       timeout: None,
+      debug_hook: None,
     }
   }
 
@@ -53,8 +55,19 @@ impl Engine {
   }
 
   #[inline]
+  pub fn with_debug_hook(&mut self, debug_hook: Option<fn(String)>) -> &mut Self {
+    self.debug_hook = debug_hook;
+    self
+  }
+
+  #[inline]
   pub fn module(&self, symbol: &Symbol) -> Option<&Module> {
     self.modules.get(symbol)
+  }
+
+  #[inline]
+  pub fn debug_hook(&self) -> Option<fn(String)> {
+    self.debug_hook
   }
 
   pub fn run(
