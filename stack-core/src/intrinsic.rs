@@ -28,6 +28,12 @@ macro_rules! intrinsics {
           $(Self::$ident => $s),*
         }
       }
+
+      /// Returns all of the [`Intrinsic`]s as a <code>&\[&[str]\]</code>.
+      // TODO: Is there a better name than this?
+      pub const fn all_as_slice() -> &'static [&'static str] {
+        &[$($s),*]
+      }
     }
 
     impl FromStr for Intrinsic {
