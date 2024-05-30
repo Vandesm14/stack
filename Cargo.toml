@@ -1,6 +1,6 @@
 [workspace]
 resolver = "2"
-members = ["stack-core", "stack-std", "stack-cli"]
+members = ["stack-core", "stack-std", "stack-cli", "stack-wasm"]
 
 [workspace.dependencies]
 unicode-segmentation = "1"
