@@ -1,4 +1,4 @@
-use js_sys::{Array, Boolean};
+use js_sys::Array;
 use stack_core::prelude::*;
 use wasm_bindgen::prelude::*;
 
