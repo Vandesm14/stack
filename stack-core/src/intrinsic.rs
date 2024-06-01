@@ -920,8 +920,18 @@ impl Intrinsic {
 
       // MARK: Debug
       Self::Debug => {
-        if let Some(debug_hook) = engine.debug_hook(){
-          debug_hook(context.stack().last().cloned().unwrap_or(Expr { kind: ExprKind::Nil, info: None }).to_string());
+        if let Some(debug_hook) = engine.debug_hook() {
+          debug_hook(
+            context
+              .stack()
+              .last()
+              .cloned()
+              .unwrap_or(Expr {
+                kind: ExprKind::Nil,
+                info: None,
+              })
+              .to_string(),
+          );
         }
         Ok(context)
       }
