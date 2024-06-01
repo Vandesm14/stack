@@ -35,7 +35,7 @@ fn main() {
     }
   };
 
-  let mut engine = Engine::new();
+  let mut engine = Engine::new().with_debug_hook(Some(|s| eprintln!("{s}")));
   let mut context = new_context();
 
   #[cfg(feature = "stack-std")]

@@ -108,6 +108,8 @@ intrinsics! {
   Set => "set",
   Get => "get",
 
+  Debug => "debug",
+  // TODO: These will become STD module items.
   Print => "print",
   Pretty => "pretty",
   Recur => "recur",
@@ -916,6 +918,23 @@ impl Intrinsic {
         }
       }
 
+      // MARK: Debug
+      Self::Debug => {
+        if let Some(debug_hook) = engine.debug_hook() {
+          debug_hook(
+            context
+              .stack()
+              .last()
+              .cloned()
+              .unwrap_or(Expr {
+                kind: ExprKind::Nil,
+                info: None,
+              })
+              .to_string(),
+          );
+        }
+        Ok(context)
+      }
       // MARK: Print
       Self::Print => {
         let val = context.stack_pop(&expr)?;
