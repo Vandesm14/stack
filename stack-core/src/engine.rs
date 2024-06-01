@@ -55,7 +55,7 @@ impl Engine {
   }
 
   #[inline]
-  pub fn with_debug_hook(&mut self, debug_hook: Option<fn(String)>) -> &mut Self {
+  pub fn with_debug_hook(mut self, debug_hook: Option<fn(String)>) -> Self {
     self.debug_hook = debug_hook;
     self
   }
