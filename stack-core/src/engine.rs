@@ -182,11 +182,12 @@ impl Engine {
             let fn_ident = item.kind.fn_symbol().unwrap();
             let fn_body = item.kind.fn_body().unwrap();
 
-            let mut context = context;
             let mut _call_result = CallResult::None;
+            let mut is_recur = false;
             loop {
               _call_result =
-                self.call_fn(&expr, fn_ident, fn_body, context, true);
+                self.call_fn(&expr, fn_ident, fn_body, context, is_recur);
+              is_recur = true;
 
               match _call_result {
                 CallResult::Recur(c) => context = c,
