@@ -6,7 +6,7 @@ use eframe::egui;
 use notify::{
   Config, Event, EventKind, RecommendedWatcher, RecursiveMode, Watcher,
 };
-use stack_core::prelude::*;
+use stack_core::{journal::Journal, prelude::*};
 
 #[derive(Debug, Clone, PartialEq, Eq, Default, clap::Parser)]
 #[command(author, version, about, long_about = None)]
@@ -66,7 +66,9 @@ pub fn main() {
     context,
     engine,
     input: cli.input.clone(),
+
     error: None,
+    index: 0,
   };
 
   // Run the program once in the beginning
@@ -94,7 +96,7 @@ pub fn main() {
   eframe::run_native(
     "Stack Debugger",
     native_options,
-    Box::new(move |cc| Box::new(debugger_app)),
+    Box::new(move |_| Box::new(debugger_app)),
   )
   .unwrap();
 }
@@ -119,6 +121,7 @@ pub struct DebuggerApp {
   input: PathBuf,
 
   error: Option<String>,
+  index: usize,
 }
 
 impl DebuggerApp {
@@ -149,6 +152,20 @@ impl DebuggerApp {
         self.context = err.context;
       }
     }
+
+    self.index = self.stack_ops_len();
+  }
+
+  fn stack_ops_len(&self) -> usize {
+    self
+      .context
+      .journal()
+      .as_ref()
+      .unwrap()
+      .ops()
+      .iter()
+      .filter(|op| op.is_stack_based())
+      .count()
   }
 }
 
@@ -165,9 +182,15 @@ impl eframe::App for DebuggerApp {
 
       ui.label(format!(
         "Stack: {}",
-        self.context.stack().iter().enumerate().fold(
-          String::new(),
-          |mut str, (i, expr)| {
+        self
+          .context
+          .journal()
+          .as_ref()
+          .unwrap()
+          .construct_to(self.index)
+          .iter()
+          .enumerate()
+          .fold(String::new(), |mut str, (i, expr)| {
             if i == 0 {
               str.push_str(&format!("{}", expr));
             } else {
@@ -175,9 +198,15 @@ impl eframe::App for DebuggerApp {
             }
 
             str
-          },
-        )
+          },)
       ));
+
+      let max = self.stack_ops_len();
+      ui.add(
+        egui::Slider::new(&mut self.index, 0..=max)
+          .clamp_to_range(true)
+          .text("ops"),
+      );
     });
 
     ctx.request_repaint_after(Duration::from_millis(300));

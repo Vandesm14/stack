@@ -29,6 +29,12 @@ pub enum JournalOp {
   Commit,
 }
 
+impl JournalOp {
+  pub fn is_stack_based(&self) -> bool {
+    matches!(self, Self::Push(_) | Self::Pop(_))
+  }
+}
+
 #[derive(Debug, Clone, PartialEq, PartialOrd)]
 // TODO: implement this as a ring buffer with max_commits so we never go over
 pub struct Journal {
@@ -121,6 +127,10 @@ impl Journal {
     }
   }
 
+  pub fn ops(&self) -> &[JournalOp] {
+    &self.ops
+  }
+
   pub fn op(&mut self, op: JournalOp) {
     if matches!(op, JournalOp::Commit) {
       return self.commit();
@@ -181,5 +191,34 @@ impl Journal {
     }
 
     entries.into_iter().rev().collect::<Vec<_>>()
+  }
+
+  pub fn len(&self) -> usize {
+    self.ops.len()
+  }
+
+  pub fn is_empty(&self) -> bool {
+    self.len() == 0
+  }
+
+  pub fn construct_to(&self, index: usize) -> Vec<Expr> {
+    let mut stack: Vec<Expr> = Vec::new();
+    for (i, op) in self.ops.iter().filter(|op| op.is_stack_based()).enumerate()
+    {
+      if i == index {
+        break;
+      }
+
+      match op {
+        JournalOp::Push(expr) => stack.push(expr.clone()),
+        JournalOp::Pop(_) => {
+          stack.pop();
+        }
+
+        _ => {}
+      };
+    }
+
+    stack
   }
 }
