@@ -1,4 +1,5 @@
 use compact_str::{CompactString, ToCompactString};
+use regex::Regex;
 use stack_core::prelude::*;
 use unicode_segmentation::UnicodeSegmentation;
 
@@ -236,6 +237,27 @@ pub fn module() -> Module {
           .map(ExprKind::String)
           .unwrap_or(ExprKind::Nil),
         _ => ExprKind::Nil,
+      };
+
+      context.stack_push(kind.into())?;
+
+      Ok(context)
+    })
+    .with_func(Symbol::from_ref("regex-test"), |_, mut context, expr| {
+      let pattern = context.stack_pop(&expr)?;
+      let string = context.stack_pop(&expr)?;
+
+      let kind = match (string.kind, pattern.kind) {
+        (ExprKind::String(ref string), ExprKind::String(ref pattern)) => {
+          let re = Regex::new(pattern);
+          match re {
+            Ok(re) => ExprKind::Boolean(re.captures(string).is_some()),
+            Err(err) => {
+              todo!()
+            }
+          }
+        }
+        (_, _) => ExprKind::Nil,
       };
 
       context.stack_push(kind.into())?;
