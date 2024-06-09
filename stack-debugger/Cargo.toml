@@ -14,5 +14,5 @@ stack-core = { path = "../stack-core" }
 stack-std = { path = "../stack-std", optional = true }
 
 [[bin]]
-name = "stack"
+name = "stack-debugger"
 path = "src/main.rs"
