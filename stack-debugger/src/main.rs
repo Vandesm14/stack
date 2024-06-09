@@ -1,24 +1,11 @@
 use core::fmt;
-use std::{
-  io::{self, prelude::Write, Read},
-  path::{Path, PathBuf},
-  sync::mpsc,
-  time::Duration,
-};
+use std::{path::PathBuf, sync::mpsc, time::Duration};
 
 use clap::Parser;
-use crossterm::{
-  cursor::{self, MoveTo},
-  style::Print,
-  terminal, QueueableCommand,
-};
-use eframe::egui::{
-  self, text::LayoutJob, Align, Color32, FontSelection, RichText, Style,
-};
+use eframe::egui;
 use notify::{
   Config, Event, EventKind, RecommendedWatcher, RecursiveMode, Watcher,
 };
-use reedline::{DefaultPrompt, DefaultPromptSegment, Reedline, Signal};
 use stack_core::prelude::*;
 
 #[derive(Debug, Clone, PartialEq, Eq, Default, clap::Parser)]
@@ -166,7 +153,7 @@ impl DebuggerApp {
 }
 
 impl eframe::App for DebuggerApp {
-  fn update(&mut self, ctx: &egui::Context, frame: &mut eframe::Frame) {
+  fn update(&mut self, ctx: &egui::Context, _: &mut eframe::Frame) {
     if self.do_reload.try_iter().last().is_some() {
       self.reload();
     }

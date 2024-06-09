@@ -3147,10 +3147,8 @@ name = "stack-debugger"
 version = "0.1.0"
 dependencies = [
  "clap",
- "crossterm",
  "eframe",
  "notify",
- "reedline",
  "stack-core",
  "stack-std",
 ]

@@ -5,9 +5,7 @@ edition = "2021"
 
 [dependencies]
 clap.workspace = true
-reedline = { version = "0.31.0", features = ["system_clipboard"] }
 notify = "6"
-crossterm = "0.27.0"
 eframe = { version = "0.27.2" }
 
 stack-core = { path = "../stack-core" }
