@@ -409,4 +409,52 @@ mod tests {
       vec![&ExprKind::Integer(0),]
     );
   }
+
+  #[test]
+  fn setting_fn_to_var_preserves_scope() {
+    let source = Source::new(
+      "",
+      "'(fn 1 'a def 'f def f) 'test def (fn 0 'a def '(fn a)) test",
+    );
+    let mut lexer = Lexer::new(source);
+    let exprs = crate::parser::parse(&mut lexer).unwrap();
+
+    let engine = Engine::new();
+    let mut context = Context::new().with_stack_capacity(32);
+    context = engine.run(context, exprs).unwrap();
+
+    assert_eq!(context.scope_item(Symbol::new("a".into())), None);
+    assert_eq!(
+      context
+        .stack()
+        .iter()
+        .map(|expr| &expr.kind)
+        .collect::<Vec<_>>(),
+      vec![&ExprKind::Integer(0),]
+    );
+  }
+
+  #[test]
+  fn calling_function_with_same_var_preserves_scope() {
+    let source = Source::new(
+      "",
+      "'(fn 1 'a def call) 'test def (fn 0 'a def '(fn a)) test",
+    );
+    let mut lexer = Lexer::new(source);
+    let exprs = crate::parser::parse(&mut lexer).unwrap();
+
+    let engine = Engine::new();
+    let mut context = Context::new().with_stack_capacity(32);
+    context = engine.run(context, exprs).unwrap();
+
+    assert_eq!(context.scope_item(Symbol::new("a".into())), None);
+    assert_eq!(
+      context
+        .stack()
+        .iter()
+        .map(|expr| &expr.kind)
+        .collect::<Vec<_>>(),
+      vec![&ExprKind::Integer(0),]
+    );
+  }
 }
