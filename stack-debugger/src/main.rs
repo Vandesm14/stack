@@ -3,6 +3,7 @@ use std::{
   io::{self, prelude::Write, Read},
   path::{Path, PathBuf},
   sync::mpsc,
+  time::Duration,
 };
 
 use clap::Parser;
@@ -11,7 +12,9 @@ use crossterm::{
   style::Print,
   terminal, QueueableCommand,
 };
-use eframe::egui;
+use eframe::egui::{
+  self, text::LayoutJob, Align, Color32, FontSelection, RichText, Style,
+};
 use notify::{
   Config, Event, EventKind, RecommendedWatcher, RecursiveMode, Watcher,
 };
@@ -71,12 +74,16 @@ pub fn main() {
 
   let (tx, rx) = mpsc::channel();
 
-  let debugger_app = DebuggerApp {
+  let mut debugger_app = DebuggerApp {
     do_reload: rx,
     context,
-    engine: Engine::new(),
+    engine,
     input: cli.input.clone(),
+    error: None,
   };
+
+  // Run the program once in the beginning
+  debugger_app.reload();
 
   std::thread::spawn(move || {
     let (watcher_tx, watcher_rx) = mpsc::channel();
@@ -123,6 +130,8 @@ pub struct DebuggerApp {
   context: Context,
   engine: Engine,
   input: PathBuf,
+
+  error: Option<String>,
 }
 
 impl DebuggerApp {
@@ -131,9 +140,7 @@ impl DebuggerApp {
 
     let source = match Source::from_path(&self.input) {
       Ok(source) => source,
-      Err(e) => {
-        todo!("{e}")
-      }
+      Err(e) => return self.error = Some(e.to_string()),
     };
 
     context.add_source(source.clone());
@@ -142,26 +149,50 @@ impl DebuggerApp {
 
     let exprs = match parse(&mut lexer) {
       Ok(exprs) => exprs,
-      Err(e) => {
-        todo!("{e}")
-      }
+      Err(e) => return self.error = Some(e.to_string()),
     };
 
     match self.engine.run(context, exprs) {
-      Ok(context) => self.context = context,
-      Err(err) => todo!("{err}"),
+      Ok(context) => {
+        self.context = context;
+        self.error = None
+      }
+      Err(err) => {
+        self.error = Some(err.to_string().clone());
+        self.context = err.context;
+      }
     }
   }
 }
 
 impl eframe::App for DebuggerApp {
   fn update(&mut self, ctx: &egui::Context, frame: &mut eframe::Frame) {
-    if self.do_reload.try_recv().is_ok() {
+    if self.do_reload.try_iter().last().is_some() {
       self.reload();
     }
 
     egui::CentralPanel::default().show(ctx, |ui| {
-      ui.heading("Hello World!");
+      if let Some(err) = &self.error {
+        ui.label(format!("Error: {err}"));
+      }
+
+      ui.label(format!(
+        "Stack: {}",
+        self.context.stack().iter().enumerate().fold(
+          String::new(),
+          |mut str, (i, expr)| {
+            if i == 0 {
+              str.push_str(&format!("{}", expr));
+            } else {
+              str.push_str(&format!(", {}", expr));
+            }
+
+            str
+          },
+        )
+      ));
     });
+
+    ctx.request_repaint_after(Duration::from_millis(300));
   }
 }
