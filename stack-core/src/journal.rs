@@ -4,15 +4,41 @@ use std::mem;
 use crate::expr::Expr;
 
 #[derive(Debug, Clone, PartialEq, PartialOrd, Default)]
-struct JournalEntry {
-  ops: Vec<JournalOp>,
-  scope: usize,
-  scoped: bool,
+pub struct JournalEntry {
+  pub index: usize,
+  pub ops: Vec<JournalOp>,
+  pub scope: usize,
+  pub scoped: bool,
+}
+
+impl fmt::Display for JournalEntry {
+  fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+    core::iter::once("")
+      .chain(core::iter::repeat(", "))
+      .zip(self.ops.iter())
+      .try_for_each(|(sep, op)| {
+        if f.alternate() {
+          write!(f, "{sep}{op:#}")
+        } else {
+          write!(f, "{sep}{op}")
+        }
+      })
+  }
 }
 
 impl JournalEntry {
-  fn new(ops: Vec<JournalOp>, scope: usize, scoped: bool) -> Self {
-    Self { ops, scope, scoped }
+  pub fn new(
+    index: usize,
+    ops: Vec<JournalOp>,
+    scope: usize,
+    scoped: bool,
+  ) -> Self {
+    Self {
+      index,
+      ops,
+      scope,
+      scoped,
+    }
   }
 }
 
@@ -27,6 +53,28 @@ pub enum JournalOp {
   FnEnd,
 
   Commit,
+}
+
+impl fmt::Display for JournalOp {
+  fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+    if f.alternate() {
+      match self {
+        Self::Call(call) => write!(f, "call({call})"),
+        Self::FnCall(fn_call) => write!(f, "fn({fn_call})"),
+        Self::Push(push) => write!(f, "push({push})"),
+        Self::Pop(pop) => write!(f, "pop({pop})"),
+        _ => write!(f, ""),
+      }
+    } else {
+      match self {
+        Self::Call(call) => write!(f, "{call}"),
+        Self::FnCall(fn_call) => write!(f, "{fn_call}"),
+        Self::Push(push) => write!(f, "{push}"),
+        Self::Pop(pop) => write!(f, "{pop}"),
+        _ => write!(f, ""),
+      }
+    }
+  }
 }
 
 impl JournalOp {
@@ -58,7 +106,7 @@ impl fmt::Display for Journal {
     for (i, entry) in entries.iter().enumerate() {
       let mut line = String::new();
       let mut should_print = false;
-      for op in entry.ops.iter() {
+      for op in self.ops.iter() {
         if !line.is_empty() {
           line.push(' ');
         }
@@ -153,7 +201,11 @@ impl Journal {
     self.commits.clear();
   }
 
-  fn entries(&self, max_commits: usize) -> Vec<JournalEntry> {
+  pub fn all_entries(&self) -> Vec<JournalEntry> {
+    self.entries(self.len())
+  }
+
+  pub fn entries(&self, max_commits: usize) -> Vec<JournalEntry> {
     let mut entries: Vec<JournalEntry> = Vec::new();
 
     let start = match max_commits >= self.commits.len() {
@@ -168,10 +220,12 @@ impl Journal {
     let mut scope = 0;
     let mut ops: Vec<JournalOp> = Vec::new();
     let mut scoped: Vec<bool> = vec![true];
-    for op in self.ops.iter().skip(start) {
+
+    for (i, op) in self.ops.iter().enumerate().skip(start) {
       match op {
         JournalOp::Commit => {
           entries.push(JournalEntry::new(
+            i,
             ops,
             scope,
             *scoped.last().unwrap_or(&true),
@@ -203,8 +257,7 @@ impl Journal {
 
   pub fn construct_to(&self, index: usize) -> Vec<Expr> {
     let mut stack: Vec<Expr> = Vec::new();
-    for (i, op) in self.ops.iter().filter(|op| op.is_stack_based()).enumerate()
-    {
+    for (i, op) in self.ops.iter().enumerate() {
       if i == index {
         break;
       }

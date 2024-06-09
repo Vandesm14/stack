@@ -1,5 +1,5 @@
 use core::fmt;
-use std::{path::PathBuf, sync::mpsc, time::Duration};
+use std::{fmt::format, path::PathBuf, sync::mpsc, time::Duration};
 
 use clap::Parser;
 use eframe::egui;
@@ -153,19 +153,11 @@ impl DebuggerApp {
       }
     }
 
-    self.index = self.stack_ops_len();
+    self.index = self.stack_ops_len().saturating_sub(1);
   }
 
   fn stack_ops_len(&self) -> usize {
-    self
-      .context
-      .journal()
-      .as_ref()
-      .unwrap()
-      .ops()
-      .iter()
-      .filter(|op| op.is_stack_based())
-      .count()
+    self.context.journal().as_ref().unwrap().all_entries().len()
   }
 }
 
@@ -180,6 +172,11 @@ impl eframe::App for DebuggerApp {
         ui.label(format!("Error: {err}"));
       }
 
+      let mut entries = self.context.journal().as_ref().unwrap().all_entries();
+      entries.reverse();
+
+      let entry = entries.get(self.index);
+
       ui.label(format!(
         "Stack: {}",
         self
@@ -187,7 +184,7 @@ impl eframe::App for DebuggerApp {
           .journal()
           .as_ref()
           .unwrap()
-          .construct_to(self.index)
+          .construct_to(entry.map(|entry| entry.index).unwrap_or_default())
           .iter()
           .enumerate()
           .fold(String::new(), |mut str, (i, expr)| {
@@ -201,7 +198,13 @@ impl eframe::App for DebuggerApp {
           },)
       ));
 
-      let max = self.stack_ops_len();
+      ui.label(
+        entry
+          .map(|entry| format!("{:#}", entry))
+          .unwrap_or_default(),
+      );
+
+      let max = self.stack_ops_len().saturating_sub(1);
       ui.add(
         egui::Slider::new(&mut self.index, 0..=max)
           .clamp_to_range(true)
