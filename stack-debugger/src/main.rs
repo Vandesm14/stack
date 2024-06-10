@@ -49,7 +49,6 @@ pub fn main() {
   let context = Context::new().with_journal(None);
 
   let (print_tx, print_rx) = mpsc::channel();
-
   let debug_tx = print_tx.clone();
 
   let mut engine = Engine::new()
