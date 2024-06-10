@@ -123,23 +123,35 @@ impl fmt::Display for Journal {
         }
 
         match op {
-          JournalOp::Call(call) => {
-            line.push_str(&format!("{}", call.white()));
+          JournalOp::Call(x) => {
+            line.push_str(&format!(
+              "{}",
+              if f.alternate() { x.white() } else { x.new() }
+            ));
 
             should_print = true;
           }
-          JournalOp::FnCall(fn_call) => {
-            line.push_str(&format!("{}", fn_call.yellow()));
+          JournalOp::FnCall(x) => {
+            line.push_str(&format!(
+              "{}",
+              if f.alternate() { x.yellow() } else { x.new() }
+            ));
 
             should_print = true;
           }
-          JournalOp::Push(push) => {
-            line.push_str(&format!("{}", push.green()));
+          JournalOp::Push(x) => {
+            line.push_str(&format!(
+              "{}",
+              if f.alternate() { x.green() } else { x.new() }
+            ));
 
             should_print = true;
           }
-          JournalOp::Pop(pop) => {
-            line.push_str(&format!("{}", pop.red()));
+          JournalOp::Pop(x) => {
+            line.push_str(&format!(
+              "{}",
+              if f.alternate() { x.red() } else { x.new() }
+            ));
 
             should_print = true;
           }
