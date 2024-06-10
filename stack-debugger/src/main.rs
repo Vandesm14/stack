@@ -363,6 +363,6 @@ impl eframe::App for DebuggerApp {
       });
     });
 
-    ctx.request_repaint_after(Duration::from_millis(300));
+    ctx.request_repaint_after(Duration::from_secs_f32(1.0 / 15.0));
   }
 }
