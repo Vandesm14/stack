@@ -18,8 +18,7 @@ pub fn module(tx: mpsc::Sender<PrintOut>) -> Module {
             .journal()
             .as_ref()
             .map(|j| j.total_commits())
-            .unwrap_or_default()
-            .saturating_sub(2),
+            .unwrap_or_default(),
           val.to_string(),
         ))
         .unwrap();
@@ -36,8 +35,7 @@ pub fn module(tx: mpsc::Sender<PrintOut>) -> Module {
               .journal()
               .as_ref()
               .map(|j| j.total_commits())
-              .unwrap_or_default()
-              .saturating_sub(1),
+              .unwrap_or_default(),
           ))
           .unwrap();
 
