@@ -1,15 +1,9 @@
 use core::fmt;
-use std::{
-  env,
-  path::{self, PathBuf},
-  sync::mpsc,
-  time::Duration,
-};
+use std::{path::PathBuf, sync::mpsc, time::Duration};
 
 use clap::Parser;
 use eframe::egui::{
-  self, text::LayoutJob, Align, Color32, FontSelection, Hyperlink, RichText,
-  Style, Visuals,
+  self, text::LayoutJob, Align, Color32, FontSelection, RichText, Style,
 };
 use notify::{
   Config, Event, EventKind, RecommendedWatcher, RecursiveMode, Watcher,
@@ -294,7 +288,6 @@ fn string_with_quotes(expr: &Expr) -> String {
 fn paint_op(op: &JournalOp, layout_job: &mut LayoutJob) {
   let green = Color32::from_hex(GREEN).unwrap();
   let red = Color32::from_hex(RED).unwrap();
-  let blue = Color32::from_hex(BLUE).unwrap();
   let yellow = Color32::from_hex(YELLOW).unwrap();
 
   match op {
