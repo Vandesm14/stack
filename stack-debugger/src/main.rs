@@ -217,6 +217,10 @@ impl eframe::App for DebuggerApp {
         ui.label(format!("Error: {err}"));
       }
 
+      if ui.button("Restart").clicked() {
+        self.reload();
+      }
+
       let mut entries = self.context.journal().as_ref().unwrap().all_entries();
       entries.reverse();
 
@@ -285,13 +289,9 @@ impl eframe::App for DebuggerApp {
       }
       ui.label(layout_job);
 
-      if ui.button("Restart").clicked() {
-        self.reload();
-      }
-
       let max = self.stack_ops_len().saturating_sub(1);
       ui.horizontal(|ui| {
-        ui.spacing_mut().slider_width = ui.available_width() - 100.0;
+        ui.spacing_mut().slider_width = ui.available_width() - 80.0;
         ui.add(
           egui::Slider::new(&mut self.index, 0..=max)
             .clamp_to_range(true)
