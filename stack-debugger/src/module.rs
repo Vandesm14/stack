@@ -29,11 +29,11 @@ pub fn module(tx: mpsc::Sender<String>) -> Module {
       }),
     )
     .add_func(
-      Symbol::from_ref("here"),
+      Symbol::from_ref("mark"),
       Arc::new(move |_, context, _| {
         tx2
           .send(format!(
-            "dbg:here op({})",
+            "dbg:mark op({})",
             context
               .journal()
               .as_ref()
