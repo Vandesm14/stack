@@ -81,6 +81,17 @@ impl JournalOp {
   pub fn is_stack_based(&self) -> bool {
     matches!(self, Self::Push(_) | Self::Pop(_))
   }
+
+  pub fn expr(&self) -> Option<&Expr> {
+    match self {
+      Self::Call(expr) => Some(expr),
+      Self::FnCall(expr) => Some(expr),
+      Self::Push(expr) => Some(expr),
+      Self::Pop(expr) => Some(expr),
+
+      _ => None,
+    }
+  }
 }
 
 #[derive(Debug, Clone, PartialEq, PartialOrd)]

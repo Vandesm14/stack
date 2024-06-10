@@ -1,12 +1,12 @@
 use core::fmt;
-use std::{fmt::format, path::PathBuf, sync::mpsc, time::Duration};
+use std::{path::PathBuf, sync::mpsc, time::Duration};
 
 use clap::Parser;
 use eframe::egui;
 use notify::{
   Config, Event, EventKind, RecommendedWatcher, RecursiveMode, Watcher,
 };
-use stack_core::{journal::Journal, prelude::*};
+use stack_core::prelude::*;
 
 #[derive(Debug, Clone, PartialEq, Eq, Default, clap::Parser)]
 #[command(author, version, about, long_about = None)]
@@ -198,18 +198,39 @@ impl eframe::App for DebuggerApp {
           },)
       ));
 
-      ui.label(
+      ui.label(format!(
+        "Commit: {}",
         entry
           .map(|entry| format!("{:#}", entry))
           .unwrap_or_default(),
-      );
+      ));
+
+      let location = || {
+        if let Some(entry) = entry {
+          if let Some(first) = entry.ops.first() {
+            if let Some(expr) = first.expr() {
+              if let Some(info) = expr.info.clone() {
+                if let Some(location) = info.source.location(info.span.start) {
+                  return format!("{}:{}", info.source.name(), location);
+                }
+              }
+            }
+          }
+        }
+
+        String::new()
+      };
+
+      ui.label(format!("Location: {}", location()));
 
       let max = self.stack_ops_len().saturating_sub(1);
-      ui.add(
-        egui::Slider::new(&mut self.index, 0..=max)
-          .clamp_to_range(true)
-          .text("ops"),
-      );
+      ui.horizontal(|ui| {
+        ui.add(
+          egui::Slider::new(&mut self.index, 0..=max)
+            .clamp_to_range(true)
+            .text("ops"),
+        );
+      });
     });
 
     ctx.request_repaint_after(Duration::from_millis(300));
