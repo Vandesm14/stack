@@ -308,8 +308,6 @@ impl eframe::App for DebuggerApp {
           .trim_to(self.index)
           .to_string(),
       );
-
-      // TODO: Print out the entire journal like we are in `stack-cli` (nested list)
     });
 
     ctx.request_repaint_after(Duration::from_millis(300));
