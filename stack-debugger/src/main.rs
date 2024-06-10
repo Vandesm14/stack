@@ -1,12 +1,13 @@
 use core::fmt;
 use std::{
+  ops::Add,
   path::PathBuf,
   sync::{mpsc, Arc},
   time::Duration,
 };
 
 use clap::Parser;
-use eframe::egui::{self, text::LayoutJob, Color32, RichText};
+use eframe::egui::{self, text::LayoutJob, Color32, RichText, ScrollArea};
 use notify::{
   Config, Event, EventKind, RecommendedWatcher, RecursiveMode, Watcher,
 };
@@ -217,9 +218,28 @@ impl eframe::App for DebuggerApp {
         ui.label(format!("Error: {err}"));
       }
 
-      if ui.button("Restart").clicked() {
-        self.reload();
-      }
+      ui.horizontal(|ui| {
+        if ui.button("Reload").clicked() {
+          self.reload();
+        }
+
+        if ui.button("<|").clicked() {
+          self.index = 0;
+        }
+        if ui.button("<").clicked() {
+          self.index = self.index.saturating_sub(1);
+        }
+
+        if ui.button(">").clicked() {
+          self.index = self
+            .index
+            .add(1)
+            .min(self.stack_ops_len().saturating_sub(1));
+        }
+        if ui.button("|>").clicked() {
+          self.index = self.stack_ops_len().saturating_sub(1);
+        }
+      });
 
       let mut entries = self.context.journal().as_ref().unwrap().all_entries();
       entries.reverse();
@@ -299,15 +319,17 @@ impl eframe::App for DebuggerApp {
         )
       });
 
-      ui.monospace(
-        self
-          .context
-          .journal()
-          .clone()
-          .unwrap()
-          .trim_to(self.index)
-          .to_string(),
-      );
+      ScrollArea::vertical().show(ui, |ui| {
+        ui.monospace(
+          self
+            .context
+            .journal()
+            .clone()
+            .unwrap()
+            .trim_to(self.index)
+            .to_string(),
+        );
+      });
     });
 
     ctx.request_repaint_after(Duration::from_millis(300));
