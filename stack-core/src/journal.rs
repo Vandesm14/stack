@@ -1,7 +1,7 @@
 use core::fmt;
 use std::mem;
 
-use crate::expr::Expr;
+use crate::expr::{Expr, ExprKind};
 
 #[derive(Debug, Clone, PartialEq, PartialOrd, Default)]
 pub struct JournalEntry {
@@ -277,6 +277,19 @@ impl Journal {
         JournalOp::Push(expr) => stack.push(expr.clone()),
         JournalOp::Pop(_) => {
           stack.pop();
+        }
+        JournalOp::FnCall(expr) => {
+          if let ExprKind::Symbol(symbol) = expr.kind {
+            let len = stack.len();
+            match symbol.as_str() {
+              "swap" => stack.swap(len - 1, len - 2),
+              "rot" => {
+                stack.swap(len - 1, len - 3);
+                stack.swap(len - 2, len - 3);
+              }
+              _ => {}
+            }
+          }
         }
 
         _ => {}
