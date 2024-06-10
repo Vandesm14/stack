@@ -197,34 +197,52 @@ impl eframe::App for DebuggerApp {
       self.reload();
     }
 
+    egui::SidePanel::left("io_hooks").show(ctx, |ui| {
+      ui.heading("Contents");
+      ui.add_space(10.0);
+
+      let row_height = ui.text_style_height(&egui::TextStyle::Body);
+
+      egui::ScrollArea::vertical().show_rows(
+        ui,
+        row_height,
+        self.prints.len(),
+        |ui, index| {
+          for text in self.prints.get(index).unwrap_or_default() {
+            match text {
+              IOHookEvent::Print(text) => {
+                ui.label(text);
+              }
+              IOHookEvent::Marker(op) => {
+                if ui.link(format!("mark at {op}")).clicked() {
+                  self.index = *op;
+                }
+              }
+              IOHookEvent::Note(op, text) => {
+                if ui
+                  .link(format!("note at {op}"))
+                  .on_hover_text(text)
+                  .clicked()
+                {
+                  self.index = *op;
+                }
+              }
+              IOHookEvent::GoTo(op) => {
+                if ui.link(format!("goto at {op}")).clicked() {
+                  self.index = *op;
+                }
+              }
+            };
+          }
+        },
+      );
+    });
+
     egui::CentralPanel::default().show(ctx, |ui| {
       ctx.set_pixels_per_point(1.2);
 
-      for text in self.prints.iter() {
-        match text {
-          IOHookEvent::Print(text) => {
-            ui.label(text);
-          }
-          IOHookEvent::Marker(op) => {
-            if ui.button(format!("dbg:mark op({op})")).clicked() {
-              self.index = *op;
-            }
-          }
-          IOHookEvent::Note(op, string) => {
-            if ui.button(format!("dbg:note op({op}) {string}")).clicked() {
-              self.index = *op;
-            }
-          }
-          IOHookEvent::GoTo(op) => {
-            if ui.button(format!("dbg:goto op({op})")).clicked() {
-              self.index = *op;
-            }
-          }
-        };
-      }
-
       if !self.prints.is_empty() {
-        ui.label("");
+        ui.add_space(10.0);
       }
 
       if let Some(err) = &self.error {
