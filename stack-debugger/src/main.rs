@@ -1,10 +1,15 @@
 use core::fmt;
-use std::{path::PathBuf, sync::mpsc, time::Duration};
+use std::{
+  env,
+  path::{self, PathBuf},
+  sync::mpsc,
+  time::Duration,
+};
 
 use clap::Parser;
 use eframe::egui::{
-  self, text::LayoutJob, Align, Color32, FontSelection, RichText, Style,
-  Visuals,
+  self, text::LayoutJob, Align, Color32, FontSelection, Hyperlink, RichText,
+  Style, Visuals,
 };
 use notify::{
   Config, Event, EventKind, RecommendedWatcher, RecursiveMode, Watcher,
@@ -396,28 +401,25 @@ impl eframe::App for DebuggerApp {
       }
       ui.label(layout_job);
 
-      let location = || {
-        if let Some(entry) = entry {
-          if let Some(first) = entry.ops.first() {
-            if let Some(expr) = first.expr() {
-              if let Some(info) = expr.info.clone() {
-                if let Some(location) = info.source.location(info.span.start) {
-                  return format!("{}:{}", info.source.name(), location);
-                }
-              }
-            }
-          }
-        }
-
-        String::new()
-      };
-
       let mut layout_job = LayoutJob::default();
       append_to_job(
         RichText::new("Location: ").strong().color(Color32::WHITE),
         &mut layout_job,
       );
-      append_to_job(RichText::new(location()), &mut layout_job);
+      if let Some(entry) = entry {
+        if let Some(first) = entry.ops.first() {
+          if let Some(expr) = first.expr() {
+            if let Some(info) = expr.info.clone() {
+              if let Some(location) = info.source.location(info.span.start) {
+                append_to_job(
+                  RichText::new(format!("{}:{}", info.source.name(), location)),
+                  &mut layout_job,
+                );
+              }
+            }
+          }
+        }
+      }
       ui.label(layout_job);
 
       let max = self.stack_ops_len().saturating_sub(1);
