@@ -2,7 +2,9 @@ use core::fmt;
 use std::{path::PathBuf, sync::mpsc, time::Duration};
 
 use clap::Parser;
-use eframe::egui;
+use eframe::egui::{
+  self, text::LayoutJob, Align, Color32, FontSelection, RichText, Style,
+};
 use notify::{
   Config, Event, EventKind, RecommendedWatcher, RecursiveMode, Watcher,
 };
@@ -161,6 +163,86 @@ impl DebuggerApp {
   }
 }
 
+fn append_to_job(text: RichText, layout_job: &mut LayoutJob) {
+  text.append_to(
+    layout_job,
+    &Style::default(),
+    FontSelection::Default,
+    Align::Center,
+  )
+}
+
+fn paint_expr(expr: &Expr, layout_job: &mut LayoutJob) {
+  let green = Color32::from_hex("#16C60C").unwrap();
+  let red = Color32::from_hex("#E74856").unwrap();
+  let blue = Color32::from_hex("#3B78FF").unwrap();
+  let yellow = Color32::from_hex("#C19C00").unwrap();
+
+  match &expr.kind {
+    ExprKind::Nil => {
+      append_to_job(RichText::new("nil").color(green), layout_job)
+    }
+    ExprKind::Error(x) => append_to_job(
+      RichText::new(format!("error({})", x)).color(red),
+      layout_job,
+    ),
+    ExprKind::Boolean(x) => {
+      append_to_job(RichText::new(x.to_string()).color(green), layout_job)
+    }
+    ExprKind::Integer(x) => {
+      append_to_job(RichText::new(x.to_string()).color(blue), layout_job)
+    }
+    ExprKind::Float(x) => {
+      append_to_job(RichText::new(x.to_string()).color(blue), layout_job)
+    }
+    ExprKind::String(x) => {
+      append_to_job(RichText::new(format!("\"{x}\"")).color(green), layout_job)
+    }
+
+    ExprKind::Symbol(x) => {
+      append_to_job(RichText::new(x.to_string()).color(blue), layout_job)
+    }
+
+    ExprKind::Lazy(x) => {
+      append_to_job(RichText::new("'").color(yellow), layout_job);
+      paint_expr(x, layout_job)
+    }
+    ExprKind::List(x) => {
+      append_to_job(RichText::new("("), layout_job);
+
+      for (sep, x) in core::iter::once("")
+        .chain(core::iter::repeat(" "))
+        .zip(x.iter())
+      {
+        append_to_job(RichText::new(sep), layout_job);
+        paint_expr(x, layout_job);
+      }
+
+      append_to_job(RichText::new(")"), layout_job);
+    }
+    ExprKind::Record(x) => {
+      append_to_job(RichText::new("{"), layout_job);
+
+      for (sep, (key, value)) in core::iter::once("")
+        .chain(core::iter::repeat(", "))
+        .zip(x.iter())
+      {
+        let key: Expr = ExprKind::Symbol(*key).into();
+        append_to_job(RichText::new(sep), layout_job);
+        paint_expr(&key, layout_job);
+        append_to_job(RichText::new(": "), layout_job);
+        paint_expr(value, layout_job);
+      }
+
+      append_to_job(RichText::new("}"), layout_job);
+    }
+
+    ExprKind::Fn(x) => {
+      append_to_job(RichText::new(x.to_string()).color(yellow), layout_job)
+    }
+  }
+}
+
 impl eframe::App for DebuggerApp {
   fn update(&mut self, ctx: &egui::Context, _: &mut eframe::Frame) {
     if self.do_reload.try_iter().last().is_some() {
@@ -179,26 +261,28 @@ impl eframe::App for DebuggerApp {
 
       let entry = entries.get(self.index);
 
-      ui.label(format!(
-        "Stack: {}",
-        self
-          .context
-          .journal()
-          .as_ref()
-          .unwrap()
-          .construct_to(entry.map(|entry| entry.index).unwrap_or_default())
-          .iter()
-          .enumerate()
-          .fold(String::new(), |mut str, (i, expr)| {
-            if i == 0 {
-              str.push_str(&format!("{}", expr));
-            } else {
-              str.push_str(&format!(", {}", expr));
-            }
+      let mut layout_job = LayoutJob::default();
+      // ui.label(format!(
+      //   "Stack: {}",
+      // ));
 
-            str
-          },)
-      ));
+      append_to_job(RichText::new("Stack: "), &mut layout_job);
+      self
+        .context
+        .journal()
+        .as_ref()
+        .unwrap()
+        .construct_to(entry.map(|entry| entry.index).unwrap_or_default())
+        .iter()
+        .enumerate()
+        .for_each(|(i, expr)| {
+          if i != 0 {
+            append_to_job(RichText::new(", "), &mut layout_job);
+          }
+          paint_expr(expr, &mut layout_job)
+        });
+
+      ui.label(layout_job);
 
       ui.label(format!(
         "Commit: {}",
