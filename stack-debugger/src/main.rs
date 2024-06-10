@@ -285,6 +285,10 @@ impl eframe::App for DebuggerApp {
       }
       ui.label(layout_job);
 
+      if ui.button("Restart").clicked() {
+        self.reload();
+      }
+
       let max = self.stack_ops_len().saturating_sub(1);
       ui.horizontal(|ui| {
         ui.spacing_mut().slider_width = ui.available_width() - 100.0;
