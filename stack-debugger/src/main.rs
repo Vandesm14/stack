@@ -299,6 +299,16 @@ impl eframe::App for DebuggerApp {
         )
       });
 
+      ui.monospace(
+        self
+          .context
+          .journal()
+          .clone()
+          .unwrap()
+          .trim_to(self.index)
+          .to_string(),
+      );
+
       // TODO: Print out the entire journal like we are in `stack-cli` (nested list)
     });
 
