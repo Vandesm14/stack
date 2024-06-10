@@ -402,6 +402,9 @@ impl eframe::App for DebuggerApp {
                     line_str.char_indices().for_each(|(i, c)| {
                       let mut text = RichText::new(c).monospace();
                       // TODO: properly support multiline exprs
+                      //
+                      // TODO: if the line span is greater than the surrounding lines,
+                      // remove top surrounding lines until it fits
                       if line >= start_loc.line.into()
                         && line <= end_loc.line.into()
                       {
