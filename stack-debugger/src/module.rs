@@ -1,8 +1,8 @@
+use crate::PrintOut;
+use stack_core::prelude::*;
 use std::sync::{mpsc, Arc};
 
-use stack_core::prelude::*;
-
-pub fn module(tx: mpsc::Sender<String>) -> Module {
+pub fn module(tx: mpsc::Sender<PrintOut>) -> Module {
   let mut module = Module::new(Symbol::from_ref("dbg"));
 
   let tx2 = tx.clone();
@@ -13,15 +13,14 @@ pub fn module(tx: mpsc::Sender<String>) -> Module {
       Arc::new(move |_, mut context, expr| {
         let val = context.stack_pop(&expr)?;
 
-        tx.send(format!(
-          "dbg:note op({}) {}",
+        tx.send(PrintOut::Note(
           context
             .journal()
             .as_ref()
             .map(|j| j.total_commits())
             .unwrap_or_default()
             .saturating_sub(2),
-          val
+          val.to_string(),
         ))
         .unwrap();
 
@@ -32,14 +31,13 @@ pub fn module(tx: mpsc::Sender<String>) -> Module {
       Symbol::from_ref("mark"),
       Arc::new(move |_, context, _| {
         tx2
-          .send(format!(
-            "dbg:mark op({})",
+          .send(PrintOut::Marker(
             context
               .journal()
               .as_ref()
               .map(|j| j.total_commits())
               .unwrap_or_default()
-              .saturating_sub(1)
+              .saturating_sub(1),
           ))
           .unwrap();
 

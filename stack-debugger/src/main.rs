@@ -51,8 +51,9 @@ pub fn main() {
   let (print_tx, print_rx) = mpsc::channel();
   let debug_tx = print_tx.clone();
 
-  let mut engine = Engine::new()
-    .with_debug_hook(Some(Arc::new(move |s| debug_tx.send(s).unwrap())));
+  let mut engine = Engine::new().with_debug_hook(Some(Arc::new(move |s| {
+    debug_tx.send(PrintOut::Print(s)).unwrap()
+  })));
   engine.add_module(module::module(print_tx));
 
   #[cfg(feature = "stack-std")]
@@ -130,14 +131,14 @@ where
 
 pub struct DebuggerApp {
   do_reload: mpsc::Receiver<()>,
-  print_rx: mpsc::Receiver<String>,
+  print_rx: mpsc::Receiver<PrintOut>,
 
   context: Context,
   engine: Engine,
   input: PathBuf,
 
   error: Option<String>,
-  prints: Vec<String>,
+  prints: Vec<PrintOut>,
   index: usize,
 }
 
@@ -191,7 +192,21 @@ impl eframe::App for DebuggerApp {
       ctx.set_pixels_per_point(1.2);
 
       for text in self.prints.iter() {
-        ui.label(text);
+        match text {
+          PrintOut::Print(text) => {
+            ui.label(text);
+          }
+          PrintOut::Marker(op) => {
+            if ui.button(format!("dbg:mark op({op})")).clicked() {
+              self.index = *op;
+            }
+          }
+          PrintOut::Note(op, string) => {
+            if ui.button(format!("dbg:note op({op}) {string}")).clicked() {
+              self.index = *op;
+            }
+          }
+        };
       }
 
       if !self.prints.is_empty() {

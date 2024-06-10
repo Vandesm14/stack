@@ -5,6 +5,12 @@ use eframe::egui::{
 };
 use stack_core::{journal::JournalOp, prelude::*};
 
+pub enum PrintOut {
+  Print(String),
+  Marker(usize),
+  Note(usize, String),
+}
+
 pub fn append_to_job(text: RichText, layout_job: &mut LayoutJob) {
   text.append_to(
     layout_job,
