@@ -1,5 +1,9 @@
 use core::fmt;
-use std::{path::PathBuf, sync::mpsc, time::Duration};
+use std::{
+  path::PathBuf,
+  sync::{mpsc, Arc},
+  time::Duration,
+};
 
 use clap::Parser;
 use eframe::egui::{self, text::LayoutJob, Color32, RichText};
@@ -45,7 +49,11 @@ pub fn main() {
   let context = Context::new().with_journal(None);
 
   let (print_tx, print_rx) = mpsc::channel();
-  let mut engine = Engine::new().with_debug_hook(Some(|s| eprintln!("{s}")));
+
+  let debug_tx = print_tx.clone();
+
+  let mut engine = Engine::new()
+    .with_debug_hook(Some(Arc::new(move |s| debug_tx.send(s).unwrap())));
   engine.add_module(module::module(print_tx));
 
   #[cfg(feature = "stack-std")]

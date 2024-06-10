@@ -2,6 +2,7 @@ use core::fmt;
 use std::{
   io::{self, prelude::Write, Read},
   path::{Path, PathBuf},
+  sync::Arc,
 };
 
 use clap::Parser;
@@ -35,7 +36,8 @@ fn main() {
     }
   };
 
-  let mut engine = Engine::new().with_debug_hook(Some(|s| eprintln!("{s}")));
+  let mut engine =
+    Engine::new().with_debug_hook(Some(Arc::new(|s| eprintln!("{s}"))));
   let mut context = new_context();
 
   #[cfg(feature = "stack-std")]
