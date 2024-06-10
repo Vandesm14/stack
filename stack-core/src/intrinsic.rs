@@ -977,6 +977,12 @@ impl Intrinsic {
       Self::Import => {
         let path = context.stack_pop(&expr)?;
 
+        // Imports should trigger a new commit
+        if let Some(journal) = context.journal_mut() {
+          journal.commit();
+          journal.op(JournalOp::FnEnd);
+        }
+
         match path.kind {
           ExprKind::String(str) => {
             if let Ok(source) = Source::from_path(str.as_str()) {
