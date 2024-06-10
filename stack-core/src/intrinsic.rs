@@ -903,13 +903,22 @@ impl Intrinsic {
         let name = context.stack_pop(&expr)?;
 
         match name.kind {
-          ExprKind::Symbol(symbol) => context
-            .stack_push(context.scope_item(symbol).ok_or_else(|| RunError {
-              context: context.clone(),
-              expr,
-              reason: RunErrorReason::UnknownCall,
-            })?)
-            .map(|_| context),
+          ExprKind::Symbol(symbol) => {
+            // Lets take precedence over scoped vars
+            let item = if let Some(let_item) = context.let_get(symbol) {
+              Some(let_item.clone())
+            } else {
+              context.scope_item(symbol)
+            };
+
+            context
+              .stack_push(item.ok_or_else(|| RunError {
+                context: context.clone(),
+                expr,
+                reason: RunErrorReason::UnknownCall,
+              })?)
+              .map(|_| context)
+          }
           _ => Err(RunError {
             reason: RunErrorReason::UnknownCall,
             context: context.clone(),
@@ -977,13 +986,28 @@ impl Intrinsic {
       Self::Import => {
         let path = context.stack_pop(&expr)?;
 
+        // Imports should trigger a new commit
+        if let Some(journal) = context.journal_mut() {
+          journal.commit();
+          journal.op(JournalOp::FnStart(false));
+        }
+
         match path.kind {
           ExprKind::String(str) => {
             if let Ok(source) = Source::from_path(str.as_str()) {
               context.add_source(source.clone());
               let mut lexer = Lexer::new(source);
               if let Ok(exprs) = parse(&mut lexer) {
-                return engine.run(context, exprs);
+                let mut result = engine.run(context, exprs);
+
+                if let Ok(ref mut context) = result {
+                  if let Some(journal) = context.journal_mut() {
+                    journal.commit();
+                    journal.op(JournalOp::FnEnd);
+                  }
+                }
+
+                return result;
               }
             }
           }

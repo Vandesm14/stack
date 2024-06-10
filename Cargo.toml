@@ -1,9 +1,10 @@
 [workspace]
 resolver = "2"
-members = ["stack-core", "stack-std", "stack-cli"]
+members = ["stack-core", "stack-std", "stack-cli", "stack-debugger"]
 
 [workspace.dependencies]
 unicode-segmentation = "1"
 compact_str = "=0.8.0-beta"
 
 test-case = "3"
+clap = { version = "4", features = ["derive"] }

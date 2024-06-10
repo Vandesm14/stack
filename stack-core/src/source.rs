@@ -76,7 +76,7 @@ impl Source {
       };
 
       let line_start = self.0.line_starts[line];
-      let line_str = self.line(line).unwrap();
+      let line_str = self.line(NonZeroUsize::new(line + 1).unwrap()).unwrap();
 
       let column_index = index - line_start;
       let column = line_str.get(0..column_index)?.graphemes(true).count();
@@ -94,12 +94,12 @@ impl Source {
   ///
   /// [`location`]: Self::location
   #[must_use]
-  pub fn line(&self, line: usize) -> Option<&str> {
-    if let Some(&line_start) = self.0.line_starts.get(line) {
+  pub fn line(&self, line: NonZeroUsize) -> Option<&str> {
+    if let Some(&line_start) = self.0.line_starts.get(line.get() - 1) {
       let line_end = self
         .0
         .line_starts
-        .get(line + 1)
+        .get(line.get())
         .copied()
         .unwrap_or(self.0.source.len());
       Some(&self.0.source[line_start..line_end])
@@ -222,25 +222,25 @@ mod test {
     Source::new("", source).location(index)
   }
 
-  #[case("", 0 => Some("".into()) ; "empty 0")]
-  #[case("", 1 => None ; "empty 1")]
-  #[case("hello", 0 => Some("hello".into()) ; "single 0")]
-  #[case("hello", 1 => None ; "single 1")]
-  #[case("h💣llo", 0 => Some("h💣llo".into()) ; "single with bomb 0")]
-  #[case("h💣llo", 1 => None ; "single with bomb 1")]
-  #[case("hello\n", 0 => Some("hello\n".into()) ; "single with newline 0")]
-  #[case("hello\n", 1 => Some("".into()) ; "single with newline 1")]
-  #[case("hello\n", 2 => None ; "single with newline 2")]
-  #[case("h💣llo\n", 0 => Some("h💣llo\n".into()) ; "single with bomb with newline 0")]
-  #[case("h💣llo\n", 1 => Some("".into()) ; "single with bomb with newline 1")]
-  #[case("h💣llo\n", 2 => None ; "single with bomb with newline 2")]
-  #[case("hello\nworld", 0 => Some("hello\n".into()) ; "multiple 0")]
-  #[case("hello\nworld", 1 => Some("world".into()) ; "multiple 1")]
-  #[case("hello\nworld", 2 => None ; "multiple 2")]
-  #[case("h💣llo\nworld", 0 => Some("h💣llo\n".into()) ; "multiple with bomb 0")]
-  #[case("h💣llo\nworld", 1 => Some("world".into()) ; "multiple with bomb 1")]
-  #[case("h💣llo\nworld", 2 => None ; "multiple with bomb 2")]
-  fn line(source: &str, line: usize) -> Option<String> {
+  #[case("", NonZeroUsize::new(1).unwrap() => Some("".into()) ; "empty 1")]
+  #[case("", NonZeroUsize::new(2).unwrap() => None ; "empty 2")]
+  #[case("hello", NonZeroUsize::new(1).unwrap() => Some("hello".into()) ; "single 1")]
+  #[case("hello", NonZeroUsize::new(2).unwrap() => None ; "single 2")]
+  #[case("h💣llo", NonZeroUsize::new(1).unwrap() => Some("h💣llo".into()) ; "single with bomb 1")]
+  #[case("h💣llo", NonZeroUsize::new(2).unwrap() => None ; "single with bomb 2")]
+  #[case("hello\n", NonZeroUsize::new(1).unwrap() => Some("hello\n".into()) ; "single with newline 1")]
+  #[case("hello\n", NonZeroUsize::new(2).unwrap() => Some("".into()) ; "single with newline 2")]
+  #[case("hello\n", NonZeroUsize::new(3).unwrap() => None ; "single with newline 3")]
+  #[case("h💣llo\n", NonZeroUsize::new(1).unwrap() => Some("h💣llo\n".into()) ; "single with bomb with newline 1")]
+  #[case("h💣llo\n", NonZeroUsize::new(2).unwrap() => Some("".into()) ; "single with bomb with newline 2")]
+  #[case("h💣llo\n", NonZeroUsize::new(3).unwrap() => None ; "single with bomb with newline 3")]
+  #[case("hello\nworld", NonZeroUsize::new(1).unwrap() => Some("hello\n".into()) ; "multiple 1")]
+  #[case("hello\nworld", NonZeroUsize::new(2).unwrap() => Some("world".into()) ; "multiple 2")]
+  #[case("hello\nworld", NonZeroUsize::new(3).unwrap() => None ; "multiple 3")]
+  #[case("h💣llo\nworld", NonZeroUsize::new(1).unwrap() => Some("h💣llo\n".into()) ; "multiple with bomb 1")]
+  #[case("h💣llo\nworld", NonZeroUsize::new(2).unwrap() => Some("world".into()) ; "multiple with bomb 2")]
+  #[case("h💣llo\nworld", NonZeroUsize::new(3).unwrap() => None ; "multiple with bomb 3")]
+  fn line(source: &str, line: NonZeroUsize) -> Option<String> {
     Source::new("", source).line(line).map(Into::into)
   }
 }

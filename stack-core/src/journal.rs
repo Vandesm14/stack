@@ -1,18 +1,44 @@
 use core::fmt;
 use std::mem;
 
-use crate::expr::Expr;
+use crate::expr::{Expr, ExprKind};
 
 #[derive(Debug, Clone, PartialEq, PartialOrd, Default)]
-struct JournalEntry {
-  ops: Vec<JournalOp>,
-  scope: usize,
-  scoped: bool,
+pub struct JournalEntry {
+  pub index: usize,
+  pub ops: Vec<JournalOp>,
+  pub scope: usize,
+  pub scoped: bool,
+}
+
+impl fmt::Display for JournalEntry {
+  fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+    core::iter::once("")
+      .chain(core::iter::repeat(", "))
+      .zip(self.ops.iter())
+      .try_for_each(|(sep, op)| {
+        if f.alternate() {
+          write!(f, "{sep}{op:#}")
+        } else {
+          write!(f, "{sep}{op}")
+        }
+      })
+  }
 }
 
 impl JournalEntry {
-  fn new(ops: Vec<JournalOp>, scope: usize, scoped: bool) -> Self {
-    Self { ops, scope, scoped }
+  pub fn new(
+    index: usize,
+    ops: Vec<JournalOp>,
+    scope: usize,
+    scoped: bool,
+  ) -> Self {
+    Self {
+      index,
+      ops,
+      scope,
+      scoped,
+    }
   }
 }
 
@@ -29,6 +55,45 @@ pub enum JournalOp {
   Commit,
 }
 
+impl fmt::Display for JournalOp {
+  fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+    if f.alternate() {
+      match self {
+        Self::Call(call) => write!(f, "call({call})"),
+        Self::FnCall(fn_call) => write!(f, "fn({fn_call})"),
+        Self::Push(push) => write!(f, "push({push})"),
+        Self::Pop(pop) => write!(f, "pop({pop})"),
+        _ => write!(f, ""),
+      }
+    } else {
+      match self {
+        Self::Call(call) => write!(f, "{call}"),
+        Self::FnCall(fn_call) => write!(f, "{fn_call}"),
+        Self::Push(push) => write!(f, "{push}"),
+        Self::Pop(pop) => write!(f, "{pop}"),
+        _ => write!(f, ""),
+      }
+    }
+  }
+}
+
+impl JournalOp {
+  pub fn is_stack_based(&self) -> bool {
+    matches!(self, Self::Push(_) | Self::Pop(_))
+  }
+
+  pub fn expr(&self) -> Option<&Expr> {
+    match self {
+      Self::Call(expr) => Some(expr),
+      Self::FnCall(expr) => Some(expr),
+      Self::Push(expr) => Some(expr),
+      Self::Pop(expr) => Some(expr),
+
+      _ => None,
+    }
+  }
+}
+
 #[derive(Debug, Clone, PartialEq, PartialOrd)]
 // TODO: implement this as a ring buffer with max_commits so we never go over
 pub struct Journal {
@@ -36,14 +101,18 @@ pub struct Journal {
   current: Vec<JournalOp>,
   commits: Vec<usize>,
 
-  size: usize,
+  size: Option<usize>,
 }
 
 impl fmt::Display for Journal {
   fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
     use yansi::Paint;
 
-    let entries = self.entries(self.size);
+    let entries = if let Some(size) = self.size {
+      self.entries(size)
+    } else {
+      self.all_entries()
+    };
     if !entries.is_empty() {
       writeln!(f, "Stack History (most recent first):")?;
     }
@@ -58,23 +127,35 @@ impl fmt::Display for Journal {
         }
 
         match op {
-          JournalOp::Call(call) => {
-            line.push_str(&format!("{}", call.white()));
+          JournalOp::Call(x) => {
+            line.push_str(&format!(
+              "{}",
+              if f.alternate() { x.white() } else { x.new() }
+            ));
 
             should_print = true;
           }
-          JournalOp::FnCall(fn_call) => {
-            line.push_str(&format!("{}", fn_call.yellow()));
+          JournalOp::FnCall(x) => {
+            line.push_str(&format!(
+              "{}",
+              if f.alternate() { x.yellow() } else { x.new() }
+            ));
 
             should_print = true;
           }
-          JournalOp::Push(push) => {
-            line.push_str(&format!("{}", push.green()));
+          JournalOp::Push(x) => {
+            line.push_str(&format!(
+              "{}",
+              if f.alternate() { x.green() } else { x.new() }
+            ));
 
             should_print = true;
           }
-          JournalOp::Pop(pop) => {
-            line.push_str(&format!("{}", pop.red()));
+          JournalOp::Pop(x) => {
+            line.push_str(&format!(
+              "{}",
+              if f.alternate() { x.red() } else { x.new() }
+            ));
 
             should_print = true;
           }
@@ -106,19 +187,29 @@ impl fmt::Display for Journal {
 impl Default for Journal {
   #[inline]
   fn default() -> Self {
-    Self::new(20)
+    Self::new()
   }
 }
 
 impl Journal {
   #[inline]
-  pub const fn new(size: usize) -> Self {
+  pub const fn new() -> Self {
     Self {
       commits: Vec::new(),
       current: Vec::new(),
       ops: Vec::new(),
-      size,
+      size: None,
     }
+  }
+
+  #[inline]
+  pub const fn with_size(mut self, size: usize) -> Self {
+    self.size = Some(size);
+    self
+  }
+
+  pub fn ops(&self) -> &[JournalOp] {
+    &self.ops
   }
 
   pub fn op(&mut self, op: JournalOp) {
@@ -143,7 +234,11 @@ impl Journal {
     self.commits.clear();
   }
 
-  fn entries(&self, max_commits: usize) -> Vec<JournalEntry> {
+  pub fn all_entries(&self) -> Vec<JournalEntry> {
+    self.entries(self.len())
+  }
+
+  pub fn entries(&self, max_commits: usize) -> Vec<JournalEntry> {
     let mut entries: Vec<JournalEntry> = Vec::new();
 
     let start = match max_commits >= self.commits.len() {
@@ -158,10 +253,12 @@ impl Journal {
     let mut scope = 0;
     let mut ops: Vec<JournalOp> = Vec::new();
     let mut scoped: Vec<bool> = vec![true];
-    for op in self.ops.iter().skip(start) {
+
+    for (i, op) in self.ops.iter().enumerate().skip(start) {
       match op {
         JournalOp::Commit => {
           entries.push(JournalEntry::new(
+            i,
             ops,
             scope,
             *scoped.last().unwrap_or(&true),
@@ -181,5 +278,70 @@ impl Journal {
     }
 
     entries.into_iter().rev().collect::<Vec<_>>()
+  }
+
+  pub fn len(&self) -> usize {
+    self.ops.len()
+  }
+
+  pub fn is_empty(&self) -> bool {
+    self.len() == 0
+  }
+
+  pub fn recount_commits(&mut self) {
+    self.commits.drain(..);
+    self.ops.iter().enumerate().for_each(|(i, op)| {
+      if matches!(op, JournalOp::Commit) {
+        self.commits.push(i + 1)
+      }
+    });
+  }
+
+  pub fn total_commits(&self) -> usize {
+    self.commits.len()
+  }
+
+  pub fn construct_to(&self, index: usize) -> Vec<Expr> {
+    let mut stack: Vec<Expr> = Vec::new();
+    for (i, op) in self.ops.iter().enumerate() {
+      if i == index {
+        break;
+      }
+
+      match op {
+        JournalOp::Push(expr) => stack.push(expr.clone()),
+        JournalOp::Pop(_) => {
+          stack.pop();
+        }
+        JournalOp::FnCall(expr) => {
+          if let ExprKind::Symbol(symbol) = expr.kind {
+            let len = stack.len();
+            match symbol.as_str() {
+              "swap" => stack.swap(len - 1, len - 2),
+              "rot" => {
+                stack.swap(len - 1, len - 3);
+                stack.swap(len - 2, len - 3);
+              }
+              _ => {}
+            }
+          }
+        }
+
+        _ => {}
+      };
+    }
+
+    stack
+  }
+
+  pub fn trim_to(mut self, index: usize) -> Self {
+    let total = self.ops.len();
+    self.ops = self
+      .ops
+      .into_iter()
+      .take(self.commits.get(index + 1).copied().unwrap_or(total))
+      .collect();
+    self.recount_commits();
+    self
   }
 }

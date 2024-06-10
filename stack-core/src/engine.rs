@@ -1,6 +1,7 @@
 use core::{fmt, str::FromStr};
 use std::{
   collections::HashMap,
+  sync::Arc,
   time::{Duration, Instant},
 };
 
@@ -16,12 +17,12 @@ use crate::{
   symbol::Symbol,
 };
 
-#[derive(Debug, Clone, PartialEq, Eq, Default)]
+#[derive(Clone, Default)]
 pub struct Engine {
   modules: HashMap<Symbol, Module>,
   start_time: Option<Instant>,
   timeout: Option<Duration>,
-  debug_hook: Option<fn(String)>,
+  debug_hook: Option<Arc<dyn Fn(String)>>,
 }
 
 #[derive(Debug, Clone, PartialEq)]
@@ -55,7 +56,10 @@ impl Engine {
   }
 
   #[inline]
-  pub fn with_debug_hook(mut self, debug_hook: Option<fn(String)>) -> Self {
+  pub fn with_debug_hook(
+    mut self,
+    debug_hook: Option<Arc<dyn Fn(String)>>,
+  ) -> Self {
     self.debug_hook = debug_hook;
     self
   }
@@ -66,8 +70,8 @@ impl Engine {
   }
 
   #[inline]
-  pub fn debug_hook(&self) -> Option<fn(String)> {
-    self.debug_hook
+  pub fn debug_hook(&self) -> Option<Arc<dyn Fn(String)>> {
+    self.debug_hook.clone()
   }
 
   pub fn run(
