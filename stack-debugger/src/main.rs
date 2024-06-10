@@ -53,7 +53,7 @@ pub fn main() {
   let debug_tx = print_tx.clone();
 
   let mut engine = Engine::new().with_debug_hook(Some(Arc::new(move |s| {
-    debug_tx.send(PrintOut::Print(s)).unwrap()
+    debug_tx.send(IOHookEvent::Print(s)).unwrap()
   })));
   engine.add_module(module::module(print_tx));
 
@@ -132,14 +132,14 @@ where
 
 pub struct DebuggerApp {
   do_reload: mpsc::Receiver<()>,
-  print_rx: mpsc::Receiver<PrintOut>,
+  print_rx: mpsc::Receiver<IOHookEvent>,
 
   context: Context,
   engine: Engine,
   input: PathBuf,
 
   error: Option<String>,
-  prints: Vec<PrintOut>,
+  prints: Vec<IOHookEvent>,
   index: usize,
 }
 
@@ -194,18 +194,24 @@ impl eframe::App for DebuggerApp {
 
       for text in self.prints.iter() {
         match text {
-          PrintOut::Print(text) => {
+          IOHookEvent::Print(text) => {
             ui.label(text);
           }
-          PrintOut::Marker(op) => {
+          IOHookEvent::Marker(op) => {
             if ui.button(format!("dbg:mark op({op})")).clicked() {
               self.index = *op;
             }
           }
-          PrintOut::Note(op, string) => {
+          IOHookEvent::Note(op, string) => {
             if ui.button(format!("dbg:note op({op}) {string}")).clicked() {
               self.index = *op;
             }
+          }
+          IOHookEvent::GoTo(op) => {
+            if ui.button(format!("dbg:goto op({op})")).clicked() {
+              self.index = *op;
+            }
+            self.index = *op;
           }
         };
       }

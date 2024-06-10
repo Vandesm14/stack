@@ -5,9 +5,10 @@ use eframe::egui::{
 };
 use stack_core::{journal::JournalOp, prelude::*};
 
-pub enum PrintOut {
+pub enum IOHookEvent {
   Print(String),
   Marker(usize),
+  GoTo(usize),
   Note(usize, String),
 }
 
@@ -176,6 +177,18 @@ pub fn paint_op(op: &JournalOp, layout_job: &mut LayoutJob) {
         RichText::new(format!("pop({})", string_with_quotes(expr))).color(red),
         layout_job,
       )
+    }
+    JournalOp::FnStart(scoped) => {
+      append_to_job(
+        RichText::new(format!(
+          "scope: fn{}(start)",
+          if *scoped { "" } else { "!" }
+        )),
+        layout_job,
+      );
+    }
+    JournalOp::FnEnd => {
+      append_to_job(RichText::new("scope: fn(end)"), layout_job);
     }
     _ => {}
   }

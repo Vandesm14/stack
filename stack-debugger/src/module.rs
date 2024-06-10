@@ -1,11 +1,12 @@
-use crate::PrintOut;
+use crate::IOHookEvent;
 use stack_core::prelude::*;
 use std::sync::{mpsc, Arc};
 
-pub fn module(tx: mpsc::Sender<PrintOut>) -> Module {
+pub fn module(tx: mpsc::Sender<IOHookEvent>) -> Module {
   let mut module = Module::new(Symbol::from_ref("dbg"));
 
   let tx2 = tx.clone();
+  let tx3 = tx.clone();
 
   module
     .add_func(
@@ -13,7 +14,7 @@ pub fn module(tx: mpsc::Sender<PrintOut>) -> Module {
       Arc::new(move |_, mut context, expr| {
         let val = context.stack_pop(&expr)?;
 
-        tx.send(PrintOut::Note(
+        tx.send(IOHookEvent::Note(
           context
             .journal()
             .as_ref()
@@ -30,7 +31,23 @@ pub fn module(tx: mpsc::Sender<PrintOut>) -> Module {
       Symbol::from_ref("mark"),
       Arc::new(move |_, context, _| {
         tx2
-          .send(PrintOut::Marker(
+          .send(IOHookEvent::Marker(
+            context
+              .journal()
+              .as_ref()
+              .map(|j| j.total_commits())
+              .unwrap_or_default(),
+          ))
+          .unwrap();
+
+        Ok(context)
+      }),
+    )
+    .add_func(
+      Symbol::from_ref("goto"),
+      Arc::new(move |_, context, _| {
+        tx3
+          .send(IOHookEvent::GoTo(
             context
               .journal()
               .as_ref()
