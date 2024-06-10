@@ -989,7 +989,7 @@ impl Intrinsic {
         // Imports should trigger a new commit
         if let Some(journal) = context.journal_mut() {
           journal.commit();
-          journal.op(JournalOp::FnEnd);
+          journal.op(JournalOp::FnStart(false));
         }
 
         match path.kind {
@@ -998,7 +998,16 @@ impl Intrinsic {
               context.add_source(source.clone());
               let mut lexer = Lexer::new(source);
               if let Ok(exprs) = parse(&mut lexer) {
-                return engine.run(context, exprs);
+                let mut result = engine.run(context, exprs);
+
+                if let Ok(ref mut context) = result {
+                  if let Some(journal) = context.journal_mut() {
+                    journal.commit();
+                    journal.op(JournalOp::FnEnd);
+                  }
+                }
+
+                return result;
               }
             }
           }
