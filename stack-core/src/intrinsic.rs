@@ -903,13 +903,22 @@ impl Intrinsic {
         let name = context.stack_pop(&expr)?;
 
         match name.kind {
-          ExprKind::Symbol(symbol) => context
-            .stack_push(context.scope_item(symbol).ok_or_else(|| RunError {
-              context: context.clone(),
-              expr,
-              reason: RunErrorReason::UnknownCall,
-            })?)
-            .map(|_| context),
+          ExprKind::Symbol(symbol) => {
+            // Lets take precedence over scoped vars
+            let item = if let Some(let_item) = context.let_get(symbol) {
+              Some(let_item.clone())
+            } else {
+              context.scope_item(symbol)
+            };
+
+            context
+              .stack_push(item.ok_or_else(|| RunError {
+                context: context.clone(),
+                expr,
+                reason: RunErrorReason::UnknownCall,
+              })?)
+              .map(|_| context)
+          }
           _ => Err(RunError {
             reason: RunErrorReason::UnknownCall,
             context: context.clone(),
