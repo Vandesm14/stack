@@ -264,4 +264,75 @@ pub fn module() -> Module {
 
       Ok(context)
     })
+    .with_func(Symbol::from_ref("regex-match"), |_, mut context, expr| {
+      let pattern = context.stack_pop(&expr)?;
+      let string = context.stack_pop(&expr)?;
+
+      let kind = match (string.kind, pattern.kind) {
+        (ExprKind::String(ref string), ExprKind::String(ref pattern)) => {
+          let re = Regex::new(pattern);
+          match re {
+            Ok(re) => re
+              .find(string)
+              .map(|m| {
+                ExprKind::String(
+                  string
+                    .chars()
+                    .skip(m.start())
+                    .take(m.end() - m.start())
+                    .collect::<String>()
+                    .into(),
+                )
+              })
+              .unwrap_or(ExprKind::Nil),
+            Err(err) => {
+              todo!()
+            }
+          }
+        }
+        (_, _) => ExprKind::Nil,
+      };
+
+      context.stack_push(kind.into())?;
+
+      Ok(context)
+    })
+    .with_func(
+      Symbol::from_ref("regex-match-all"),
+      |_, mut context, expr| {
+        let pattern = context.stack_pop(&expr)?;
+        let string = context.stack_pop(&expr)?;
+
+        let kind = match (string.kind, pattern.kind) {
+          (ExprKind::String(ref string), ExprKind::String(ref pattern)) => {
+            let re = Regex::new(pattern);
+            match re {
+              Ok(re) => ExprKind::List(
+                re.find_iter(string)
+                  .map(|m| {
+                    ExprKind::String(
+                      string
+                        .chars()
+                        .skip(m.start())
+                        .take(m.end() - m.start())
+                        .collect::<String>()
+                        .into(),
+                    )
+                    .into()
+                  })
+                  .collect::<Vec<_>>(),
+              ),
+              Err(err) => {
+                todo!()
+              }
+            }
+          }
+          (_, _) => ExprKind::Nil,
+        };
+
+        context.stack_push(kind.into())?;
+
+        Ok(context)
+      },
+    )
 }
