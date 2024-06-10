@@ -168,6 +168,8 @@ impl eframe::App for DebuggerApp {
     }
 
     egui::CentralPanel::default().show(ctx, |ui| {
+      ctx.set_pixels_per_point(1.2);
+
       if let Some(err) = &self.error {
         ui.label(format!("Error: {err}"));
       }
@@ -225,11 +227,12 @@ impl eframe::App for DebuggerApp {
 
       let max = self.stack_ops_len().saturating_sub(1);
       ui.horizontal(|ui| {
+        ui.spacing_mut().slider_width = ui.available_width() - 100.0;
         ui.add(
           egui::Slider::new(&mut self.index, 0..=max)
             .clamp_to_range(true)
             .text("ops"),
-        );
+        )
       });
     });
 
