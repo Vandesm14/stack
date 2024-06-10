@@ -405,6 +405,8 @@ impl eframe::App for DebuggerApp {
                       //
                       // TODO: if the line span is greater than the surrounding lines,
                       // remove top surrounding lines until it fits
+                      //
+                      // TODO: lex and parse so we can use paint_expr
                       if line >= start_loc.line.into()
                         && line <= end_loc.line.into()
                       {
