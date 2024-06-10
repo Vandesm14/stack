@@ -3,6 +3,10 @@ name = "stack-debugger"
 version = "0.1.0"
 edition = "2021"
 
+[features]
+default = ["stack-std"]
+stack-std = ["dep:stack-std"]
+
 [dependencies]
 clap.workspace = true
 notify = "6"
