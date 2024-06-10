@@ -117,7 +117,7 @@ impl fmt::Display for Journal {
     for (i, entry) in entries.iter().enumerate() {
       let mut line = String::new();
       let mut should_print = false;
-      for op in self.ops.iter() {
+      for op in entry.ops.iter() {
         if !line.is_empty() {
           line.push(' ');
         }
