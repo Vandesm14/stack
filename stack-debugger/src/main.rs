@@ -425,12 +425,14 @@ impl eframe::App for DebuggerApp {
                     });
                   }
                 }
+
+                ui.label(layout_job);
+                ui.add_space(5.0);
               }
             }
           }
         }
       }
-      ui.label(layout_job);
 
       ScrollArea::vertical().show(ui, |ui| {
         ui.monospace(
