@@ -1,24 +1,51 @@
+use std::sync::{mpsc, Arc};
+
 use stack_core::prelude::*;
 
-pub fn module() -> Module {
+pub fn module(tx: mpsc::Sender<String>) -> Module {
   let mut module = Module::new(Symbol::from_ref("dbg"));
 
-  module.add_func(Symbol::from_ref("note"), |engine, mut context, expr| {
-    let val = context.stack_pop(&expr)?;
+  let tx2 = tx.clone();
 
-    println!(
-      "op({}) {}",
-      context
-        .journal()
-        .as_ref()
-        .map(|j| j.total_commits())
-        .unwrap_or_default()
-        .saturating_sub(2),
-      val
+  module
+    .add_func(
+      Symbol::from_ref("note"),
+      Arc::new(move |_, mut context, expr| {
+        let val = context.stack_pop(&expr)?;
+
+        tx.send(format!(
+          "dbg:note op({}) {}",
+          context
+            .journal()
+            .as_ref()
+            .map(|j| j.total_commits())
+            .unwrap_or_default()
+            .saturating_sub(2),
+          val
+        ))
+        .unwrap();
+
+        Ok(context)
+      }),
+    )
+    .add_func(
+      Symbol::from_ref("here"),
+      Arc::new(move |_, context, _| {
+        tx2
+          .send(format!(
+            "dbg:here op({})",
+            context
+              .journal()
+              .as_ref()
+              .map(|j| j.total_commits())
+              .unwrap_or_default()
+              .saturating_sub(1)
+          ))
+          .unwrap();
+
+        Ok(context)
+      }),
     );
-
-    Ok(context)
-  });
 
   module
 }

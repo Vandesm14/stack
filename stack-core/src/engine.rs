@@ -16,7 +16,7 @@ use crate::{
   symbol::Symbol,
 };
 
-#[derive(Debug, Clone, PartialEq, Eq, Default)]
+#[derive(Clone, Default)]
 pub struct Engine {
   modules: HashMap<Symbol, Module>,
   start_time: Option<Instant>,

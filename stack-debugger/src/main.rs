@@ -2,14 +2,12 @@ use core::fmt;
 use std::{path::PathBuf, sync::mpsc, time::Duration};
 
 use clap::Parser;
-use eframe::egui::{
-  self, text::LayoutJob, Align, Color32, FontSelection, RichText, Style,
-};
+use eframe::egui::{self, text::LayoutJob, Color32, RichText};
 use notify::{
   Config, Event, EventKind, RecommendedWatcher, RecursiveMode, Watcher,
 };
-use stack_core::{journal::JournalOp, prelude::*};
-use stack_debugger::module;
+use stack_core::prelude::*;
+use stack_debugger::*;
 
 #[derive(Debug, Clone, PartialEq, Eq, Default, clap::Parser)]
 #[command(author, version, about, long_about = None)]
@@ -45,9 +43,10 @@ pub fn main() {
   let cli = Cli::parse();
 
   let context = Context::new().with_journal(None);
-  let mut engine = Engine::new().with_debug_hook(Some(|s| eprintln!("{s}")));
 
-  engine.add_module(module::module());
+  let (print_tx, print_rx) = mpsc::channel();
+  let mut engine = Engine::new().with_debug_hook(Some(|s| eprintln!("{s}")));
+  engine.add_module(module::module(print_tx));
 
   #[cfg(feature = "stack-std")]
   {
@@ -68,11 +67,14 @@ pub fn main() {
 
   let mut debugger_app = DebuggerApp {
     do_reload: rx,
+    print_rx,
+
     context,
     engine,
     input: cli.input.clone(),
 
     error: None,
+    prints: Vec::new(),
     index: 0,
   };
 
@@ -121,11 +123,14 @@ where
 
 pub struct DebuggerApp {
   do_reload: mpsc::Receiver<()>,
+  print_rx: mpsc::Receiver<String>,
+
   context: Context,
   engine: Engine,
   input: PathBuf,
 
   error: Option<String>,
+  prints: Vec<String>,
   index: usize,
 }
 
@@ -148,6 +153,7 @@ impl DebuggerApp {
       Err(e) => return self.error = Some(e.to_string()),
     };
 
+    self.prints.drain(..);
     match self.engine.run(context, exprs) {
       Ok(context) => {
         self.context = context;
@@ -160,180 +166,11 @@ impl DebuggerApp {
     }
 
     self.index = self.stack_ops_len().saturating_sub(1);
+    self.prints.extend(self.print_rx.try_iter())
   }
 
   fn stack_ops_len(&self) -> usize {
     self.context.journal().as_ref().unwrap().all_entries().len()
-  }
-}
-
-fn append_to_job(text: RichText, layout_job: &mut LayoutJob) {
-  text.append_to(
-    layout_job,
-    &Style::default(),
-    FontSelection::Default,
-    Align::Center,
-  )
-}
-
-const GREEN: &str = "#16C60C";
-const RED: &str = "#E74856";
-const BLUE: &str = "#3B78FF";
-const YELLOW: &str = "#C19C00";
-
-fn paint_expr(expr: &Expr, layout_job: &mut LayoutJob) {
-  let green = Color32::from_hex(GREEN).unwrap();
-  let red = Color32::from_hex(RED).unwrap();
-  let blue = Color32::from_hex(BLUE).unwrap();
-  let yellow = Color32::from_hex(YELLOW).unwrap();
-
-  match &expr.kind {
-    ExprKind::Nil => {
-      append_to_job(RichText::new("nil").color(green), layout_job)
-    }
-    ExprKind::Error(x) => append_to_job(
-      RichText::new(format!("error({})", x)).color(red),
-      layout_job,
-    ),
-    ExprKind::Boolean(x) => {
-      append_to_job(RichText::new(x.to_string()).color(green), layout_job)
-    }
-    ExprKind::Integer(x) => {
-      append_to_job(RichText::new(x.to_string()).color(blue), layout_job)
-    }
-    ExprKind::Float(x) => {
-      append_to_job(RichText::new(x.to_string()).color(blue), layout_job)
-    }
-    ExprKind::String(x) => {
-      append_to_job(RichText::new(format!("\"{x}\"")).color(green), layout_job)
-    }
-
-    ExprKind::Symbol(x) => {
-      append_to_job(RichText::new(x.to_string()).color(blue), layout_job)
-    }
-
-    ExprKind::Lazy(x) => {
-      append_to_job(RichText::new("'").color(yellow), layout_job);
-      paint_expr(x, layout_job)
-    }
-    ExprKind::List(x) => {
-      append_to_job(RichText::new("("), layout_job);
-
-      for (sep, x) in core::iter::once("")
-        .chain(core::iter::repeat(" "))
-        .zip(x.iter())
-      {
-        append_to_job(RichText::new(sep), layout_job);
-        paint_expr(x, layout_job);
-      }
-
-      append_to_job(RichText::new(")"), layout_job);
-    }
-    ExprKind::Record(x) => {
-      append_to_job(RichText::new("{"), layout_job);
-
-      for (sep, (key, value)) in core::iter::once("")
-        .chain(core::iter::repeat(", "))
-        .zip(x.iter())
-      {
-        let key: Expr = ExprKind::Symbol(*key).into();
-        append_to_job(RichText::new(sep), layout_job);
-        paint_expr(&key, layout_job);
-        append_to_job(RichText::new(": "), layout_job);
-        paint_expr(value, layout_job);
-      }
-
-      append_to_job(RichText::new("}"), layout_job);
-    }
-
-    ExprKind::Fn(x) => {
-      append_to_job(RichText::new(x.to_string()).color(yellow), layout_job)
-    }
-  }
-}
-
-fn string_with_quotes(expr: &Expr) -> String {
-  match &expr.kind {
-    ExprKind::String(x) => format!("\"{x}\""),
-
-    ExprKind::Lazy(x) => string_with_quotes(x),
-
-    ExprKind::List(x) => {
-      let mut string = String::from("(");
-      core::iter::once("")
-        .chain(core::iter::repeat(" "))
-        .zip(x.iter())
-        .for_each(|(sep, x)| {
-          string.push_str(&format!("{sep}{}", string_with_quotes(x)))
-        });
-      string.push(')');
-
-      string
-    }
-
-    ExprKind::Record(x) => {
-      let mut string = String::from("{");
-      core::iter::once("")
-        .chain(core::iter::repeat(" "))
-        .zip(x.iter())
-        .for_each(|(sep, (key, value))| {
-          string.push_str(&format!("{sep}{key}: {}", string_with_quotes(value)))
-        });
-      string.push('}');
-
-      string
-    }
-
-    kind => kind.to_string(),
-  }
-}
-
-fn paint_op(op: &JournalOp, layout_job: &mut LayoutJob) {
-  let green = Color32::from_hex(GREEN).unwrap();
-  let red = Color32::from_hex(RED).unwrap();
-  let yellow = Color32::from_hex(YELLOW).unwrap();
-
-  match op {
-    JournalOp::Call(expr) => {
-      // append_to_job(RichText::new("call(").color(yellow), layout_job);
-      // paint_expr(expr, layout_job);
-      // append_to_job(RichText::new(")").color(yellow), layout_job)
-      append_to_job(
-        RichText::new(format!("scope({})", string_with_quotes(expr)))
-          .color(yellow),
-        layout_job,
-      )
-    }
-    JournalOp::FnCall(expr) => {
-      // append_to_job(RichText::new("fn(").color(yellow), layout_job);
-      // paint_expr(expr, layout_job);
-      // append_to_job(RichText::new(")").color(yellow), layout_job)
-      append_to_job(
-        RichText::new(format!("fn({})", string_with_quotes(expr)))
-          .color(yellow),
-        layout_job,
-      )
-    }
-    JournalOp::Push(expr) => {
-      // append_to_job(RichText::new("push(").color(green), layout_job);
-      // paint_expr(expr, layout_job);
-      // append_to_job(RichText::new(")").color(green), layout_job)
-      append_to_job(
-        RichText::new(format!("push({})", string_with_quotes(expr)))
-          .color(green),
-        layout_job,
-      )
-    }
-    JournalOp::Pop(expr) => {
-      // append_to_job(RichText::new("pop(").color(red), layout_job);
-      // paint_expr(expr, layout_job);
-      // append_to_job(RichText::new(")").color(red), layout_job)
-      append_to_job(
-        RichText::new(format!("pop({})", string_with_quotes(expr))).color(red),
-        layout_job,
-      )
-    }
-    _ => {}
   }
 }
 
@@ -345,6 +182,14 @@ impl eframe::App for DebuggerApp {
 
     egui::CentralPanel::default().show(ctx, |ui| {
       ctx.set_pixels_per_point(1.2);
+
+      for text in self.prints.iter() {
+        ui.label(text);
+      }
+
+      if !self.prints.is_empty() {
+        ui.label("");
+      }
 
       if let Some(err) = &self.error {
         ui.label(format!("Error: {err}"));

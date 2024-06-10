@@ -1,4 +1,4 @@
-use std::collections::HashMap;
+use std::{collections::HashMap, sync::Arc};
 
 use crate::{
   context::Context,
@@ -7,9 +7,11 @@ use crate::{
   symbol::Symbol,
 };
 
-pub type Func = fn(&Engine, Context, Expr) -> Result<Context, RunError>;
+// pub type Func = fn(&Engine, Context, Expr) -> Result<Context, RunError>;
+pub type Func =
+  Arc<dyn Fn(&Engine, Context, Expr) -> Result<Context, RunError>>;
 
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Clone)]
 pub struct Module {
   name: Symbol,
   funcs: HashMap<Symbol, Func>,
@@ -43,6 +45,6 @@ impl Module {
 
   #[inline]
   pub fn func(&self, name: Symbol) -> Option<Func> {
-    self.funcs.get(&name).copied()
+    self.funcs.get(&name).cloned()
   }
 }
