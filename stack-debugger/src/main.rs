@@ -370,25 +370,54 @@ impl eframe::App for DebuggerApp {
         if let Some(first) = entry.ops.first() {
           if let Some(expr) = first.expr() {
             if let Some(info) = expr.info.clone() {
-              if let Some(location) = info.source.location(info.span.start) {
-                const SURROUNDING_LINES: usize = 2;
+              if let Some((start_loc, end_loc)) = info
+                .source
+                .location(info.span.start)
+                .zip(info.source.location(info.span.end))
+              {
+                const SURROUNDING_LINES: usize = 7;
 
                 let start =
-                  location.line.get().saturating_sub(SURROUNDING_LINES);
-                let end = location.line.get().saturating_add(SURROUNDING_LINES);
+                  start_loc.line.get().saturating_sub(SURROUNDING_LINES);
+                let end =
+                  start_loc.line.get().saturating_add(SURROUNDING_LINES);
+
+                ui.add_space(5.0);
+                ui.label(RichText::new(info.source.name()).monospace());
+                ui.add_space(5.0);
 
                 for line in start..end {
                   if let Some(line_str) = NonZeroUsize::new(line)
                     .and_then(|line| info.source.line(line))
                   {
                     let mut text =
-                      RichText::new(format!("{}: {line_str}", line)).code();
+                      RichText::new(format!("{}: ", line)).monospace();
 
-                    if line == location.line.get() {
+                    if line == start_loc.line.get() {
                       text = text.color(Color32::YELLOW);
                     }
 
                     append_to_job(text, &mut layout_job);
+
+                    line_str.char_indices().for_each(|(i, c)| {
+                      let mut text = RichText::new(c).monospace();
+                      // TODO: properly support multiline exprs
+                      if line >= start_loc.line.into()
+                        && line <= end_loc.line.into()
+                      {
+                        if (i + 1) >= start_loc.column.into()
+                          && (i + 1) < end_loc.column.into()
+                        {
+                          text = text
+                            .color(Color32::BLACK)
+                            .background_color(Color32::YELLOW);
+                        } else {
+                          text = text.color(Color32::YELLOW);
+                        }
+                      }
+
+                      append_to_job(text, &mut layout_job);
+                    });
                   }
                 }
               }
