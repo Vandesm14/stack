@@ -174,6 +174,8 @@ impl DebuggerApp {
       }
     }
 
+    self.context.journal_mut().as_mut().unwrap().commit();
+
     self.index = self.stack_ops_len().saturating_sub(1);
     self.prints.extend(self.print_rx.try_iter().map(|evt| {
       if let IOHookEvent::GoTo(index) = evt {
