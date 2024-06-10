@@ -1,11 +1,12 @@
 use compact_str::{CompactString, ToCompactString};
+use regex::Regex;
 use stack_core::prelude::*;
 use unicode_segmentation::UnicodeSegmentation;
 
 // TODO: Add str:escape and str:unescape.
 
 pub fn module() -> Module {
-  Module::new(Symbol::from_ref("str"))
+  let mut module = Module::new(Symbol::from_ref("str"))
     .with_func(Symbol::from_ref("trim-start"), |_, mut context, expr| {
       let item = context.stack_pop(&expr)?;
 
@@ -241,5 +242,104 @@ pub fn module() -> Module {
       context.stack_push(kind.into())?;
 
       Ok(context)
-    })
+    });
+
+  #[cfg(feature = "regex")]
+  {
+    module = module
+      .with_func(Symbol::from_ref("regex-test"), |_, mut context, expr| {
+        let pattern = context.stack_pop(&expr)?;
+        let string = context.stack_pop(&expr)?;
+
+        let kind = match (string.kind, pattern.kind) {
+          (ExprKind::String(ref string), ExprKind::String(ref pattern)) => {
+            let re = Regex::new(pattern);
+            match re {
+              Ok(re) => ExprKind::Boolean(re.captures(string).is_some()),
+              Err(err) => {
+                todo!()
+              }
+            }
+          }
+          (_, _) => ExprKind::Nil,
+        };
+
+        context.stack_push(kind.into())?;
+
+        Ok(context)
+      })
+      .with_func(Symbol::from_ref("regex-match"), |_, mut context, expr| {
+        let pattern = context.stack_pop(&expr)?;
+        let string = context.stack_pop(&expr)?;
+
+        let kind = match (string.kind, pattern.kind) {
+          (ExprKind::String(ref string), ExprKind::String(ref pattern)) => {
+            let re = Regex::new(pattern);
+            match re {
+              Ok(re) => re
+                .find(string)
+                .map(|m| {
+                  ExprKind::String(
+                    string
+                      .chars()
+                      .skip(m.start())
+                      .take(m.end() - m.start())
+                      .collect::<String>()
+                      .into(),
+                  )
+                })
+                .unwrap_or(ExprKind::Nil),
+              Err(err) => {
+                todo!()
+              }
+            }
+          }
+          (_, _) => ExprKind::Nil,
+        };
+
+        context.stack_push(kind.into())?;
+
+        Ok(context)
+      })
+      .with_func(
+        Symbol::from_ref("regex-match-all"),
+        |_, mut context, expr| {
+          let pattern = context.stack_pop(&expr)?;
+          let string = context.stack_pop(&expr)?;
+
+          let kind = match (string.kind, pattern.kind) {
+            (ExprKind::String(ref string), ExprKind::String(ref pattern)) => {
+              let re = Regex::new(pattern);
+              match re {
+                Ok(re) => ExprKind::List(
+                  re.find_iter(string)
+                    .map(|m| {
+                      ExprKind::String(
+                        string
+                          .chars()
+                          .skip(m.start())
+                          .take(m.end() - m.start())
+                          .collect::<String>()
+                          .into(),
+                      )
+                      .into()
+                    })
+                    .collect::<Vec<_>>(),
+                ),
+                Err(err) => {
+                  todo!()
+                }
+              }
+            }
+            (_, _) => ExprKind::Nil,
+          };
+
+          context.stack_push(kind.into())?;
+
+          Ok(context)
+        },
+      )
+  }
+
+  module
 }
