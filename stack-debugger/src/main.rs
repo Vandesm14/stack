@@ -129,6 +129,7 @@ pub struct DebuggerApp {
 
 impl DebuggerApp {
   fn reload(&mut self) {
+    // TODO: Clear screen when we reload
     let mut context = Context::new().with_journal(None);
 
     let source = match Source::from_path(&self.input) {
@@ -428,6 +429,8 @@ impl eframe::App for DebuggerApp {
             .text("ops"),
         )
       });
+
+      // TODO: Print out the entire journal like we are in `stack-cli` (nested list)
     });
 
     ctx.request_repaint_after(Duration::from_millis(300));
