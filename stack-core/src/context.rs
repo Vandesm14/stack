@@ -40,8 +40,12 @@ impl Context {
   }
 
   #[inline]
-  pub fn with_journal(mut self, journal: Option<usize>) -> Self {
-    self.journal = Some(journal.map(Journal::new).unwrap_or_default());
+  pub fn with_journal(mut self, size: Option<usize>) -> Self {
+    self.journal = Some(
+      size
+        .map(|size| Journal::new().with_size(size))
+        .unwrap_or_default(),
+    );
     self
   }
 

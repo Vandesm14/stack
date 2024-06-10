@@ -101,14 +101,18 @@ pub struct Journal {
   current: Vec<JournalOp>,
   commits: Vec<usize>,
 
-  size: usize,
+  size: Option<usize>,
 }
 
 impl fmt::Display for Journal {
   fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
     use yansi::Paint;
 
-    let entries = self.entries(self.size);
+    let entries = if let Some(size) = self.size {
+      self.entries(size)
+    } else {
+      self.all_entries()
+    };
     if !entries.is_empty() {
       writeln!(f, "Stack History (most recent first):")?;
     }
@@ -183,19 +187,25 @@ impl fmt::Display for Journal {
 impl Default for Journal {
   #[inline]
   fn default() -> Self {
-    Self::new(20)
+    Self::new()
   }
 }
 
 impl Journal {
   #[inline]
-  pub const fn new(size: usize) -> Self {
+  pub const fn new() -> Self {
     Self {
       commits: Vec::new(),
       current: Vec::new(),
       ops: Vec::new(),
-      size,
+      size: None,
     }
+  }
+
+  #[inline]
+  pub const fn with_size(mut self, size: usize) -> Self {
+    self.size = Some(size);
+    self
   }
 
   pub fn ops(&self) -> &[JournalOp] {
@@ -278,6 +288,15 @@ impl Journal {
     self.len() == 0
   }
 
+  pub fn recount_commits(&mut self) {
+    self.commits.drain(..);
+    self.ops.iter().enumerate().for_each(|(i, op)| {
+      if matches!(op, JournalOp::Commit) {
+        self.commits.push(i + 1)
+      }
+    });
+  }
+
   pub fn total_commits(&self) -> usize {
     self.commits.len()
   }
@@ -313,5 +332,16 @@ impl Journal {
     }
 
     stack
+  }
+
+  pub fn trim_to(mut self, index: usize) -> Self {
+    let total = self.ops.len();
+    self.ops = self
+      .ops
+      .into_iter()
+      .take(self.commits.get(index + 1).copied().unwrap_or(total))
+      .collect();
+    self.recount_commits();
+    self
   }
 }

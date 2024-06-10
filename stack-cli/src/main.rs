@@ -30,7 +30,7 @@ fn main() {
 
   let new_context = || {
     if cli.journal {
-      Context::new().with_journal(cli.journal_length)
+      Context::new().with_journal(Some(cli.journal_length.unwrap_or(20)))
     } else {
       Context::new()
     }
