@@ -1,5 +1,4 @@
 use compact_str::{CompactString, ToCompactString};
-use regex::Regex;
 use stack_core::prelude::*;
 use unicode_segmentation::UnicodeSegmentation;
 
@@ -246,6 +245,8 @@ pub fn module() -> Module {
 
   #[cfg(feature = "regex")]
   {
+    use regex::Regex;
+
     module = module
       .with_func(Symbol::from_ref("regex-test"), |_, mut context, expr| {
         let pattern = context.stack_pop(&expr)?;
