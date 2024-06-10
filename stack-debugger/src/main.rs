@@ -175,7 +175,13 @@ impl DebuggerApp {
     }
 
     self.index = self.stack_ops_len().saturating_sub(1);
-    self.prints.extend(self.print_rx.try_iter())
+    self.prints.extend(self.print_rx.try_iter().map(|evt| {
+      if let IOHookEvent::GoTo(index) = evt {
+        self.index = index;
+      }
+
+      evt
+    }));
   }
 
   fn stack_ops_len(&self) -> usize {
@@ -211,7 +217,6 @@ impl eframe::App for DebuggerApp {
             if ui.button(format!("dbg:goto op({op})")).clicked() {
               self.index = *op;
             }
-            self.index = *op;
           }
         };
       }
