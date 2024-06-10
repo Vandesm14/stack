@@ -266,6 +266,10 @@ impl Journal {
     self.len() == 0
   }
 
+  pub fn total_commits(&self) -> usize {
+    self.commits.len()
+  }
+
   pub fn construct_to(&self, index: usize) -> Vec<Expr> {
     let mut stack: Vec<Expr> = Vec::new();
     for (i, op) in self.ops.iter().enumerate() {

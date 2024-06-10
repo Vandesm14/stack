@@ -9,6 +9,7 @@ use notify::{
   Config, Event, EventKind, RecommendedWatcher, RecursiveMode, Watcher,
 };
 use stack_core::{journal::JournalOp, prelude::*};
+use stack_debugger::module;
 
 #[derive(Debug, Clone, PartialEq, Eq, Default, clap::Parser)]
 #[command(author, version, about, long_about = None)]
@@ -45,6 +46,8 @@ pub fn main() {
 
   let context = Context::new().with_journal(None);
   let mut engine = Engine::new().with_debug_hook(Some(|s| eprintln!("{s}")));
+
+  engine.add_module(module::module());
 
   #[cfg(feature = "stack-std")]
   {
