@@ -12,6 +12,10 @@
 - [Functions](introduction/functions.md)
 - [Scopes](introduction/scopes.md)
 
+# Reference
+
+- [Builtins](reference/builtins.md)
+
 # Appendix
 
 - [Glossary](glossary.md)
