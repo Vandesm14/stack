@@ -26,7 +26,7 @@ For this reason, Stack provides the `fn` expression to mark lists as functions. 
 ;; [1] -> [2]
 ```
 
-Notice how we didn't need to call the list manually? That's because the `fn` expression tells Stack to call the list automatically. This is known as [auto-calling](../glossary#auto-calling).
+Notice how we didn't need to call the list manually? That's because the `fn` expression tells Stack to call the list automatically. This is known as **auto-calling**.
 
 *Note: The evaluation pattern of functions is the same as lists: left to right, evaluating each expression and pushing it to the stack.*
 
@@ -35,7 +35,7 @@ Notice how we didn't need to call the list manually? That's because the `fn` exp
 Because functions are just marked lists, you can still use them as lists. This means that you can build and modify functions at runtime.
 
 ```clojure
-()
+'()
 'fn push
 1 push
 '+ push
@@ -48,15 +48,15 @@ Because functions are just marked lists, you can still use them as lists. This m
 ;; [1] -> [2]
 ```
 
-*Note: The `fn` expression needs to be [lazied](../glossary#laziness) in order for it to not be evaluated. The evaluator **does** evaluate the `fn` expression, but it does nothing on its own (without being wrapped in a list).*
+<!-- TODO: explain how the `fn` symbol will inherit the scope from your function. A solution for macros is to bring in a `(fn)` instead of building it yourself -->
+
+*Note: The `fn` expression needs to be made lazy (with `'` -> `'fn`) in order for it to not be evaluated. The engine does evaluate the `fn` expression, but it does nothing on its own (without being wrapped in a list).*
 
 ## Function Calling Behavior
 
 When a function is pulled from scope, it will be auto-called when pushed to the stack. This is the behavior observed above, where `add-one` called the variable from scope, which Stack evaluated and called the function automatically.
 
-*Fun Fact: All [auto-call](../glossary#auto-calling) does is simply append the `call` operator after the a function expression if it detects that a function is being pulled from scope and onto the stack.*
-
-Functions can also be called manually, producing the same behavior that [auto-calling](../glossary#auto-calling) does.
+Functions can also be called manually, producing the same behavior that **auto-calling** does.
 
 **For anonymous functions:**
 ```clojure
@@ -94,9 +94,9 @@ To get the function itself from the scope, to bypass auto-calling, you can use t
 
 ## Scopeless Functions
 
-Scopeless functions are an addition to Stack that allow for many metaprogramming aspects. Because normal functions have their own isolated scope, it is not possible to define variables outside of the function's scope.
+Normal functions have their own isolated scope, it is not possible to define variables outside of the function's scope. Because of this, Stack includes a "mode" of function called a **scopeless function**. This is a powerful feature that enables for more dynamic meta-programming.
 
-However, scopeless functions don't have their own isolated scope and **run in the scope that they are called in**. This allows them to define or redefine variables directly in their parent scope.
+Scopeless functions don't have their own isolated scope and **run in the scope that they are called in**. This allows them to define or redefine variables directly in the scope that they were called in.
 
 ```clojure
 '(fn! 0 'a def) call
@@ -123,11 +123,5 @@ call
 
 ;; `a` doesn't exist here, since it was part of the previous function's scope
 ```
-
-This is a powerful feature that allows for more dynamic programming.
-
-In normal functions, the variable `a` would be defined in the function's scope and would not be accessible from the parent scope.
-
-### Normal Functions
 
 See [Scopes](../introduction/scopes) for more information on how scoping works and how it relates to normal functions.
