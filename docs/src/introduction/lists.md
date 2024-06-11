@@ -4,32 +4,48 @@ Lists are similar to arrays or vectors in other programming languages. A list ca
 
 ## Defining a List
 
-Lists are defined using the `()` syntax. The items inside of a list are separated by spaces.
+Lists are defined using the `'()` syntax. The items inside of a list are separated by spaces.
 
 ```clojure
-(1 2 3 4 5)
+'(1 2 3 4 5)
 ```
 
 ## Eager Evaluation
 
-When lists are pushed to the stack, the items inside of the list are evaluated in-order and kept inside the bounds of the list (due to the [purification](../introduction/stack#purification) step).
+When lists are pushed to the stack, the items inside of the list are evaluated in-order (due to the [purification](../introduction/stack#purification) step).
 
 ```clojure
+(1 2 3)
+
+;; Results in `1 2 3`
+;; [] -> [(1 2 3)] -> [1 2 3]
+
 (2 2 +)
 
-;; Results in `(4)`
-;; [] -> [(2 2 +)] -> [(4)]
+;; Results in `4`
+;; [] -> [(2 2 +)] -> [4]
 ```
 
-You can also use symbols (variables) in non-lazy lists, which will evaluate to their values.
+Symbols (variables) inside of lazy lists will not be evaluated.
 
 ```clojure
 2 'var def
 
-(var)
+'(var)
+
+;; Results in `(var)`
+;; [] -> [(var)]
+```
+
+Instead, to add variables into a list, it will need to be created manually.
+
+```clojure
+2 'var def
+
+var '() push
 
 ;; Results in `(2)`
-;; [] -> [(var)] -> [(2)]
+;; [] -> [(2)]
 ```
 
 ## Laziness
@@ -50,10 +66,15 @@ To avoid eager evaluation, you can make a list lazy by prefixing `'` to the begi
 Alternatively, you can make specific items inside of a list lazy by prefixing `'` to the beginning of the item.
 
 ```clojure
+(2 2 '+)
+
+;; Results in the items being pushed to the stack, but the `+` will not be not called
+;; [] -> [2 2 +]
+
 (2 2 + 5 '*)
 
-;; Results in the list being pushed to the stack, and partially called
-;; [] -> [(4 5 *)]
+;; Results in the items being pushed to the stack, and only the `*` will not be called
+;; [] -> [4 5 *]
 ```
 
 ## Calling Lists
