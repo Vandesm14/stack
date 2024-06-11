@@ -135,11 +135,6 @@ impl Engine {
         context.stack_push(expr)?;
         Ok(context)
       }
-      ExprKind::Error(_) => Err(RunError {
-        reason: RunErrorReason::DoubleError,
-        context,
-        expr,
-      }),
       // TODO: This is temporary until a proper solution is created.
       ExprKind::Symbol(x) => {
         if let Some(journal) = context.journal_mut() {
@@ -172,11 +167,11 @@ impl Engine {
             }
             Ok(context)
           } else {
-            context.stack_push(
-              ExprKind::Error(Error::new("unknown function".into())).into(),
-            )?;
-
-            Ok(context)
+            Err(RunError {
+              context: context.clone(),
+              expr,
+              reason: RunErrorReason::UnknownCall,
+            })
           }
         } else if let Some(r#let) = context.let_get(x).cloned() {
           context.stack_push(r#let)?;

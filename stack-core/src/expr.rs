@@ -49,7 +49,6 @@ impl fmt::Display for Expr {
 #[derive(Debug, Clone)]
 pub enum ExprKind {
   Nil,
-  Error(Error),
 
   Boolean(bool),
   Integer(i64),
@@ -121,7 +120,6 @@ impl ExprKind {
   pub fn type_of(&self) -> &str {
     match self {
       ExprKind::Nil => "nil",
-      ExprKind::Error(_) => "error",
 
       ExprKind::Boolean(_) => "boolean",
       ExprKind::Integer(_) => "integer",
@@ -143,7 +141,6 @@ impl PartialEq for ExprKind {
   fn eq(&self, other: &Self) -> bool {
     match (self, other) {
       (Self::Nil, Self::Nil) => true,
-      (Self::Error(lhs), Self::Error(rhs)) => lhs == rhs,
 
       (Self::Boolean(lhs), Self::Boolean(rhs)) => lhs == rhs,
       (Self::Integer(lhs), Self::Integer(rhs)) => lhs == rhs,
@@ -164,9 +161,6 @@ impl PartialOrd for ExprKind {
   fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
     match (self, other) {
       (Self::Nil, Self::Nil) => Some(Ordering::Equal),
-      (Self::Error(lhs), Self::Error(rhs)) => {
-        lhs.eq(rhs).then_some(Ordering::Equal)
-      }
 
       (Self::Boolean(lhs), Self::Boolean(rhs)) => {
         lhs.eq(rhs).then_some(Ordering::Equal)
@@ -270,7 +264,6 @@ impl fmt::Display for ExprKind {
     if f.alternate() {
       match self {
         Self::Nil => write!(f, "{}", "nil".green()),
-        Self::Error(x) => write!(f, "error({})", x.to_string().red()),
 
         Self::Boolean(x) => write!(f, "{}", x.to_string().green()),
         Self::Integer(x) => write!(f, "{}", x.to_string().blue()),
@@ -311,7 +304,6 @@ impl fmt::Display for ExprKind {
     } else {
       match self {
         Self::Nil => write!(f, "nil"),
-        Self::Error(x) => write!(f, "error({x})"),
 
         Self::Boolean(x) => write!(f, "{x}"),
         Self::Integer(x) => write!(f, "{x}"),

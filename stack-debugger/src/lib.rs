@@ -36,10 +36,6 @@ pub fn paint_expr(expr: &Expr, layout_job: &mut LayoutJob) {
     ExprKind::Nil => {
       append_to_job(RichText::new("nil").color(green), layout_job)
     }
-    ExprKind::Error(x) => append_to_job(
-      RichText::new(format!("error({})", x)).color(red),
-      layout_job,
-    ),
     ExprKind::Boolean(x) => {
       append_to_job(RichText::new(x.to_string()).color(green), layout_job)
     }
