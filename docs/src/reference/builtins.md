@@ -8,6 +8,8 @@ Unless explicitly stated in the description of a function, all mentions of the t
 
 ## Arithmetic
 
+**Note:** Stack uses wrapping arithmetic.
+
 ### Add (`+`)
 
 **Signature:** `([a: int] [b: int] -- int)`
