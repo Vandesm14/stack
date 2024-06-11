@@ -6,19 +6,19 @@ The stack is your workspace. It works as a place to push and pop values, and to 
 
 All expressions are implicitly pushed to the stack.
 
-<!-- TODO: Explain that symbols are caught by the evaluator and never pushed to the stack (unless they are lazy). Further, code and stack are separated in certain cases. -->
+<!-- TODO: Explain that symbols are caught by the engine and never pushed to the stack (unless they are lazy). Further, code and stack are separated in certain cases. -->
 
 ```clojure
 2 ;; Pushes 2
 
 "hello" ;; Pushes "hello"
 
-() ;; Pushes an empty list
+'() ;; Pushes an empty list
 ```
 
 ## Purification
 
-During the phase of introducing a new expression to the program, the evaluator "purifies" the expression. It will try to evaluate it, such as calling a symbol or evaluating a list.
+During the phase of introducing a new expression to the program, the engine "purifies" the expression. It will try to evaluate it, such as calling a symbol or evaluating a list.
 
 ```clojure
 ;; Push 2
@@ -35,13 +35,18 @@ During the phase of introducing a new expression to the program, the evaluator "
 ;; [2 2 +] -> [4]
 ```
 
-For lists, the items are evaluated in-order and kept inside the bounds of the list.
+For lists, the items are evaluated in-order, unless the list is lazy.
 
 ```clojure
 (2 2 +)
 
-;; Results in `(4)`
-;; [] -> [(2 2 +)] -> [4]
+;; Results in `4`
+;; [] -> [4]
+
+'(2 2 +)
+
+;; Results in `(2 2 +)`
+;; [] -> [(2 2 +)]
 ```
 
 Purification only happens once. If a value from a variable is pushed to the stack, it will not be purified. The stack and scope are considered "pure". Only when putting new values into the stack will they be purified.
@@ -50,7 +55,25 @@ Purification only happens once. If a value from a variable is pushed to the stac
 
 ## Laziness
 
-Because the purification step eagerly evaluates symbols and lists, this can be turned off by prefixing `'` to the beginning of an expression. Any expression can be made lazy, though it will only affect symbols and lists.
+Because the purification step eagerly evaluates symbols and lists, this can be turned off by prefixing `'` to the beginning of an expression.
+
+```clojure
+'a
+
+;; Results in the symbol being pushed to the stack, but not called
+;; [] -> [a]
+```
+
+As a lazy expression is pushed to the stack, it will be unlazied by one level. So, if you provide two `'` in the beginning of an expression, it will be pushed as a lazy expression.
+
+```clojure
+''a
+
+;; Results in the lazy symbol being pushed to the stack and not called
+;; [] -> ['a]
+```
+
+Any expression can be made lazy, though it will really only affects symbols, lists, and functions.
 
 ```clojure
 2 2 '+
@@ -64,30 +87,6 @@ Because the purification step eagerly evaluates symbols and lists, this can be t
 ;; [] -> [(2 2 +)]
 ```
 
-Expressions inside of lists can also be lazied, to produce the same effect. This provides finer control over what gets purified.
+See the docs on [lazy lists](lists.md#lazy-expressions) for more information on the behavior of lazy lists and lists with lazy items.
 
-```clojure
-(2 2 '+)
-
-;; Results in the list being pushed to the stack, but not called
-;; [] -> [(2 2 +)]
-
-(2 2 + 5 '*)
-
-;; Results in the list being pushed to the stack, and partially called
-;; [] -> [(4 5 *)]
-```
-
-As a lazy expression is pushed to the stack, it will be unlazied by one level. So, if you provide two `'` in the beginning of an expression, it will be pushed as a lazy expression.
-
-```clojure
-''a
-
-;; Results in the symbol being pushed to the stack, but not called
-;; [] -> ['a]
-
-''(2 2 +)
-
-;; Results in the list being pushed to the stack, but not called
-;; [] -> ['(2 2 +)]
-```
+Calling lists, functions, and symbols will be purified then evaluated. See documentation on the [call intrinsic](../reference/builtins.md#call-call) for more information on this behavior.
