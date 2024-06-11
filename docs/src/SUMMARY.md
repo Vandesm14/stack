@@ -20,7 +20,3 @@
 
 - [Installation](debugger/installation.md)
 - [Usage](debugger/usage.md)
-
-# Appendix
-
-- [Glossary](glossary.md)
