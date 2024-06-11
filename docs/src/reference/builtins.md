@@ -256,7 +256,7 @@ Calls `a` and:
 - If `a` is a **function**: Runs the function
 - If `a` is a **list**: Runs each item in the list
 - If `a` is a **symbol**: Calls the symbol from the scope
-- If `a` is **anything else**: Pushes it back onto the stac
+- If `a` is **anything else**: Pushes it back onto the stack
 
 ### Let (`let`)
 
