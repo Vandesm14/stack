@@ -8,7 +8,7 @@ Unless explicitly stated in the description of a function, all mentions of the t
 
 ## Arithmetic
 
-**Note:** Stack uses wrapping arithmetic.
+**Note:** Stack uses wrapping arithmetic, unlike Rust, which uses bounds checking in safe modes.
 
 ### Add (`+`)
 
