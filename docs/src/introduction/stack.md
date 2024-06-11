@@ -87,6 +87,6 @@ Any expression can be made lazy, though it will really only affects symbols, lis
 ;; [] -> [(2 2 +)]
 ```
 
-See the docs on [lazy lists](lists.md#lazy-expressions) for more information on the behavior of lazy lists and lists with lazy items.
+See the docs on [lazy lists](lists.md#laziness) for more information on the behavior of lazy lists and lists with lazy items.
 
 Calling lists, functions, and symbols will be purified then evaluated. See documentation on the [call intrinsic](../reference/builtins.md#call-call) for more information on this behavior.
