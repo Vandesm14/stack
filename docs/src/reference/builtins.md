@@ -564,7 +564,8 @@ lazy
 true
 if
 ;; "true"
-
+```
+```clj
 '("true")
 ;; [("true")]
 (4 4 =)
@@ -638,6 +639,40 @@ nil 2 orelse
 
 ## Scopes and Variables
 
+### Define (`def`)
+
+**Signature:** `([a] [b: symbol] --)`
+
+**Equivalent Rust:** `let b = a`
+
+**Examples:**
+```clj
+0 'a def
+a
+;; 0
+
+'(fn +) 'add def
+2 2 add
+;; 4
+```
+
+### Set (`set`)
+
+**Signature:** `([a] [b: symbol] --)`
+
+**Equivalent Rust:** `b = a`
+
+**Examples:**
+```clj
+0 'a def
+1 'a set
+a
+;; 1
+
+1 'a set
+;; throws since `a` is not defined
+```
+
 ### Call (`call`)
 
 **Signature:** `([a] --)`
@@ -648,6 +683,34 @@ Calls `a` and:
 - If `a` is a **symbol**: Calls the symbol from the scope
 - If `a` is **anything else**: Pushes it back onto the stack
 
+**Examples:**
+```clj
+2 2 
+'(fn +) call
+;; 4
+
+'(2 2 +) call
+;; 4
+
+'(2 2 +) 'add def
+add
+;; [(2 2 +)]
+call
+;; [4]
+
+'(fn +) 'add def
+2 2 'add call
+;; 4
+
+0 'a def
+'a call
+;; 0
+
+"foo" 'a def
+'a call
+;; "foo"
+```
+
 ### Let (`let`)
 
 **Signature:** `([a: list] [b: list(symbol)] --)`
@@ -656,17 +719,22 @@ Pops `b.len()` items off of the stack, assigning each item the corresponding sym
 
 If list `b` was `(first second)`, then they would be popped from the stack in order, following this signature: `([first] [second] --)`.
 
-### Define (`def`)
+**Examples:**
+```clj
+10 2 '(a b -) '(a b) let
+;; 8
 
-**Signature:** `([a] [b: symbol] --)`
+10 2 '(fn a b -) '(a b) let
+;; 8
 
-**Equivalent Rust:** `let b = a`
-
-### Set (`set`)
-
-**Signature:** `([a] [b: symbol] --)`
-
-**Equivalent Rust:** `b = a`
+10 2
+(fn
+  '(a b -)
+  '(a b)
+  let
+) call
+;; 8
+```
 
 ### Get (`get`)
 
@@ -674,34 +742,71 @@ If list `b` was `(first second)`, then they would be popped from the stack in or
 
 **Equivalent Rust:** `a`
 
+**Examples:**
+```clj
+0 'a def
+'a get
+;; 0
+
+'(fn +) 'add def
+2 2 add
+;; 4
+
+'(fn +) 'add def
+'add get
+;; (fn +)
+
+'(fn +) 'add def
+2 2 
+'add get call
+;; 4
+```
+
 ## Debugging and I/O
 
 ### Debug (`debug`)
 
 **Signature:** `([a] -- a)`
 
-**Equivalent Rust:** `dbg!(a)`
+**Equivalent Rust:** `dbg!(format!("{}", a))`
+
+**Examples:**
+```clj
+0 debug
+;; prints 0
+
+"hey" debug
+;; prints "hey"
+```
 
 ### Assert (`assert`)
 
-**Signature:** `([a] [b] -- a)`
+**Signature:** `([a] [b: bool] -- a)`
 
 **Equivalent Rust:** `assert!(b, format!("{}", a))`
 
-### Print (`print`)
+**Examples:**
+```clj
+"my test" 2 2 = assert
+;; nothing (it passes)
 
-**Signature:** `([a] --)`
-
-**Equivalent Rust:** `println!("{}", a)`
-
-### Pretty (`pretty`)
-
-**Signature:** `([a] --)`
-
-**Equivalent Rust:** `println!("{:#}", val)`
+"my test" 1 2 = assert
+;; error: assertion failed caused by my test
+```
 
 ### Import (`import`)
 
 **Signature:** `([a: string] --)`
 
 Runs the file from path `a` in the current environment. Variables and stack changes will persist from file `a`.
+
+**Examples:**
+```clj
+;; lib.stack
+'(fn +) 'add def
+
+;; main.stack
+"lib.stack" import
+2 2 add
+;; 4
+```
