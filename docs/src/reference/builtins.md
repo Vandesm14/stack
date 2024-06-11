@@ -238,6 +238,14 @@ Wraps `a` with a lazy expression, making it lazy.
 
 A QoL helper intrinsic that pushes the symbol: `recur` to the stack. Used to allow `recur` to be called without escaping with a lazy (such as `'recur`).
 
+### OrElse ('orelse')
+
+**Signature:** `([a] [b] -- a|b)`
+
+**Equivalent Rust:** `a.or(b)`
+
+If `a` is `nil`, returns `b`. Else, returns `a`.
+
 ## Scopes and Variables
 
 ### Call (`call`)
@@ -301,8 +309,6 @@ If list `b` was `(first second)`, then they would be popped from the stack in or
 **Signature:** `([a] --)`
 
 **Equivalent Rust:** `println!("{:#}", val)`
-
-<!-- TODO: OrElse -->
 
 ### Import (`import`)
 
