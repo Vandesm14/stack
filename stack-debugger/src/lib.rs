@@ -28,7 +28,6 @@ const YELLOW: &str = "#C19C00";
 
 pub fn paint_expr(expr: &Expr, layout_job: &mut LayoutJob) {
   let green = Color32::from_hex(GREEN).unwrap();
-  let red = Color32::from_hex(RED).unwrap();
   let blue = Color32::from_hex(BLUE).unwrap();
   let yellow = Color32::from_hex(YELLOW).unwrap();
 
