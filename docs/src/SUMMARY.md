@@ -16,6 +16,11 @@
 
 - [Builtins](reference/builtins.md)
 
+# Debugger
+
+- [Installation](debugger/installation.md)
+- [Usage](debugger/usage.md)
+
 # Appendix
 
 - [Glossary](glossary.md)
