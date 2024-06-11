@@ -3,7 +3,7 @@
 [![Tests](https://github.com/Vandesm14/stack/actions/workflows/tests.yml/badge.svg)](https://github.com/Vandesm14/stack/actions/workflows/tests.yml)
 [![Docs](https://github.com/Vandesm14/stack/actions/workflows/deploy_book.yml/badge.svg?branch=main)](https://vandesm14.github.io/stack/)
 
-A highly dynamic stack-based language built with Rust.
+Stack is a dynamic, stack-based, [concatenative] programming language.
 
 ## Documentation
 
@@ -35,3 +35,5 @@ All code in this repository is dual-licensed under, at your option, either:
 - Apache 2.0 Licence ([LICENCE-APACHE](./LICENCE-APACHE) or http://www.apache.org/licenses/LICENSE-2.0).
 
 Any contribution intentionally submitted for inclusion in the work by you, as defined in the Apache 2.0 Licence, shall be dual-licensed as above, without any additional terms or conditions.
+
+[concatenative]: https://concatenative.org/
