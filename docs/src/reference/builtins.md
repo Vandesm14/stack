@@ -65,7 +65,7 @@ Unless explicitly stated in the description of a function, for all mentions of t
 
 **Signature:** `([a: int] [b: int] -- int)`
 
-**Equivalent Rust:** `a & b`
+**Equivalent Rust:** `a % b`
 
 **Examples:**
 ```clj
