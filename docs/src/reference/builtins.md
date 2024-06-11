@@ -14,11 +14,26 @@ Unless explicitly stated in the description of a function, all mentions of the t
 
 **Equivalent Rust:** `a + b`
 
+**Examples:**
+```clj
+1 2 +
+;; 3
+```
+
 ### Subtract (`-`)
 
 **Signature:** `([a: int] [b: int] -- int)`
 
 **Equivalent Rust:** `a - b`
+
+**Examples:**
+```clj
+2 1 -
+;; 1
+
+1 2 -
+;; -1
+```
 
 ### Multiply (`*`)
 
@@ -26,17 +41,38 @@ Unless explicitly stated in the description of a function, all mentions of the t
 
 **Equivalent Rust:** `a * b`
 
+**Examples:**
+```clj
+2 3 *
+;; 6
+```
+
 ### Divide (`/`)
 
 **Signature:** `([a: int] [b: int] -- int)`
 
 **Equivalent Rust:** `a / b`
 
+**Examples:**
+```clj
+6 3 /
+;; 2
+```
+
 ### Remainder (`%`)
 
 **Signature:** `([a: int] [b: int] -- int)`
 
 **Equivalent Rust:** `a & b`
+
+**Examples:**
+```clj
+10 5 %
+;; 0
+
+11 5 %
+;; 1
+```
 
 ## Comparison
 
@@ -46,11 +82,35 @@ Unless explicitly stated in the description of a function, all mentions of the t
 
 **Equivalent Rust:** `a == b`
 
+**Examples:**
+```clj
+2 2 =
+;; true
+
+"hello" "world" =
+;; false
+
+'(1 2) '(1 2) =
+;; true
+```
+
 ### Not Equal (`!=`)
 
 **Signature:** `([a] [b] -- bool)`
 
 **Equivalent Rust:** `a != b`
+
+**Examples:**
+```clj
+2 2 !=
+;; false
+
+"hello" "world" !=
+;; true
+
+'(1 2) '(1 2) !=
+;; false
+```
 
 ### Less Than (`<`)
 
@@ -58,11 +118,32 @@ Unless explicitly stated in the description of a function, all mentions of the t
 
 **Equivalent Rust:** `a < b`
 
+**Examples:**
+```clj
+1 2 <
+;; true
+
+2 1 <
+;; false
+```
+
 ### Less Than or Equal To (`<=`)
 
 **Signature:** `([a] [b] -- bool)`
 
 **Equivalent Rust:** `a <= b`
+
+**Examples:**
+```clj
+1 2 <=
+;; true
+
+2 2 <=
+;; true
+
+2 1 <=
+;; false
+```
 
 ### Greater Than (`>`)
 
@@ -70,31 +151,91 @@ Unless explicitly stated in the description of a function, all mentions of the t
 
 **Equivalent Rust:** `a > b`
 
+**Examples:**
+```clj
+1 2 >
+;; false
+
+2 1 >
+;; true
+```
+
 ### Greater Than or Equal To (`>=`)
 
 **Signature:** `([a] [b] -- bool)`
 
 **Equivalent Rust:** `a >= b`
 
+**Examples:**
+```clj
+1 2 >=
+;; false
+
+2 2 >=
+;; true
+
+2 1 >=
+;; true
+```
+
 ## Boolean
 
 ### Or (`or`)
 
-**Signature:** `([a] [b] -- bool)`
+**Signature:** `([a: bool] [b: bool] -- bool)`
 
 **Equivalent Rust:** `a || b`
 
+**Examples:**
+```clj
+false false or
+;; false
+
+false true or
+;; true
+
+true false or
+;; true
+
+true true or
+;; true
+```
+
 ### And (`and`)
 
-**Signature:** `([a] [b] -- bool)`
+**Signature:** `([a: bool] [b: bool] -- bool)`
 
 **Equivalent Rust:** `a && b`
+
+**Examples:**
+```clj
+false false and
+;; false
+
+false true and
+;; false
+
+true false and
+;; false
+
+true true and
+;; true
+```
 
 ### Not (`not`)
 
 **Signature:** `([a: bool] -- bool)`
 
 **Equivalent Rust:** `!a`
+
+**Examples:**
+```clj
+false not
+;; true
+
+true not
+;; false
+```
 
 ## Stack Ops
 
@@ -104,11 +245,29 @@ Unless explicitly stated in the description of a function, all mentions of the t
 
 Drops `a` from the stack
 
+**Examples:**
+```clj
+"hey"
+;; ["hey"]
+
+drop
+;; []
+```
+
 ### Duplicate (`dupe`)
 
 **Signature:** `([a] -- a a)`
 
 Duplicates `a` on the stack
+
+**Examples:**
+```clj
+"hey"
+;; ["hey"]
+
+dupe
+;; ["hey" "hey"]
+```
 
 ### Swap (`swap`)
 
@@ -116,25 +275,67 @@ Duplicates `a` on the stack
 
 Swaps `a` and `b` on the stack
 
+**Examples:**
+```clj
+"hello" "world"
+;; ["hello" "world"]
+
+swap
+;; ["world" "hello"]
+```
+
 ### Rotate (`rot`)
 
 **Signature:** `([a] [b] [c] -- b c a)`
 
 Rotates `a`, `b`, and `c` on the stack
 
+**Examples:**
+```clj
+"a" "b" "c"
+;; ["a" "b" "c"]
+
+rot
+;; ["b" "c" "a"]
+```
+
 ## Lists
 
 ### Length (`len`)
 
-**Signature:** `([a: list] -- int)`
+**Signature:** `([a: list|string] -- int)`
 
 **Equivalent Rust:** `a.len()`
 
+**Examples:**
+```clj
+'(1 2 3) len
+;; 3
+
+"123" len
+;; 3
+```
+
 ### Get at Index (`nth`)
 
-**Signature:** `([a: list] [b: int] -- any)`
+**Signature:** `([a: list] [b: int] -- a any)` or `([a: string] [b: int] -- a string)`
 
 **Equivalent Rust:** `a[b]` or `a.get(b)`
+
+**Examples:**
+```clj
+'(1 2 3) 0 nth
+;; [(1 2 3) 1]
+
+'(1 2 3) 2 nth
+;; [(1 2 3) 3]
+
+"123" 0 nth
+;; ["123" "1"]
+
+"123" 2 nth
+;; ["123" "3"]
+```
 
 ### Split (`split`)
 
@@ -142,11 +343,29 @@ Rotates `a`, `b`, and `c` on the stack
 
 Splits `a` at the separator `b` and returns both chunks.
 
+**Examples:**
+```clj
+'(1 2 3) 1 split
+;; (1) (2 3)
+
+"123" len
+;; "1" "23"
+```
+
 ### Concat (`concat`)
 
 **Signature:** `([a: list] [b: list] -- list)` or `([a: string] [b: string] -- string)`
 
 Concats `a` and `b` together (concats the two lists or two strings)
+
+**Examples:**
+```clj
+'(1) '(2 3) concat
+;; (1 2 3)
+
+"1" "23" concat
+;; "123"
+```
 
 ### Push (`push`)
 
@@ -154,49 +373,151 @@ Concats `a` and `b` together (concats the two lists or two strings)
 
 **Equivalent Rust:** `b.push(a)`
 
+**Examples:**
+```clj
+3 '(1 2) push
+;; (1 2 3)
+
+"3" "12" len
+;; "123"
+```
+
 ### Pop (`pop`)
 
 **Signature:** `([a: list] -- any)` or `([a: string] -- any)`
 
 **Equivalent Rust:** `a.pop()`
 
+**Examples:**
+```clj
+'(1 2 3) pop
+;; 3
+
+"123" len
+;; "3"
+```
+
 ## Records
 
 ### Insert (`insert`)
 
-**Signature:** `([a: string] [b: string] [c: record] -- record)`
+**Signature:** `([value] [key] [c: record] -- record)`
 
-**Equivalent Rust:** `c.insert(b, a)`
+**Equivalent Rust:** `c.insert(key, value)`
+
+**Examples:**
+```clj
+"value" "key" {} insert
+;; {key: "value"}
+
+true 'key {} insert
+;; {key: true}
+
+2 1 {} insert
+;; {1: 2}
+```
 
 ### Property (`prop`)
 
-**Signature:** `([a: string] [b: record] -- any)`
+**Signature:** `([a: record] [b] -- a any)`
 
-**Equivalent Rust:** `b.get(a)`
+**Equivalent Rust:** `a.get(b)`
+
+**Examples:**
+```clj
+{key "value"} "key" prop
+;; [{key "value"} "value"]
+
+{key "value"} "foo" prop
+;; [{key "value"} nil]
+
+{key "value"} 'key prop
+;; [{key "value"} "value"]
+
+{key "value"} 'foo prop
+;; [{key "value"} nil]
+
+{1 2} 1 prop
+;; [{1 2} 2]
+
+{1 2} 2 prop
+;; [{1 2} nil]
+```
 
 ### Has (`has`)
 
-**Signature:** `([a: record] [b: string] -- bool)`
+**Signature:** `([a: record] [b] -- a bool)`
 
 **Equivalent Rust:** `a.has(b)`
 
+**Examples:**
+```clj
+{key "value"} "key" has
+;; [{key "value"} true]
+
+{key "value"} "foo" has
+;; [{key "value"} false]
+
+{key "value"} 'key has
+;; [{key "value"} true]
+
+{key "value"} 'foo has
+;; [{key "value"} false]
+
+{1 2} 1 has
+;; [{1 2} true]
+
+{1 2} 2 has
+;; [{1 2} false]
+```
+
 ### Remove (`remove`)
 
-**Signature:** `([a: record] [b: string] --)`
+**Signature:** `([a: record] [b: string] -- record)`
 
 **Equivalent Rust:** `a.remove(b)`
 
+**Examples:**
+```clj
+{key "value" foo "bar"} "foo" remove
+;; [{key "value"}]
+
+{key "value" foo "bar"} "bar" remove
+;; [{key "value" foo "bar"}]
+```
+
 ### Keys (`keys`)
 
-**Signature:** `([a: record] -- list(symbol))`
+**Signature:** `([a: record] -- a list(symbol))`
 
 **Equivalent Rust:** `a.keys()`
 
+**Examples:**
+```clj
+{key "value" foo "bar"} keys
+;; [{key "value" foo "bar"} (key foo)]
+
+{"key" "value" "foo" "bar"} keys
+;; [{key "value" foo "bar"} (key foo)]
+```
+
 ### Values (`values`)
 
-**Signature:** `([a: record] -- list(any))`
+**Signature:** `([a: record] -- a list)`
 
 **Equivalent Rust:** `a.values()`
+
+**Examples:**
+```clj
+{key "value" foo "bar"} values
+;; [{key "value" foo "bar"} ("value" "bar")]
+
+{f (fn 2 2 +)} values
+;; [{key (fn 2 2 +)} ((fn 2 2 +))]
+
+{f '(fn 2 2 +)} values
+;; [{key '(fn 2 2 +)} ('(fn 2 2 +))]
+```
 
 ## Types
 
@@ -218,6 +539,17 @@ Gets the type of `a` and pushes it as a string to the stack
 
 Wraps `a` with a lazy expression, making it lazy.
 
+**Examples:**
+```clj
+1 lazy
+;; '1
+
+'()
+;; ()
+lazy
+;; '()
+```
+
 ## Control Flow
 
 ### If (`if`)
@@ -226,17 +558,66 @@ Wraps `a` with a lazy expression, making it lazy.
 
 **Equivalent Rust:** `if b { a }`
 
+**Examples:**
+```clj
+'("true")
+true
+if
+;; "true"
+
+'("true")
+;; [("true")]
+(4 4 =)
+;; [("true") true]
+if
+;; ["true"]
+```
+
 ### Halt (`halt`)
 
 **Signature:** `(--)`
 
 **Equivalent Rust:** Halts execution.
 
+**Examples:**
+```clj
+2 2 halt +
+;; halts before the "+"
+```
+
 ### Recur (`recur`)
 
 **Signature:** `(-- symbol)`
 
 A QoL helper intrinsic that pushes the symbol: `recur` to the stack. Used to allow `recur` to be called without escaping with a lazy (such as `'recur`).
+
+**Examples:**
+```clj
+;; Define i
+0 'i def
+
+;; Function isn't lazy so it runs right away
+(fn
+  ;; Our if block
+  '(
+    ;; Push i to the stack
+    i
+
+    ;; Add 1 to i
+    i 1 + 'i set
+
+    ;; Recur
+    recur
+  )
+
+  ;; Check if i is less than 5
+  i 5 <
+
+  ;; Run the if
+  if
+)
+;; [0 1 2 3 4]
+```
 
 ### OrElse ('orelse')
 
@@ -245,6 +626,15 @@ A QoL helper intrinsic that pushes the symbol: `recur` to the stack. Used to all
 **Equivalent Rust:** `a.or(b)`
 
 If `a` is `nil`, returns `b`. Else, returns `a`.
+
+**Examples:**
+```clj
+nil 2 orelse
+;; 2
+
+1 2 orelse
+;; 1
+```
 
 ## Scopes and Variables
 
