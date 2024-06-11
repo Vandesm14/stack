@@ -2,10 +2,6 @@
 
 Stack comes with quite a few built-in functions (called `intrinsics` internally). They are the core of Stack and provide baseline functinoality.
 
-## Syntax Guide
-
-<!-- TODO: write this -->
-
 ### Lists vs Functions
 
 Unless explicitly stated in the description of a function, all mentions of the type `list` includes functions (e.g.: `(fn 2 2 +)`).
