@@ -4,7 +4,7 @@ Stack comes with quite a few built-in functions (called `intrinsics` internally)
 
 ### Lists vs Functions
 
-Unless explicitly stated in the description of a function, all mentions of the type `list` includes functions (e.g.: `(fn 2 2 +)`).
+Unless explicitly stated in the description of a function, for all mentions of the type `list`, functions are also supported (e.g.: `(fn 2 2 +) len`).
 
 ## Arithmetic
 
