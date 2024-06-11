@@ -100,8 +100,6 @@ Unless explicitly stated in the description of a function, all mentions of the t
 
 **Equivalent Rust:** `!a`
 
-<!-- TODO: Assert -->
-
 ## Stack Ops
 
 ### Drop (`drop`)
@@ -289,6 +287,12 @@ If list `b` was `(first second)`, then they would be popped from the stack in or
 **Signature:** `([a] -- a)`
 
 **Equivalent Rust:** `dbg!(a)`
+
+### Assert (`assert`)
+
+**Signature:** `([a] [b] -- a)`
+
+**Equivalent Rust:** `assert!(b, format!("{}", a))`
 
 ### Print (`print`)
 
