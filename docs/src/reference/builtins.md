@@ -1,6 +1,6 @@
 # Built-Ins
 
-Stack comes with quite a few built-in functions (called `intrinsics` internally). They are the core of Stack and provide baseline functinoality.
+Stack comes with quite a few built-in functions (called `intrinsics` internally). They provide baseline functinoality for Stack.
 
 ### Lists vs Functions
 
