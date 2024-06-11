@@ -206,7 +206,7 @@ Concats `a` and `b` together (concats the two lists or two strings)
 
 Converts `a` to the type: `b` and returns the new type
 
-### Type of (`type-of`)
+### Type of (`typeof`)
 
 **Signature:** `([a] -- string)`
 
