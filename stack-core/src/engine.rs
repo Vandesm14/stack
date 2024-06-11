@@ -8,7 +8,7 @@ use std::{
 use crate::{
   context::Context,
   expr::{
-    vec_fn_body, vec_fn_symbol, vec_is_function, Error, Expr, ExprKind, FnIdent,
+    vec_fn_body, vec_fn_symbol, vec_is_function, Expr, ExprKind, FnIdent,
   },
   intrinsic::Intrinsic,
   journal::JournalOp,
