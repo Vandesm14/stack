@@ -85,6 +85,8 @@ pub fn main() {
     error: None,
     prints: Vec::new(),
     index: 0,
+    stack: Vec::new(),
+    journal_string: Vec::new(),
   };
 
   // Run the program once in the beginning
@@ -141,6 +143,8 @@ pub struct DebuggerApp {
   error: Option<String>,
   prints: Vec<IOHookEvent>,
   index: usize,
+  stack: Vec<Expr>,
+  journal_string: Vec<String>,
 }
 
 impl DebuggerApp {
@@ -184,6 +188,27 @@ impl DebuggerApp {
 
       evt
     }));
+
+    let mut entries = self.context.journal().as_ref().unwrap().all_entries();
+    entries.reverse();
+    let entry = entries.get(self.index);
+    self.stack = self
+      .context
+      .journal()
+      .as_ref()
+      .unwrap()
+      .construct_to(entry.map(|entry| entry.index).unwrap_or_default())
+      .to_vec();
+
+    self.journal_string = self
+      .context
+      .journal()
+      .clone()
+      .unwrap()
+      .to_string()
+      .lines()
+      .map(|s| s.to_string())
+      .collect();
   }
 
   fn stack_ops_len(&self) -> usize {
@@ -297,20 +322,26 @@ impl eframe::App for DebuggerApp {
         RichText::new("Stack: ").strong().color(Color32::WHITE),
         &mut layout_job,
       );
-      self
-        .context
-        .journal()
-        .as_ref()
-        .unwrap()
-        .construct_to(entry.map(|entry| entry.index).unwrap_or_default())
-        .iter()
-        .enumerate()
-        .for_each(|(i, expr)| {
-          if i != 0 {
-            append_to_job(RichText::new(", "), &mut layout_job);
-          }
-          paint_expr(expr, &mut layout_job)
-        });
+      // self
+      //   .context
+      //   .journal()
+      //   .as_ref()
+      //   .unwrap()
+      //   .construct_to(entry.map(|entry| entry.index).unwrap_or_default())
+      //   .iter()
+      //   .enumerate()
+      //   .for_each(|(i, expr)| {
+      //     if i != 0 {
+      //       append_to_job(RichText::new(", "), &mut layout_job);
+      //     }
+      //     paint_expr(expr, &mut layout_job)
+      //   });
+      self.stack.iter().enumerate().for_each(|(i, expr)| {
+        if i != 0 {
+          append_to_job(RichText::new(", "), &mut layout_job);
+        }
+        paint_expr(expr, &mut layout_job)
+      });
       ui.label(layout_job);
 
       let mut layout_job = LayoutJob::default();
@@ -436,13 +467,19 @@ impl eframe::App for DebuggerApp {
 
       ScrollArea::vertical().show(ui, |ui| {
         ui.monospace(
-          self
-            .context
-            .journal()
-            .clone()
-            .unwrap()
-            .trim_to(self.index)
-            .to_string(),
+          core::iter::once("")
+            .chain(core::iter::repeat("\n"))
+            .zip(
+              self
+                .journal_string
+                .iter()
+                .skip(self.journal_string.len() - self.index - 1),
+            )
+            .fold(String::new(), |mut str, (sep, line)| {
+              str.push_str(sep);
+              str.push_str(line);
+              str
+            }),
         );
       });
     });

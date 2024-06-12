@@ -301,13 +301,47 @@ impl Journal {
     self.commits.len()
   }
 
-  pub fn construct_to(&self, index: usize) -> Vec<Expr> {
-    let mut stack: Vec<Expr> = Vec::new();
-    for (i, op) in self.ops.iter().enumerate() {
-      if i == index {
-        break;
-      }
+  pub fn construct_to_from(
+    &self,
+    mut stack: Vec<Expr>,
+    to: usize,
+    from: usize,
+  ) -> Vec<Expr> {
+    for (i, op) in self.ops.iter().enumerate().skip(from).take(to - from).rev()
+    {
+      match op {
+        JournalOp::Push(_) => {
+          stack.pop();
+        }
+        JournalOp::Pop(expr) => stack.push(expr.clone()),
+        JournalOp::FnCall(expr) => {
+          if let ExprKind::Symbol(symbol) = expr.kind {
+            let len = stack.len();
+            match symbol.as_str() {
+              "swap" => stack.swap(len - 1, len - 2),
+              "rot" => {
+                stack.swap(len - 2, len - 3);
+                stack.swap(len - 1, len - 3);
+              }
+              _ => {}
+            }
+          }
+        }
 
+        _ => {}
+      };
+    }
+
+    stack
+  }
+
+  pub fn construct_from_to(
+    &self,
+    mut stack: Vec<Expr>,
+    from: usize,
+    to: usize,
+  ) -> Vec<Expr> {
+    for (i, op) in self.ops.iter().enumerate().skip(from).take(to - from) {
       match op {
         JournalOp::Push(expr) => stack.push(expr.clone()),
         JournalOp::Pop(_) => {
@@ -332,6 +366,10 @@ impl Journal {
     }
 
     stack
+  }
+
+  pub fn construct_to(&self, index: usize) -> Vec<Expr> {
+    self.construct_from_to(Vec::new(), 0, index)
   }
 
   pub fn trim_to(mut self, index: usize) -> Self {
