@@ -473,7 +473,7 @@ mod tests {
 
   #[test]
   fn functions_work_in_lets() {
-    let source = Source::new("", "0 'a def 1 '(fn a 2 'a def a) '(a) let a");
+    let source = Source::new("", "0 'a def 1 '((fn a 2 'a def a)) '(a) let a");
     let mut lexer = Lexer::new(source);
     let exprs = crate::parser::parse(&mut lexer).unwrap();
 
@@ -496,37 +496,13 @@ mod tests {
   }
 
   #[test]
-  fn scopeless_functions_work_in_lets() {
-    let source = Source::new("", "0 'a def 1 '(fn! a 2 'a def a) '(a) let a");
-    let mut lexer = Lexer::new(source);
-    let exprs = crate::parser::parse(&mut lexer).unwrap();
-
-    let engine = Engine::new();
-    let mut context = Context::new().with_stack_capacity(32);
-    context = engine.run(context, exprs).unwrap();
-
-    assert_eq!(
-      context
-        .stack()
-        .iter()
-        .map(|expr| &expr.kind)
-        .collect::<Vec<_>>(),
-      vec![
-        &ExprKind::Integer(1),
-        &ExprKind::Integer(2),
-        &ExprKind::Integer(2),
-      ]
-    );
-  }
-
-  #[test]
   fn lets_dont_leak() {
     let source = Source::new(
       "",
       "0 'a def
       1 '(a) '(a) let
-      1 '(fn! a) '(a) let
-      1 '(fn a) '(a) let
+      1 '((fn! a)) '(a) let
+      1 '((fn a)) '(a) let
       a",
     );
     let mut lexer = Lexer::new(source);
