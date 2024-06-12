@@ -1,8 +1,8 @@
 # Variables
 
-Stack includes variables in conjunction with the symbol system. When a symbol is pushed to the stack, the evaluator will try to call the respective variable or native function.
+Stack includes variables in conjunction with the symbol system. When a symbol is pushed to the stack, the engine will try to call the variable or native function.
 
-Native functions, such as `+` don't exist in the scope, but are instead native Rust code that is built with the evaluator. Variables, however, are stored in the scope and only exist for the evaluation instance.
+Variables are stored in the scope and only exist for the evaluation instance. Native functions such as `+`, however, don't exist in the scope, but are instead native Rust code that is built with the engine.
 
 It is not possible to redefine native functions, but it is possible to redefine variables.
 
@@ -56,9 +56,10 @@ a
 ;; [] -> [1]
 ```
 
-If you try to update a variable that doesn't exist, it will result in an error.
+If you try to `set` a variable that doesn't exist, the engine will throw an error.
 
-## Deleting Variables
+<!-- TODO(vandesm14): This was removed as the behavior of undef is weird inside of scopes. -->
+<!-- ## Deleting Variables
 
 Variables can be deleted using the `undef` operator. The first argument is the name of the variable.
 
@@ -71,4 +72,4 @@ a
 
 ;; Results in an error because `a` is no longer defined
 ;; [] -> []
-```
+``` -->

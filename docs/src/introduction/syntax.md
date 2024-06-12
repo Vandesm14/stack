@@ -21,13 +21,16 @@ true false
 + - * / % = < > <= >= != my-symbol what/is_a-symbol?!
 
 ;; Lists
-(1 2 3) (('a 'pair) ('of 'items))
+'(1 2 3) '((a pair) (of items))
 
 ;; Lazy
 'my-symbol '() 'fn
 
 ;; Functions
 '(fn 2 2 +)
+
+;; Records
+{key "value" foo "bar"}
 
 ;; Comments
 ;; This is a comment

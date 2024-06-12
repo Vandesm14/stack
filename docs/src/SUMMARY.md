@@ -10,8 +10,14 @@
 - [Variables](introduction/variables.md)
 - [Lists](introduction/lists.md)
 - [Functions](introduction/functions.md)
+- [Loops](introduction/loops.md)
 - [Scopes](introduction/scopes.md)
 
-# Appendix
+# Reference
 
-- [Glossary](glossary.md)
+- [Builtins](reference/builtins.md)
+
+# Debugger
+
+- [Installation](debugger/installation.md)
+- [Usage](debugger/usage.md)
