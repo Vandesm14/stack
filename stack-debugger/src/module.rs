@@ -18,7 +18,7 @@ pub fn module(tx: mpsc::Sender<IOHookEvent>) -> Module {
           context
             .journal()
             .as_ref()
-            .map(|j| j.total_commits())
+            .map(|j| j.entries().len())
             .unwrap_or_default(),
           val.to_string(),
         ))
@@ -35,7 +35,7 @@ pub fn module(tx: mpsc::Sender<IOHookEvent>) -> Module {
             context
               .journal()
               .as_ref()
-              .map(|j| j.total_commits())
+              .map(|j| j.entries().len())
               .unwrap_or_default(),
           ))
           .unwrap();
@@ -51,7 +51,7 @@ pub fn module(tx: mpsc::Sender<IOHookEvent>) -> Module {
             context
               .journal()
               .as_ref()
-              .map(|j| j.total_commits())
+              .map(|j| j.entries().len())
               .unwrap_or_default(),
           ))
           .unwrap();

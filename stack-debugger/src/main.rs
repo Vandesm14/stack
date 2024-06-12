@@ -1,5 +1,6 @@
 use core::{fmt, num::NonZeroUsize};
 use std::{
+  cmp::Ordering,
   ops::Add,
   path::PathBuf,
   sync::{mpsc, Arc},
@@ -189,15 +190,12 @@ impl DebuggerApp {
       evt
     }));
 
-    let mut entries = self.context.journal().as_ref().unwrap().all_entries();
-    entries.reverse();
-    let entry = entries.get(self.index);
     self.stack = self
       .context
       .journal()
       .as_ref()
       .unwrap()
-      .construct_to(entry.map(|entry| entry.index).unwrap_or_default())
+      .construct_to(self.index)
       .to_vec();
 
     self.journal_string = self
@@ -212,7 +210,7 @@ impl DebuggerApp {
   }
 
   fn stack_ops_len(&self) -> usize {
-    self.context.journal().as_ref().unwrap().all_entries().len()
+    self.context.journal().as_ref().unwrap().entries().len()
   }
 }
 
@@ -281,6 +279,8 @@ impl eframe::App for DebuggerApp {
     egui::CentralPanel::default().show(ctx, |ui| {
       ctx.set_pixels_per_point(1.2);
 
+      let last_index = self.index;
+
       if !self.prints.is_empty() {
         ui.add_space(10.0);
       }
@@ -312,9 +312,7 @@ impl eframe::App for DebuggerApp {
         }
       });
 
-      let mut entries = self.context.journal().as_ref().unwrap().all_entries();
-      entries.reverse();
-
+      let entries = self.context.journal().as_ref().unwrap().entries();
       let entry = entries.get(self.index);
 
       let mut layout_job = LayoutJob::default();
@@ -322,20 +320,6 @@ impl eframe::App for DebuggerApp {
         RichText::new("Stack: ").strong().color(Color32::WHITE),
         &mut layout_job,
       );
-      // self
-      //   .context
-      //   .journal()
-      //   .as_ref()
-      //   .unwrap()
-      //   .construct_to(entry.map(|entry| entry.index).unwrap_or_default())
-      //   .iter()
-      //   .enumerate()
-      //   .for_each(|(i, expr)| {
-      //     if i != 0 {
-      //       append_to_job(RichText::new(", "), &mut layout_job);
-      //     }
-      //     paint_expr(expr, &mut layout_job)
-      //   });
       self.stack.iter().enumerate().for_each(|(i, expr)| {
         if i != 0 {
           append_to_job(RichText::new(", "), &mut layout_job);
@@ -395,6 +379,24 @@ impl eframe::App for DebuggerApp {
             .text("ops"),
         )
       });
+
+      // Update stack
+      match self.index.cmp(&last_index) {
+        Ordering::Greater => self
+          .context
+          .journal()
+          .as_ref()
+          .unwrap()
+          .construct_from_to(&mut self.stack, last_index, self.index),
+        Ordering::Less => self
+          .context
+          .journal()
+          .as_ref()
+          .unwrap()
+          .construct_to_from(&mut self.stack, self.index, last_index),
+
+        _ => {}
+      }
 
       let mut layout_job = LayoutJob::default();
       if let Some(entry) = entry {
@@ -466,7 +468,8 @@ impl eframe::App for DebuggerApp {
       }
 
       ScrollArea::vertical().show(ui, |ui| {
-        ui.monospace(
+        ui.monospace(format!(
+          "Stack History (most recent first):\n{}",
           core::iter::once("")
             .chain(core::iter::repeat("\n"))
             .zip(
@@ -480,7 +483,7 @@ impl eframe::App for DebuggerApp {
               str.push_str(line);
               str
             }),
-        );
+        ));
       });
     });
 
