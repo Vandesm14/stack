@@ -832,11 +832,10 @@ impl Intrinsic {
               },
             )?;
 
-            context.let_push();
-
+            let mut scope = context.scope().duplicate();
             for name in n.into_iter().rev() {
               let expr = context.stack_pop(&expr)?;
-              context.let_set(name, expr);
+              scope.define(name, expr);
             }
 
             if let Some(journal) = context.journal_mut() {
@@ -844,8 +843,9 @@ impl Intrinsic {
               journal.op(JournalOp::FnStart(false));
             }
 
+            context.push_scope(scope);
             context = engine.run_expr(context, body)?;
-            context.let_pop().unwrap();
+            context.pop_scope();
 
             if let Some(journal) = context.journal_mut() {
               journal.commit();
@@ -905,11 +905,7 @@ impl Intrinsic {
         match name.kind {
           ExprKind::Symbol(symbol) => {
             // Lets take precedence over scoped vars
-            let item = if let Some(let_item) = context.let_get(symbol) {
-              Some(let_item.clone())
-            } else {
-              context.scope_item(symbol)
-            };
+            let item = context.scope_item(symbol);
 
             context
               .stack_push(item.ok_or_else(|| RunError {

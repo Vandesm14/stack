@@ -118,13 +118,7 @@ impl Engine {
       }
     }
 
-    let expr = Scanner::new(context.scope_mut()).scan(expr).map_err(
-      |(expr, reason)| RunError {
-        expr,
-        context: context.clone(),
-        reason,
-      },
-    )?;
+    let expr = context.scan_expr(expr)?;
     match expr.kind {
       ExprKind::Nil
       | ExprKind::Boolean(_)
@@ -173,9 +167,6 @@ impl Engine {
               reason: RunErrorReason::UnknownCall,
             })
           }
-        } else if let Some(r#let) = context.let_get(x).cloned() {
-          context.stack_push(r#let)?;
-          Ok(context)
         } else if let Some(item) = context.scope_item(x) {
           if item.kind.is_function() {
             let fn_ident = item.kind.fn_symbol().unwrap();
@@ -457,7 +448,7 @@ mod tests {
   }
 
   #[test]
-  fn lets_act_as_overlays() {
+  fn lets_do_not_act_as_overlays() {
     let source = Source::new("", "0 'a def 1 '(a 2 'a def a) '(a) let a");
     let mut lexer = Lexer::new(source);
     let exprs = crate::parser::parse(&mut lexer).unwrap();
@@ -475,7 +466,7 @@ mod tests {
       vec![
         &ExprKind::Integer(1),
         &ExprKind::Integer(2),
-        &ExprKind::Integer(2),
+        &ExprKind::Integer(0),
       ]
     );
   }
@@ -561,16 +552,22 @@ mod tests {
   }
 
   #[test]
-  fn lets_cant_set() {
-    let source = Source::new("", "1 '(2 'a set) '(a) let");
+  fn lets_can_set() {
+    let source = Source::new("", "1 '(a 2 'a set a) '(a) let");
     let mut lexer = Lexer::new(source);
     let exprs = crate::parser::parse(&mut lexer).unwrap();
 
     let engine = Engine::new();
-    let context = Context::new().with_stack_capacity(32);
+    let mut context = Context::new().with_stack_capacity(32);
+    context = engine.run(context, exprs).unwrap();
+
     assert_eq!(
-      engine.run(context, exprs).map_err(|err| err.reason),
-      Err(RunErrorReason::CannotSetBeforeDef)
+      context
+        .stack()
+        .iter()
+        .map(|expr| &expr.kind)
+        .collect::<Vec<_>>(),
+      vec![&ExprKind::Integer(1), &ExprKind::Integer(2),]
     );
   }
 }

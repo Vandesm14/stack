@@ -15,7 +15,6 @@ use crate::{
 #[derive(Debug, Clone, PartialEq, Default)]
 pub struct Context {
   stack: Vec<Expr>,
-  lets: Vec<HashMap<Symbol, Expr>>,
   scopes: VecOne<Scope>,
   journal: Option<Journal>,
   sources: HashMap<Symbol, Source>,
@@ -26,7 +25,6 @@ impl Context {
   pub fn new() -> Self {
     Self {
       stack: Vec::new(),
-      lets: Vec::new(),
       scopes: VecOne::new(Scope::new()),
       journal: None,
       sources: HashMap::new(),
@@ -91,24 +89,26 @@ impl Context {
     &mut self.journal
   }
 
-  pub fn stack_push(&mut self, expr: Expr) -> Result<(), RunError> {
-    let expr = if expr.kind.is_function() {
+  pub fn scan_expr(&mut self, expr: Expr) -> Result<Expr, RunError> {
+    if expr.kind.is_function() {
       let mut duplicate = self.scopes.last().duplicate();
       let mut scanner = Scanner::new(&mut duplicate);
 
       match scanner.scan(expr) {
-        Ok(expr) => expr,
-        Err((expr, reason)) => {
-          return Err(RunError {
-            reason,
-            context: self.clone(),
-            expr,
-          })
-        }
+        Ok(expr) => Ok(expr),
+        Err((expr, reason)) => Err(RunError {
+          reason,
+          context: self.clone(),
+          expr,
+        }),
       }
     } else {
-      expr
-    };
+      Ok(expr)
+    }
+  }
+
+  pub fn stack_push(&mut self, expr: Expr) -> Result<(), RunError> {
+    let expr = self.scan_expr(expr)?;
 
     if let Some(journal) = self.journal_mut() {
       journal.op(JournalOp::Push(expr.clone()));
@@ -164,8 +164,6 @@ impl Context {
     let layer = self.scopes.last_mut();
 
     layer.define(symbol, value);
-    // Remove the item from our let block since we've defined our own
-    self.let_remove(symbol);
   }
 
   pub fn set_scope_item(
@@ -198,30 +196,5 @@ impl Context {
   #[inline]
   pub fn pop_scope(&mut self) {
     self.scopes.try_pop();
-  }
-
-  #[inline]
-  pub fn let_push(&mut self) {
-    self.lets.push(HashMap::new());
-  }
-
-  #[inline]
-  pub fn let_pop(&mut self) -> Option<HashMap<Symbol, Expr>> {
-    self.lets.pop()
-  }
-
-  #[inline]
-  pub fn let_get(&self, name: Symbol) -> Option<&Expr> {
-    self.lets.iter().rev().find_map(|x| x.get(&name))
-  }
-
-  #[inline]
-  pub fn let_set(&mut self, name: Symbol, expr: Expr) -> Option<Expr> {
-    self.lets.last_mut().and_then(|x| x.insert(name, expr))
-  }
-
-  #[inline]
-  pub fn let_remove(&mut self, name: Symbol) -> Option<Expr> {
-    self.lets.last_mut().and_then(|x| x.remove(&name))
   }
 }
