@@ -10,7 +10,7 @@ Similar to other languages, a scope is a collection of symbol-expression pairs. 
 
 ## The Main Scope
 
-The main scope is the top-level of your program. It is the first scope that is created when you start Stack. It is the outermost scope and acts as a global scope.
+The main scope is the top-level of your program. It is the first scope that is created when you start Stack and is the outermost scope.
 
 In the [variable](variables.md) section, all examples were in the main scope. Though, the behavior of those examples doesn't change when inside of a scope other than main (such as when within a function).
 
