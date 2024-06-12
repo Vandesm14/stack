@@ -786,8 +786,8 @@ impl Intrinsic {
 
       // MARK: If
       Self::If => {
-        let cond = context.stack_pop(&expr)?;
         let body = context.stack_pop(&expr)?;
+        let cond = context.stack_pop(&expr)?;
 
         if cond.kind.is_truthy() {
           context = engine.run_expr(context, body)?;
