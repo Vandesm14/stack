@@ -257,13 +257,15 @@ impl Journal {
     for (i, op) in self.ops.iter().enumerate().skip(start) {
       match op {
         JournalOp::Commit => {
-          entries.push(JournalEntry::new(
-            i,
-            ops,
-            scope,
-            *scoped.last().unwrap_or(&true),
-          ));
-          ops = Vec::new();
+          if !ops.is_empty() {
+            entries.push(JournalEntry::new(
+              i,
+              ops,
+              scope,
+              *scoped.last().unwrap_or(&true),
+            ));
+            ops = Vec::new();
+          }
         }
         JournalOp::FnStart(is_scoped) => {
           scope += 1;
