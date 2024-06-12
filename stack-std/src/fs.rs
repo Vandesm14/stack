@@ -34,7 +34,7 @@ pub fn module(sandbox: bool) -> Module {
             ExprKind::String(ref x) => std::fs::read_to_string(x.as_str())
               .map(|x| x.to_compact_string())
               .map(ExprKind::String)
-              .unwrap_or_else(|e| ExprKind::Error(Error::new(e.to_string()))),
+              .unwrap_or(ExprKind::Nil),
             _ => ExprKind::Nil,
           };
 

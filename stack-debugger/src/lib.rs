@@ -28,7 +28,6 @@ const YELLOW: &str = "#C19C00";
 
 pub fn paint_expr(expr: &Expr, layout_job: &mut LayoutJob) {
   let green = Color32::from_hex(GREEN).unwrap();
-  let red = Color32::from_hex(RED).unwrap();
   let blue = Color32::from_hex(BLUE).unwrap();
   let yellow = Color32::from_hex(YELLOW).unwrap();
 
@@ -36,10 +35,6 @@ pub fn paint_expr(expr: &Expr, layout_job: &mut LayoutJob) {
     ExprKind::Nil => {
       append_to_job(RichText::new("nil").color(green), layout_job)
     }
-    ExprKind::Error(x) => append_to_job(
-      RichText::new(format!("error({})", x)).color(red),
-      layout_job,
-    ),
     ExprKind::Boolean(x) => {
       append_to_job(RichText::new(x.to_string()).color(green), layout_job)
     }
