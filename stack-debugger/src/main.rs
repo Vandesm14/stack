@@ -1,5 +1,6 @@
 use core::{fmt, num::NonZeroUsize};
 use std::{
+  cmp::Ordering,
   ops::Add,
   path::PathBuf,
   sync::{mpsc, Arc},
@@ -85,6 +86,8 @@ pub fn main() {
     error: None,
     prints: Vec::new(),
     index: 0,
+    stack: Vec::new(),
+    journal_string: Vec::new(),
   };
 
   // Run the program once in the beginning
@@ -141,6 +144,8 @@ pub struct DebuggerApp {
   error: Option<String>,
   prints: Vec<IOHookEvent>,
   index: usize,
+  stack: Vec<Expr>,
+  journal_string: Vec<String>,
 }
 
 impl DebuggerApp {
@@ -184,10 +189,28 @@ impl DebuggerApp {
 
       evt
     }));
+
+    self.stack = self
+      .context
+      .journal()
+      .as_ref()
+      .unwrap()
+      .construct_to(self.index)
+      .to_vec();
+
+    self.journal_string = self
+      .context
+      .journal()
+      .clone()
+      .unwrap()
+      .to_string()
+      .lines()
+      .map(|s| s.to_string())
+      .collect();
   }
 
   fn stack_ops_len(&self) -> usize {
-    self.context.journal().as_ref().unwrap().all_entries().len()
+    self.context.journal().as_ref().unwrap().entries().len()
   }
 }
 
@@ -256,6 +279,8 @@ impl eframe::App for DebuggerApp {
     egui::CentralPanel::default().show(ctx, |ui| {
       ctx.set_pixels_per_point(1.2);
 
+      let last_index = self.index;
+
       if !self.prints.is_empty() {
         ui.add_space(10.0);
       }
@@ -287,9 +312,7 @@ impl eframe::App for DebuggerApp {
         }
       });
 
-      let mut entries = self.context.journal().as_ref().unwrap().all_entries();
-      entries.reverse();
-
+      let entries = self.context.journal().as_ref().unwrap().entries();
       let entry = entries.get(self.index);
 
       let mut layout_job = LayoutJob::default();
@@ -297,20 +320,12 @@ impl eframe::App for DebuggerApp {
         RichText::new("Stack: ").strong().color(Color32::WHITE),
         &mut layout_job,
       );
-      self
-        .context
-        .journal()
-        .as_ref()
-        .unwrap()
-        .construct_to(entry.map(|entry| entry.index).unwrap_or_default())
-        .iter()
-        .enumerate()
-        .for_each(|(i, expr)| {
-          if i != 0 {
-            append_to_job(RichText::new(", "), &mut layout_job);
-          }
-          paint_expr(expr, &mut layout_job)
-        });
+      self.stack.iter().enumerate().for_each(|(i, expr)| {
+        if i != 0 {
+          append_to_job(RichText::new(", "), &mut layout_job);
+        }
+        paint_expr(expr, &mut layout_job)
+      });
       ui.label(layout_job);
 
       let mut layout_job = LayoutJob::default();
@@ -364,6 +379,24 @@ impl eframe::App for DebuggerApp {
             .text("ops"),
         )
       });
+
+      // Update stack
+      match self.index.cmp(&last_index) {
+        Ordering::Greater => self
+          .context
+          .journal()
+          .as_ref()
+          .unwrap()
+          .construct_from_to(&mut self.stack, last_index, self.index),
+        Ordering::Less => self
+          .context
+          .journal()
+          .as_ref()
+          .unwrap()
+          .construct_to_from(&mut self.stack, self.index, last_index),
+
+        _ => {}
+      }
 
       let mut layout_job = LayoutJob::default();
       if let Some(entry) = entry {
@@ -435,15 +468,22 @@ impl eframe::App for DebuggerApp {
       }
 
       ScrollArea::vertical().show(ui, |ui| {
-        ui.monospace(
-          self
-            .context
-            .journal()
-            .clone()
-            .unwrap()
-            .trim_to(self.index)
-            .to_string(),
-        );
+        ui.monospace(format!(
+          "Stack History (most recent first):\n{}",
+          core::iter::once("")
+            .chain(core::iter::repeat("\n"))
+            .zip(
+              self
+                .journal_string
+                .iter()
+                .skip(self.journal_string.len() - self.index - 1),
+            )
+            .fold(String::new(), |mut str, (sep, line)| {
+              str.push_str(sep);
+              str.push_str(line);
+              str
+            }),
+        ));
       });
     });
 
