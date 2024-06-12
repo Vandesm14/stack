@@ -10,6 +10,7 @@
 - [Variables](introduction/variables.md)
 - [Lists](introduction/lists.md)
 - [Functions](introduction/functions.md)
+- [Loops](introduction/loops.md)
 - [Scopes](introduction/scopes.md)
 
 # Reference
