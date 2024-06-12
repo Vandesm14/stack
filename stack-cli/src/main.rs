@@ -160,7 +160,7 @@ fn main() {
             Ok(context) => {
               print_stack(&context);
               if let Some(journal) = context.journal() {
-                eprintln!("{}", journal);
+                eprintln!("{:#}", journal);
               }
 
               context
