@@ -13,7 +13,6 @@ use crate::{
   intrinsic::Intrinsic,
   journal::JournalOp,
   module::Module,
-  scope::Scanner,
   symbol::Symbol,
 };
 
