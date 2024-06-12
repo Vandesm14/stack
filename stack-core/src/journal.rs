@@ -1,5 +1,4 @@
 use core::fmt;
-use std::mem;
 
 use crate::expr::{Expr, ExprKind};
 
@@ -109,7 +108,6 @@ impl fmt::Display for Journal {
       .take(self.size.unwrap_or(self.entries.len()))
     {
       let mut line = String::new();
-      let mut should_print = false;
       for op in entry.ops.iter() {
         if !line.is_empty() {
           line.push(' ');
@@ -121,47 +119,37 @@ impl fmt::Display for Journal {
               "{}",
               if f.alternate() { x.white() } else { x.new() }
             ));
-
-            should_print = true;
           }
           JournalOp::FnCall(x) => {
             line.push_str(&format!(
               "{}",
               if f.alternate() { x.yellow() } else { x.new() }
             ));
-
-            should_print = true;
           }
           JournalOp::Push(x) => {
             line.push_str(&format!(
               "{}",
               if f.alternate() { x.green() } else { x.new() }
             ));
-
-            should_print = true;
           }
           JournalOp::Pop(x) => {
             line.push_str(&format!(
               "{}",
               if f.alternate() { x.red() } else { x.new() }
             ));
-
-            should_print = true;
           }
           _ => {}
         }
       }
 
-      if should_print {
-        let bullet_symbol = match entry.scoped {
-          true => format!("{}*", "  ".repeat(entry.scope)),
-          false => {
-            format!("{}!", "  ".repeat(entry.scope))
-          }
-        };
-        write!(f, " {} ", bullet_symbol)?;
-        writeln!(f, "{}", line)?;
-      }
+      let bullet_symbol = match entry.scoped {
+        true => format!("{}*", "  ".repeat(entry.scope)),
+        false => {
+          format!("{}!", "  ".repeat(entry.scope))
+        }
+      };
+      write!(f, " {} ", bullet_symbol)?;
+      writeln!(f, "{}", line)?;
     }
 
     Ok(())
@@ -248,7 +236,6 @@ impl Journal {
     for entry in self
       .entries
       .iter()
-      .skip(1)
       .rev()
       .skip((self.entries.len() - 1) - from)
       .take(from - to)
