@@ -5,6 +5,10 @@
 
 Stack is a dynamic, stack-based, [concatenative] programming language.
 
+## Roadmap
+
+We have a public roadmap hosted on [Trello](https://trello.com/b/xEZN90Zx/stack).
+
 ## Documentation
 
 All of our documentation can be found in the [docs](./docs) directory or hosted via [GitHub Pages](https://vandesm14.github.io/stack/).
