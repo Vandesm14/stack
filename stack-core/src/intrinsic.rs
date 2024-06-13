@@ -6,10 +6,11 @@ use unicode_segmentation::UnicodeSegmentation;
 
 use crate::{
   context::Context,
-  expr::{Expr, ExprKind},
+  expr::{Expr, ExprKind, FnScope},
   journal::JournalOp,
   lexer::Lexer,
   prelude::{parse, Engine, RunError, RunErrorReason},
+  scope::Scope,
   source::Source,
   symbol::Symbol,
 };
@@ -383,6 +384,10 @@ impl Intrinsic {
             debug_assert!(x.len() <= i64::MAX as usize);
             ExprKind::Integer(x.len() as i64)
           }
+          ExprKind::Function { body: ref x, .. } => {
+            debug_assert!(x.len() <= i64::MAX as usize);
+            ExprKind::Integer(x.len() as i64)
+          }
           _ => ExprKind::Nil,
         };
 
@@ -408,6 +413,13 @@ impl Intrinsic {
             .nth(i as usize)
             .map(|x| ExprKind::String(x.into()))
             .unwrap_or(ExprKind::Nil),
+          (ExprKind::Function { body: x, .. }, ExprKind::Integer(i))
+            if i >= 0 =>
+          {
+            x.get(i as usize)
+              .map(|x| x.kind.clone())
+              .unwrap_or(ExprKind::Nil)
+          }
           _ => ExprKind::Nil,
         };
 
@@ -452,6 +464,21 @@ impl Intrinsic {
               }
             }
           }
+          (ExprKind::Function { body: mut x, .. }, ExprKind::Integer(i))
+            if i >= 0 =>
+          {
+            if (i as usize) < x.len() {
+              let rest = x.split_off(i as usize);
+
+              context.stack_push(ExprKind::List(x).into())?;
+
+              context.stack_push(ExprKind::List(rest).into())?;
+            } else {
+              context.stack_push(ExprKind::List(x).into())?;
+
+              context.stack_push(ExprKind::Nil.into())?;
+            }
+          }
           _ => {
             context.stack_push(ExprKind::Nil.into())?;
 
@@ -474,6 +501,16 @@ impl Intrinsic {
           (ExprKind::String(mut lhs), ExprKind::String(rhs)) => {
             lhs.push_str(&rhs);
             ExprKind::String(lhs)
+          }
+          (
+            ExprKind::Function {
+              scope,
+              body: mut lhs,
+            },
+            ExprKind::Function { body: rhs, .. },
+          ) => {
+            lhs.extend(rhs);
+            ExprKind::Function { scope, body: lhs }
           }
           _ => ExprKind::Nil,
         };
@@ -509,6 +546,13 @@ impl Intrinsic {
               ExprKind::Nil
             }
           }
+          (ExprKind::Function { body: mut x, .. }, i) => {
+            x.push(Expr {
+              kind: i,
+              info: item.info.clone(),
+            });
+            ExprKind::List(x)
+          }
           _ => ExprKind::Nil,
         };
 
@@ -534,6 +578,12 @@ impl Intrinsic {
               .unwrap_or(ExprKind::Nil.into());
 
             context.stack_push(ExprKind::String(x).into())?;
+            context.stack_push(e)?;
+          }
+          ExprKind::Function { body: mut x, .. } => {
+            let e = x.pop().unwrap_or(ExprKind::Nil.into());
+
+            context.stack_push(ExprKind::List(x).into())?;
             context.stack_push(e)?;
           }
           _ => {
@@ -755,6 +805,13 @@ impl Intrinsic {
 
               ExprKind::Record(record)
             }
+
+            (ExprKind::List(x), "function") => ExprKind::Function {
+              scope: FnScope::Scoped(Scope::new()),
+              body: x,
+            },
+            (ExprKind::Function { body: x, .. }, "list")
+            | (ExprKind::List(x), "list") => ExprKind::List(x),
 
             _ => ExprKind::Nil,
           },
