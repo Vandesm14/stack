@@ -95,6 +95,11 @@ impl ExprKind {
     matches!(self, Self::Boolean(true))
   }
 
+  #[inline]
+  pub const fn is_function(&self) -> bool {
+    matches!(self, Self::Function { .. })
+  }
+
   pub const fn unlazy(&self) -> &ExprKind {
     match self {
       ExprKind::Lazy(x) => x.kind.unlazy(),
