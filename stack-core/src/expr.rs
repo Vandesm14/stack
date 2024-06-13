@@ -66,6 +66,18 @@ pub enum FnScope {
   Scopeless,
 }
 
+impl FnScope {
+  #[inline]
+  pub const fn is_scoped(&self) -> bool {
+    matches!(self, Self::Scoped(..))
+  }
+
+  #[inline]
+  pub const fn is_scopeless(&self) -> bool {
+    matches!(self, Self::Scopeless)
+  }
+}
+
 #[derive(Debug, Clone)]
 pub enum ExprKind {
   Nil,
@@ -98,6 +110,18 @@ impl ExprKind {
   #[inline]
   pub const fn is_function(&self) -> bool {
     matches!(self, Self::Function { .. })
+  }
+
+  #[inline]
+  pub const fn is_scoped(&self) -> Option<bool> {
+    match self {
+      Self::Function { scope, .. } => match scope {
+        FnScope::Scoped(..) => Some(true),
+        FnScope::Scopeless => Some(false),
+      },
+
+      _ => None,
+    }
   }
 
   pub const fn unlazy(&self) -> &ExprKind {
