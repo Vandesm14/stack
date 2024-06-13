@@ -3,9 +3,8 @@ use core::fmt;
 use std::collections::HashMap;
 
 use crate::{
-  expr::{Expr, ExprInfo, ExprKind, FnScope},
+  expr::{Expr, ExprInfo, ExprKind},
   lexer::{Lexer, Span, Token, TokenKind},
-  scope::Scope,
   source::{Location, Source},
   symbol::Symbol,
 };
