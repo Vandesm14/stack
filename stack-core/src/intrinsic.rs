@@ -464,13 +464,14 @@ impl Intrinsic {
               }
             }
           }
-          (ExprKind::Function { body: mut x, .. }, ExprKind::Integer(i))
+          (ExprKind::Function { scope, body: mut x }, ExprKind::Integer(i))
             if i >= 0 =>
           {
             if (i as usize) < x.len() {
               let rest = x.split_off(i as usize);
 
-              context.stack_push(ExprKind::List(x).into())?;
+              context
+                .stack_push(ExprKind::Function { scope, body: x }.into())?;
 
               context.stack_push(ExprKind::List(rest).into())?;
             } else {
@@ -502,6 +503,7 @@ impl Intrinsic {
             lhs.push_str(&rhs);
             ExprKind::String(lhs)
           }
+
           (
             ExprKind::Function {
               scope,
@@ -511,6 +513,21 @@ impl Intrinsic {
           ) => {
             lhs.extend(rhs);
             ExprKind::Function { scope, body: lhs }
+          }
+
+          (
+            ExprKind::Function {
+              scope,
+              body: mut lhs,
+            },
+            ExprKind::List(rhs),
+          ) => {
+            lhs.extend(rhs);
+            ExprKind::Function { scope, body: lhs }
+          }
+          (ExprKind::List(mut lhs), ExprKind::Function { body: rhs, .. }) => {
+            lhs.extend(rhs);
+            ExprKind::List(lhs)
           }
           _ => ExprKind::Nil,
         };
