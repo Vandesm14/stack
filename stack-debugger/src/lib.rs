@@ -3,7 +3,7 @@ pub mod module;
 use eframe::egui::{
   text::LayoutJob, Align, Color32, FontSelection, RichText, Style,
 };
-use stack_core::{journal::JournalOp, prelude::*};
+use stack_core::{expr::display_fn_scope, journal::JournalOp, prelude::*};
 
 pub enum IOHookEvent {
   Print(String),
@@ -86,8 +86,20 @@ pub fn paint_expr(expr: &Expr, layout_job: &mut LayoutJob) {
       append_to_job(RichText::new("}"), layout_job);
     }
 
-    ExprKind::Fn(x) => {
-      append_to_job(RichText::new(x.to_string()).color(yellow), layout_job)
+    ExprKind::Function { scope, body } => {
+      // append_to_job(RichText::new(x.to_string()).color(yellow), layout_job)
+      append_to_job(RichText::new("("), layout_job);
+      append_to_job(RichText::new(display_fn_scope(scope)), layout_job);
+
+      for (sep, x) in core::iter::once("")
+        .chain(core::iter::repeat(" "))
+        .zip(body.iter())
+      {
+        append_to_job(RichText::new(sep), layout_job);
+        paint_expr(x, layout_job);
+      }
+
+      append_to_job(RichText::new(")"), layout_job);
     }
   }
 }
