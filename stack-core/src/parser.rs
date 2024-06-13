@@ -3,8 +3,9 @@ use core::fmt;
 use std::collections::HashMap;
 
 use crate::{
-  expr::{Expr, ExprInfo, ExprKind, FnIdent},
+  expr::{Expr, ExprInfo, ExprKind, FnScope},
   lexer::{Lexer, Span, Token, TokenKind},
+  scope::Scope,
   source::{Location, Source},
   symbol::Symbol,
 };
@@ -137,14 +138,6 @@ fn parse_expr(lexer: &mut Lexer) -> Result<Expr, ParseError> {
           "nil" => ExprKind::Nil,
           "true" => ExprKind::Boolean(true),
           "false" => ExprKind::Boolean(false),
-          "fn" => ExprKind::Fn(FnIdent {
-            scoped: true,
-            scope: Default::default(),
-          }),
-          "fn!" => ExprKind::Fn(FnIdent {
-            scoped: false,
-            scope: Default::default(),
-          }),
           slice => ExprKind::Symbol(Symbol::from_ref(slice)),
         },
         info: Some(ExprInfo {
