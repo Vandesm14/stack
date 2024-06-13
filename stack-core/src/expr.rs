@@ -371,12 +371,14 @@ impl fmt::Display for ExprKind {
 
         Self::Function { scope, body } => {
           write!(f, "(")?;
-          write!(f, "{}", display_fn_scope(scope))?;
+
+          let sep = if body.is_empty() { "" } else { " " };
+          write!(f, "{}{sep}", display_fn_scope(scope))?;
 
           core::iter::once("")
             .chain(core::iter::repeat(" "))
             .zip(body.iter())
-            .try_for_each(|(sep, x)| write!(f, "{sep}{x:#}"))?;
+            .try_for_each(|(sep, x)| write!(f, "{sep}{x}"))?;
 
           write!(f, ")")
         }

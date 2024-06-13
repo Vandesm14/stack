@@ -92,8 +92,10 @@ pub fn paint_expr(expr: &Expr, layout_job: &mut LayoutJob) {
     ExprKind::Function { scope, body } => {
       // append_to_job(RichText::new(x.to_string()).color(yellow), layout_job)
       append_to_job(RichText::new("("), layout_job);
+
+      let sep = if body.is_empty() { "" } else { " " };
       append_to_job(
-        RichText::new(display_fn_scope(scope)).color(blue),
+        RichText::new(format!("{}{sep}", display_fn_scope(scope))).color(blue),
         layout_job,
       );
 
