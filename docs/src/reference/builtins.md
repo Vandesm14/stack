@@ -305,7 +305,7 @@ rot
 
 ### Length (`len`)
 
-**Signature:** `([a: list|string] -- int)`
+**Signature:** `([a: list|string|function] -- int)`
 
 **Equivalent Rust:** `a.len()`
 
@@ -320,7 +320,7 @@ rot
 
 ### Get at Index (`nth`)
 
-**Signature:** `([a: list] [b: int] -- a any)` or `([a: string] [b: int] -- a string)`
+**Signature:** `([a: list|function] [b: int] -- a any)` or `([a: string] [b: int] -- a string)`
 
 **Equivalent Rust:** `a[b]` or `a.get(b)`
 
@@ -356,7 +356,12 @@ Splits `a` at the separator `b` and returns both chunks.
 
 ### Concat (`concat`)
 
-**Signature:** `([a: list] [b: list] -- list)` or `([a: string] [b: string] -- string)`
+**Signatures:**
+- `([a: list] [b: list] -- list)`
+- `([a: string] [b: string] -- string)`
+- `([a: function] [b: function] -- function)`
+- `([a: function] [b: list] -- function)`
+- `([a: list] [b: function] -- list)`
 
 Concats `a` and `b` together (concats the two lists or two strings)
 
@@ -371,7 +376,7 @@ Concats `a` and `b` together (concats the two lists or two strings)
 
 ### Push (`push`)
 
-**Signature:** `([a] [b: list] -- list)`
+**Signature:** `([a] [b: list|function] -- b)` or `([a: string] [b: string] -- string)`
 
 **Equivalent Rust:** `b.push(a)`
 
@@ -386,7 +391,7 @@ Concats `a` and `b` together (concats the two lists or two strings)
 
 ### Pop (`pop`)
 
-**Signature:** `([a: list] -- any)` or `([a: string] -- any)`
+**Signature:** `([a: list|function] -- a any)` or `([a: string] -- string)`
 
 **Equivalent Rust:** `a.pop()`
 
