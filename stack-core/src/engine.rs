@@ -7,9 +7,7 @@ use std::{
 
 use crate::{
   context::Context,
-  expr::{
-    vec_fn_body, vec_fn_symbol, vec_is_function, Expr, ExprKind, FnIdent,
-  },
+  expr::{Expr, ExprKind, FnScope},
   intrinsic::Intrinsic,
   journal::JournalOp,
   module::Module,
@@ -167,15 +165,12 @@ impl Engine {
             })
           }
         } else if let Some(item) = context.scope_item(x) {
-          if item.kind.is_function() {
-            let fn_ident = item.kind.fn_symbol().unwrap();
-            let fn_body = item.kind.fn_body().unwrap();
-
+          if let ExprKind::Function { scope, body } = item.kind {
             let mut _call_result = CallResult::None;
             let mut is_recur = false;
             loop {
               _call_result =
-                self.call_fn(&expr, fn_ident, fn_body, context, is_recur);
+                self.call_fn(&expr, &scope, &body, context, is_recur);
               is_recur = true;
 
               match _call_result {
@@ -207,28 +202,24 @@ impl Engine {
         context.stack_push(*x)?;
         Ok(context)
       }
-      ExprKind::List(ref x) => match vec_is_function(x) {
-        true => {
-          let fn_ident = vec_fn_symbol(x).unwrap();
-          let fn_body = vec_fn_body(x).unwrap();
+      ExprKind::List(ref x) => self.run(context, x.to_vec()),
+      ExprKind::Function {
+        ref scope,
+        ref body,
+      } => {
+        let mut _call_result = CallResult::None;
+        let mut is_recur = false;
+        loop {
+          _call_result = self.call_fn(&expr, scope, body, context, is_recur);
+          is_recur = true;
 
-          let mut _call_result = CallResult::None;
-          let mut is_recur = false;
-          loop {
-            _call_result =
-              self.call_fn(&expr, fn_ident, fn_body, context, is_recur);
-            is_recur = true;
-
-            match _call_result {
-              CallResult::Recur(c) => context = c,
-              CallResult::Once(result) => return result,
-              CallResult::None => unreachable!(),
-            }
+          match _call_result {
+            CallResult::Recur(c) => context = c,
+            CallResult::Once(result) => return result,
+            CallResult::None => unreachable!(),
           }
         }
-        false => self.run(context, x.to_vec()),
-      },
-      ExprKind::Fn(_) => Ok(context),
+      }
     }
   }
 
@@ -237,7 +228,7 @@ impl Engine {
   pub fn call_fn(
     &self,
     expr: &Expr,
-    fn_ident: &FnIdent,
+    fn_scope: &FnScope,
     fn_body: &[Expr],
     mut context: Context,
     is_recur: bool,
@@ -246,13 +237,15 @@ impl Engine {
       journal.op(JournalOp::FnCall(expr.clone()));
     }
 
-    if fn_ident.scoped && !is_recur {
-      context.push_scope(fn_ident.scope.clone());
+    if !is_recur {
+      if let FnScope::Scoped(scope) = fn_scope {
+        context.push_scope(scope.clone());
+      }
     }
 
     if let Some(journal) = context.journal_mut() {
       journal.commit();
-      journal.op(JournalOp::FnStart(fn_ident.scoped));
+      journal.op(JournalOp::FnStart(fn_scope.is_scoped()));
     }
 
     match self.run(context, fn_body.to_vec()) {
@@ -271,7 +264,7 @@ impl Engine {
           };
         }
 
-        if fn_ident.scoped {
+        if fn_scope.is_scoped() {
           context.pop_scope();
         }
 
