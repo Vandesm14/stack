@@ -37,6 +37,7 @@ pub enum JournalOp {
   Push(Expr),
   Pop(Expr),
 
+  /// bool determines if the function is scoped or not
   FnStart(bool),
   FnEnd,
 
