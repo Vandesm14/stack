@@ -3,8 +3,9 @@ use core::fmt;
 use std::collections::HashMap;
 
 use crate::{
-  expr::{Expr, ExprInfo, ExprKind},
+  expr::{Expr, ExprInfo, ExprKind, FnScope},
   lexer::{Lexer, Span, Token, TokenKind},
+  scope::Scope,
   source::{Location, Source},
   symbol::Symbol,
 };
@@ -53,8 +54,31 @@ fn parse_expr(lexer: &mut Lexer) -> Result<Expr, ParseError> {
     TokenKind::LeftParen => {
       let (list, end_span) = parse_list(lexer)?;
 
+      let kind = if let Some(Expr {
+        kind: ExprKind::Symbol(symbol),
+        ..
+      }) = list.first()
+      {
+        let str = symbol.as_str();
+        if str == "fn" {
+          ExprKind::Function {
+            scope: FnScope::Scoped(Scope::new()),
+            body: list.into_iter().skip(1).collect(),
+          }
+        } else if str == "fn!" {
+          ExprKind::Function {
+            scope: FnScope::Scopeless,
+            body: list.into_iter().skip(1).collect(),
+          }
+        } else {
+          ExprKind::List(list)
+        }
+      } else {
+        ExprKind::List(list)
+      };
+
       Ok(Expr {
-        kind: ExprKind::List(list),
+        kind,
         info: Some(ExprInfo {
           source,
           span: Span {
@@ -160,6 +184,54 @@ fn parse_list(lexer: &mut Lexer) -> Result<(Vec<Expr>, Span), ParseError> {
     }
   }
 }
+
+// fn parse_function(
+//   lexer: &mut Lexer,
+// ) -> Result<(FnScope, Vec<Expr>, Span), ParseError> {
+//   let mut scope = FnScope::Scopeless;
+//   let mut body = Vec::new();
+//   let mut start = true;
+
+//   loop {
+//     let token = lexer.peek();
+
+//     match token.kind {
+//       TokenKind::RightParen => break Ok((scope, body, lexer.next().span)),
+//       _ => {
+//         let expr = parse_expr(lexer)?;
+//         match expr.kind {
+//           ExprKind::Symbol(str) => match str.as_str() {
+//             "fn" => {
+//               if start {
+//                 scope = FnScope::Scoped(Scope::new());
+//                 start = false;
+//               } else {
+//                 // TODO: throw an error for invalid function
+//               }
+//             }
+//             "fn!" => {
+//               if start {
+//                 start = false;
+//               } else {
+//                 // TODO: throw an error for invalid function
+//               }
+//             }
+
+//             _ => {
+//               if start {
+//                 // TODO: throw an error for invalid function
+//               } else {
+//                 body.push(expr)
+//               }
+//             }
+//           },
+
+//           _ => body.push(expr),
+//         }
+//       }
+//     }
+//   }
+// }
 
 fn parse_record(
   lexer: &mut Lexer,
