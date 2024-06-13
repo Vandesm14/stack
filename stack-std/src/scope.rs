@@ -16,8 +16,6 @@ pub fn module() -> Module {
           ExprKind::Symbol(ref x) => {
             if Intrinsic::from_str(x.as_str()).is_ok() {
               context.stack_push(ExprKind::String("intrinsic".into()).into())
-            } else if context.let_get(*x).is_some() {
-              context.stack_push(ExprKind::String("let".into()).into())
             } else if context.scope_item(*x).is_some() {
               context.stack_push(ExprKind::String("scope".into()).into())
             } else if engine.module(x).is_some() {

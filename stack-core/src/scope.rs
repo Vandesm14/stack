@@ -18,6 +18,7 @@ impl fmt::Debug for Scope {
 }
 
 impl Clone for Scope {
+  /// Clones the scope, using the same Arc's as self
   fn clone(&self) -> Self {
     let mut items = HashMap::new();
 
@@ -103,6 +104,7 @@ impl Scope {
     }
   }
 
+  /// Creates a new scope, linking the new symbols to that of self (such as for a function call)
   pub fn duplicate(&self) -> Self {
     let mut items = HashMap::new();
 

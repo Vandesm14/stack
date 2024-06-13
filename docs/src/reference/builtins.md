@@ -721,12 +721,17 @@ Pops `b.len()` items off of the stack, assigning each item the corresponding sym
 
 If list `b` was `(first second)`, then they would be popped from the stack in order, following this signature: `([first] [second] --)`.
 
+**Important Note:** Functions **cannot be used** as the block of a let (`a`). To use functions within lets, wrap them within the let block: `0 '((fn a)) '(a) let`. Lets create create their own scopes, so any `def` will be isolated to that `let`.
+
 **Examples:**
 ```clj
 10 2 '(a b -) '(a b) let
 ;; 8
 
-10 2 '(fn a b -) '(a b) let
+10 2
+'(
+  (fn a b -)
+) '(a b) let
 ;; 8
 
 10 2
