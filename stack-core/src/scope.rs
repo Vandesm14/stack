@@ -57,10 +57,10 @@ impl Scope {
   }
 
   pub fn reserve(&mut self, name: Symbol) {
-    if self.items.get(&name).is_none() {
-      let val = Arc::new(RefCell::new(Chain::new(None)));
-      self.items.insert(name, val);
-    }
+    self
+      .items
+      .entry(name)
+      .or_insert_with(|| Arc::new(RefCell::new(Chain::new(None))));
   }
 
   pub fn set(
@@ -168,7 +168,7 @@ impl<'s> Scanner<'s> {
         Ok(expr)
       }
     } else {
-      return Err((expr, RunErrorReason::InvalidFunction));
+      Err((expr, RunErrorReason::InvalidFunction))
     }
   }
 }
