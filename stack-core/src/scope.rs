@@ -1,7 +1,7 @@
 use core::fmt;
 use std::{cell::RefCell, collections::HashMap, fmt::Formatter, sync::Arc};
 
-use crate::{chain::Chain, expr::FnIdent, prelude::*};
+use crate::{chain::Chain, expr::FnScope, prelude::*};
 
 pub type Val = Arc<RefCell<Chain<Option<Expr>>>>;
 
@@ -130,54 +130,45 @@ impl<'s> Scanner<'s> {
   pub fn scan(&mut self, expr: Expr) -> Result<Expr, (Expr, RunErrorReason)> {
     if expr.kind.is_function() {
       let expr = expr;
-      // We can unwrap here because we know the expression is a function
-      let fn_symbol = match expr.kind.fn_symbol() {
-        Some(fn_symbol) => fn_symbol,
-        None => return Err((expr, RunErrorReason::InvalidFunction)),
-      };
-      let mut fn_body = match expr.kind.fn_body() {
-        Some(fn_body) => fn_body.to_vec(),
-        None => return Err((expr, RunErrorReason::InvalidFunction)),
-      };
-
-      for item in fn_body.iter_mut() {
-        if item.kind.unlazy().is_function() {
-          let mut duplicate = self.scope.duplicate();
-          let mut scanner = Scanner::new(&mut duplicate);
-          let unlazied_mut = item.kind.unlazy_mut();
-          *unlazied_mut = scanner
-            .scan(Expr {
-              kind: unlazied_mut.clone(),
-              info: item.info.clone(),
-            })
-            .unwrap()
-            .kind
+      if let ExprKind::Function { scope, mut body } = expr.kind {
+        for item in body.iter_mut() {
+          if item.kind.unlazy().is_function() {
+            let mut duplicate = self.scope.duplicate();
+            let mut scanner = Scanner::new(&mut duplicate);
+            let unlazied_mut = item.kind.unlazy_mut();
+            *unlazied_mut = scanner
+              .scan(Expr {
+                kind: unlazied_mut.clone(),
+                info: item.info.clone(),
+              })
+              .unwrap()
+              .kind
+          }
         }
+
+        let fn_scope = if let FnScope::Scoped(scope) = scope {
+          let mut fn_scope = scope.clone();
+          fn_scope.merge(self.scope.clone());
+          FnScope::Scoped(fn_scope)
+        } else {
+          FnScope::Scopeless
+        };
+
+        let new_expr = ExprKind::Function {
+          scope: fn_scope,
+          body,
+        };
+
+        Ok(Expr {
+          kind: new_expr,
+          info: expr.info,
+        })
+      } else {
+        // If the expression is not a function, we just return it
+        Ok(expr)
       }
-
-      let mut fn_scope = fn_symbol.scope.clone();
-      fn_scope.merge(self.scope.clone());
-
-      let fn_ident = ExprKind::Fn(FnIdent {
-        scope: fn_scope,
-        scoped: fn_symbol.scoped,
-      });
-
-      let mut list_items = vec![Expr {
-        kind: fn_ident,
-        info: expr.info.clone(),
-      }];
-      list_items.extend(fn_body);
-
-      let new_expr = ExprKind::List(list_items);
-
-      Ok(Expr {
-        kind: new_expr,
-        info: expr.info,
-      })
     } else {
-      // If the expression is not a function, we just return it
-      Ok(expr)
+      return Err((expr, RunErrorReason::InvalidFunction));
     }
   }
 }
