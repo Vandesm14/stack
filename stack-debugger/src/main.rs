@@ -216,6 +216,8 @@ impl DebuggerApp {
 
 impl eframe::App for DebuggerApp {
   fn update(&mut self, ctx: &egui::Context, _: &mut eframe::Frame) {
+    let last_index = self.index;
+
     if self.do_reload.try_iter().last().is_some() {
       self.reload();
     }
@@ -278,8 +280,6 @@ impl eframe::App for DebuggerApp {
 
     egui::CentralPanel::default().show(ctx, |ui| {
       ctx.set_pixels_per_point(1.2);
-
-      let last_index = self.index;
 
       if !self.prints.is_empty() {
         ui.add_space(10.0);
@@ -380,24 +380,6 @@ impl eframe::App for DebuggerApp {
         )
       });
 
-      // Update stack
-      match self.index.cmp(&last_index) {
-        Ordering::Greater => self
-          .context
-          .journal()
-          .as_ref()
-          .unwrap()
-          .construct_from_to(&mut self.stack, last_index, self.index),
-        Ordering::Less => self
-          .context
-          .journal()
-          .as_ref()
-          .unwrap()
-          .construct_to_from(&mut self.stack, self.index, last_index),
-
-        _ => {}
-      }
-
       let mut layout_job = LayoutJob::default();
       if let Some(entry) = entry {
         if let Some(first) = entry.ops.first() {
@@ -486,6 +468,24 @@ impl eframe::App for DebuggerApp {
         ));
       });
     });
+
+    // Update stack
+    match self.index.cmp(&last_index) {
+      Ordering::Greater => self
+        .context
+        .journal()
+        .as_ref()
+        .unwrap()
+        .construct_from_to(&mut self.stack, last_index, self.index),
+      Ordering::Less => self
+        .context
+        .journal()
+        .as_ref()
+        .unwrap()
+        .construct_to_from(&mut self.stack, self.index, last_index),
+
+      _ => {}
+    }
 
     ctx.request_repaint_after(Duration::from_secs_f32(1.0 / 15.0));
   }
