@@ -812,6 +812,9 @@ impl Intrinsic {
             },
             (ExprKind::Function { body: x, .. }, "list")
             | (ExprKind::List(x), "list") => ExprKind::List(x),
+            (ExprKind::Function { scope, body }, "function") => {
+              ExprKind::Function { scope, body }
+            }
 
             _ => ExprKind::Nil,
           },
