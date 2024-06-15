@@ -212,6 +212,65 @@ impl DebuggerApp {
   fn stack_ops_len(&self) -> usize {
     self.context.journal().as_ref().unwrap().entries().len()
   }
+
+  fn step_over(&mut self) {
+    let index = self.index;
+    if let Some(entry) = self
+      .context
+      .journal()
+      .as_ref()
+      .unwrap()
+      .entries()
+      .get(index)
+    {
+      let scope_level = entry.scope;
+      let next_index = self
+        .context
+        .journal()
+        .as_ref()
+        .unwrap()
+        .entries()
+        .iter()
+        .enumerate()
+        .skip(index + 1)
+        .find(|(i, entry)| entry.scope == scope_level)
+        .map(|(i, _)| i);
+
+      if let Some(next_index) = next_index {
+        self.index = next_index;
+      }
+    }
+  }
+
+  fn step_over_rev(&mut self) {
+    let index = self.index;
+    if let Some(entry) = self
+      .context
+      .journal()
+      .as_ref()
+      .unwrap()
+      .entries()
+      .get(index)
+    {
+      let scope_level = entry.scope;
+      let next_index = self
+        .context
+        .journal()
+        .as_ref()
+        .unwrap()
+        .entries()
+        .iter()
+        .enumerate()
+        .rev()
+        .skip(self.stack_ops_len() - index)
+        .find(|(i, entry)| entry.scope == scope_level)
+        .map(|(i, _)| i);
+
+      if let Some(next_index) = next_index {
+        self.index = next_index;
+      }
+    }
+  }
 }
 
 impl eframe::App for DebuggerApp {
@@ -289,27 +348,39 @@ impl eframe::App for DebuggerApp {
         ui.label(format!("Error: {err}"));
       }
 
-      ui.horizontal(|ui| {
-        if ui.button("Reload").clicked() {
-          self.reload();
-        }
+      ui.vertical(|ui| {
+        ui.horizontal(|ui| {
+          if ui.button("Reload").clicked() {
+            self.reload();
+          }
 
-        if ui.button("<|").clicked() {
-          self.index = 0;
-        }
-        if ui.button("<").clicked() {
-          self.index = self.index.saturating_sub(1);
-        }
+          if ui.button("<|").clicked() {
+            self.index = 0;
+          }
+          if ui.button("<").clicked() {
+            self.index = self.index.saturating_sub(1);
+          }
 
-        if ui.button(">").clicked() {
-          self.index = self
-            .index
-            .add(1)
-            .min(self.stack_ops_len().saturating_sub(1));
-        }
-        if ui.button("|>").clicked() {
-          self.index = self.stack_ops_len().saturating_sub(1);
-        }
+          if ui.button(">").clicked() {
+            self.index = self
+              .index
+              .add(1)
+              .min(self.stack_ops_len().saturating_sub(1));
+          }
+          if ui.button("|>").clicked() {
+            self.index = self.stack_ops_len().saturating_sub(1);
+          }
+        });
+
+        ui.horizontal(|ui| {
+          if ui.button("step back").clicked() {
+            self.step_over_rev();
+          }
+
+          if ui.button("step over").clicked() {
+            self.step_over();
+          }
+        })
       });
 
       let max = self.stack_ops_len().saturating_sub(1);
