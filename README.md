@@ -33,7 +33,7 @@ mdbook serve --open
 
 ## Licence
 
-All code in this repository is dual-licensed under, at your option, either:
+Except where noted, below and/or in individual files, all code in this repository is dual-licensed under, at your option, either:
 
 - MIT Licence ([LICENCE-MIT](./LICENCE-MIT) or http://opensource.org/licenses/MIT); or
 - Apache 2.0 Licence ([LICENCE-APACHE](./LICENCE-APACHE) or http://www.apache.org/licenses/LICENSE-2.0).
