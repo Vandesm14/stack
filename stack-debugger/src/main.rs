@@ -167,7 +167,7 @@ impl DebuggerApp {
       Err(e) => return self.error = Some(e.to_string()),
     };
 
-    self.prints.drain(..);
+    self.prints.clear();
     match self.engine.run(context, exprs) {
       Ok(context) => {
         self.context = context;
