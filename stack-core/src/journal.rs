@@ -1,8 +1,6 @@
 use core::fmt;
 use std::collections::HashMap;
 
-use yansi::Paint;
-
 use crate::{
   expr::{Expr, ExprKind},
   scope::Scope,
@@ -16,9 +14,16 @@ pub struct JournalScope {
 }
 
 #[derive(Debug, Clone, PartialEq)]
+pub struct ScopeLevel {
+  pub scope_id: usize,
+  pub scoped: bool,
+}
+
+#[derive(Debug, Clone, PartialEq)]
 pub struct JournalEntry {
   pub ops: Vec<JournalOp>,
   pub scope_id: usize,
+  pub scoped: bool,
 }
 
 impl fmt::Display for JournalEntry {
@@ -37,8 +42,12 @@ impl fmt::Display for JournalEntry {
 }
 
 impl JournalEntry {
-  pub fn new(ops: Vec<JournalOp>, scope_id: usize) -> Self {
-    Self { ops, scope_id }
+  pub fn new(ops: Vec<JournalOp>, scope_id: usize, scoped: bool) -> Self {
+    Self {
+      ops,
+      scope_id,
+      scoped,
+    }
   }
 }
 
@@ -102,69 +111,72 @@ pub struct Journal {
 
   entries: Vec<JournalEntry>,
   scopes: Vec<JournalScope>,
-  scope_levels: Vec<usize>,
+  scope_levels: Vec<ScopeLevel>,
 
   size: Option<usize>,
 }
 
 impl fmt::Display for Journal {
   fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-    // TODO: reimplement
-    // use yansi::Paint;
-    // if !self.entries.is_empty() {
-    //   writeln!(f, "Stack History (most recent first):")?;
-    // }
+    use yansi::Paint;
+    if !self.entries.is_empty() {
+      writeln!(f, "Stack History (most recent first):")?;
+    }
 
-    // for entry in self
-    //   .entries
-    //   .iter()
-    //   .rev()
-    //   .take(self.size.unwrap_or(self.entries.len()))
-    // {
-    //   let mut line = String::new();
-    //   for op in entry.ops.iter() {
-    //     if !line.is_empty() {
-    //       line.push(' ');
-    //     }
+    for entry in self
+      .entries
+      .iter()
+      .rev()
+      .take(self.size.unwrap_or(self.entries.len()))
+    {
+      let mut line = String::new();
+      for op in entry.ops.iter() {
+        if !line.is_empty() {
+          line.push(' ');
+        }
 
-    //     match op {
-    //       JournalOp::Call(x) => {
-    //         line.push_str(&format!(
-    //           "{}",
-    //           if f.alternate() { x.white() } else { x.new() }
-    //         ));
-    //       }
-    //       JournalOp::FnCall(x) => {
-    //         line.push_str(&format!(
-    //           "{}",
-    //           if f.alternate() { x.yellow() } else { x.new() }
-    //         ));
-    //       }
-    //       JournalOp::Push(x) => {
-    //         line.push_str(&format!(
-    //           "{}",
-    //           if f.alternate() { x.green() } else { x.new() }
-    //         ));
-    //       }
-    //       JournalOp::Pop(x) => {
-    //         line.push_str(&format!(
-    //           "{}",
-    //           if f.alternate() { x.red() } else { x.new() }
-    //         ));
-    //       }
-    //       _ => {}
-    //     }
-    //   }
+        match op {
+          JournalOp::Call(x) => {
+            line.push_str(&format!(
+              "{}",
+              if f.alternate() { x.white() } else { x.new() }
+            ));
+          }
+          JournalOp::FnCall(x) => {
+            line.push_str(&format!(
+              "{}",
+              if f.alternate() { x.yellow() } else { x.new() }
+            ));
+          }
+          JournalOp::Push(x) => {
+            line.push_str(&format!(
+              "{}",
+              if f.alternate() { x.green() } else { x.new() }
+            ));
+          }
+          JournalOp::Pop(x) => {
+            line.push_str(&format!(
+              "{}",
+              if f.alternate() { x.red() } else { x.new() }
+            ));
+          }
+          _ => {}
+        }
+      }
 
-    //   let bullet_symbol = match entry.scoped {
-    //     true => format!("{}*", "  ".repeat(entry.scope_id)),
-    //     false => {
-    //       format!("{}!", "  ".repeat(entry.scope_id))
-    //     }
-    //   };
-    //   write!(f, " {} ", bullet_symbol)?;
-    //   writeln!(f, "{}", line)?;
-    // }
+      let scope_level = self
+        .scope(entry.scope_id)
+        .map(|scope| scope.level)
+        .unwrap_or_default();
+      let bullet_symbol = match entry.scoped {
+        true => format!("{}*", "  ".repeat(scope_level)),
+        false => {
+          format!("{}!", "  ".repeat(scope_level))
+        }
+      };
+      write!(f, " {} ", bullet_symbol)?;
+      writeln!(f, "{}", line)?;
+    }
 
     Ok(())
   }
@@ -188,7 +200,10 @@ impl Journal {
         level: 0,
         scope: HashMap::new(),
       }],
-      scope_levels: vec![0],
+      scope_levels: vec![ScopeLevel {
+        scope_id: 0,
+        scoped: false,
+      }],
 
       size: None,
     }
@@ -219,10 +234,16 @@ impl Journal {
           level: self.scope_levels.len(),
           scope: items,
         });
-        self.scope_levels.push(self.scopes.len().saturating_sub(1));
+        self.scope_levels.push(ScopeLevel {
+          scope_id: self.scopes.len().saturating_sub(1),
+          scoped: true,
+        });
       }
       JournalOp::ScopelessFnStart => {
-        self.scope_levels.push(self.scopes.len().saturating_sub(1));
+        self.scope_levels.push(ScopeLevel {
+          scope_id: self.scopes.len().saturating_sub(1),
+          scoped: false,
+        });
       }
       JournalOp::FnEnd => {
         self.scope_levels.pop();
@@ -246,6 +267,11 @@ impl Journal {
       self.entries.push(JournalEntry {
         ops: self.ops.drain(..).collect(),
         scope_id: self.scopes.len().saturating_sub(1),
+        scoped: self
+          .scope_levels
+          .last()
+          .map(|level| level.scoped)
+          .unwrap_or_default(),
       });
     }
   }
