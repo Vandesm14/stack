@@ -370,6 +370,24 @@ impl eframe::App for DebuggerApp {
       }
       ui.label(layout_job);
 
+      let mut layout_job = LayoutJob::default();
+      if let Some(entry) = entry {
+        let scope = self
+          .context
+          .journal()
+          .as_ref()
+          .unwrap()
+          .scope(entry.scope_id);
+        if let Some(scope) = scope {
+          append_to_job(
+            RichText::new(format!("Scope Level: {}", scope.level)),
+            &mut layout_job,
+          );
+          paint_scope(scope, &mut layout_job);
+        }
+      }
+      ui.label(layout_job);
+
       let max = self.stack_ops_len().saturating_sub(1);
       ui.horizontal(|ui| {
         ui.spacing_mut().slider_width = ui.available_width() - 80.0;
