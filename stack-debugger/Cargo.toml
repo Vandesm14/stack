@@ -14,6 +14,7 @@ eframe = { version = "0.27.2" }
 
 stack-core = { path = "../stack-core" }
 stack-std = { path = "../stack-std", optional = true }
+itertools = "0.13.0"
 
 [[bin]]
 name = "stack-debugger"

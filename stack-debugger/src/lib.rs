@@ -5,6 +5,7 @@ use std::collections::HashMap;
 use eframe::egui::{
   text::LayoutJob, Align, Color32, FontSelection, RichText, Style,
 };
+use itertools::Itertools;
 use stack_core::{journal::JournalOp, prelude::*};
 
 pub enum IOHookEvent {
@@ -189,7 +190,7 @@ pub fn paint_op(op: &JournalOp, layout_job: &mut LayoutJob) {
 }
 
 pub fn paint_scope(scope: &HashMap<Symbol, Expr>, layout_job: &mut LayoutJob) {
-  for (key, value) in scope.iter() {
+  for (key, value) in scope.iter().sorted_by_key(|(a, _)| a.as_str()) {
     append_to_job(RichText::new(format!("{}: ", key)), layout_job);
     paint_expr(value, layout_job);
     append_to_job(RichText::new("\n"), layout_job);
