@@ -263,7 +263,7 @@ impl DebuggerApp {
         .enumerate()
         .rev()
         .skip(self.stack_ops_len() - index)
-        .find(|(i, entry)| entry.scope == scope_level)
+        .find(|(_, entry)| entry.scope == scope_level)
         .map(|(i, _)| i);
 
       if let Some(next_index) = next_index {
