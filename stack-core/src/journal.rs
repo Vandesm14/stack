@@ -284,6 +284,60 @@ impl Journal {
     self.len() == 0
   }
 
+  fn construct_entry(&self, entry: &JournalEntry, stack: &mut Vec<Expr>) {
+    for op in entry.ops.iter() {
+      match op {
+        JournalOp::Push(expr) => stack.push(expr.clone()),
+        JournalOp::Pop(_) => {
+          stack.pop();
+        }
+        JournalOp::FnCall(expr) => {
+          if let ExprKind::Symbol(symbol) = expr.kind {
+            let len = stack.len();
+            match symbol.as_str() {
+              "swap" => {
+                stack.swap(len - 1, len - 2);
+              }
+              "rot" => {
+                stack.swap(len - 1, len - 3);
+                stack.swap(len - 2, len - 3);
+              }
+              _ => {}
+            }
+          }
+        }
+
+        _ => {}
+      };
+    }
+  }
+
+  fn unconstruct_entry(&self, entry: &JournalEntry, stack: &mut Vec<Expr>) {
+    for op in entry.ops.iter().rev() {
+      match op {
+        JournalOp::Push(_) => {
+          stack.pop();
+        }
+        JournalOp::Pop(expr) => stack.push(expr.clone()),
+        JournalOp::FnCall(expr) => {
+          if let ExprKind::Symbol(symbol) = expr.kind {
+            let len = stack.len();
+            match symbol.as_str() {
+              "swap" => stack.swap(len - 1, len - 2),
+              "rot" => {
+                stack.swap(len - 2, len - 3);
+                stack.swap(len - 1, len - 3);
+              }
+              _ => {}
+            }
+          }
+        }
+
+        _ => {}
+      };
+    }
+  }
+
   /// Constructing from a higher to a lower index (backwards).
   pub fn construct_to_from(
     &self,
@@ -291,36 +345,10 @@ impl Journal {
     to: usize,
     from: usize,
   ) {
-    for entry in self
-      .entries
-      .iter()
-      .rev()
-      .skip((self.entries.len() - 1) - from)
-      .take(from - to)
-    {
-      for op in entry.ops.iter().rev() {
-        match op {
-          JournalOp::Push(_) => {
-            stack.pop();
-          }
-          JournalOp::Pop(expr) => stack.push(expr.clone()),
-          JournalOp::FnCall(expr) => {
-            if let ExprKind::Symbol(symbol) = expr.kind {
-              let len = stack.len();
-              match symbol.as_str() {
-                "swap" => stack.swap(len - 1, len - 2),
-                "rot" => {
-                  stack.swap(len - 2, len - 3);
-                  stack.swap(len - 1, len - 3);
-                }
-                _ => {}
-              }
-            }
-          }
-
-          _ => {}
-        };
-      }
+    let skip = (self.entries.len() - 1) - from;
+    let take = from - to;
+    for entry in self.entries.iter().rev().skip(skip).take(take) {
+      self.unconstruct_entry(entry, stack);
     }
   }
 
@@ -331,35 +359,23 @@ impl Journal {
     from: usize,
     to: usize,
   ) {
-    for entry in self.entries.iter().skip(from + 1).take(to - from) {
-      for op in entry.ops.iter() {
-        match op {
-          JournalOp::Push(expr) => stack.push(expr.clone()),
-          JournalOp::Pop(_) => {
-            stack.pop();
-          }
-          JournalOp::FnCall(expr) => {
-            if let ExprKind::Symbol(symbol) = expr.kind {
-              let len = stack.len();
-              match symbol.as_str() {
-                "swap" => stack.swap(len - 1, len - 2),
-                "rot" => {
-                  stack.swap(len - 1, len - 3);
-                  stack.swap(len - 2, len - 3);
-                }
-                _ => {}
-              }
-            }
-          }
+    let skip = from + 1;
+    let take = to - from;
 
-          _ => {}
-        };
-      }
+    for entry in self.entries.iter().skip(skip).take(take) {
+      self.construct_entry(entry, stack);
+    }
+  }
+
+  pub fn construct_at_zero(&self, stack: &mut Vec<Expr>) {
+    if let Some(entry) = self.entries.first() {
+      self.construct_entry(entry, stack);
     }
   }
 
   pub fn construct_to(&self, index: usize) -> Vec<Expr> {
     let mut stack = Vec::new();
+    self.construct_at_zero(&mut stack);
     self.construct_from_to(&mut stack, 0, index);
 
     stack
