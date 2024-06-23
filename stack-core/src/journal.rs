@@ -1,9 +1,8 @@
 use core::fmt;
-use std::collections::HashMap;
 
 use crate::{
   expr::{Expr, ExprKind},
-  scope::Scope,
+  scope::{Scope, Val},
   symbol::Symbol,
 };
 
@@ -63,7 +62,7 @@ pub enum JournalOp {
   ScopelessFnStart,
   FnEnd,
 
-  ScopeSet(Symbol, Expr),
+  ScopeSet(Symbol, Val),
 }
 
 impl fmt::Display for JournalOp {
@@ -111,7 +110,7 @@ pub struct Journal {
   ops: Vec<JournalOp>,
 
   entries: Vec<JournalEntry>,
-  scopes: Vec<HashMap<Symbol, Expr>>,
+  scopes: Vec<Scope>,
   scope_levels: Vec<ScopeLevel>,
 
   size: Option<usize>,
@@ -193,7 +192,7 @@ impl Journal {
       ops: Vec::new(),
 
       entries: Vec::new(),
-      scopes: vec![HashMap::new()],
+      scopes: vec![Scope::new()],
       scope_levels: vec![ScopeLevel {
         scope_id: 0,
         scoped: false,
@@ -215,16 +214,13 @@ impl Journal {
 
   pub fn push_op(&mut self, op: JournalOp) {
     match op {
-      JournalOp::ScopedFnStart(scope) => {
-        let mut items: HashMap<Symbol, Expr> = HashMap::new();
-        for (key, value) in scope.items.into_iter() {
-          items.insert(
-            key,
-            value.borrow().val().clone().unwrap_or(ExprKind::Nil.into()),
-          );
+      JournalOp::ScopedFnStart(s) => {
+        let mut scope: Scope = Scope::new();
+        for (key, value) in s.items.into_iter() {
+          scope.items.insert(key, value);
         }
 
-        self.scopes.push(items);
+        self.scopes.push(scope);
         self.scope_levels.push(ScopeLevel {
           scope_id: self.scopes.len().saturating_sub(1),
           scoped: true,
@@ -241,7 +237,7 @@ impl Journal {
       }
       JournalOp::ScopeSet(key, value) => {
         let mut scope = self.scopes.last().cloned().unwrap_or_default();
-        scope.insert(key, value);
+        scope.items.insert(key, value);
         if let Some(ref mut scope_level) = self.scope_levels.last_mut() {
           scope_level.scope_id = self.scopes.len();
         }
@@ -253,7 +249,7 @@ impl Journal {
     }
   }
 
-  pub fn scope(&self, id: usize) -> Option<&HashMap<Symbol, Expr>> {
+  pub fn scope(&self, id: usize) -> Option<&Scope> {
     self.scopes.get(id)
   }
 
