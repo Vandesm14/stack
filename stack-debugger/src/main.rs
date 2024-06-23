@@ -335,7 +335,7 @@ impl eframe::App for DebuggerApp {
       );
       if let Some(entry) = entry {
         append_to_job(
-          RichText::new(format!("Scope Level {}; ", entry.scope,)),
+          RichText::new(format!("Scope Level {}; ", entry.scope_id,)),
           &mut layout_job,
         );
 

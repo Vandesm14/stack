@@ -1,12 +1,22 @@
 use core::fmt;
+use std::collections::HashMap;
 
-use crate::expr::{Expr, ExprKind};
+use crate::{
+  expr::{Expr, ExprKind},
+  scope::Scope,
+  symbol::Symbol,
+};
 
-#[derive(Debug, Clone, PartialEq, PartialOrd, Default)]
+#[derive(Debug, Clone, PartialEq, Default)]
+pub struct JournalScope {
+  pub level: usize,
+  pub scope: HashMap<Symbol, Expr>,
+}
+
+#[derive(Debug, Clone, PartialEq)]
 pub struct JournalEntry {
   pub ops: Vec<JournalOp>,
-  pub scope: usize,
-  pub scoped: bool,
+  pub scope_id: usize,
 }
 
 impl fmt::Display for JournalEntry {
@@ -25,22 +35,23 @@ impl fmt::Display for JournalEntry {
 }
 
 impl JournalEntry {
-  pub fn new(ops: Vec<JournalOp>, scope: usize, scoped: bool) -> Self {
-    Self { ops, scope, scoped }
+  pub fn new(ops: Vec<JournalOp>, scope_id: usize) -> Self {
+    Self { ops, scope_id }
   }
 }
 
-#[derive(Debug, Clone, PartialEq, PartialOrd)]
+#[derive(Debug, Clone, PartialEq)]
 pub enum JournalOp {
   Call(Expr),
   FnCall(Expr),
   Push(Expr),
   Pop(Expr),
 
-  FnStart(bool),
+  ScopedFnStart(Scope),
+  ScopelessFnStart,
   FnEnd,
 
-  Commit,
+  ScopeSet(Symbol, Expr),
 }
 
 impl fmt::Display for JournalOp {
@@ -82,75 +93,76 @@ impl JournalOp {
   }
 }
 
-#[derive(Debug, Clone, PartialEq, PartialOrd)]
+#[derive(Debug, Clone, PartialEq)]
 // TODO: implement this as a ring buffer with max_commits so we never go over
 pub struct Journal {
   ops: Vec<JournalOp>,
-  scope: usize,
-  scoped: Vec<bool>,
 
   entries: Vec<JournalEntry>,
+  scopes: Vec<JournalScope>,
+  scope_levels: Vec<usize>,
 
   size: Option<usize>,
 }
 
 impl fmt::Display for Journal {
   fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-    use yansi::Paint;
-    if !self.entries.is_empty() {
-      writeln!(f, "Stack History (most recent first):")?;
-    }
+    // TODO: reimplement
+    // use yansi::Paint;
+    // if !self.entries.is_empty() {
+    //   writeln!(f, "Stack History (most recent first):")?;
+    // }
 
-    for entry in self
-      .entries
-      .iter()
-      .rev()
-      .take(self.size.unwrap_or(self.entries.len()))
-    {
-      let mut line = String::new();
-      for op in entry.ops.iter() {
-        if !line.is_empty() {
-          line.push(' ');
-        }
+    // for entry in self
+    //   .entries
+    //   .iter()
+    //   .rev()
+    //   .take(self.size.unwrap_or(self.entries.len()))
+    // {
+    //   let mut line = String::new();
+    //   for op in entry.ops.iter() {
+    //     if !line.is_empty() {
+    //       line.push(' ');
+    //     }
 
-        match op {
-          JournalOp::Call(x) => {
-            line.push_str(&format!(
-              "{}",
-              if f.alternate() { x.white() } else { x.new() }
-            ));
-          }
-          JournalOp::FnCall(x) => {
-            line.push_str(&format!(
-              "{}",
-              if f.alternate() { x.yellow() } else { x.new() }
-            ));
-          }
-          JournalOp::Push(x) => {
-            line.push_str(&format!(
-              "{}",
-              if f.alternate() { x.green() } else { x.new() }
-            ));
-          }
-          JournalOp::Pop(x) => {
-            line.push_str(&format!(
-              "{}",
-              if f.alternate() { x.red() } else { x.new() }
-            ));
-          }
-          _ => {}
-        }
-      }
+    //     match op {
+    //       JournalOp::Call(x) => {
+    //         line.push_str(&format!(
+    //           "{}",
+    //           if f.alternate() { x.white() } else { x.new() }
+    //         ));
+    //       }
+    //       JournalOp::FnCall(x) => {
+    //         line.push_str(&format!(
+    //           "{}",
+    //           if f.alternate() { x.yellow() } else { x.new() }
+    //         ));
+    //       }
+    //       JournalOp::Push(x) => {
+    //         line.push_str(&format!(
+    //           "{}",
+    //           if f.alternate() { x.green() } else { x.new() }
+    //         ));
+    //       }
+    //       JournalOp::Pop(x) => {
+    //         line.push_str(&format!(
+    //           "{}",
+    //           if f.alternate() { x.red() } else { x.new() }
+    //         ));
+    //       }
+    //       _ => {}
+    //     }
+    //   }
 
-      let bullet_symbol = match entry.scoped {
-        true => format!("{}*", "  ".repeat(entry.scope)),
-        false => {
-          format!("{}!", "  ".repeat(entry.scope))
-        }
-      };
-      write!(f, " {} ", bullet_symbol)?;
-      writeln!(f, "{}", line)?;
-    }
+    //   let bullet_symbol = match entry.scoped {
+    //     true => format!("{}*", "  ".repeat(entry.scope_id)),
+    //     false => {
+    //       format!("{}!", "  ".repeat(entry.scope_id))
+    //     }
+    //   };
+    //   write!(f, " {} ", bullet_symbol)?;
+    //   writeln!(f, "{}", line)?;
+    // }
 
     Ok(())
   }
@@ -168,10 +180,11 @@ impl Journal {
   pub fn new() -> Self {
     Self {
       ops: Vec::new(),
-      scope: 0,
-      scoped: vec![true],
 
       entries: Vec::new(),
+      scopes: Vec::new(),
+      scope_levels: Vec::new(),
+
       size: None,
     }
   }
@@ -186,30 +199,43 @@ impl Journal {
     &self.ops
   }
 
-  pub fn op(&mut self, op: JournalOp) {
+  pub fn push_op(&mut self, op: JournalOp) {
     match op {
-      JournalOp::Commit => {
-        self.commit();
+      JournalOp::ScopedFnStart(scope) => {
+        let mut items: HashMap<Symbol, Expr> = HashMap::new();
+        for (key, value) in scope.items.into_iter() {
+          items.insert(
+            key,
+            value.borrow().val().clone().unwrap_or(ExprKind::Nil.into()),
+          );
+        }
+
+        self.scopes.push(JournalScope {
+          level: self.scope_levels.len(),
+          scope: items,
+        });
+        self.scope_levels.push(self.scopes.len().saturating_sub(1));
       }
-      JournalOp::FnStart(is_scoped) => {
-        self.scope += 1;
-        self.scoped.push(is_scoped);
+      JournalOp::ScopelessFnStart => {
+        self.scope_levels.push(self.scopes.len().saturating_sub(1));
       }
       JournalOp::FnEnd => {
-        self.scope = self.scope.saturating_sub(1);
-        self.scoped.pop();
+        self.scope_levels.pop();
       }
 
       op => self.ops.push(op.clone()),
     }
   }
 
+  pub fn scope(&self, id: usize) -> Option<&JournalScope> {
+    self.scopes.get(id)
+  }
+
   pub fn commit(&mut self) {
     if !self.ops.is_empty() {
       self.entries.push(JournalEntry {
         ops: self.ops.drain(..).collect(),
-        scope: self.scope,
-        scoped: *self.scoped.last().unwrap_or(&true),
+        scope_id: self.scopes.len().saturating_sub(1),
       });
     }
   }

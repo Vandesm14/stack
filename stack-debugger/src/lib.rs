@@ -173,14 +173,11 @@ pub fn paint_op(op: &JournalOp, layout_job: &mut LayoutJob) {
         layout_job,
       )
     }
-    JournalOp::FnStart(scoped) => {
-      append_to_job(
-        RichText::new(format!(
-          "scope: fn{}(start)",
-          if *scoped { "" } else { "!" }
-        )),
-        layout_job,
-      );
+    JournalOp::ScopedFnStart(_) => {
+      append_to_job(RichText::new("scope: fn(start)"), layout_job);
+    }
+    JournalOp::ScopelessFnStart => {
+      append_to_job(RichText::new("scope: fn!(start)"), layout_job);
     }
     JournalOp::FnEnd => {
       append_to_job(RichText::new("scope: fn(end)"), layout_job);

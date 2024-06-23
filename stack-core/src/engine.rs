@@ -137,7 +137,7 @@ impl Engine {
         if let Ok(intrinsic) = Intrinsic::from_str(x.as_str()) {
           if let Some(journal) = context.journal_mut() {
             journal.commit();
-            journal.op(JournalOp::FnCall(expr.clone()));
+            journal.push_op(JournalOp::FnCall(expr.clone()));
           }
           let mut context = intrinsic.run(self, context, expr)?;
           if let Some(journal) = context.journal_mut() {
@@ -152,7 +152,7 @@ impl Engine {
             .and_then(|module| module.func(Symbol::from_ref(func)))
           {
             if let Some(journal) = context.journal_mut() {
-              journal.op(JournalOp::FnCall(expr.clone()));
+              journal.push_op(JournalOp::FnCall(expr.clone()));
             }
             context = func(self, context, expr)?;
             if let Some(journal) = context.journal_mut() {
@@ -186,7 +186,7 @@ impl Engine {
             }
           } else {
             if let Some(journal) = context.journal_mut() {
-              journal.op(JournalOp::Call(expr.clone()));
+              journal.push_op(JournalOp::Call(expr.clone()));
             }
             let result = context.stack_push(item);
             if let Some(journal) = context.journal_mut() {
@@ -243,23 +243,31 @@ impl Engine {
     is_recur: bool,
   ) -> CallResult {
     if let Some(journal) = context.journal_mut() {
-      journal.op(JournalOp::FnCall(expr.clone()));
+      journal.push_op(JournalOp::FnCall(expr.clone()));
     }
 
     if fn_ident.scoped && !is_recur {
       context.push_scope(fn_ident.scope.clone());
     }
 
-    if let Some(journal) = context.journal_mut() {
-      journal.commit();
-      journal.op(JournalOp::FnStart(fn_ident.scoped));
+    if context.journal().is_some() {
+      if fn_ident.scoped {
+        let scope = context.scope().clone();
+        let journal = context.journal_mut().as_mut().unwrap();
+        journal.commit();
+        journal.push_op(JournalOp::ScopedFnStart(scope));
+      } else {
+        let journal = context.journal_mut().as_mut().unwrap();
+        journal.commit();
+        journal.push_op(JournalOp::ScopelessFnStart);
+      }
     }
 
     match self.run(context, fn_body.to_vec()) {
       Ok(mut context) => {
         if let Some(journal) = context.journal_mut() {
           journal.commit();
-          journal.op(JournalOp::FnEnd);
+          journal.push_op(JournalOp::FnEnd);
         }
 
         if context.stack().last().map(|e| &e.kind)

@@ -3,7 +3,7 @@ use std::{cell::RefCell, collections::HashMap, sync::Arc};
 use crate::{
   chain::Chain,
   engine::{RunError, RunErrorReason},
-  expr::Expr,
+  expr::{Expr, ExprKind},
   journal::{Journal, JournalOp},
   scope::{Scanner, Scope},
   source::Source,
@@ -111,7 +111,7 @@ impl Context {
     let expr = self.scan_expr(expr)?;
 
     if let Some(journal) = self.journal_mut() {
-      journal.op(JournalOp::Push(expr.clone()));
+      journal.push_op(JournalOp::Push(expr.clone()));
     }
 
     self.stack.push(expr);
@@ -125,7 +125,7 @@ impl Context {
     match self.stack.pop() {
       Some(expr) => {
         if let Some(journal) = self.journal_mut() {
-          journal.op(JournalOp::Pop(expr.clone()));
+          journal.push_op(JournalOp::Pop(expr.clone()));
         }
         Ok(expr)
       }
@@ -161,8 +161,11 @@ impl Context {
 
   #[inline]
   pub fn def_scope_item(&mut self, symbol: Symbol, value: Expr) {
-    let layer = self.scopes.last_mut();
+    if let Some(journal) = self.journal_mut() {
+      journal.push_op(JournalOp::ScopeSet(symbol, value.clone()));
+    }
 
+    let layer = self.scopes.last_mut();
     layer.define(symbol, value);
   }
 
@@ -171,8 +174,11 @@ impl Context {
     symbol: Symbol,
     expr: Expr,
   ) -> Result<(), RunError> {
-    let layer = self.scopes.last_mut();
+    if let Some(journal) = self.journal_mut() {
+      journal.push_op(JournalOp::ScopeSet(symbol, expr.clone()));
+    }
 
+    let layer = self.scopes.last_mut();
     match layer.set(symbol, expr.clone()) {
       Ok(_) => Ok(()),
       Err(reason) => Err(RunError {
@@ -190,6 +196,14 @@ impl Context {
 
   #[inline]
   pub fn push_scope(&mut self, scope: Scope) {
+    if let Some(journal) = self.journal_mut() {
+      for (key, val) in scope.items.iter() {
+        journal.push_op(JournalOp::ScopeSet(
+          *key,
+          val.borrow().val().unwrap_or_else(|| ExprKind::Nil.into()),
+        ))
+      }
+    }
     self.scopes.push(scope);
   }
 
