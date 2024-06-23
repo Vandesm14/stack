@@ -7,12 +7,6 @@ use crate::{
   symbol::Symbol,
 };
 
-#[derive(Debug, Clone, PartialEq, Default)]
-pub struct JournalScope {
-  pub level: usize,
-  pub scope: HashMap<Symbol, Expr>,
-}
-
 #[derive(Debug, Clone, PartialEq)]
 pub struct ScopeLevel {
   pub scope_id: usize,
@@ -23,6 +17,7 @@ pub struct ScopeLevel {
 pub struct JournalEntry {
   pub ops: Vec<JournalOp>,
   pub scope_id: usize,
+  pub scope_level: usize,
   pub scoped: bool,
 }
 
@@ -42,10 +37,16 @@ impl fmt::Display for JournalEntry {
 }
 
 impl JournalEntry {
-  pub fn new(ops: Vec<JournalOp>, scope_id: usize, scoped: bool) -> Self {
+  pub fn new(
+    ops: Vec<JournalOp>,
+    scope_id: usize,
+    scope_level: usize,
+    scoped: bool,
+  ) -> Self {
     Self {
       ops,
       scope_id,
+      scope_level,
       scoped,
     }
   }
@@ -110,7 +111,7 @@ pub struct Journal {
   ops: Vec<JournalOp>,
 
   entries: Vec<JournalEntry>,
-  scopes: Vec<JournalScope>,
+  scopes: Vec<HashMap<Symbol, Expr>>,
   scope_levels: Vec<ScopeLevel>,
 
   size: Option<usize>,
@@ -164,14 +165,10 @@ impl fmt::Display for Journal {
         }
       }
 
-      let scope_level = self
-        .scope(entry.scope_id)
-        .map(|scope| scope.level)
-        .unwrap_or_default();
       let bullet_symbol = match entry.scoped {
-        true => format!("{}*", "  ".repeat(scope_level)),
+        true => format!("{}*", "  ".repeat(entry.scope_level)),
         false => {
-          format!("{}!", "  ".repeat(scope_level))
+          format!("{}!", "  ".repeat(entry.scope_level))
         }
       };
       write!(f, " {} ", bullet_symbol)?;
@@ -196,10 +193,7 @@ impl Journal {
       ops: Vec::new(),
 
       entries: Vec::new(),
-      scopes: vec![JournalScope {
-        level: 0,
-        scope: HashMap::new(),
-      }],
+      scopes: vec![HashMap::new()],
       scope_levels: vec![ScopeLevel {
         scope_id: 0,
         scoped: false,
@@ -230,10 +224,7 @@ impl Journal {
           );
         }
 
-        self.scopes.push(JournalScope {
-          level: self.scope_levels.len(),
-          scope: items,
-        });
+        self.scopes.push(items);
         self.scope_levels.push(ScopeLevel {
           scope_id: self.scopes.len().saturating_sub(1),
           scoped: true,
@@ -250,7 +241,7 @@ impl Journal {
       }
       JournalOp::ScopeSet(key, value) => {
         if let Some(scope) = self.scopes.last_mut() {
-          scope.scope.insert(key, value);
+          scope.insert(key, value);
         }
       }
 
@@ -258,7 +249,7 @@ impl Journal {
     }
   }
 
-  pub fn scope(&self, id: usize) -> Option<&JournalScope> {
+  pub fn scope(&self, id: usize) -> Option<&HashMap<Symbol, Expr>> {
     self.scopes.get(id)
   }
 
@@ -267,6 +258,7 @@ impl Journal {
       self.entries.push(JournalEntry {
         ops: self.ops.drain(..).collect(),
         scope_id: self.scopes.len().saturating_sub(1),
+        scope_level: self.scope_levels.len(),
         scoped: self
           .scope_levels
           .last()

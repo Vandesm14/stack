@@ -454,7 +454,8 @@ impl eframe::App for DebuggerApp {
           .scope(entry.scope_id);
         if let Some(scope) = scope {
           append_to_job(
-            RichText::new(format!("Scope Level: {}", scope.level)),
+            RichText::new(format!("Scope (level {}):\n", entry.scope_level))
+              .color(Color32::WHITE),
             &mut layout_job,
           );
           paint_scope(scope, &mut layout_job);

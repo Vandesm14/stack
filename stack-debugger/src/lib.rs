@@ -1,12 +1,11 @@
 pub mod module;
 
+use std::collections::HashMap;
+
 use eframe::egui::{
   text::LayoutJob, Align, Color32, FontSelection, RichText, Style,
 };
-use stack_core::{
-  journal::{JournalOp, JournalScope},
-  prelude::*,
-};
+use stack_core::{journal::JournalOp, prelude::*};
 
 pub enum IOHookEvent {
   Print(String),
@@ -189,10 +188,10 @@ pub fn paint_op(op: &JournalOp, layout_job: &mut LayoutJob) {
   }
 }
 
-pub fn paint_scope(scope: &JournalScope, layout_job: &mut LayoutJob) {
-  for (key, value) in scope.scope.iter() {
-    append_to_job(RichText::new("\n"), layout_job);
+pub fn paint_scope(scope: &HashMap<Symbol, Expr>, layout_job: &mut LayoutJob) {
+  for (key, value) in scope.iter() {
     append_to_job(RichText::new(format!("{}: ", key)), layout_job);
     paint_expr(value, layout_job);
+    append_to_job(RichText::new("\n"), layout_job);
   }
 }
