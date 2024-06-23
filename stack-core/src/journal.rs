@@ -240,9 +240,13 @@ impl Journal {
         self.scope_levels.pop();
       }
       JournalOp::ScopeSet(key, value) => {
-        if let Some(scope) = self.scopes.last_mut() {
-          scope.insert(key, value);
+        let mut scope = self.scopes.last().cloned().unwrap_or_default();
+        scope.insert(key, value);
+        if let Some(ref mut scope_level) = self.scope_levels.last_mut() {
+          scope_level.scope_id = self.scopes.len();
         }
+
+        self.scopes.push(scope);
       }
 
       op => self.ops.push(op.clone()),
@@ -257,7 +261,11 @@ impl Journal {
     if !self.ops.is_empty() {
       self.entries.push(JournalEntry {
         ops: self.ops.drain(..).collect(),
-        scope_id: self.scopes.len().saturating_sub(1),
+        scope_id: self
+          .scope_levels
+          .last()
+          .map(|level| level.scope_id)
+          .unwrap_or_default(),
         scope_level: self.scope_levels.len(),
         scoped: self
           .scope_levels
