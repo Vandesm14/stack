@@ -7,10 +7,16 @@ use yansi::Paint;
 
 use crate::{lexer::Span, scope::Scope, source::Source, symbol::Symbol};
 
-#[derive(Debug, Clone)]
+#[derive(Clone)]
 pub struct Expr {
   pub kind: ExprKind,
   pub info: Option<ExprInfo>,
+}
+
+impl fmt::Debug for Expr {
+  fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+    write!(f, "{:?}", self.kind)
+  }
 }
 
 impl From<ExprKind> for Expr {

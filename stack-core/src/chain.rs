@@ -1,11 +1,20 @@
-use core::cell::RefCell;
+use core::{cell::RefCell, fmt};
 use std::{borrow::BorrowMut, sync::Arc};
 
-#[derive(Debug, PartialEq, Clone)]
+#[derive(PartialEq, Clone)]
 pub struct Chain<T> {
   value: Arc<RefCell<T>>,
   child: Option<Arc<RefCell<Chain<T>>>>,
   root: bool,
+}
+
+impl<T> fmt::Debug for Chain<T>
+where
+  T: fmt::Debug,
+{
+  fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+    write!(f, "{:?}", self.value)
+  }
 }
 
 impl<T> Chain<T> {
