@@ -1,6 +1,8 @@
 use core::fmt;
 use std::collections::HashMap;
 
+use yansi::Paint;
+
 use crate::{
   expr::{Expr, ExprKind},
   scope::Scope,
@@ -182,8 +184,11 @@ impl Journal {
       ops: Vec::new(),
 
       entries: Vec::new(),
-      scopes: Vec::new(),
-      scope_levels: Vec::new(),
+      scopes: vec![JournalScope {
+        level: 0,
+        scope: HashMap::new(),
+      }],
+      scope_levels: vec![0],
 
       size: None,
     }
@@ -221,6 +226,11 @@ impl Journal {
       }
       JournalOp::FnEnd => {
         self.scope_levels.pop();
+      }
+      JournalOp::ScopeSet(key, value) => {
+        if let Some(scope) = self.scopes.last_mut() {
+          scope.scope.insert(key, value);
+        }
       }
 
       op => self.ops.push(op.clone()),
