@@ -39,9 +39,9 @@ impl Scope {
     Self { items }
   }
 
-  pub fn define(&mut self, name: Symbol, item: Expr) {
-    if let Some(chain) = self.items.get(&name) {
-      let mut chain = RefCell::borrow_mut(chain);
+  pub fn define(&mut self, name: Symbol, item: Expr) -> Val {
+    if let Some(c) = self.items.get(&name) {
+      let mut chain = RefCell::borrow_mut(c);
       match chain.is_root() {
         true => {
           chain.set(Some(item));
@@ -50,9 +50,13 @@ impl Scope {
           chain.unlink_with(Some(item));
         }
       }
+
+      c.clone()
     } else {
       let val = Arc::new(RefCell::new(Chain::new(Some(item))));
-      self.items.insert(name, val);
+      self.items.insert(name, val.clone());
+
+      val
     }
   }
 
@@ -67,11 +71,12 @@ impl Scope {
     &mut self,
     name: Symbol,
     item: Expr,
-  ) -> Result<(), RunErrorReason> {
-    if let Some(chain) = self.items.get_mut(&name) {
-      let mut chain = RefCell::borrow_mut(chain);
+  ) -> Result<Val, RunErrorReason> {
+    if let Some(c) = self.items.get_mut(&name) {
+      let mut chain = RefCell::borrow_mut(c);
       chain.set(Some(item));
-      Ok(())
+
+      Ok(c.clone())
     } else {
       Err(RunErrorReason::CannotSetBeforeDef)
     }

@@ -111,7 +111,7 @@ impl Context {
     let expr = self.scan_expr(expr)?;
 
     if let Some(journal) = self.journal_mut() {
-      journal.op(JournalOp::Push(expr.clone()));
+      journal.push_op(JournalOp::Push(expr.clone()));
     }
 
     self.stack.push(expr);
@@ -125,7 +125,7 @@ impl Context {
     match self.stack.pop() {
       Some(expr) => {
         if let Some(journal) = self.journal_mut() {
-          journal.op(JournalOp::Pop(expr.clone()));
+          journal.push_op(JournalOp::Pop(expr.clone()));
         }
         Ok(expr)
       }
@@ -162,8 +162,11 @@ impl Context {
   #[inline]
   pub fn def_scope_item(&mut self, symbol: Symbol, value: Expr) {
     let layer = self.scopes.last_mut();
+    let val = layer.define(symbol, value);
 
-    layer.define(symbol, value);
+    if let Some(journal) = self.journal_mut() {
+      journal.push_op(JournalOp::ScopeSet(symbol, val));
+    }
   }
 
   pub fn set_scope_item(
@@ -172,9 +175,14 @@ impl Context {
     expr: Expr,
   ) -> Result<(), RunError> {
     let layer = self.scopes.last_mut();
-
     match layer.set(symbol, expr.clone()) {
-      Ok(_) => Ok(()),
+      Ok(val) => {
+        if let Some(journal) = self.journal_mut() {
+          journal.push_op(JournalOp::ScopeSet(symbol, val));
+        }
+
+        Ok(())
+      }
       Err(reason) => Err(RunError {
         reason,
         context: self.clone(),
@@ -190,6 +198,14 @@ impl Context {
 
   #[inline]
   pub fn push_scope(&mut self, scope: Scope) {
+    // if let Some(journal) = self.journal_mut() {
+    //   for (key, val) in scope.items.iter() {
+    //     journal.push_op(JournalOp::ScopeSet(
+    //       *key,
+    //       val.borrow().val().unwrap_or_else(|| ExprKind::Nil.into()),
+    //     ))
+    //   }
+    // }
     self.scopes.push(scope);
   }
 

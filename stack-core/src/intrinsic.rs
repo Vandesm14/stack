@@ -840,7 +840,7 @@ impl Intrinsic {
 
             if let Some(journal) = context.journal_mut() {
               journal.commit();
-              journal.op(JournalOp::FnStart(false));
+              journal.push_op(JournalOp::ScopelessFnStart);
             }
 
             context.push_scope(scope);
@@ -849,7 +849,7 @@ impl Intrinsic {
 
             if let Some(journal) = context.journal_mut() {
               journal.commit();
-              journal.op(JournalOp::FnEnd);
+              journal.push_op(JournalOp::FnEnd);
             }
 
             Ok(context)
@@ -985,7 +985,7 @@ impl Intrinsic {
         // Imports should trigger a new commit
         if let Some(journal) = context.journal_mut() {
           journal.commit();
-          journal.op(JournalOp::FnStart(false));
+          journal.push_op(JournalOp::ScopelessFnStart);
         }
 
         match path.kind {
@@ -999,7 +999,7 @@ impl Intrinsic {
                 if let Ok(ref mut context) = result {
                   if let Some(journal) = context.journal_mut() {
                     journal.commit();
-                    journal.op(JournalOp::FnEnd);
+                    journal.push_op(JournalOp::FnEnd);
                   }
                 }
 

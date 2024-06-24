@@ -3,7 +3,8 @@ pub mod module;
 use eframe::egui::{
   text::LayoutJob, Align, Color32, FontSelection, RichText, Style,
 };
-use stack_core::{journal::JournalOp, prelude::*};
+use itertools::Itertools;
+use stack_core::{journal::JournalOp, prelude::*, scope::Scope};
 
 pub enum IOHookEvent {
   Print(String),
@@ -173,18 +174,24 @@ pub fn paint_op(op: &JournalOp, layout_job: &mut LayoutJob) {
         layout_job,
       )
     }
-    JournalOp::FnStart(scoped) => {
-      append_to_job(
-        RichText::new(format!(
-          "scope: fn{}(start)",
-          if *scoped { "" } else { "!" }
-        )),
-        layout_job,
-      );
+    JournalOp::ScopedFnStart(_) => {
+      append_to_job(RichText::new("scope: fn(start)"), layout_job);
+    }
+    JournalOp::ScopelessFnStart => {
+      append_to_job(RichText::new("scope: fn!(start)"), layout_job);
     }
     JournalOp::FnEnd => {
       append_to_job(RichText::new("scope: fn(end)"), layout_job);
     }
     _ => {}
+  }
+}
+
+pub fn paint_scope(scope: &Scope, layout_job: &mut LayoutJob) {
+  for (key, value) in scope.items.iter().sorted_by_key(|(a, _)| a.as_str()) {
+    let value = value.borrow().val().unwrap_or(ExprKind::Nil.into());
+    append_to_job(RichText::new(format!("{}: ", key)), layout_job);
+    paint_expr(&value, layout_job);
+    append_to_job(RichText::new("\n"), layout_job);
   }
 }

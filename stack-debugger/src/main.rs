@@ -167,7 +167,7 @@ impl DebuggerApp {
       Err(e) => return self.error = Some(e.to_string()),
     };
 
-    self.prints.drain(..);
+    self.prints.clear();
     match self.engine.run(context, exprs) {
       Ok(context) => {
         self.context = context;
@@ -312,6 +312,16 @@ impl eframe::App for DebuggerApp {
         }
       });
 
+      let max = self.stack_ops_len().saturating_sub(1);
+      ui.horizontal(|ui| {
+        ui.spacing_mut().slider_width = ui.available_width() - 80.0;
+        ui.add(
+          egui::Slider::new(&mut self.index, 0..=max)
+            .clamp_to_range(true)
+            .text("ops"),
+        )
+      });
+
       let entries = self.context.journal().as_ref().unwrap().entries();
       let entry = entries.get(self.index);
 
@@ -334,11 +344,6 @@ impl eframe::App for DebuggerApp {
         &mut layout_job,
       );
       if let Some(entry) = entry {
-        append_to_job(
-          RichText::new(format!("Scope Level {}; ", entry.scope,)),
-          &mut layout_job,
-        );
-
         core::iter::once("")
           .chain(core::iter::repeat(", "))
           .zip(entry.ops.iter())
@@ -369,16 +374,6 @@ impl eframe::App for DebuggerApp {
         }
       }
       ui.label(layout_job);
-
-      let max = self.stack_ops_len().saturating_sub(1);
-      ui.horizontal(|ui| {
-        ui.spacing_mut().slider_width = ui.available_width() - 80.0;
-        ui.add(
-          egui::Slider::new(&mut self.index, 0..=max)
-            .clamp_to_range(true)
-            .text("ops"),
-        )
-      });
 
       let mut layout_job = LayoutJob::default();
       if let Some(entry) = entry {
@@ -448,6 +443,25 @@ impl eframe::App for DebuggerApp {
           }
         }
       }
+
+      let mut layout_job = LayoutJob::default();
+      if let Some(entry) = entry {
+        let scope = self
+          .context
+          .journal()
+          .as_ref()
+          .unwrap()
+          .scope(entry.scope_id);
+        if let Some(scope) = scope {
+          append_to_job(
+            RichText::new(format!("Scope (level {}):\n", entry.scope_level))
+              .color(Color32::WHITE),
+            &mut layout_job,
+          );
+          paint_scope(scope, &mut layout_job);
+        }
+      }
+      ui.label(layout_job);
 
       ScrollArea::vertical().show(ui, |ui| {
         ui.monospace(format!(

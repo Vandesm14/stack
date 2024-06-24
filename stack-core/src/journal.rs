@@ -1,11 +1,22 @@
 use core::fmt;
 
-use crate::expr::{Expr, ExprKind};
+use crate::{
+  expr::{Expr, ExprKind},
+  scope::{Scope, Val},
+  symbol::Symbol,
+};
 
-#[derive(Debug, Clone, PartialEq, PartialOrd, Default)]
+#[derive(Debug, Clone, PartialEq)]
+pub struct ScopeLevel {
+  pub scope_id: usize,
+  pub scoped: bool,
+}
+
+#[derive(Debug, Clone, PartialEq)]
 pub struct JournalEntry {
   pub ops: Vec<JournalOp>,
-  pub scope: usize,
+  pub scope_id: usize,
+  pub scope_level: usize,
   pub scoped: bool,
 }
 
@@ -25,22 +36,33 @@ impl fmt::Display for JournalEntry {
 }
 
 impl JournalEntry {
-  pub fn new(ops: Vec<JournalOp>, scope: usize, scoped: bool) -> Self {
-    Self { ops, scope, scoped }
+  pub fn new(
+    ops: Vec<JournalOp>,
+    scope_id: usize,
+    scope_level: usize,
+    scoped: bool,
+  ) -> Self {
+    Self {
+      ops,
+      scope_id,
+      scope_level,
+      scoped,
+    }
   }
 }
 
-#[derive(Debug, Clone, PartialEq, PartialOrd)]
+#[derive(Debug, Clone, PartialEq)]
 pub enum JournalOp {
   Call(Expr),
   FnCall(Expr),
   Push(Expr),
   Pop(Expr),
 
-  FnStart(bool),
+  ScopedFnStart(Scope),
+  ScopelessFnStart,
   FnEnd,
 
-  Commit,
+  ScopeSet(Symbol, Val),
 }
 
 impl fmt::Display for JournalOp {
@@ -82,14 +104,14 @@ impl JournalOp {
   }
 }
 
-#[derive(Debug, Clone, PartialEq, PartialOrd)]
+#[derive(Debug, Clone, PartialEq)]
 // TODO: implement this as a ring buffer with max_commits so we never go over
 pub struct Journal {
   ops: Vec<JournalOp>,
-  scope: usize,
-  scoped: Vec<bool>,
 
   entries: Vec<JournalEntry>,
+  scopes: Vec<Scope>,
+  scope_levels: Vec<ScopeLevel>,
 
   size: Option<usize>,
 }
@@ -143,9 +165,9 @@ impl fmt::Display for Journal {
       }
 
       let bullet_symbol = match entry.scoped {
-        true => format!("{}*", "  ".repeat(entry.scope)),
+        true => format!("{}*", "  ".repeat(entry.scope_level)),
         false => {
-          format!("{}!", "  ".repeat(entry.scope))
+          format!("{}!", "  ".repeat(entry.scope_level))
         }
       };
       write!(f, " {} ", bullet_symbol)?;
@@ -168,10 +190,14 @@ impl Journal {
   pub fn new() -> Self {
     Self {
       ops: Vec::new(),
-      scope: 0,
-      scoped: vec![true],
 
       entries: Vec::new(),
+      scopes: vec![Scope::new()],
+      scope_levels: vec![ScopeLevel {
+        scope_id: 0,
+        scoped: false,
+      }],
+
       size: None,
     }
   }
@@ -186,30 +212,62 @@ impl Journal {
     &self.ops
   }
 
-  pub fn op(&mut self, op: JournalOp) {
+  pub fn push_op(&mut self, op: JournalOp) {
     match op {
-      JournalOp::Commit => {
-        self.commit();
+      JournalOp::ScopedFnStart(s) => {
+        let mut scope: Scope = Scope::new();
+        for (key, value) in s.items.into_iter() {
+          scope.items.insert(key, value);
+        }
+
+        self.scopes.push(scope);
+        self.scope_levels.push(ScopeLevel {
+          scope_id: self.scopes.len().saturating_sub(1),
+          scoped: true,
+        });
       }
-      JournalOp::FnStart(is_scoped) => {
-        self.scope += 1;
-        self.scoped.push(is_scoped);
+      JournalOp::ScopelessFnStart => {
+        self.scope_levels.push(ScopeLevel {
+          scope_id: self.scopes.len().saturating_sub(1),
+          scoped: false,
+        });
       }
       JournalOp::FnEnd => {
-        self.scope = self.scope.saturating_sub(1);
-        self.scoped.pop();
+        self.scope_levels.pop();
+      }
+      JournalOp::ScopeSet(key, value) => {
+        let mut scope = self.scopes.last().cloned().unwrap_or_default();
+        scope.items.insert(key, value);
+        if let Some(ref mut scope_level) = self.scope_levels.last_mut() {
+          scope_level.scope_id = self.scopes.len();
+        }
+
+        self.scopes.push(scope);
       }
 
       op => self.ops.push(op.clone()),
     }
   }
 
+  pub fn scope(&self, id: usize) -> Option<&Scope> {
+    self.scopes.get(id)
+  }
+
   pub fn commit(&mut self) {
     if !self.ops.is_empty() {
       self.entries.push(JournalEntry {
         ops: self.ops.drain(..).collect(),
-        scope: self.scope,
-        scoped: *self.scoped.last().unwrap_or(&true),
+        scope_id: self
+          .scope_levels
+          .last()
+          .map(|level| level.scope_id)
+          .unwrap_or_default(),
+        scope_level: self.scope_levels.len(),
+        scoped: self
+          .scope_levels
+          .last()
+          .map(|level| level.scoped)
+          .unwrap_or_default(),
       });
     }
   }
@@ -226,6 +284,60 @@ impl Journal {
     self.len() == 0
   }
 
+  fn construct_entry(&self, entry: &JournalEntry, stack: &mut Vec<Expr>) {
+    for op in entry.ops.iter() {
+      match op {
+        JournalOp::Push(expr) => stack.push(expr.clone()),
+        JournalOp::Pop(_) => {
+          stack.pop();
+        }
+        JournalOp::FnCall(expr) => {
+          if let ExprKind::Symbol(symbol) = expr.kind {
+            let len = stack.len();
+            match symbol.as_str() {
+              "swap" => {
+                stack.swap(len - 1, len - 2);
+              }
+              "rot" => {
+                stack.swap(len - 1, len - 3);
+                stack.swap(len - 2, len - 3);
+              }
+              _ => {}
+            }
+          }
+        }
+
+        _ => {}
+      };
+    }
+  }
+
+  fn unconstruct_entry(&self, entry: &JournalEntry, stack: &mut Vec<Expr>) {
+    for op in entry.ops.iter().rev() {
+      match op {
+        JournalOp::Push(_) => {
+          stack.pop();
+        }
+        JournalOp::Pop(expr) => stack.push(expr.clone()),
+        JournalOp::FnCall(expr) => {
+          if let ExprKind::Symbol(symbol) = expr.kind {
+            let len = stack.len();
+            match symbol.as_str() {
+              "swap" => stack.swap(len - 1, len - 2),
+              "rot" => {
+                stack.swap(len - 2, len - 3);
+                stack.swap(len - 1, len - 3);
+              }
+              _ => {}
+            }
+          }
+        }
+
+        _ => {}
+      };
+    }
+  }
+
   /// Constructing from a higher to a lower index (backwards).
   pub fn construct_to_from(
     &self,
@@ -233,36 +345,10 @@ impl Journal {
     to: usize,
     from: usize,
   ) {
-    for entry in self
-      .entries
-      .iter()
-      .rev()
-      .skip((self.entries.len() - 1) - from)
-      .take(from - to)
-    {
-      for op in entry.ops.iter().rev() {
-        match op {
-          JournalOp::Push(_) => {
-            stack.pop();
-          }
-          JournalOp::Pop(expr) => stack.push(expr.clone()),
-          JournalOp::FnCall(expr) => {
-            if let ExprKind::Symbol(symbol) = expr.kind {
-              let len = stack.len();
-              match symbol.as_str() {
-                "swap" => stack.swap(len - 1, len - 2),
-                "rot" => {
-                  stack.swap(len - 2, len - 3);
-                  stack.swap(len - 1, len - 3);
-                }
-                _ => {}
-              }
-            }
-          }
-
-          _ => {}
-        };
-      }
+    let skip = (self.entries.len() - 1) - from;
+    let take = from - to;
+    for entry in self.entries.iter().rev().skip(skip).take(take) {
+      self.unconstruct_entry(entry, stack);
     }
   }
 
@@ -273,35 +359,23 @@ impl Journal {
     from: usize,
     to: usize,
   ) {
-    for entry in self.entries.iter().skip(from + 1).take(to - from) {
-      for op in entry.ops.iter() {
-        match op {
-          JournalOp::Push(expr) => stack.push(expr.clone()),
-          JournalOp::Pop(_) => {
-            stack.pop();
-          }
-          JournalOp::FnCall(expr) => {
-            if let ExprKind::Symbol(symbol) = expr.kind {
-              let len = stack.len();
-              match symbol.as_str() {
-                "swap" => stack.swap(len - 1, len - 2),
-                "rot" => {
-                  stack.swap(len - 1, len - 3);
-                  stack.swap(len - 2, len - 3);
-                }
-                _ => {}
-              }
-            }
-          }
+    let skip = from + 1;
+    let take = to - from;
 
-          _ => {}
-        };
-      }
+    for entry in self.entries.iter().skip(skip).take(take) {
+      self.construct_entry(entry, stack);
+    }
+  }
+
+  pub fn construct_at_zero(&self, stack: &mut Vec<Expr>) {
+    if let Some(entry) = self.entries.first() {
+      self.construct_entry(entry, stack);
     }
   }
 
   pub fn construct_to(&self, index: usize) -> Vec<Expr> {
     let mut stack = Vec::new();
+    self.construct_at_zero(&mut stack);
     self.construct_from_to(&mut stack, 0, index);
 
     stack
