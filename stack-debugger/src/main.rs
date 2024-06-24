@@ -223,7 +223,7 @@ impl DebuggerApp {
       .entries()
       .get(index)
     {
-      let scope_level = entry.scope;
+      let scope_level = entry.scope_level;
       let next_index = self
         .context
         .journal()
@@ -233,7 +233,7 @@ impl DebuggerApp {
         .iter()
         .enumerate()
         .skip(index + 1)
-        .find(|(i, entry)| entry.scope == scope_level)
+        .find(|(i, entry)| entry.scope_level == scope_level)
         .map(|(i, _)| i);
 
       if let Some(next_index) = next_index {
@@ -252,7 +252,7 @@ impl DebuggerApp {
       .entries()
       .get(index)
     {
-      let scope_level = entry.scope;
+      let scope_level = entry.scope_level;
       let next_index = self
         .context
         .journal()
@@ -263,7 +263,7 @@ impl DebuggerApp {
         .enumerate()
         .rev()
         .skip(self.stack_ops_len() - index)
-        .find(|(_, entry)| entry.scope == scope_level)
+        .find(|(_, entry)| entry.scope_level == scope_level)
         .map(|(i, _)| i);
 
       if let Some(next_index) = next_index {
