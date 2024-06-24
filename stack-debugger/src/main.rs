@@ -312,6 +312,16 @@ impl eframe::App for DebuggerApp {
         }
       });
 
+      let max = self.stack_ops_len().saturating_sub(1);
+      ui.horizontal(|ui| {
+        ui.spacing_mut().slider_width = ui.available_width() - 80.0;
+        ui.add(
+          egui::Slider::new(&mut self.index, 0..=max)
+            .clamp_to_range(true)
+            .text("ops"),
+        )
+      });
+
       let entries = self.context.journal().as_ref().unwrap().entries();
       let entry = entries.get(self.index);
 
@@ -433,16 +443,6 @@ impl eframe::App for DebuggerApp {
           }
         }
       }
-
-      let max = self.stack_ops_len().saturating_sub(1);
-      ui.horizontal(|ui| {
-        ui.spacing_mut().slider_width = ui.available_width() - 80.0;
-        ui.add(
-          egui::Slider::new(&mut self.index, 0..=max)
-            .clamp_to_range(true)
-            .text("ops"),
-        )
-      });
 
       let mut layout_job = LayoutJob::default();
       if let Some(entry) = entry {
