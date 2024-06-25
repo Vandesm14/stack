@@ -72,7 +72,6 @@ mod lispy {
       vec![&ExprKind::Integer(8)]
     )
   }
-  }
 
   #[test]
   fn underscores_order() {
