@@ -242,7 +242,13 @@ impl Engine {
           }
         }
 
-        for expr in args.drain(..).rev() {
+        if let Ok(intrinsic) = Intrinsic::from_str(call.as_str()) {
+          if intrinsic.has_flipped_s_expr_args() {
+            args.reverse();
+          }
+        }
+
+        for expr in args.drain(..) {
           context.stack_silent_push(expr)?;
         }
 

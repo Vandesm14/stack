@@ -6,17 +6,16 @@ use unicode_segmentation::UnicodeSegmentation;
 
 use crate::{
   context::Context,
-  expr::{Expr, ExprKind, FnScope},
+  expr::{Expr, ExprKind},
   journal::JournalOp,
   lexer::Lexer,
   prelude::{parse, Engine, RunError, RunErrorReason},
-  scope::Scope,
   source::Source,
   symbol::Symbol,
 };
 
 macro_rules! intrinsics {
-  ($($ident:ident => $s:literal),* $(,)?) => {
+  ($($ident:ident => ($s:literal, $b:literal)),* $(,)?) => {
     #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
     pub enum Intrinsic {
       $($ident),*
@@ -27,6 +26,13 @@ macro_rules! intrinsics {
       pub const fn as_str(self) -> &'static str {
         match self {
           $(Self::$ident => $s),*
+        }
+      }
+
+      /// Returns if the args should be flipped when running this [`Intrinsic`].
+      pub const fn has_flipped_s_expr_args(self) -> bool {
+        match self {
+          $(Self::$ident => $b),*
         }
       }
 
@@ -57,67 +63,67 @@ macro_rules! intrinsics {
 }
 
 intrinsics! {
-  Add => "+",
-  Sub => "-",
-  Mul => "*",
-  Div => "/",
-  Rem => "%",
+  Add => ("+",false),
+  Sub => ("-", false),
+  Mul => ("*", false),
+  Div => ("/", false),
+  Rem => ("%", false),
 
-  Eq => "=",
-  Ne => "!=",
-  Lt => "<",
-  Le => "<=",
-  Gt => ">",
-  Ge => ">=",
+  Eq => ("=", false),
+  Ne => ("!=", false),
+  Lt => ("<", false),
+  Le => ("<=", false),
+  Gt => (">", false),
+  Ge => (">=", false),
 
-  Or => "or",
-  And => "and",
-  Not => "not",
+  Or => ("or", false),
+  And => ("and", false),
+  Not => ("not", false),
 
-  Assert => "assert",
+  Assert => ("assert", false),
 
-  Drop => "drop",
-  Dupe => "dupe",
-  Swap => "swap",
-  Rot => "rot",
+  Drop => ("drop", false),
+  Dupe => ("dupe", false),
+  Swap => ("swap", false),
+  Rot => ("rot", false),
 
-  Len => "len",
-  Nth => "nth",
-  Split => "split",
-  Concat => "concat",
-  Push => "push",
-  Pop => "pop",
+  Len => ("len", false),
+  Nth => ("nth", false),
+  Split => ("split", false),
+  Concat => ("concat", false),
+  Push => ("push", true),
+  Pop => ("pop", false),
 
-  Insert => "insert",
-  Prop => "prop",
-  Has => "has",
-  Remove => "remove",
-  Keys => "keys",
-  Values => "values",
+  Insert => ("insert", true),
+  Prop => ("prop", true),
+  Has => ("has", true),
+  Remove => ("remove", true),
+  Keys => ("keys", false),
+  Values => ("values", false),
 
-  Cast => "cast",
-  TypeOf => "typeof",
-  Lazy => "lazy",
+  Cast => ("cast", false),
+  TypeOf => ("typeof", false),
+  Lazy => ("lazy", false),
 
-  If => "if",
-  Halt => "halt",
+  If => ("if", false),
+  Halt => ("halt", false),
 
-  Call => "call",
+  Call => ("call", false),
 
-  Let => "let",
-  Def => "def",
-  Set => "set",
-  Get => "get",
+  Let => ("let", false),
+  Def => ("def", false),
+  Set => ("set", false),
+  Get => ("get", false),
 
-  Debug => "debug",
+  Debug => ("debug", false),
   // TODO: These will become STD module items.
-  Print => "print",
-  Pretty => "pretty",
-  Recur => "recur",
+  Print => ("print", false),
+  Pretty => ("pretty", false),
+  Recur => ("recur", false),
 
-  OrElse => "orelse",
+  OrElse => ("orelse", false),
 
-  Import => "import",
+  Import => ("import", false),
 }
 
 impl Intrinsic {
@@ -130,8 +136,8 @@ impl Intrinsic {
     match self {
       // MARK: Add
       Self::Add => {
-        let lhs = context.stack_pop(&expr)?;
         let rhs = context.stack_pop(&expr)?;
+        let lhs = context.stack_pop(&expr)?;
 
         let kind = match lhs.kind.clone() + rhs.kind.clone() {
           Ok(res) => res,
@@ -144,8 +150,8 @@ impl Intrinsic {
       }
       // MARK: Sub
       Self::Sub => {
-        let lhs = context.stack_pop(&expr)?;
         let rhs = context.stack_pop(&expr)?;
+        let lhs = context.stack_pop(&expr)?;
 
         let kind = match lhs.kind.clone() - rhs.kind.clone() {
           Ok(res) => res,
@@ -158,8 +164,8 @@ impl Intrinsic {
       }
       // MARK: Mul
       Self::Mul => {
-        let lhs = context.stack_pop(&expr)?;
         let rhs = context.stack_pop(&expr)?;
+        let lhs = context.stack_pop(&expr)?;
 
         let kind = match lhs.kind.clone() * rhs.kind.clone() {
           Ok(res) => res,
@@ -172,8 +178,8 @@ impl Intrinsic {
       }
       // MARK: Div
       Self::Div => {
-        let lhs = context.stack_pop(&expr)?;
         let rhs = context.stack_pop(&expr)?;
+        let lhs = context.stack_pop(&expr)?;
 
         let kind = match lhs.kind.clone() / rhs.kind.clone() {
           Ok(res) => res,
@@ -186,8 +192,8 @@ impl Intrinsic {
       }
       // MARK: Rem
       Self::Rem => {
-        let lhs = context.stack_pop(&expr)?;
         let rhs = context.stack_pop(&expr)?;
+        let lhs = context.stack_pop(&expr)?;
 
         let kind = match lhs.kind.clone() % rhs.kind.clone() {
           Ok(res) => res,
@@ -201,8 +207,8 @@ impl Intrinsic {
 
       // MARK: Eq
       Self::Eq => {
-        let lhs = context.stack_pop(&expr)?;
         let rhs = context.stack_pop(&expr)?;
+        let lhs = context.stack_pop(&expr)?;
 
         let kind = ExprKind::Boolean(lhs.kind == rhs.kind);
 
@@ -212,8 +218,8 @@ impl Intrinsic {
       }
       // MARK: Ne
       Self::Ne => {
-        let lhs = context.stack_pop(&expr)?;
         let rhs = context.stack_pop(&expr)?;
+        let lhs = context.stack_pop(&expr)?;
 
         let kind = ExprKind::Boolean(lhs.kind != rhs.kind);
 
@@ -223,8 +229,8 @@ impl Intrinsic {
       }
       // MARK: Lt
       Self::Lt => {
-        let lhs = context.stack_pop(&expr)?;
         let rhs = context.stack_pop(&expr)?;
+        let lhs = context.stack_pop(&expr)?;
 
         let kind = ExprKind::Boolean(lhs.kind < rhs.kind);
 
@@ -234,8 +240,8 @@ impl Intrinsic {
       }
       // MARK: Le
       Self::Le => {
-        let lhs = context.stack_pop(&expr)?;
         let rhs = context.stack_pop(&expr)?;
+        let lhs = context.stack_pop(&expr)?;
 
         let kind = ExprKind::Boolean(lhs.kind <= rhs.kind);
 
@@ -245,8 +251,8 @@ impl Intrinsic {
       }
       // MARK: Gt
       Self::Gt => {
-        let lhs = context.stack_pop(&expr)?;
         let rhs = context.stack_pop(&expr)?;
+        let lhs = context.stack_pop(&expr)?;
 
         let kind = ExprKind::Boolean(lhs.kind > rhs.kind);
 
@@ -256,8 +262,8 @@ impl Intrinsic {
       }
       // MARK: Ge
       Self::Ge => {
-        let lhs = context.stack_pop(&expr)?;
         let rhs = context.stack_pop(&expr)?;
+        let lhs = context.stack_pop(&expr)?;
 
         let kind = ExprKind::Boolean(lhs.kind >= rhs.kind);
 
@@ -268,8 +274,8 @@ impl Intrinsic {
 
       // MARK: Or
       Self::Or => {
-        let lhs = context.stack_pop(&expr)?;
         let rhs = context.stack_pop(&expr)?;
+        let lhs = context.stack_pop(&expr)?;
 
         let kind =
           ExprKind::Boolean(lhs.kind.is_truthy() || rhs.kind.is_truthy());
@@ -280,8 +286,8 @@ impl Intrinsic {
       }
       // MARK: And
       Self::And => {
-        let lhs = context.stack_pop(&expr)?;
         let rhs = context.stack_pop(&expr)?;
+        let lhs = context.stack_pop(&expr)?;
 
         let kind =
           ExprKind::Boolean(lhs.kind.is_truthy() && rhs.kind.is_truthy());
@@ -303,8 +309,8 @@ impl Intrinsic {
 
       // MARK: Assert
       Self::Assert => {
-        let message = context.stack_pop(&expr)?;
         let bool = context.stack_pop(&expr)?;
+        let message = context.stack_pop(&expr)?;
 
         if bool.kind.is_truthy() {
           Ok(context)
@@ -384,10 +390,6 @@ impl Intrinsic {
             debug_assert!(x.len() <= i64::MAX as usize);
             ExprKind::Integer(x.len() as i64)
           }
-          ExprKind::Function { body: ref x, .. } => {
-            debug_assert!(x.len() <= i64::MAX as usize);
-            ExprKind::Integer(x.len() as i64)
-          }
           _ => ExprKind::Nil,
         };
 
@@ -399,8 +401,8 @@ impl Intrinsic {
       }
       // MARK: Nth
       Self::Nth => {
-        let item = context.stack_pop(&expr)?;
         let index = context.stack_pop(&expr)?;
+        let item = context.stack_pop(&expr)?;
 
         let kind = match (item.kind.clone(), index.kind) {
           (ExprKind::List(x), ExprKind::Integer(i)) if i >= 0 => x
@@ -413,13 +415,6 @@ impl Intrinsic {
             .nth(i as usize)
             .map(|x| ExprKind::String(x.into()))
             .unwrap_or(ExprKind::Nil),
-          (ExprKind::Function { body: x, .. }, ExprKind::Integer(i))
-            if i >= 0 =>
-          {
-            x.get(i as usize)
-              .map(|x| x.kind.clone())
-              .unwrap_or(ExprKind::Nil)
-          }
           _ => ExprKind::Nil,
         };
 
@@ -431,8 +426,8 @@ impl Intrinsic {
       }
       // MARK: Split
       Self::Split => {
-        let item = context.stack_pop(&expr)?;
         let index = context.stack_pop(&expr)?;
+        let item = context.stack_pop(&expr)?;
 
         match (item.kind, index.kind) {
           (ExprKind::List(mut x), ExprKind::Integer(i)) if i >= 0 => {
@@ -464,22 +459,6 @@ impl Intrinsic {
               }
             }
           }
-          (ExprKind::Function { scope, body: mut x }, ExprKind::Integer(i))
-            if i >= 0 =>
-          {
-            if (i as usize) < x.len() {
-              let rest = x.split_off(i as usize);
-
-              context
-                .stack_push(ExprKind::Function { scope, body: x }.into())?;
-
-              context.stack_push(ExprKind::List(rest).into())?;
-            } else {
-              context.stack_push(ExprKind::List(x).into())?;
-
-              context.stack_push(ExprKind::Nil.into())?;
-            }
-          }
           _ => {
             context.stack_push(ExprKind::Nil.into())?;
 
@@ -491,8 +470,8 @@ impl Intrinsic {
       }
       // MARK: Concat
       Self::Concat => {
-        let lhs = context.stack_pop(&expr)?;
         let rhs = context.stack_pop(&expr)?;
+        let lhs = context.stack_pop(&expr)?;
 
         let kind = match (lhs.kind, rhs.kind) {
           (ExprKind::List(mut lhs), ExprKind::List(rhs)) => {
@@ -502,32 +481,6 @@ impl Intrinsic {
           (ExprKind::String(mut lhs), ExprKind::String(rhs)) => {
             lhs.push_str(&rhs);
             ExprKind::String(lhs)
-          }
-
-          (
-            ExprKind::Function {
-              scope,
-              body: mut lhs,
-            },
-            ExprKind::Function { body: rhs, .. },
-          ) => {
-            lhs.extend(rhs);
-            ExprKind::Function { scope, body: lhs }
-          }
-
-          (
-            ExprKind::Function {
-              scope,
-              body: mut lhs,
-            },
-            ExprKind::List(rhs),
-          ) => {
-            lhs.extend(rhs);
-            ExprKind::Function { scope, body: lhs }
-          }
-          (ExprKind::List(mut lhs), ExprKind::Function { body: rhs, .. }) => {
-            lhs.extend(rhs);
-            ExprKind::List(lhs)
           }
           _ => ExprKind::Nil,
         };
@@ -563,13 +516,6 @@ impl Intrinsic {
               ExprKind::Nil
             }
           }
-          (ExprKind::Function { body: mut x, .. }, i) => {
-            x.push(Expr {
-              kind: i,
-              info: item.info.clone(),
-            });
-            ExprKind::List(x)
-          }
           _ => ExprKind::Nil,
         };
 
@@ -595,12 +541,6 @@ impl Intrinsic {
               .unwrap_or(ExprKind::Nil.into());
 
             context.stack_push(ExprKind::String(x).into())?;
-            context.stack_push(e)?;
-          }
-          ExprKind::Function { body: mut x, .. } => {
-            let e = x.pop().unwrap_or(ExprKind::Nil.into());
-
-            context.stack_push(ExprKind::List(x).into())?;
             context.stack_push(e)?;
           }
           _ => {
@@ -635,8 +575,8 @@ impl Intrinsic {
       }
       // MARK: Prop
       Self::Prop => {
-        let record = context.stack_pop(&expr)?;
         let name = context.stack_pop(&expr)?;
+        let record = context.stack_pop(&expr)?;
 
         match record.kind {
           ExprKind::Record(ref r) => {
@@ -658,8 +598,8 @@ impl Intrinsic {
       }
       // MARK: Has
       Self::Has => {
-        let record = context.stack_pop(&expr)?;
         let name = context.stack_pop(&expr)?;
+        let record = context.stack_pop(&expr)?;
 
         match record.kind {
           ExprKind::Record(ref r) => {
@@ -678,8 +618,8 @@ impl Intrinsic {
       }
       // MARK: Remove
       Self::Remove => {
-        let record = context.stack_pop(&expr)?;
         let name = context.stack_pop(&expr)?;
+        let record = context.stack_pop(&expr)?;
 
         match record.kind {
           ExprKind::Record(ref record) => {
@@ -740,8 +680,8 @@ impl Intrinsic {
 
       // MARK: Cast
       Self::Cast => {
-        let item = context.stack_pop(&expr)?;
         let ty = context.stack_pop(&expr)?;
+        let item = context.stack_pop(&expr)?;
 
         // TODO: Can these eager clones be removed?
         let kind = match ty.kind {
@@ -823,16 +763,6 @@ impl Intrinsic {
               ExprKind::Record(record)
             }
 
-            (ExprKind::List(x), "function") => ExprKind::Function {
-              scope: FnScope::Scoped(Scope::new()),
-              body: x,
-            },
-            (ExprKind::Function { body: x, .. }, "list")
-            | (ExprKind::List(x), "list") => ExprKind::List(x),
-            (ExprKind::Function { scope, body }, "function") => {
-              ExprKind::Function { scope, body }
-            }
-
             _ => ExprKind::Nil,
           },
           _ => ExprKind::Nil,
@@ -863,8 +793,8 @@ impl Intrinsic {
 
       // MARK: If
       Self::If => {
-        let cond = context.stack_pop(&expr)?;
         let body = context.stack_pop(&expr)?;
+        let cond = context.stack_pop(&expr)?;
 
         if cond.kind.is_truthy() {
           context = engine.run_expr(context, body)?;
@@ -1044,8 +974,8 @@ impl Intrinsic {
 
       // MARK: OrElse
       Self::OrElse => {
-        let lhs = context.stack_pop(&expr)?;
         let rhs = context.stack_pop(&expr)?;
+        let lhs = context.stack_pop(&expr)?;
 
         match lhs.kind {
           ExprKind::Nil => context.stack_push(rhs)?,
