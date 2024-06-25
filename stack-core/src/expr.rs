@@ -15,7 +15,7 @@ pub struct Expr {
 
 impl fmt::Debug for Expr {
   fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-    write!(f, "{:?}", self.kind)
+    write!(f, "Expr {{ kind: ExprKind::{:?} }}", self.kind)
   }
 }
 
