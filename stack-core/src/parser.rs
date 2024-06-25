@@ -30,6 +30,7 @@ fn parse_expr(lexer: &mut Lexer) -> Result<Expr, ParseError> {
   match token.kind {
     TokenKind::Invalid
     | TokenKind::Eof
+    | TokenKind::RightSquare
     | TokenKind::RightParen
     | TokenKind::RightCurly => Err(ParseError {
       source,
@@ -51,8 +52,22 @@ fn parse_expr(lexer: &mut Lexer) -> Result<Expr, ParseError> {
         }),
       })
     }
-    TokenKind::LeftParen => {
+    TokenKind::LeftSquare => {
       let (list, end_span) = parse_list(lexer)?;
+
+      Ok(Expr {
+        kind: ExprKind::List(list),
+        info: Some(ExprInfo {
+          source,
+          span: Span {
+            start: token.span.start,
+            end: end_span.end,
+          },
+        }),
+      })
+    }
+    TokenKind::LeftParen => {
+      let (list, end_span) = parse_parenthetical(lexer)?;
 
       let kind = if let Some(Expr {
         kind: ExprKind::Symbol(symbol),
@@ -77,7 +92,7 @@ fn parse_expr(lexer: &mut Lexer) -> Result<Expr, ParseError> {
           }
         }
       } else {
-        ExprKind::List(list)
+        todo!("parenthetical error")
       };
 
       Ok(Expr {
@@ -183,59 +198,26 @@ fn parse_list(lexer: &mut Lexer) -> Result<(Vec<Expr>, Span), ParseError> {
     let token = lexer.peek();
 
     match token.kind {
-      TokenKind::RightParen => break Ok((list, lexer.next().span)),
+      TokenKind::RightSquare => break Ok((list, lexer.next().span)),
       _ => list.push(parse_expr(lexer)?),
     }
   }
 }
 
-// fn parse_function(
-//   lexer: &mut Lexer,
-// ) -> Result<(FnScope, Vec<Expr>, Span), ParseError> {
-//   let mut scope = FnScope::Scopeless;
-//   let mut body = Vec::new();
-//   let mut start = true;
+fn parse_parenthetical(
+  lexer: &mut Lexer,
+) -> Result<(Vec<Expr>, Span), ParseError> {
+  let mut list = Vec::new();
 
-//   loop {
-//     let token = lexer.peek();
+  loop {
+    let token = lexer.peek();
 
-//     match token.kind {
-//       TokenKind::RightParen => break Ok((scope, body, lexer.next().span)),
-//       _ => {
-//         let expr = parse_expr(lexer)?;
-//         match expr.kind {
-//           ExprKind::Symbol(str) => match str.as_str() {
-//             "fn" => {
-//               if start {
-//                 scope = FnScope::Scoped(Scope::new());
-//                 start = false;
-//               } else {
-//                 // TODO: throw an error for invalid function
-//               }
-//             }
-//             "fn!" => {
-//               if start {
-//                 start = false;
-//               } else {
-//                 // TODO: throw an error for invalid function
-//               }
-//             }
-
-//             _ => {
-//               if start {
-//                 // TODO: throw an error for invalid function
-//               } else {
-//                 body.push(expr)
-//               }
-//             }
-//           },
-
-//           _ => body.push(expr),
-//         }
-//       }
-//     }
-//   }
-// }
+    match token.kind {
+      TokenKind::RightParen => break Ok((list, lexer.next().span)),
+      _ => list.push(parse_expr(lexer)?),
+    }
+  }
+}
 
 fn parse_record(
   lexer: &mut Lexer,

@@ -429,7 +429,7 @@ mod tests {
   // TODO: Move test for lets into a better place?
   #[test]
   fn can_use_lets() {
-    let source = Source::new("", "10 2 '(a b -) '(a b) let");
+    let source = Source::new("", "10 2 '(- a b) '[a b] let");
     let mut lexer = Lexer::new(source);
     let exprs = crate::parser::parse(&mut lexer).unwrap();
 
@@ -449,7 +449,7 @@ mod tests {
 
   #[test]
   fn lets_take_precedence_over_scope() {
-    let source = Source::new("", "0 'a def 1 '(a) '(a) let");
+    let source = Source::new("", "0 'a def 1 '[a] '[a] let");
     let mut lexer = Lexer::new(source);
     let exprs = crate::parser::parse(&mut lexer).unwrap();
 
@@ -469,7 +469,7 @@ mod tests {
 
   #[test]
   fn lets_do_not_act_as_overlays() {
-    let source = Source::new("", "0 'a def 1 '(a 2 'a def a) '(a) let a");
+    let source = Source::new("", "0 'a def 1 '[a 2 'a def a] '(a) let a");
     let mut lexer = Lexer::new(source);
     let exprs = crate::parser::parse(&mut lexer).unwrap();
 
@@ -493,7 +493,7 @@ mod tests {
 
   #[test]
   fn functions_work_in_lets() {
-    let source = Source::new("", "0 'a def 1 '((fn a 2 'a def a)) '(a) let a");
+    let source = Source::new("", "0 'a def 1 '[(fn a 2 'a def a)] '[a] let a");
     let mut lexer = Lexer::new(source);
     let exprs = crate::parser::parse(&mut lexer).unwrap();
 
