@@ -27,4 +27,5 @@ pub mod prelude {
   pub use symbol::Symbol;
 }
 
+mod tests;
 mod vec_one;
