@@ -244,6 +244,7 @@ impl Engine {
 
         if let Ok(intrinsic) = Intrinsic::from_str(call.as_str()) {
           if intrinsic.has_flipped_s_expr_args() {
+            // TODO: use a for loop and iterate normally, instead of reversing
             args.reverse();
           }
         }
