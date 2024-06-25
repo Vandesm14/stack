@@ -27,7 +27,7 @@ mod lispy {
   }
 
   #[test]
-  fn lisp_pushes_correctly() {
+  fn lisp_evaluates_correctly() {
     let engine = Engine::new();
     let mut context = Context::new().with_stack_capacity(32);
     context = engine
@@ -47,14 +47,67 @@ mod lispy {
         .iter()
         .map(|expr| &expr.kind)
         .collect::<Vec<_>>(),
-      vec![&ExprKind::Integer(1), &ExprKind::Integer(2),]
+      vec![&ExprKind::Integer(3)]
     );
   }
 
   #[test]
-  fn integration_test() {
-    // let source = Source::new("", "(+ 2 2) (def 'a _) a");
-    // let mut lexer = Lexer::new(source);
-    // let exprs = crate::parser::parse(&mut lexer).unwrap();
+  fn underscores_pop() {
+    let source = Source::new("", "2 (- 10 _)");
+    let mut lexer = Lexer::new(source);
+    let exprs = crate::parser::parse(&mut lexer).unwrap();
+
+    let engine = Engine::new();
+    let mut context = Context::new().with_stack_capacity(32);
+    context = engine.run(context, exprs).unwrap();
+
+    assert_eq!(
+      context
+        .stack()
+        .iter()
+        .map(|expr| &expr.kind)
+        .collect::<Vec<_>>(),
+      vec![&ExprKind::Integer(8)]
+    )
+  }
+
+  #[test]
+  fn underscores_order() {
+    let source = Source::new("", "10 (- _ 2)");
+    let mut lexer = Lexer::new(source);
+    let exprs = crate::parser::parse(&mut lexer).unwrap();
+
+    let engine = Engine::new();
+    let mut context = Context::new().with_stack_capacity(32);
+    context = engine.run(context, exprs).unwrap();
+
+    assert_eq!(
+      context
+        .stack()
+        .iter()
+        .map(|expr| &expr.kind)
+        .collect::<Vec<_>>(),
+      vec![&ExprKind::Integer(8)]
+    )
+  }
+
+  #[test]
+  fn underscores_order_many() {
+    let source = Source::new("", "2 10 (- _ _)");
+    let mut lexer = Lexer::new(source);
+    let exprs = crate::parser::parse(&mut lexer).unwrap();
+
+    let engine = Engine::new();
+    let mut context = Context::new().with_stack_capacity(32);
+    context = engine.run(context, exprs).unwrap();
+
+    assert_eq!(
+      context
+        .stack()
+        .iter()
+        .map(|expr| &expr.kind)
+        .collect::<Vec<_>>(),
+      vec![&ExprKind::Integer(8)]
+    )
   }
 }
