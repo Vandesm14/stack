@@ -19,6 +19,44 @@ impl fmt::Debug for Expr {
   }
 }
 
+impl Expr {
+  pub fn recursively_strip_info(&mut self) {
+    match self.kind {
+      ExprKind::Lazy(ref mut expr) => expr.recursively_strip_info(),
+      ExprKind::List(ref mut exprs) => {
+        for expr in exprs.iter_mut() {
+          expr.recursively_strip_info();
+        }
+      }
+      ExprKind::Record(ref mut exprs) => {
+        for (_, expr) in exprs.iter_mut() {
+          expr.recursively_strip_info();
+        }
+      }
+      ExprKind::Function {
+        body: ref mut exprs,
+        ..
+      } => {
+        for expr in exprs.iter_mut() {
+          expr.recursively_strip_info();
+        }
+      }
+      ExprKind::SExpr {
+        body: ref mut exprs,
+        ..
+      } => {
+        for expr in exprs.iter_mut() {
+          expr.recursively_strip_info();
+        }
+      }
+
+      _ => {}
+    }
+
+    self.info = None;
+  }
+}
+
 impl From<ExprKind> for Expr {
   fn from(value: ExprKind) -> Self {
     Self {
