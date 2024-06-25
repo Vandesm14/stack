@@ -5,7 +5,7 @@
 drop
 
 ;; Test casting
-'(("name" "john") ("type" "person")) "record" cast
+'[["name" "john"] ["type" "person"]] "record" cast
 "name" prop "john" = swap
 "type" prop "person" = swap
 drop

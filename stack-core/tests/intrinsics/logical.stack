@@ -1,16 +1,14 @@
-false false or
-false true or
-true false or
-true true or
-0 0 or
-1 1 or
-
-false false and
-false true and
-true false and
-true true and
-0 0 and
-1 1 and
-
-false not
-true not
+(or false false)
+(or false true)
+(or true false)
+(or true true)
+(or 0 0)
+(or 1 1)
+(and false false)
+(and false true)
+(and true false)
+(and true true)
+(and 0 0)
+(and 1 1)
+(not false)
+(not true)

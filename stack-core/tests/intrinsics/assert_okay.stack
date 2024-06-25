@@ -1,1 +1,1 @@
-123 true assert
+(assert 123 true)
