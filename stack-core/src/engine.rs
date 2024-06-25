@@ -223,13 +223,22 @@ impl Engine {
       ExprKind::SExpr { call, body } => {
         let mut args: Vec<Expr> = Vec::new();
         for expr in body.into_iter() {
+          let stack_len = context.stack().len();
           match expr.kind {
             ExprKind::Underscore => args.push(context.stack_pop(&expr)?),
             ExprKind::SExpr { .. } => {
               context = self.run_expr(context, expr.clone())?;
               args.push(context.stack_pop(&expr)?)
             }
-            _ => args.push(expr),
+            _ => {
+              context = self.run_expr(context, expr.clone())?;
+
+              if context.stack().len() != stack_len + 1 {
+                todo!("throw an error when stack is different");
+              }
+
+              args.push(context.stack_pop(&expr)?);
+            }
           }
         }
 
