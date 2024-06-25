@@ -225,6 +225,10 @@ impl Engine {
         for expr in body.into_iter() {
           match expr.kind {
             ExprKind::Underscore => args.push(context.stack_pop(&expr)?),
+            ExprKind::SExpr { .. } => {
+              context = self.run_expr(context, expr.clone())?;
+              args.push(context.stack_pop(&expr)?)
+            }
             _ => args.push(expr),
           }
         }

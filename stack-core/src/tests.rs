@@ -1,5 +1,7 @@
 #[cfg(test)]
 mod lispy {
+  use std::collections::HashMap;
+
   use crate::prelude::*;
 
   #[test]
@@ -108,6 +110,53 @@ mod lispy {
         .map(|expr| &expr.kind)
         .collect::<Vec<_>>(),
       vec![&ExprKind::Integer(8)]
+    )
+  }
+
+  #[test]
+  fn lisp_evaluates_eagerly() {
+    let source = Source::new("", "(- (+ 8 2) (+ 0 2))");
+    let mut lexer = Lexer::new(source);
+    let exprs = crate::parser::parse(&mut lexer).unwrap();
+
+    let engine = Engine::new();
+    let mut context = Context::new().with_stack_capacity(32);
+    context = engine.run(context, exprs).unwrap();
+
+    assert_eq!(
+      context
+        .stack()
+        .iter()
+        .map(|expr| &expr.kind)
+        .collect::<Vec<_>>(),
+      vec![&ExprKind::Integer(8)]
+    )
+  }
+
+  #[test]
+  fn insert_works() {
+    let source = Source::new("", "(insert {} \"key\" \"value\")");
+    let mut lexer = Lexer::new(source);
+    let exprs = crate::parser::parse(&mut lexer).unwrap();
+
+    let engine = Engine::new();
+    let mut context = Context::new().with_stack_capacity(32);
+    context = engine.run(context, exprs).unwrap();
+
+    assert_eq!(
+      context
+        .stack()
+        .to_vec()
+        .iter_mut()
+        .map(|expr| {
+          expr.recursively_strip_info();
+          &expr.kind
+        })
+        .collect::<Vec<_>>(),
+      vec![&ExprKind::Record(HashMap::from_iter(vec![(
+        Symbol::new("key".to_owned().into()),
+        ExprKind::String("value".into()).into()
+      )]))]
     )
   }
 }
