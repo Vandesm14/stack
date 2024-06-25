@@ -233,7 +233,7 @@ impl Engine {
           context.stack_push(expr)?;
         }
 
-        Ok(context)
+        self.run_expr(context, ExprKind::Symbol(call).into())
       }
       ExprKind::Underscore => Ok(context),
     }
