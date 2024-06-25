@@ -92,7 +92,10 @@ fn parse_expr(lexer: &mut Lexer) -> Result<Expr, ParseError> {
           }
         }
       } else {
-        todo!("parenthetical error")
+        return Err(ParseError {
+          kind: ParseErrorKind::Parenthetical(token),
+          source,
+        });
       };
 
       Ok(Expr {
@@ -281,6 +284,7 @@ impl fmt::Display for ParseError {
 pub enum ParseErrorKind {
   UnexpectedToken(Token),
   InvalidLiteral(Token),
+  Parenthetical(Token),
 }
 
 impl ParseErrorKind {
@@ -288,6 +292,7 @@ impl ParseErrorKind {
     match self {
       Self::UnexpectedToken(x) => source.location(x.span.start),
       Self::InvalidLiteral(x) => source.location(x.span.start),
+      Self::Parenthetical(x) => source.location(x.span.start),
     }
   }
 }
@@ -297,6 +302,9 @@ impl fmt::Display for ParseErrorKind {
     match self {
       Self::UnexpectedToken(x) => write!(f, "unexpected token {x}"),
       Self::InvalidLiteral(x) => write!(f, "invalid literal {x}"),
+      Self::Parenthetical(x) => {
+        write!(f, "mismatched/unknown usage of parenthesis {x}")
+      }
     }
   }
 }
