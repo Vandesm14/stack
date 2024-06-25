@@ -538,8 +538,8 @@ impl Intrinsic {
       }
       // MARK: Push
       Self::Push => {
-        let item = context.stack_pop(&expr)?;
         let list = context.stack_pop(&expr)?;
+        let item = context.stack_pop(&expr)?;
 
         let kind = match (list.kind.clone(), item.kind.clone()) {
           (ExprKind::List(mut x), i) => {
