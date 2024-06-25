@@ -614,9 +614,9 @@ impl Intrinsic {
 
       // MARK: Insert
       Self::Insert => {
-        let value = context.stack_pop(&expr)?;
-        let name = context.stack_pop(&expr)?;
         let record = context.stack_pop(&expr)?;
+        let name = context.stack_pop(&expr)?;
+        let value = context.stack_pop(&expr)?;
 
         match record.kind {
           ExprKind::Record(ref record) => {
