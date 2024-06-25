@@ -71,7 +71,10 @@ fn parse_expr(lexer: &mut Lexer) -> Result<Expr, ParseError> {
             body: list.into_iter().skip(1).collect(),
           }
         } else {
-          ExprKind::List(list)
+          ExprKind::SExpr {
+            call: *symbol,
+            body: list.into_iter().skip(1).collect(),
+          }
         }
       } else {
         ExprKind::List(list)
