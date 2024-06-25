@@ -95,9 +95,9 @@ intrinsics! {
   Pop => ("pop", false),
 
   Insert => ("insert", true),
-  Prop => ("prop", true),
-  Has => ("has", true),
-  Remove => ("remove", true),
+  Prop => ("prop", false),
+  Has => ("has", false),
+  Remove => ("remove", false),
   Keys => ("keys", false),
   Values => ("values", false),
 
@@ -110,9 +110,9 @@ intrinsics! {
 
   Call => ("call", false),
 
-  Let => ("let", false),
-  Def => ("def", false),
-  Set => ("set", false),
+  Let => ("let", true),
+  Def => ("def", true),
+  Set => ("set", true),
   Get => ("get", false),
 
   Debug => ("debug", false),

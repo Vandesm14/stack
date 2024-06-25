@@ -451,7 +451,7 @@ mod tests {
   // TODO: Move test for lets into a better place?
   #[test]
   fn can_use_lets() {
-    let source = Source::new("", "10 2 (let '[a b] '[b a -])");
+    let source = Source::new("", "10 2 (let '[a b] '[a b -])");
     let mut lexer = Lexer::new(source);
     let exprs = crate::parser::parse(&mut lexer).unwrap();
 
