@@ -115,8 +115,14 @@ impl Context {
     }
 
     self.stack.push(expr);
-    // TODO: I don't think we need to commit after each push.
-    // self.journal.commit();
+
+    Ok(())
+  }
+
+  pub fn stack_silent_push(&mut self, expr: Expr) -> Result<(), RunError> {
+    let expr = self.scan_expr(expr)?;
+
+    self.stack.push(expr);
 
     Ok(())
   }
@@ -129,6 +135,17 @@ impl Context {
         }
         Ok(expr)
       }
+      None => Err(RunError {
+        reason: RunErrorReason::StackUnderflow,
+        context: self.clone(),
+        expr: expr.clone(),
+      }),
+    }
+  }
+
+  pub fn stack_silent_pop(&mut self, expr: &Expr) -> Result<Expr, RunError> {
+    match self.stack.pop() {
+      Some(expr) => Ok(expr),
       None => Err(RunError {
         reason: RunErrorReason::StackUnderflow,
         context: self.clone(),
