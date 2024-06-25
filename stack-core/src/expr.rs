@@ -353,14 +353,14 @@ impl fmt::Display for ExprKind {
 
         Self::Lazy(x) => write!(f, "{}{x:#}", "'".yellow()),
         Self::List(x) => {
-          write!(f, "{}", "(".yellow())?;
+          write!(f, "{}", "[".yellow())?;
 
           core::iter::once("")
             .chain(core::iter::repeat(" "))
             .zip(x.iter())
             .try_for_each(|(sep, x)| write!(f, "{sep}{x:#}"))?;
 
-          write!(f, "{}", ")".yellow())
+          write!(f, "{}", "]".yellow())
         }
         Self::Record(x) => {
           write!(f, "{{")?;
@@ -417,14 +417,14 @@ impl fmt::Display for ExprKind {
 
         Self::Lazy(x) => write!(f, "{x}"),
         Self::List(x) => {
-          write!(f, "(")?;
+          write!(f, "[")?;
 
           core::iter::once("")
             .chain(core::iter::repeat(" "))
             .zip(x.iter())
             .try_for_each(|(sep, x)| write!(f, "{sep}{x}"))?;
 
-          write!(f, ")")
+          write!(f, "]")
         }
         Self::Record(x) => {
           write!(f, "{{")?;
