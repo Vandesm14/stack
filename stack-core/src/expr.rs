@@ -177,6 +177,19 @@ impl PartialEq for ExprKind {
       (Self::Lazy(lhs), Self::Lazy(rhs)) => lhs == rhs,
       (Self::List(lhs), Self::List(rhs)) => lhs == rhs,
 
+      (
+        Self::SExpr {
+          call: lhs_call,
+          body: lhs_body,
+        },
+        Self::SExpr {
+          call: rhs_call,
+          body: rhs_body,
+        },
+      ) => lhs_call == rhs_call && lhs_body == rhs_body,
+
+      (Self::Underscore, Self::Underscore) => true,
+
       _ => false,
     }
   }
