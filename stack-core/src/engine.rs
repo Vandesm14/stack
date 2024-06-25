@@ -220,6 +220,10 @@ impl Engine {
           }
         }
       }
+      ExprKind::SExpr { call, body } => {
+        todo!()
+      }
+      ExprKind::Underscore => Ok(context),
     }
   }
 

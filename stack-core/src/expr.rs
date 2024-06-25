@@ -94,7 +94,7 @@ pub enum ExprKind {
   Record(HashMap<Symbol, Expr>),
 
   Function { scope: FnScope, body: Vec<Expr> },
-  SExpr(Vec<Expr>),
+  SExpr { call: Symbol, body: Vec<Expr> },
   Underscore,
 }
 
@@ -156,7 +156,7 @@ impl ExprKind {
       ExprKind::Record(_) => "record",
 
       ExprKind::Function { .. } => "function",
-      ExprKind::SExpr(..) => "s-expression",
+      ExprKind::SExpr { .. } => "s-expression",
       ExprKind::Underscore => "underscore",
     }
   }
@@ -337,8 +337,11 @@ impl fmt::Display for ExprKind {
 
           write!(f, "{}", ")".yellow())
         }
-        Self::SExpr(body) => {
+        Self::SExpr { call, body } => {
           write!(f, "{}", "(".yellow())?;
+
+          let sep = if body.is_empty() { "" } else { " " };
+          write!(f, "{}{sep}", call.blue())?;
 
           core::iter::once("")
             .chain(core::iter::repeat(" "))
@@ -397,8 +400,11 @@ impl fmt::Display for ExprKind {
 
           write!(f, ")")
         }
-        Self::SExpr(body) => {
+        Self::SExpr { call, body } => {
           write!(f, "{}", "(")?;
+
+          let sep = if body.is_empty() { "" } else { " " };
+          write!(f, "{}{sep}", call)?;
 
           core::iter::once("")
             .chain(core::iter::repeat(" "))

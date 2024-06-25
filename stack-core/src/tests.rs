@@ -1,5 +1,5 @@
 #[cfg(test)]
-mod test {
+mod lispy {
   use crate::prelude::*;
 
   #[test]
