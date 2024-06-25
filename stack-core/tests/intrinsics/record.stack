@@ -36,7 +36,8 @@ drop
 ;; Test keys, values, and len
 {"name" "john" "type" "person"}
 
-(keys _) swap
-(values _) swap
-(len)
-swap drop
+;; (keys _) swap
+;; (values _) swap
+(len _) swap
+(len) (swap)
+(drop)
