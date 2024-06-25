@@ -164,6 +164,7 @@ fn parse_expr(lexer: &mut Lexer) -> Result<Expr, ParseError> {
           "nil" => ExprKind::Nil,
           "true" => ExprKind::Boolean(true),
           "false" => ExprKind::Boolean(false),
+          "_" => ExprKind::Underscore,
           slice => ExprKind::Symbol(Symbol::from_ref(slice)),
         },
         info: Some(ExprInfo {
