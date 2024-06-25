@@ -221,7 +221,19 @@ impl Engine {
         }
       }
       ExprKind::SExpr { call, body } => {
-        todo!()
+        let mut args: Vec<Expr> = Vec::new();
+        for expr in body.into_iter() {
+          match expr.kind {
+            ExprKind::Underscore => args.push(context.stack_pop(&expr)?),
+            _ => args.push(expr),
+          }
+        }
+
+        for expr in args.drain(..).rev() {
+          context.stack_push(expr)?;
+        }
+
+        Ok(context)
       }
       ExprKind::Underscore => Ok(context),
     }
