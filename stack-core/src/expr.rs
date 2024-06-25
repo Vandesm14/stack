@@ -214,6 +214,7 @@ impl PartialEq for ExprKind {
 
       (Self::Lazy(lhs), Self::Lazy(rhs)) => lhs == rhs,
       (Self::List(lhs), Self::List(rhs)) => lhs == rhs,
+      (Self::Record(lhs), Self::Record(rhs)) => lhs == rhs,
 
       (
         Self::SExpr {
