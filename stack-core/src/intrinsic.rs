@@ -130,8 +130,8 @@ impl Intrinsic {
     match self {
       // MARK: Add
       Self::Add => {
-        let rhs = context.stack_pop(&expr)?;
         let lhs = context.stack_pop(&expr)?;
+        let rhs = context.stack_pop(&expr)?;
 
         let kind = match lhs.kind.clone() + rhs.kind.clone() {
           Ok(res) => res,
@@ -144,8 +144,8 @@ impl Intrinsic {
       }
       // MARK: Sub
       Self::Sub => {
-        let rhs = context.stack_pop(&expr)?;
         let lhs = context.stack_pop(&expr)?;
+        let rhs = context.stack_pop(&expr)?;
 
         let kind = match lhs.kind.clone() - rhs.kind.clone() {
           Ok(res) => res,
@@ -158,8 +158,8 @@ impl Intrinsic {
       }
       // MARK: Mul
       Self::Mul => {
-        let rhs = context.stack_pop(&expr)?;
         let lhs = context.stack_pop(&expr)?;
+        let rhs = context.stack_pop(&expr)?;
 
         let kind = match lhs.kind.clone() * rhs.kind.clone() {
           Ok(res) => res,
@@ -172,8 +172,8 @@ impl Intrinsic {
       }
       // MARK: Div
       Self::Div => {
-        let rhs = context.stack_pop(&expr)?;
         let lhs = context.stack_pop(&expr)?;
+        let rhs = context.stack_pop(&expr)?;
 
         let kind = match lhs.kind.clone() / rhs.kind.clone() {
           Ok(res) => res,
@@ -186,8 +186,8 @@ impl Intrinsic {
       }
       // MARK: Rem
       Self::Rem => {
-        let rhs = context.stack_pop(&expr)?;
         let lhs = context.stack_pop(&expr)?;
+        let rhs = context.stack_pop(&expr)?;
 
         let kind = match lhs.kind.clone() % rhs.kind.clone() {
           Ok(res) => res,
