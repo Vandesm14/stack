@@ -246,7 +246,13 @@ impl Engine {
           context.stack_silent_push(expr)?;
         }
 
-        self.run_expr(context, ExprKind::Symbol(call).into())
+        self.run_expr(
+          context,
+          Expr {
+            kind: ExprKind::Symbol(call),
+            info: expr.info,
+          },
+        )
       }
       ExprKind::Underscore => Ok(context),
     }
