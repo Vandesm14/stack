@@ -94,6 +94,8 @@ pub enum ExprKind {
   Record(HashMap<Symbol, Expr>),
 
   Function { scope: FnScope, body: Vec<Expr> },
+  SExpr(Vec<Expr>),
+  Underscore,
 }
 
 impl ExprKind {
@@ -154,6 +156,8 @@ impl ExprKind {
       ExprKind::Record(_) => "record",
 
       ExprKind::Function { .. } => "function",
+      ExprKind::SExpr(..) => "s-expression",
+      ExprKind::Underscore => "underscore",
     }
   }
 }
@@ -333,6 +337,17 @@ impl fmt::Display for ExprKind {
 
           write!(f, "{}", ")".yellow())
         }
+        Self::SExpr(body) => {
+          write!(f, "{}", "(".yellow())?;
+
+          core::iter::once("")
+            .chain(core::iter::repeat(" "))
+            .zip(body.iter())
+            .try_for_each(|(sep, x)| write!(f, "{sep}{x:#}"))?;
+
+          write!(f, "{}", ")".yellow())
+        }
+        Self::Underscore => write!(f, "_"),
       }
     } else {
       match self {
@@ -382,6 +397,17 @@ impl fmt::Display for ExprKind {
 
           write!(f, ")")
         }
+        Self::SExpr(body) => {
+          write!(f, "{}", "(")?;
+
+          core::iter::once("")
+            .chain(core::iter::repeat(" "))
+            .zip(body.iter())
+            .try_for_each(|(sep, x)| write!(f, "{sep}{x:#}"))?;
+
+          write!(f, "{}", ")")
+        }
+        Self::Underscore => write!(f, "_"),
       }
     }
   }
