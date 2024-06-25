@@ -453,7 +453,7 @@ impl fmt::Display for ExprKind {
           write!(f, ")")
         }
         Self::SExpr { call, body } => {
-          write!(f, "{}", "(")?;
+          write!(f, "(")?;
 
           let sep = if body.is_empty() { "" } else { " " };
           write!(f, "{}{sep}", call)?;
@@ -461,9 +461,9 @@ impl fmt::Display for ExprKind {
           core::iter::once("")
             .chain(core::iter::repeat(" "))
             .zip(body.iter())
-            .try_for_each(|(sep, x)| write!(f, "{sep}{x:#}"))?;
+            .try_for_each(|(sep, x)| write!(f, "{sep}{x}"))?;
 
-          write!(f, "{}", ")")
+          write!(f, ")")
         }
         Self::Underscore => write!(f, "_"),
       }
