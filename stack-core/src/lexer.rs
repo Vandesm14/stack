@@ -209,28 +209,28 @@ impl Lexer {
               },
             };
           }
-          // '[' => {
-          //   self.cursor += c_len;
+          '[' => {
+            self.cursor += c_len;
 
-          //   break Token {
-          //     kind: TokenKind::LeftSquare,
-          //     span: Span {
-          //       start,
-          //       end: self.cursor,
-          //     },
-          //   };
-          // }
-          // ']' => {
-          //   self.cursor += c_len;
+            break Token {
+              kind: TokenKind::LeftSquare,
+              span: Span {
+                start,
+                end: self.cursor,
+              },
+            };
+          }
+          ']' => {
+            self.cursor += c_len;
 
-          //   break Token {
-          //     kind: TokenKind::RightSquare,
-          //     span: Span {
-          //       start,
-          //       end: self.cursor,
-          //     },
-          //   };
-          // }
+            break Token {
+              kind: TokenKind::RightSquare,
+              span: Span {
+                start,
+                end: self.cursor,
+              },
+            };
+          }
           ';' => state = State::Comment,
           '-' => state = State::Minus,
           '0'..='9' => state = State::Integer,
