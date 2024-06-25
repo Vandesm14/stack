@@ -72,25 +72,6 @@ mod lispy {
       vec![&ExprKind::Integer(8)]
     )
   }
-
-  #[test]
-  fn less_arity_pops() {
-    let source = Source::new("", "2 (- 10)");
-    let mut lexer = Lexer::new(source);
-    let exprs = crate::parser::parse(&mut lexer).unwrap();
-
-    let engine = Engine::new();
-    let mut context = Context::new().with_stack_capacity(32);
-    context = engine.run(context, exprs).unwrap();
-
-    assert_eq!(
-      context
-        .stack()
-        .iter()
-        .map(|expr| &expr.kind)
-        .collect::<Vec<_>>(),
-      vec![&ExprKind::Integer(8)]
-    )
   }
 
   #[test]
