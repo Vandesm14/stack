@@ -12,6 +12,7 @@
 - [Functions](introduction/functions.md)
 - [Loops](introduction/loops.md)
 - [Scopes](introduction/scopes.md)
+- [Lispy Syntax](introduction/lispy-syntax.md)
 
 # Reference
 
