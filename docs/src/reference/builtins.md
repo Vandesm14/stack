@@ -311,7 +311,7 @@ rot
 
 **Examples:**
 ```clj
-'(1 2 3) len
+'[1 2 3] len
 ;; 3
 
 "123" len
@@ -326,11 +326,11 @@ rot
 
 **Examples:**
 ```clj
-'(1 2 3) 0 nth
-;; [(1 2 3) 1]
+'[1 2 3] 0 nth
+;; [[1 2 3] 1]
 
-'(1 2 3) 2 nth
-;; [(1 2 3) 3]
+'[1 2 3] 2 nth
+;; [[1 2 3] 3]
 
 "123" 0 nth
 ;; ["123" "1"]
@@ -347,10 +347,10 @@ Splits `a` at the separator `b` and returns both chunks.
 
 **Examples:**
 ```clj
-'(1 2 3) 1 split
-;; (1) (2 3)
+'[1 2 3] 1 split
+;; [1] [2 3]
 
-"123" len
+"123" 1 split
 ;; "1" "23"
 ```
 
@@ -367,8 +367,8 @@ Concats `a` and `b` together (concats the two lists or two strings)
 
 **Examples:**
 ```clj
-'(1) '(2 3) concat
-;; (1 2 3)
+'[1] '[2 3] concat
+;; [1 2 3]
 
 "1" "23" concat
 ;; "123"
@@ -382,8 +382,8 @@ Concats `a` and `b` together (concats the two lists or two strings)
 
 **Examples:**
 ```clj
-3 '(1 2) push
-;; (1 2 3)
+3 '[1 2] push
+;; [1 2 3]
 
 "3" "12" len
 ;; "123"
@@ -397,7 +397,7 @@ Concats `a` and `b` together (concats the two lists or two strings)
 
 **Examples:**
 ```clj
-'(1 2 3) pop
+'[1 2 3] pop
 ;; 3
 
 "123" len
@@ -517,7 +517,7 @@ true 'key {} insert
 **Examples:**
 ```clj
 {key "value" foo "bar"} values
-;; [{key "value" foo "bar"} ("value" "bar")]
+;; [{key "value" foo "bar"} ["value" "bar"]]
 
 {f (fn 2 2 +)} values
 ;; [{key (fn 2 2 +)} ((fn 2 2 +))]
@@ -551,32 +551,32 @@ Wraps `a` with a lazy expression, making it lazy.
 1 lazy
 ;; '1
 
-'()
-;; ()
+'[]
+;; []
 lazy
-;; '()
+;; '[]
 ```
 
 ## Control Flow
 
 ### If (`if`)
 
-**Signature:** `([a: list] [b: bool] --)`
+**Signature:** `([a: bool] [b: list] --)`
 
-**Equivalent Rust:** `if b { a }`
+**Equivalent Rust:** `if a { b }`
 
 **Examples:**
 ```clj
-'("true")
+'["true"]
 true
 if
 ;; "true"
 ```
 ```clj
-'("true")
-;; [("true")]
-(4 4 =)
-;; [("true") true]
+[4 4 =]
+;; [true]
+'["true"]
+;; [true ["true"]]
 if
 ;; ["true"]
 ```
@@ -606,8 +606,11 @@ A QoL helper intrinsic that pushes the symbol: `recur` to the stack. Used to all
 
 ;; Function isn't lazy so it runs right away
 (fn
+  ;; Check if i is less than 5 (condition)
+  i 5 <
+
   ;; Our if block
-  '(
+  '[
     ;; Push i to the stack
     i
 
@@ -616,10 +619,7 @@ A QoL helper intrinsic that pushes the symbol: `recur` to the stack. Used to all
 
     ;; Recur
     recur
-  )
-
-  ;; Check if i is less than 5
-  i 5 <
+  ]
 
   ;; Run the if
   if
@@ -696,12 +696,12 @@ Calls `a` and:
 '(fn +) call
 ;; 4
 
-'(2 2 +) call
+'[2 2 +] call
 ;; 4
 
-'(2 2 +) 'add def
+'[2 2 +] 'add def
 add
-;; [(2 2 +)]
+;; [[2 2 +]]
 call
 ;; [4]
 
@@ -730,19 +730,19 @@ If list `b` was `(first second)`, then they would be popped from the stack in or
 
 **Examples:**
 ```clj
-10 2 '(a b -) '(a b) let
+10 2 '[a b -] '[a b] let
 ;; 8
 
 10 2
-'(
+'[
   (fn a b -)
-) '(a b) let
+] '[a b] let
 ;; 8
 
 10 2
 (fn
-  '(a b -)
-  '(a b)
+  '[a b -]
+  '[a b]
   let
 ) call
 ;; 8

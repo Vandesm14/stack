@@ -21,10 +21,10 @@ true false
 + - * / % = < > <= >= != my-symbol what/is_a-symbol?!
 
 ;; Lists
-'(1 2 3) '((a pair) (of items))
+'[1 2 3] '[[a pair] [of items]]
 
 ;; Lazy
-'my-symbol '() 'fn
+'my-symbol '[] 'fn
 
 ;; Functions
 '(fn 2 2 +)
@@ -32,11 +32,11 @@ true false
 ;; Records
 {key "value" foo "bar"}
 
+;; S-Expressions
+(+ 2 2)
+
 ;; Comments
 ;; This is a comment
-
-;; Do-Nothing brackets (they do nothing! good for visual structuring.)
-[0 'a def] [a 2 +]
 ```
 
 All whitespace is treated the same, so you have really long one-liners or split each item onto its own line. It's up to you!

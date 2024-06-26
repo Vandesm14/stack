@@ -3,20 +3,20 @@
 Though lists are a nice way of bundling code, they aren't perfect. For example, when creating your own named function, you will have to call it manually.
 
 ```clojure
-'(1 +) 'add-one def
+'[1 +] 'add-one def
 
 1 add-one
 ;; Pushes the list to the stack, but doesn't call it
-;; [1] -> [1 (1 +)]
+;; [1] -> [1 [1 +]]
 
 call
 ;; Calls the list
-;; [1 (1 +)] -> [2]
+;; [1 [1 +]] -> [2]
 ```
 
 ## The `fn` Expression
 
-For this reason, Stack provides the `fn` expression to mark lists as functions. Internally, what you see as a "function" is actually just a list with the `fn` expression at the beginning.
+For this reason, Stack provides parenthetical syntax to create functions. They function similar to lists, except they start with a `fn` or `fn!` identifier and use parenthesis instead of square brackets.
 
 ```clojure
 '(fn 1 +) 'add-one def
@@ -32,11 +32,10 @@ Notice how we didn't need to call the list manually? That's because the `fn` exp
 
 ## Functions are Lists
 
-Because functions are just marked lists, you can still use them as lists. This means that you can build and modify functions at runtime.
+Though functions are different from lists, you can still use most of the list methods on them (more info [here](../reference/builtins.md)). This means that you can build and modify functions at runtime.
 
 ```clojure
-'()
-'fn push
+'(fn)
 1 push
 '+ push
 ;; [] -> [(fn 1 +)]
