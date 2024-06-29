@@ -13,7 +13,7 @@ All expressions are implicitly pushed to the stack.
 
 "hello" ;; Pushes "hello"
 
-'() ;; Pushes an empty list
+'[] ;; Pushes an empty list
 ```
 
 ## Purification
@@ -38,12 +38,12 @@ During the phase of introducing a new expression to the program, the engine "pur
 For lists, the items are evaluated in-order, unless the list is lazy.
 
 ```clojure
-(2 2 +)
+[2 2 +]
 
 ;; Results in `4`
 ;; [] -> [4]
 
-'(2 2 +)
+'[2 2 +]
 
 ;; Results in `(2 2 +)`
 ;; [] -> [(2 2 +)]
@@ -81,10 +81,10 @@ Any expression can be made lazy, though it will really only affects symbols, lis
 ;; Results in both 2's and the + being pushed to the stack, but not called
 ;; [] -> [2 2 +]
 
-'(2 2 +)
+'[2 2 +]
 
 ;; Results in the list being pushed to the stack, but not called
-;; [] -> [(2 2 +)]
+;; [] -> [[2 2 +]]
 ```
 
 See the docs on [lazy lists](lists.md#laziness) for more information on the behavior of lazy lists and lists with lazy items.

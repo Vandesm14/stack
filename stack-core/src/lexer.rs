@@ -48,8 +48,8 @@ pub enum TokenKind {
   // Or, instead, add stricter syntax for both `:` and `,` within records
   LeftCurly,
   RightCurly,
-  // LeftSquare,
-  // RightSquare,
+  LeftSquare,
+  RightSquare,
   Integer,
   Float,
   String,
@@ -67,8 +67,8 @@ impl fmt::Display for TokenKind {
       Self::RightParen => write!(f, ")"),
       Self::LeftCurly => write!(f, "{{"),
       Self::RightCurly => write!(f, "}}"),
-      // Self::LeftSquare => write!(f, "["),
-      // Self::RightSquare => write!(f, "]"),
+      Self::LeftSquare => write!(f, "["),
+      Self::RightSquare => write!(f, "]"),
       Self::Integer => write!(f, "an integer literal"),
       Self::Float => write!(f, "a float literal"),
       Self::String => write!(f, "a string literal"),
@@ -209,28 +209,28 @@ impl Lexer {
               },
             };
           }
-          // '[' => {
-          //   self.cursor += c_len;
+          '[' => {
+            self.cursor += c_len;
 
-          //   break Token {
-          //     kind: TokenKind::LeftSquare,
-          //     span: Span {
-          //       start,
-          //       end: self.cursor,
-          //     },
-          //   };
-          // }
-          // ']' => {
-          //   self.cursor += c_len;
+            break Token {
+              kind: TokenKind::LeftSquare,
+              span: Span {
+                start,
+                end: self.cursor,
+              },
+            };
+          }
+          ']' => {
+            self.cursor += c_len;
 
-          //   break Token {
-          //     kind: TokenKind::RightSquare,
-          //     span: Span {
-          //       start,
-          //       end: self.cursor,
-          //     },
-          //   };
-          // }
+            break Token {
+              kind: TokenKind::RightSquare,
+              span: Span {
+                start,
+                end: self.cursor,
+              },
+            };
+          }
           ';' => state = State::Comment,
           '-' => state = State::Minus,
           '0'..='9' => state = State::Integer,

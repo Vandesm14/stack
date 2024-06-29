@@ -1,39 +1,43 @@
 ;; Test syntax
 {"name" "john" "type" "person"}
-"name" prop "john" = swap
-"type" prop "person" = swap
+
+(= (prop _ "name") "john") swap
+(= (prop _ "type") "person") swap
 drop
 
 ;; Test casting
-'(("name" "john") ("type" "person")) "record" cast
-"name" prop "john" = swap
-"type" prop "person" = swap
+(cast '[["name" "john"] ["type" "person"]] "record")
+
+(= "john" (prop _ "name")) swap
+(= "person" (prop _ "type")) swap
 drop
 
 ;; Test insertion
-"john" "name"
-"person" "type"
-{}
-insert
-insert
+(insert {} "name" "john")
+(insert _ "type" "person")
 
-"name" prop "john" = swap
-"type" prop "person" = swap
+(= (prop _ "name") "john") swap
+(= (prop _ "type") "person") swap
+drop
 
 ;; Test has
-"name" has swap
-"type" has swap
+{"name" "john" "type" "person"}
 
-"name" remove
-"type" remove
+(has _ "name") swap
+(has _ "type") swap
 
-"name" has swap
-"type" has swap
+(remove _ "name")
+(remove _ "type")
+
+(has _ "name") swap
+(has _ "type") swap
 drop
 
 ;; Test keys, values, and len
 {"name" "john" "type" "person"}
-;; keys swap
-;; values swap
-len swap
-drop
+
+;; (keys _) swap
+;; (values _) swap
+(len _) swap
+(len) (swap)
+(drop)

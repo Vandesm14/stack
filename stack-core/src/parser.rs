@@ -3,8 +3,9 @@ use core::fmt;
 use std::collections::HashMap;
 
 use crate::{
-  expr::{Expr, ExprInfo, ExprKind, FnIdent},
+  expr::{Expr, ExprInfo, ExprKind, FnScope},
   lexer::{Lexer, Span, Token, TokenKind},
+  scope::Scope,
   source::{Location, Source},
   symbol::Symbol,
 };
@@ -29,6 +30,7 @@ fn parse_expr(lexer: &mut Lexer) -> Result<Expr, ParseError> {
   match token.kind {
     TokenKind::Invalid
     | TokenKind::Eof
+    | TokenKind::RightSquare
     | TokenKind::RightParen
     | TokenKind::RightCurly => Err(ParseError {
       source,
@@ -50,11 +52,54 @@ fn parse_expr(lexer: &mut Lexer) -> Result<Expr, ParseError> {
         }),
       })
     }
-    TokenKind::LeftParen => {
+    TokenKind::LeftSquare => {
       let (list, end_span) = parse_list(lexer)?;
 
       Ok(Expr {
         kind: ExprKind::List(list),
+        info: Some(ExprInfo {
+          source,
+          span: Span {
+            start: token.span.start,
+            end: end_span.end,
+          },
+        }),
+      })
+    }
+    TokenKind::LeftParen => {
+      let (list, end_span) = parse_parenthetical(lexer)?;
+
+      let kind = if let Some(Expr {
+        kind: ExprKind::Symbol(symbol),
+        ..
+      }) = list.first()
+      {
+        let str = symbol.as_str();
+        if str == "fn" {
+          ExprKind::Function {
+            scope: FnScope::Scoped(Scope::new()),
+            body: list.into_iter().skip(1).collect(),
+          }
+        } else if str == "fn!" {
+          ExprKind::Function {
+            scope: FnScope::Scopeless,
+            body: list.into_iter().skip(1).collect(),
+          }
+        } else {
+          ExprKind::SExpr {
+            call: *symbol,
+            body: list.into_iter().skip(1).collect(),
+          }
+        }
+      } else {
+        return Err(ParseError {
+          kind: ParseErrorKind::Parenthetical(token),
+          source,
+        });
+      };
+
+      Ok(Expr {
+        kind,
         info: Some(ExprInfo {
           source,
           span: Span {
@@ -137,14 +182,7 @@ fn parse_expr(lexer: &mut Lexer) -> Result<Expr, ParseError> {
           "nil" => ExprKind::Nil,
           "true" => ExprKind::Boolean(true),
           "false" => ExprKind::Boolean(false),
-          "fn" => ExprKind::Fn(FnIdent {
-            scoped: true,
-            scope: Default::default(),
-          }),
-          "fn!" => ExprKind::Fn(FnIdent {
-            scoped: false,
-            scope: Default::default(),
-          }),
+          "_" => ExprKind::Underscore,
           slice => ExprKind::Symbol(Symbol::from_ref(slice)),
         },
         info: Some(ExprInfo {
@@ -157,6 +195,21 @@ fn parse_expr(lexer: &mut Lexer) -> Result<Expr, ParseError> {
 }
 
 fn parse_list(lexer: &mut Lexer) -> Result<(Vec<Expr>, Span), ParseError> {
+  let mut list = Vec::new();
+
+  loop {
+    let token = lexer.peek();
+
+    match token.kind {
+      TokenKind::RightSquare => break Ok((list, lexer.next().span)),
+      _ => list.push(parse_expr(lexer)?),
+    }
+  }
+}
+
+fn parse_parenthetical(
+  lexer: &mut Lexer,
+) -> Result<(Vec<Expr>, Span), ParseError> {
   let mut list = Vec::new();
 
   loop {
@@ -231,6 +284,7 @@ impl fmt::Display for ParseError {
 pub enum ParseErrorKind {
   UnexpectedToken(Token),
   InvalidLiteral(Token),
+  Parenthetical(Token),
 }
 
 impl ParseErrorKind {
@@ -238,6 +292,7 @@ impl ParseErrorKind {
     match self {
       Self::UnexpectedToken(x) => source.location(x.span.start),
       Self::InvalidLiteral(x) => source.location(x.span.start),
+      Self::Parenthetical(x) => source.location(x.span.start),
     }
   }
 }
@@ -247,6 +302,9 @@ impl fmt::Display for ParseErrorKind {
     match self {
       Self::UnexpectedToken(x) => write!(f, "unexpected token {x}"),
       Self::InvalidLiteral(x) => write!(f, "invalid literal {x}"),
+      Self::Parenthetical(x) => {
+        write!(f, "mismatched/unknown usage of parenthesis {x}")
+      }
     }
   }
 }

@@ -15,7 +15,45 @@ pub struct Expr {
 
 impl fmt::Debug for Expr {
   fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-    write!(f, "{:?}", self.kind)
+    write!(f, "Expr {{ kind: ExprKind::{:?} }}", self.kind)
+  }
+}
+
+impl Expr {
+  pub fn recursively_strip_info(&mut self) {
+    match self.kind {
+      ExprKind::Lazy(ref mut expr) => expr.recursively_strip_info(),
+      ExprKind::List(ref mut exprs) => {
+        for expr in exprs.iter_mut() {
+          expr.recursively_strip_info();
+        }
+      }
+      ExprKind::Record(ref mut exprs) => {
+        for (_, expr) in exprs.iter_mut() {
+          expr.recursively_strip_info();
+        }
+      }
+      ExprKind::Function {
+        body: ref mut exprs,
+        ..
+      } => {
+        for expr in exprs.iter_mut() {
+          expr.recursively_strip_info();
+        }
+      }
+      ExprKind::SExpr {
+        body: ref mut exprs,
+        ..
+      } => {
+        for expr in exprs.iter_mut() {
+          expr.recursively_strip_info();
+        }
+      }
+
+      _ => {}
+    }
+
+    self.info = None;
   }
 }
 
@@ -52,6 +90,32 @@ impl fmt::Display for Expr {
   }
 }
 
+pub fn display_fn_scope(scope: &FnScope) -> String {
+  match scope {
+    FnScope::Scoped(..) => "fn",
+    FnScope::Scopeless => "fn!",
+  }
+  .into()
+}
+
+#[derive(Debug, Clone)]
+pub enum FnScope {
+  Scoped(Scope),
+  Scopeless,
+}
+
+impl FnScope {
+  #[inline]
+  pub const fn is_scoped(&self) -> bool {
+    matches!(self, Self::Scoped(..))
+  }
+
+  #[inline]
+  pub const fn is_scopeless(&self) -> bool {
+    matches!(self, Self::Scopeless)
+  }
+}
+
 #[derive(Debug, Clone)]
 pub enum ExprKind {
   Nil,
@@ -67,7 +131,9 @@ pub enum ExprKind {
   List(Vec<Expr>),
   Record(HashMap<Symbol, Expr>),
 
-  Fn(FnIdent),
+  Function { scope: FnScope, body: Vec<Expr> },
+  SExpr { call: Symbol, body: Vec<Expr> },
+  Underscore,
 }
 
 impl ExprKind {
@@ -81,30 +147,19 @@ impl ExprKind {
     matches!(self, Self::Boolean(true))
   }
 
-  pub fn is_function(&self) -> bool {
-    match self {
-      Self::List(list) => vec_is_function(list),
-      _ => false,
-    }
+  #[inline]
+  pub const fn is_function(&self) -> bool {
+    matches!(self, Self::Function { .. })
   }
 
-  pub fn fn_symbol(&self) -> Option<&FnIdent> {
+  #[inline]
+  pub const fn is_scoped(&self) -> Option<bool> {
     match self {
-      Self::List(list) => vec_fn_symbol(list),
-      _ => None,
-    }
-  }
+      Self::Function { scope, .. } => match scope {
+        FnScope::Scoped(..) => Some(true),
+        FnScope::Scopeless => Some(false),
+      },
 
-  pub fn fn_symbol_mut(&mut self) -> Option<&mut FnIdent> {
-    match self {
-      Self::List(list) => vec_fn_symbol_mut(list),
-      _ => None,
-    }
-  }
-
-  pub fn fn_body(&self) -> Option<&[Expr]> {
-    match self {
-      Self::List(list) => vec_fn_body(list),
       _ => None,
     }
   }
@@ -138,7 +193,9 @@ impl ExprKind {
       ExprKind::List(_) => "list",
       ExprKind::Record(_) => "record",
 
-      ExprKind::Fn(_) => "function",
+      ExprKind::Function { .. } => "function",
+      ExprKind::SExpr { .. } => "s-expression",
+      ExprKind::Underscore => "underscore",
     }
   }
 }
@@ -157,6 +214,20 @@ impl PartialEq for ExprKind {
 
       (Self::Lazy(lhs), Self::Lazy(rhs)) => lhs == rhs,
       (Self::List(lhs), Self::List(rhs)) => lhs == rhs,
+      (Self::Record(lhs), Self::Record(rhs)) => lhs == rhs,
+
+      (
+        Self::SExpr {
+          call: lhs_call,
+          body: lhs_body,
+        },
+        Self::SExpr {
+          call: rhs_call,
+          body: rhs_body,
+        },
+      ) => lhs_call == rhs_call && lhs_body == rhs_body,
+
+      (Self::Underscore, Self::Underscore) => true,
 
       _ => false,
     }
@@ -282,14 +353,14 @@ impl fmt::Display for ExprKind {
 
         Self::Lazy(x) => write!(f, "{}{x:#}", "'".yellow()),
         Self::List(x) => {
-          write!(f, "{}", "(".yellow())?;
+          write!(f, "{}", "[".yellow())?;
 
           core::iter::once("")
             .chain(core::iter::repeat(" "))
             .zip(x.iter())
             .try_for_each(|(sep, x)| write!(f, "{sep}{x:#}"))?;
 
-          write!(f, "{}", ")".yellow())
+          write!(f, "{}", "]".yellow())
         }
         Self::Record(x) => {
           write!(f, "{{")?;
@@ -305,7 +376,33 @@ impl fmt::Display for ExprKind {
           write!(f, "}}")
         }
 
-        Self::Fn(x) => write!(f, "{}", x.to_string().yellow()),
+        Self::Function { scope, body } => {
+          write!(f, "{}", "(".yellow())?;
+
+          let sep = if body.is_empty() { "" } else { " " };
+          write!(f, "{}{sep}", display_fn_scope(scope).blue())?;
+
+          core::iter::once("")
+            .chain(core::iter::repeat(" "))
+            .zip(body.iter())
+            .try_for_each(|(sep, x)| write!(f, "{sep}{x:#}"))?;
+
+          write!(f, "{}", ")".yellow())
+        }
+        Self::SExpr { call, body } => {
+          write!(f, "{}", "(".yellow())?;
+
+          let sep = if body.is_empty() { "" } else { " " };
+          write!(f, "{}{sep}", call.blue())?;
+
+          core::iter::once("")
+            .chain(core::iter::repeat(" "))
+            .zip(body.iter())
+            .try_for_each(|(sep, x)| write!(f, "{sep}{x:#}"))?;
+
+          write!(f, "{}", ")".yellow())
+        }
+        Self::Underscore => write!(f, "_"),
       }
     } else {
       match self {
@@ -320,14 +417,14 @@ impl fmt::Display for ExprKind {
 
         Self::Lazy(x) => write!(f, "{x}"),
         Self::List(x) => {
-          write!(f, "(")?;
+          write!(f, "[")?;
 
           core::iter::once("")
             .chain(core::iter::repeat(" "))
             .zip(x.iter())
             .try_for_each(|(sep, x)| write!(f, "{sep}{x}"))?;
 
-          write!(f, ")")
+          write!(f, "]")
         }
         Self::Record(x) => {
           write!(f, "{{")?;
@@ -342,7 +439,33 @@ impl fmt::Display for ExprKind {
           write!(f, "}}")
         }
 
-        Self::Fn(x) => write!(f, "{x}"),
+        Self::Function { scope, body } => {
+          write!(f, "(")?;
+
+          let sep = if body.is_empty() { "" } else { " " };
+          write!(f, "{}{sep}", display_fn_scope(scope))?;
+
+          core::iter::once("")
+            .chain(core::iter::repeat(" "))
+            .zip(body.iter())
+            .try_for_each(|(sep, x)| write!(f, "{sep}{x}"))?;
+
+          write!(f, ")")
+        }
+        Self::SExpr { call, body } => {
+          write!(f, "(")?;
+
+          let sep = if body.is_empty() { "" } else { " " };
+          write!(f, "{}{sep}", call)?;
+
+          core::iter::once("")
+            .chain(core::iter::repeat(" "))
+            .zip(body.iter())
+            .try_for_each(|(sep, x)| write!(f, "{sep}{x}"))?;
+
+          write!(f, ")")
+        }
+        Self::Underscore => write!(f, "_"),
       }
     }
   }
@@ -388,22 +511,6 @@ impl fmt::Display for ErrorInner {
   }
 }
 
-#[derive(Debug, Clone, PartialEq)]
-pub struct FnIdent {
-  pub scoped: bool,
-  pub scope: Scope,
-}
-
-impl fmt::Display for FnIdent {
-  fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-    if self.scoped {
-      write!(f, "fn")
-    } else {
-      write!(f, "fn!")
-    }
-  }
-}
-
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct ExprInfo {
   pub source: Source,
@@ -423,40 +530,4 @@ impl fmt::Display for ExprInfo {
         .unwrap_or_else(|| "?:?".into())
     )
   }
-}
-
-pub fn vec_is_function(list: &[Expr]) -> bool {
-  list
-    .first()
-    .map(|x| {
-      matches!(
-        x,
-        Expr {
-          kind: ExprKind::Fn(_),
-          ..
-        }
-      )
-    })
-    .unwrap_or(false)
-}
-
-pub fn vec_fn_symbol(list: &[Expr]) -> Option<&FnIdent> {
-  list.first().and_then(|x| match &x.kind {
-    ExprKind::Fn(scope) => Some(scope),
-    _ => None,
-  })
-}
-
-pub fn vec_fn_symbol_mut(list: &mut [Expr]) -> Option<&mut FnIdent> {
-  list.first_mut().and_then(|x| match &mut x.kind {
-    ExprKind::Fn(scope) => Some(scope),
-    _ => None,
-  })
-}
-
-pub fn vec_fn_body(list: &[Expr]) -> Option<&[Expr]> {
-  list.first().and_then(|x| match x.kind {
-    ExprKind::Fn(_) => Some(&list[1..]),
-    _ => None,
-  })
 }

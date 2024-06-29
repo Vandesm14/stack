@@ -4,7 +4,9 @@ use eframe::egui::{
   text::LayoutJob, Align, Color32, FontSelection, RichText, Style,
 };
 use itertools::Itertools;
-use stack_core::{journal::JournalOp, prelude::*, scope::Scope};
+use stack_core::{
+  expr::display_fn_scope, journal::JournalOp, prelude::*, scope::Scope,
+};
 
 pub enum IOHookEvent {
   Print(String),
@@ -20,6 +22,10 @@ pub fn append_to_job(text: RichText, layout_job: &mut LayoutJob) {
     FontSelection::Default,
     Align::Center,
   )
+}
+
+pub fn append_string(text: String, layout_job: &mut LayoutJob) {
+  append_to_job(RichText::new(text), layout_job)
 }
 
 const GREEN: &str = "#16C60C";
@@ -58,7 +64,7 @@ pub fn paint_expr(expr: &Expr, layout_job: &mut LayoutJob) {
       paint_expr(x, layout_job)
     }
     ExprKind::List(x) => {
-      append_to_job(RichText::new("("), layout_job);
+      append_to_job(RichText::new("["), layout_job);
 
       for (sep, x) in core::iter::once("")
         .chain(core::iter::repeat(" "))
@@ -68,7 +74,7 @@ pub fn paint_expr(expr: &Expr, layout_job: &mut LayoutJob) {
         paint_expr(x, layout_job);
       }
 
-      append_to_job(RichText::new(")"), layout_job);
+      append_to_job(RichText::new("]"), layout_job);
     }
     ExprKind::Record(x) => {
       append_to_job(RichText::new("{"), layout_job);
@@ -87,9 +93,48 @@ pub fn paint_expr(expr: &Expr, layout_job: &mut LayoutJob) {
       append_to_job(RichText::new("}"), layout_job);
     }
 
-    ExprKind::Fn(x) => {
-      append_to_job(RichText::new(x.to_string()).color(yellow), layout_job)
+    ExprKind::Function { scope, body } => {
+      // append_to_job(RichText::new(x.to_string()).color(yellow), layout_job)
+      append_to_job(RichText::new("("), layout_job);
+
+      let sep = if body.is_empty() { "" } else { " " };
+      append_to_job(
+        RichText::new(format!("{}{sep}", display_fn_scope(scope))).color(blue),
+        layout_job,
+      );
+
+      for (sep, x) in core::iter::once("")
+        .chain(core::iter::repeat(" "))
+        .zip(body.iter())
+      {
+        append_to_job(RichText::new(sep), layout_job);
+        paint_expr(x, layout_job);
+      }
+
+      append_to_job(RichText::new(")"), layout_job);
     }
+
+    ExprKind::SExpr { call, body } => {
+      append_to_job(RichText::new("(").color(yellow), layout_job);
+
+      let sep = if body.is_empty() { "" } else { " " };
+      append_to_job(
+        RichText::new(call.as_str().to_string()).color(blue),
+        layout_job,
+      );
+      append_string(sep.to_owned(), layout_job);
+
+      for (sep, x) in core::iter::once("")
+        .chain(core::iter::repeat(" "))
+        .zip(body.iter())
+      {
+        append_to_job(RichText::new(sep), layout_job);
+        paint_expr(x, layout_job);
+      }
+
+      append_to_job(RichText::new(")"), layout_job);
+    }
+    ExprKind::Underscore => append_string("_".to_string(), layout_job),
   }
 }
 

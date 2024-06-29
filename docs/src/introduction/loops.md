@@ -9,7 +9,7 @@ Similar to functional programming languages such as Clojure, Stack utilizes recu
 ;; Function isn't lazy so it runs right away
 (fn
   ;; Our if block
-  '(
+  '[
     ;; Push i to the stack
     i
 
@@ -18,7 +18,7 @@ Similar to functional programming languages such as Clojure, Stack utilizes recu
 
     ;; Recur
     recur
-  )
+  ]
 
   ;; Check if i is less than 5
   i 5 <

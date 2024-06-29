@@ -15,7 +15,7 @@ use crate::{
 };
 
 macro_rules! intrinsics {
-  ($($ident:ident => $s:literal),* $(,)?) => {
+  ($($ident:ident => ($s:literal, $b:literal)),* $(,)?) => {
     #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
     pub enum Intrinsic {
       $($ident),*
@@ -26,6 +26,13 @@ macro_rules! intrinsics {
       pub const fn as_str(self) -> &'static str {
         match self {
           $(Self::$ident => $s),*
+        }
+      }
+
+      /// Returns if the args should be flipped when running this [`Intrinsic`].
+      pub const fn has_flipped_s_expr_args(self) -> bool {
+        match self {
+          $(Self::$ident => $b),*
         }
       }
 
@@ -56,67 +63,67 @@ macro_rules! intrinsics {
 }
 
 intrinsics! {
-  Add => "+",
-  Sub => "-",
-  Mul => "*",
-  Div => "/",
-  Rem => "%",
+  Add => ("+",false),
+  Sub => ("-", false),
+  Mul => ("*", false),
+  Div => ("/", false),
+  Rem => ("%", false),
 
-  Eq => "=",
-  Ne => "!=",
-  Lt => "<",
-  Le => "<=",
-  Gt => ">",
-  Ge => ">=",
+  Eq => ("=", false),
+  Ne => ("!=", false),
+  Lt => ("<", false),
+  Le => ("<=", false),
+  Gt => (">", false),
+  Ge => (">=", false),
 
-  Or => "or",
-  And => "and",
-  Not => "not",
+  Or => ("or", false),
+  And => ("and", false),
+  Not => ("not", false),
 
-  Assert => "assert",
+  Assert => ("assert", false),
 
-  Drop => "drop",
-  Dupe => "dupe",
-  Swap => "swap",
-  Rot => "rot",
+  Drop => ("drop", false),
+  Dupe => ("dupe", false),
+  Swap => ("swap", false),
+  Rot => ("rot", false),
 
-  Len => "len",
-  Nth => "nth",
-  Split => "split",
-  Concat => "concat",
-  Push => "push",
-  Pop => "pop",
+  Len => ("len", false),
+  Nth => ("nth", false),
+  Split => ("split", false),
+  Concat => ("concat", false),
+  Push => ("push", true),
+  Pop => ("pop", false),
 
-  Insert => "insert",
-  Prop => "prop",
-  Has => "has",
-  Remove => "remove",
-  Keys => "keys",
-  Values => "values",
+  Insert => ("insert", true),
+  Prop => ("prop", false),
+  Has => ("has", false),
+  Remove => ("remove", false),
+  Keys => ("keys", false),
+  Values => ("values", false),
 
-  Cast => "cast",
-  TypeOf => "typeof",
-  Lazy => "lazy",
+  Cast => ("cast", false),
+  TypeOf => ("typeof", false),
+  Lazy => ("lazy", false),
 
-  If => "if",
-  Halt => "halt",
+  If => ("if", false),
+  Halt => ("halt", false),
 
-  Call => "call",
+  Call => ("call", false),
 
-  Let => "let",
-  Def => "def",
-  Set => "set",
-  Get => "get",
+  Let => ("let", true),
+  Def => ("def", true),
+  Set => ("set", true),
+  Get => ("get", false),
 
-  Debug => "debug",
+  Debug => ("debug", false),
   // TODO: These will become STD module items.
-  Print => "print",
-  Pretty => "pretty",
-  Recur => "recur",
+  Print => ("print", false),
+  Pretty => ("pretty", false),
+  Recur => ("recur", false),
 
-  OrElse => "orelse",
+  OrElse => ("orelse", false),
 
-  Import => "import",
+  Import => ("import", false),
 }
 
 impl Intrinsic {
