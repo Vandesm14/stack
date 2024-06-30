@@ -797,7 +797,7 @@ impl Intrinsic {
         let cond = context.stack_pop(&expr)?;
 
         if cond.kind.is_truthy() {
-          context = engine.run_expr(context, body)?;
+          context = engine.call_expr(context, body)?;
         }
 
         Ok(context)
@@ -812,7 +812,7 @@ impl Intrinsic {
       // MARK: Call
       Self::Call => {
         let item = context.stack_pop(&expr)?;
-        engine.run_expr(context, item)
+        engine.call_expr(context, item)
       }
 
       // MARK: Let
@@ -851,7 +851,7 @@ impl Intrinsic {
             }
 
             context.push_scope(scope);
-            context = engine.run_expr(context, body)?;
+            context = engine.call_expr(context, body)?;
             context.pop_scope();
 
             if let Some(journal) = context.journal_mut() {

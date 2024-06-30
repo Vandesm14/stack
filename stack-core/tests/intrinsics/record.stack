@@ -6,7 +6,7 @@
 drop
 
 ;; Test casting
-(cast '[["name" "john"] ["type" "person"]] "record")
+(cast [["name" "john"] ["type" "person"]] "record")
 
 (= "john" (prop _ "name")) swap
 (= "person" (prop _ "type")) swap
