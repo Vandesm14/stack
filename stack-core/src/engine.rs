@@ -99,7 +99,18 @@ impl Engine {
     Ok(context)
   }
 
-  #[allow(clippy::only_used_in_recursion)]
+  pub fn call_expr(
+    &self,
+    mut context: Context,
+    expr: Expr,
+  ) -> Result<Context, RunError> {
+    let expr = context.scan_expr(expr)?;
+    match expr.kind {
+      ExprKind::List(exprs) => self.run(context, exprs),
+      _ => self.run_expr(context, expr),
+    }
+  }
+
   pub fn run_expr(
     &self,
     mut context: Context,
@@ -122,6 +133,7 @@ impl Engine {
       | ExprKind::Integer(_)
       | ExprKind::Float(_)
       | ExprKind::String(_)
+      | ExprKind::List(_)
       | ExprKind::Record(_) => {
         context.stack_push(expr)?;
         Ok(context)
@@ -179,6 +191,9 @@ impl Engine {
                 CallResult::None => unreachable!(),
               }
             }
+          }
+          if let ExprKind::SExpr { .. } = item.kind {
+            self.call_expr(context, item)
           } else {
             if let Some(journal) = context.journal_mut() {
               journal.push_op(JournalOp::Call(expr.clone()));
@@ -202,7 +217,6 @@ impl Engine {
         context.stack_push(*x)?;
         Ok(context)
       }
-      ExprKind::List(ref x) => self.run(context, x.to_vec()),
       ExprKind::Function {
         ref scope,
         ref body,
@@ -451,7 +465,7 @@ mod tests {
   // TODO: Move test for lets into a better place?
   #[test]
   fn can_use_lets() {
-    let source = Source::new("", "10 2 '[a b -] '[a b] let");
+    let source = Source::new("", "10 2 [a b -] [a b] let");
     let mut lexer = Lexer::new(source);
     let exprs = crate::parser::parse(&mut lexer).unwrap();
 
@@ -471,7 +485,7 @@ mod tests {
 
   #[test]
   fn lets_take_precedence_over_scope() {
-    let source = Source::new("", "0 'a def 1 '[a] '[a] let");
+    let source = Source::new("", "0 'a def 1 [a] [a] let");
     let mut lexer = Lexer::new(source);
     let exprs = crate::parser::parse(&mut lexer).unwrap();
 
@@ -491,7 +505,7 @@ mod tests {
 
   #[test]
   fn lets_do_not_act_as_overlays() {
-    let source = Source::new("", "0 'a def 1 '[a 2 'a def a] '[a] let a");
+    let source = Source::new("", "0 'a def 1 [a 2 'a def a] [a] let a");
     let mut lexer = Lexer::new(source);
     let exprs = crate::parser::parse(&mut lexer).unwrap();
 
@@ -515,7 +529,7 @@ mod tests {
 
   #[test]
   fn functions_work_in_lets() {
-    let source = Source::new("", "0 'a def 1 '[(fn a 2 'a def a)] '[a] let a");
+    let source = Source::new("", "0 'a def 1 [(fn a 2 'a def a)] [a] let a");
     let mut lexer = Lexer::new(source);
     let exprs = crate::parser::parse(&mut lexer).unwrap();
 
@@ -542,9 +556,9 @@ mod tests {
     let source = Source::new(
       "",
       "0 'a def
-      1 '[a] '[a] let
-      1 '[(fn! a)] '[a] let
-      1 '[(fn a)] '[a] let
+      1 [a] [a] let
+      1 [(fn! a)] [a] let
+      1 [(fn a)] [a] let
       a",
     );
     let mut lexer = Lexer::new(source);
@@ -571,7 +585,7 @@ mod tests {
 
   #[test]
   fn lets_can_set() {
-    let source = Source::new("", "1 '[a 2 'a set a] '[a] let");
+    let source = Source::new("", "1 [a 2 'a set a] [a] let");
     let mut lexer = Lexer::new(source);
     let exprs = crate::parser::parse(&mut lexer).unwrap();
 
