@@ -117,7 +117,7 @@ pub fn paint_expr(expr: &Expr, layout_job: &mut LayoutJob) {
     }
 
     ExprKind::SExpr { call, body } => {
-      append_to_job(RichText::new("(").color(yellow), layout_job);
+      append_to_job(RichText::new("("), layout_job);
 
       let sep = if body.is_empty() { "" } else { " " };
       append_to_job(
@@ -146,62 +146,34 @@ pub fn paint_op(op: &JournalOp, layout_job: &mut LayoutJob) {
   let yellow = Color32::from_hex(YELLOW).unwrap();
 
   match op {
-    JournalOp::Call(expr) => {
-      // append_to_job(RichText::new("call(").color(yellow), layout_job);
-      // paint_expr(expr, layout_job);
-      // append_to_job(RichText::new(")").color(yellow), layout_job)
-      append_to_job(
-        RichText::new(format!("scope({})", string_with_quotes(expr)))
-          .color(yellow),
-        layout_job,
-      )
-    }
-    JournalOp::SCall(expr) => {
-      // append_to_job(RichText::new("call(").color(yellow), layout_job);
-      // paint_expr(expr, layout_job);
-      // append_to_job(RichText::new(")").color(yellow), layout_job)
-      append_to_job(
-        RichText::new(format!("{}", string_with_quotes(expr))).color(yellow),
-        layout_job,
-      )
-    }
-    JournalOp::FnCall(expr) => {
-      // append_to_job(RichText::new("fn(").color(yellow), layout_job);
-      // paint_expr(expr, layout_job);
-      // append_to_job(RichText::new(")").color(yellow), layout_job)
-      append_to_job(
-        RichText::new(format!("fn({})", string_with_quotes(expr)))
-          .color(yellow),
-        layout_job,
-      )
-    }
-    JournalOp::Push(expr) => {
-      // append_to_job(RichText::new("push(").color(green), layout_job);
-      // paint_expr(expr, layout_job);
-      // append_to_job(RichText::new(")").color(green), layout_job)
-      append_to_job(
-        RichText::new(format!("push({})", string_with_quotes(expr)))
-          .color(green),
-        layout_job,
-      )
-    }
-    JournalOp::Pop(expr) => {
-      // append_to_job(RichText::new("pop(").color(red), layout_job);
-      // paint_expr(expr, layout_job);
-      // append_to_job(RichText::new(")").color(red), layout_job)
-      append_to_job(
-        RichText::new(format!("pop({})", string_with_quotes(expr))).color(red),
-        layout_job,
-      )
-    }
+    JournalOp::Call(expr) => append_to_job(
+      RichText::new(format!("get({})", string_with_quotes(expr))).color(yellow),
+      layout_job,
+    ),
+    JournalOp::SCall(expr) => append_to_job(
+      RichText::new(format!("{}", string_with_quotes(expr))).color(yellow),
+      layout_job,
+    ),
+    JournalOp::FnCall(expr) => append_to_job(
+      RichText::new(format!("{}", string_with_quotes(expr))).color(yellow),
+      layout_job,
+    ),
+    JournalOp::Push(expr) => append_to_job(
+      RichText::new(format!("push({})", string_with_quotes(expr))).color(green),
+      layout_job,
+    ),
+    JournalOp::Pop(expr) => append_to_job(
+      RichText::new(format!("pop({})", string_with_quotes(expr))).color(red),
+      layout_job,
+    ),
     JournalOp::ScopedFnStart(_) => {
-      append_to_job(RichText::new("fn(start)"), layout_job);
+      append_to_job(RichText::new("fn start"), layout_job);
     }
     JournalOp::ScopelessFnStart => {
-      append_to_job(RichText::new("fn!(start)"), layout_job);
+      append_to_job(RichText::new("fn! start"), layout_job);
     }
     JournalOp::FnEnd(..) => {
-      append_to_job(RichText::new("fn(end)"), layout_job);
+      append_to_job(RichText::new("fn end"), layout_job);
     }
     _ => {}
   }
