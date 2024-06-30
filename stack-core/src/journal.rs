@@ -153,6 +153,12 @@ impl fmt::Display for Journal {
               if f.alternate() { x.white() } else { x.new() }
             ));
           }
+          JournalOp::SCall(x) => {
+            line.push_str(&format!(
+              "{}",
+              if f.alternate() { x.yellow() } else { x.new() }
+            ));
+          }
           JournalOp::FnCall(x) => {
             line.push_str(&format!(
               "{}",

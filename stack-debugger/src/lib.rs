@@ -300,8 +300,12 @@ pub fn string_with_quotes(expr: &Expr) -> String {
       string
     }
 
-    ExprKind::SExpr { body, .. } => {
+    ExprKind::SExpr { call, body } => {
       let mut string = String::from("(");
+
+      let sep = if body.is_empty() { "" } else { " " };
+      string.push_str(format!("{}{sep}", call.as_str()).as_str());
+
       core::iter::once("")
         .chain(core::iter::repeat(" "))
         .zip(body.iter())
