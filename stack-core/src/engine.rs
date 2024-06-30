@@ -191,6 +191,9 @@ impl Engine {
                 CallResult::None => unreachable!(),
               }
             }
+          }
+          if let ExprKind::SExpr { .. } = item.kind {
+            self.call_expr(context, item)
           } else {
             if let Some(journal) = context.journal_mut() {
               journal.push_op(JournalOp::Call(expr.clone()));
