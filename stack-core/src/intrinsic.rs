@@ -852,12 +852,15 @@ impl Intrinsic {
 
             context.push_scope(scope);
             context = engine.call_expr(context, body)?;
-            context.pop_scope();
 
-            if let Some(journal) = context.journal_mut() {
+            if context.journal().is_some() {
+              let scope = context.scope().clone();
+              let journal = context.journal_mut().as_mut().unwrap();
               journal.commit();
-              journal.push_op(JournalOp::FnEnd);
+              journal.push_op(JournalOp::FnEnd(scope.into()));
             }
+
+            context.pop_scope();
 
             Ok(context)
           }
@@ -1004,9 +1007,11 @@ impl Intrinsic {
                 let mut result = engine.run(context, exprs);
 
                 if let Ok(ref mut context) = result {
-                  if let Some(journal) = context.journal_mut() {
+                  if context.journal().is_some() {
+                    let scope = context.scope().clone();
+                    let journal = context.journal_mut().as_mut().unwrap();
                     journal.commit();
-                    journal.push_op(JournalOp::FnEnd);
+                    journal.push_op(JournalOp::FnEnd(scope.into()));
                   }
                 }
 

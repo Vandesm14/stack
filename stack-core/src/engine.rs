@@ -127,6 +127,54 @@ impl Engine {
     }
 
     let expr = context.scan_expr(expr)?;
+
+    if let ExprKind::SExpr { call, body } = &expr.kind {
+      if let Some(journal) = context.journal_mut() {
+        journal.commit();
+        journal.push_op(JournalOp::SCall(expr.clone()));
+      }
+
+      let mut args: Vec<Expr> = Vec::new();
+      for expr in body {
+        let stack_len = context.stack().len();
+        match expr.kind {
+          ExprKind::Underscore => args.push(context.stack_pop(expr)?),
+          ExprKind::SExpr { .. } => {
+            context = self.run_expr(context, expr.clone())?;
+            args.push(context.stack_pop(expr)?)
+          }
+          _ => {
+            context = self.run_expr(context, expr.clone())?;
+
+            if context.stack().len() != stack_len + 1 {
+              todo!("throw an error when stack is different");
+            }
+
+            args.push(context.stack_pop(expr)?);
+          }
+        }
+      }
+
+      if let Ok(intrinsic) = Intrinsic::from_str(call.as_str()) {
+        if intrinsic.has_flipped_s_expr_args() {
+          // TODO: use a for loop and iterate normally, instead of reversing
+          args.reverse();
+        }
+      }
+
+      for expr in args.drain(..) {
+        context.stack_push(expr)?;
+      }
+
+      return self.run_expr(
+        context,
+        Expr {
+          kind: ExprKind::Symbol(*call),
+          info: expr.info,
+        },
+      );
+    }
+
     match expr.kind {
       ExprKind::Nil
       | ExprKind::Boolean(_)
@@ -214,7 +262,7 @@ impl Engine {
         }
       }
       ExprKind::Lazy(x) => {
-        context.stack_push(*x)?;
+        context.stack_push(*x.clone())?;
         Ok(context)
       }
       ExprKind::Function {
@@ -234,47 +282,7 @@ impl Engine {
           }
         }
       }
-      ExprKind::SExpr { call, body } => {
-        let mut args: Vec<Expr> = Vec::new();
-        for expr in body.into_iter() {
-          let stack_len = context.stack().len();
-          match expr.kind {
-            ExprKind::Underscore => args.push(context.stack_pop(&expr)?),
-            ExprKind::SExpr { .. } => {
-              context = self.run_expr(context, expr.clone())?;
-              args.push(context.stack_silent_pop(&expr)?)
-            }
-            _ => {
-              context = self.run_expr(context, expr.clone())?;
-
-              if context.stack().len() != stack_len + 1 {
-                todo!("throw an error when stack is different");
-              }
-
-              args.push(context.stack_silent_pop(&expr)?);
-            }
-          }
-        }
-
-        if let Ok(intrinsic) = Intrinsic::from_str(call.as_str()) {
-          if intrinsic.has_flipped_s_expr_args() {
-            // TODO: use a for loop and iterate normally, instead of reversing
-            args.reverse();
-          }
-        }
-
-        for expr in args.drain(..) {
-          context.stack_silent_push(expr)?;
-        }
-
-        self.run_expr(
-          context,
-          Expr {
-            kind: ExprKind::Symbol(call),
-            info: expr.info,
-          },
-        )
-      }
+      ExprKind::SExpr { .. } => Ok(context),
       ExprKind::Underscore => Ok(context),
     }
   }
@@ -304,7 +312,7 @@ impl Engine {
         let scope = context.scope().clone();
         let journal = context.journal_mut().as_mut().unwrap();
         journal.commit();
-        journal.push_op(JournalOp::ScopedFnStart(scope));
+        journal.push_op(JournalOp::ScopedFnStart(scope.into()));
       } else {
         let journal = context.journal_mut().as_mut().unwrap();
         journal.commit();
@@ -314,9 +322,11 @@ impl Engine {
 
     match self.run(context, fn_body.to_vec()) {
       Ok(mut context) => {
-        if let Some(journal) = context.journal_mut() {
+        if context.journal().is_some() {
+          let scope = context.scope().clone();
+          let journal = context.journal_mut().as_mut().unwrap();
           journal.commit();
-          journal.push_op(JournalOp::FnEnd);
+          journal.push_op(JournalOp::FnEnd(scope.into()));
         }
 
         if context.stack().last().map(|e| &e.kind)

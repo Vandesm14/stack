@@ -1,21 +1,15 @@
 use core::fmt;
+use std::collections::HashMap;
 
 use crate::{
   expr::{Expr, ExprKind},
-  scope::{Scope, Val},
+  scope::Scope,
   symbol::Symbol,
 };
 
 #[derive(Debug, Clone, PartialEq)]
-pub struct ScopeLevel {
-  pub scope_id: usize,
-  pub scoped: bool,
-}
-
-#[derive(Debug, Clone, PartialEq)]
 pub struct JournalEntry {
   pub ops: Vec<JournalOp>,
-  pub scope_id: usize,
   pub scope_level: usize,
   pub scoped: bool,
 }
@@ -36,15 +30,9 @@ impl fmt::Display for JournalEntry {
 }
 
 impl JournalEntry {
-  pub fn new(
-    ops: Vec<JournalOp>,
-    scope_id: usize,
-    scope_level: usize,
-    scoped: bool,
-  ) -> Self {
+  pub fn new(ops: Vec<JournalOp>, scope_level: usize, scoped: bool) -> Self {
     Self {
       ops,
-      scope_id,
       scope_level,
       scoped,
     }
@@ -54,15 +42,18 @@ impl JournalEntry {
 #[derive(Debug, Clone, PartialEq)]
 pub enum JournalOp {
   Call(Expr),
+  SCall(Expr),
+
   FnCall(Expr),
   Push(Expr),
   Pop(Expr),
 
-  ScopedFnStart(Scope),
+  ScopedFnStart(JournalScope),
   ScopelessFnStart,
-  FnEnd,
+  FnEnd(JournalScope),
 
-  ScopeSet(Symbol, Val),
+  ScopeDef(Symbol, Expr),
+  ScopeSet(Symbol, Expr, Expr),
 }
 
 impl fmt::Display for JournalOp {
@@ -70,6 +61,7 @@ impl fmt::Display for JournalOp {
     if f.alternate() {
       match self {
         Self::Call(call) => write!(f, "call({call})"),
+        Self::SCall(call) => write!(f, "{call}"),
         Self::FnCall(fn_call) => write!(f, "fn({fn_call})"),
         Self::Push(push) => write!(f, "push({push})"),
         Self::Pop(pop) => write!(f, "pop({pop})"),
@@ -78,6 +70,7 @@ impl fmt::Display for JournalOp {
     } else {
       match self {
         Self::Call(call) => write!(f, "{call}"),
+        Self::SCall(call) => write!(f, "{call}"),
         Self::FnCall(fn_call) => write!(f, "{fn_call}"),
         Self::Push(push) => write!(f, "{push}"),
         Self::Pop(pop) => write!(f, "{pop}"),
@@ -95,6 +88,7 @@ impl JournalOp {
   pub fn expr(&self) -> Option<&Expr> {
     match self {
       Self::Call(expr) => Some(expr),
+      Self::SCall(expr) => Some(expr),
       Self::FnCall(expr) => Some(expr),
       Self::Push(expr) => Some(expr),
       Self::Pop(expr) => Some(expr),
@@ -104,14 +98,31 @@ impl JournalOp {
   }
 }
 
+pub type JournalScope = HashMap<Symbol, Expr>;
+
+impl From<Scope> for JournalScope {
+  fn from(value: Scope) -> Self {
+    let iter = value.items.into_iter().map(|(key, value)| {
+      (
+        key,
+        value.borrow().val().clone().unwrap_or(ExprKind::Nil.into()),
+      )
+    });
+
+    JournalScope::from_iter(iter)
+  }
+}
+
 #[derive(Debug, Clone, PartialEq)]
 // TODO: implement this as a ring buffer with max_commits so we never go over
 pub struct Journal {
   ops: Vec<JournalOp>,
 
+  last_pop: Option<ExprKind>,
+  last_push: Option<ExprKind>,
+
   entries: Vec<JournalEntry>,
-  scopes: Vec<Scope>,
-  scope_levels: Vec<ScopeLevel>,
+  scope_levels: Vec<bool>,
 
   size: Option<usize>,
 }
@@ -140,6 +151,12 @@ impl fmt::Display for Journal {
             line.push_str(&format!(
               "{}",
               if f.alternate() { x.white() } else { x.new() }
+            ));
+          }
+          JournalOp::SCall(x) => {
+            line.push_str(&format!(
+              "{}",
+              if f.alternate() { x.yellow() } else { x.new() }
             ));
           }
           JournalOp::FnCall(x) => {
@@ -191,12 +208,11 @@ impl Journal {
     Self {
       ops: Vec::new(),
 
+      last_pop: None,
+      last_push: None,
+
       entries: Vec::new(),
-      scopes: vec![Scope::new()],
-      scope_levels: vec![ScopeLevel {
-        scope_id: 0,
-        scoped: false,
-      }],
+      scope_levels: vec![false],
 
       size: None,
     }
@@ -213,62 +229,54 @@ impl Journal {
   }
 
   pub fn push_op(&mut self, op: JournalOp) {
-    match op {
-      JournalOp::ScopedFnStart(s) => {
-        let mut scope: Scope = Scope::new();
-        for (key, value) in s.items.into_iter() {
-          scope.items.insert(key, value);
-        }
-
-        self.scopes.push(scope);
-        self.scope_levels.push(ScopeLevel {
-          scope_id: self.scopes.len().saturating_sub(1),
-          scoped: true,
-        });
+    match &op {
+      JournalOp::ScopedFnStart(..) => {
+        self.scope_levels.push(true);
       }
       JournalOp::ScopelessFnStart => {
-        self.scope_levels.push(ScopeLevel {
-          scope_id: self.scopes.len().saturating_sub(1),
-          scoped: false,
-        });
+        self.scope_levels.push(false);
       }
-      JournalOp::FnEnd => {
+      JournalOp::FnEnd(..) => {
         self.scope_levels.pop();
       }
-      JournalOp::ScopeSet(key, value) => {
-        let mut scope = self.scopes.last().cloned().unwrap_or_default();
-        scope.items.insert(key, value);
-        if let Some(ref mut scope_level) = self.scope_levels.last_mut() {
-          scope_level.scope_id = self.scopes.len();
+
+      JournalOp::Push(expr) => {
+        if let Some(last_pop) = &self.last_pop {
+          if &expr.kind == last_pop {
+            self.ops.pop();
+            return;
+          }
         }
 
-        self.scopes.push(scope);
+        self.last_push = Some(expr.kind.clone());
+      }
+      JournalOp::Pop(expr) => {
+        if let Some(last_push) = &self.last_push {
+          if &expr.kind == last_push {
+            self.ops.pop();
+            return;
+          }
+        }
+
+        self.last_pop = Some(expr.kind.clone());
       }
 
-      op => self.ops.push(op.clone()),
+      _ => {}
     }
-  }
 
-  pub fn scope(&self, id: usize) -> Option<&Scope> {
-    self.scopes.get(id)
+    self.ops.push(op)
   }
 
   pub fn commit(&mut self) {
     if !self.ops.is_empty() {
       self.entries.push(JournalEntry {
         ops: self.ops.drain(..).collect(),
-        scope_id: self
-          .scope_levels
-          .last()
-          .map(|level| level.scope_id)
-          .unwrap_or_default(),
         scope_level: self.scope_levels.len(),
-        scoped: self
-          .scope_levels
-          .last()
-          .map(|level| level.scoped)
-          .unwrap_or_default(),
+        scoped: self.scope_levels.last().copied().unwrap_or_default(),
       });
+
+      self.last_pop = None;
+      self.last_push = None;
     }
   }
 
@@ -284,9 +292,32 @@ impl Journal {
     self.len() == 0
   }
 
-  fn construct_entry(&self, entry: &JournalEntry, stack: &mut Vec<Expr>) {
+  fn construct_entry(
+    &self,
+    entry: &JournalEntry,
+    stack: &mut Vec<Expr>,
+    scopes: &mut Vec<JournalScope>,
+  ) {
     for op in entry.ops.iter() {
       match op {
+        JournalOp::ScopedFnStart(scope) => {
+          scopes.push(scope.clone());
+        }
+        JournalOp::FnEnd(..) => {
+          scopes.pop();
+        }
+        JournalOp::ScopeDef(key, value) => {
+          let scope = scopes.last_mut();
+          if let Some(scope) = scope {
+            scope.insert(*key, value.clone());
+          }
+        }
+        JournalOp::ScopeSet(key, _, value) => {
+          let scope = scopes.last_mut();
+          if let Some(scope) = scope {
+            scope.insert(*key, value.clone());
+          }
+        }
         JournalOp::Push(expr) => stack.push(expr.clone()),
         JournalOp::Pop(_) => {
           stack.pop();
@@ -312,9 +343,32 @@ impl Journal {
     }
   }
 
-  fn unconstruct_entry(&self, entry: &JournalEntry, stack: &mut Vec<Expr>) {
+  fn unconstruct_entry(
+    &self,
+    entry: &JournalEntry,
+    stack: &mut Vec<Expr>,
+    scopes: &mut Vec<JournalScope>,
+  ) {
     for op in entry.ops.iter().rev() {
       match op {
+        JournalOp::ScopedFnStart(..) => {
+          scopes.pop();
+        }
+        JournalOp::FnEnd(scope) => {
+          scopes.push(scope.clone());
+        }
+        JournalOp::ScopeDef(key, ..) => {
+          let scope = scopes.last_mut();
+          if let Some(scope) = scope {
+            scope.remove(key);
+          }
+        }
+        JournalOp::ScopeSet(key, old_value, _) => {
+          let scope = scopes.last_mut();
+          if let Some(scope) = scope {
+            scope.insert(*key, old_value.clone());
+          }
+        }
         JournalOp::Push(_) => {
           stack.pop();
         }
@@ -342,13 +396,14 @@ impl Journal {
   pub fn construct_to_from(
     &self,
     stack: &mut Vec<Expr>,
+    scopes: &mut Vec<JournalScope>,
     to: usize,
     from: usize,
   ) {
     let skip = (self.entries.len() - 1) - from;
     let take = from - to;
     for entry in self.entries.iter().rev().skip(skip).take(take) {
-      self.unconstruct_entry(entry, stack);
+      self.unconstruct_entry(entry, stack, scopes);
     }
   }
 
@@ -356,6 +411,7 @@ impl Journal {
   pub fn construct_from_to(
     &self,
     stack: &mut Vec<Expr>,
+    scopes: &mut Vec<JournalScope>,
     from: usize,
     to: usize,
   ) {
@@ -363,22 +419,27 @@ impl Journal {
     let take = to - from;
 
     for entry in self.entries.iter().skip(skip).take(take) {
-      self.construct_entry(entry, stack);
+      self.construct_entry(entry, stack, scopes);
     }
   }
 
-  pub fn construct_at_zero(&self, stack: &mut Vec<Expr>) {
+  pub fn construct_at_zero(
+    &self,
+    stack: &mut Vec<Expr>,
+    scopes: &mut Vec<JournalScope>,
+  ) {
     if let Some(entry) = self.entries.first() {
-      self.construct_entry(entry, stack);
+      self.construct_entry(entry, stack, scopes);
     }
   }
 
-  pub fn construct_to(&self, index: usize) -> Vec<Expr> {
+  pub fn construct_to(&self, index: usize) -> (Vec<Expr>, Vec<JournalScope>) {
     let mut stack = Vec::new();
-    self.construct_at_zero(&mut stack);
-    self.construct_from_to(&mut stack, 0, index);
+    let mut scopes = vec![JournalScope::new()];
+    self.construct_at_zero(&mut stack, &mut scopes);
+    self.construct_from_to(&mut stack, &mut scopes, 0, index);
 
-    stack
+    (stack, scopes)
   }
 
   // pub fn trim_to(mut self, index: usize) -> Self {
