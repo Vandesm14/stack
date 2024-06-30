@@ -42,6 +42,8 @@ impl JournalEntry {
 #[derive(Debug, Clone, PartialEq)]
 pub enum JournalOp {
   Call(Expr),
+  SCall(Expr),
+
   FnCall(Expr),
   Push(Expr),
   Pop(Expr),
@@ -112,6 +114,9 @@ impl From<Scope> for JournalScope {
 // TODO: implement this as a ring buffer with max_commits so we never go over
 pub struct Journal {
   ops: Vec<JournalOp>,
+
+  last_pop: Option<ExprKind>,
+  last_push: Option<ExprKind>,
 
   entries: Vec<JournalEntry>,
   scope_levels: Vec<bool>,
@@ -194,6 +199,9 @@ impl Journal {
     Self {
       ops: Vec::new(),
 
+      last_pop: None,
+      last_push: None,
+
       entries: Vec::new(),
       scope_levels: vec![false],
 
@@ -223,6 +231,27 @@ impl Journal {
         self.scope_levels.pop();
       }
 
+      JournalOp::Push(expr) => {
+        if let Some(last_pop) = &self.last_pop {
+          if &expr.kind == last_pop {
+            self.ops.pop();
+            return;
+          }
+        }
+
+        self.last_push = Some(expr.kind.clone());
+      }
+      JournalOp::Pop(expr) => {
+        if let Some(last_push) = &self.last_push {
+          if &expr.kind == last_push {
+            self.ops.pop();
+            return;
+          }
+        }
+
+        self.last_pop = Some(expr.kind.clone());
+      }
+
       _ => {}
     }
 
@@ -236,6 +265,9 @@ impl Journal {
         scope_level: self.scope_levels.len(),
         scoped: self.scope_levels.last().copied().unwrap_or_default(),
       });
+
+      self.last_pop = None;
+      self.last_push = None;
     }
   }
 

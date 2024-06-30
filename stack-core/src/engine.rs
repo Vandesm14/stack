@@ -235,6 +235,10 @@ impl Engine {
         }
       }
       ExprKind::SExpr { call, body } => {
+        if let Some(journal) = context.journal_mut() {
+          journal.commit();
+        }
+
         let mut args: Vec<Expr> = Vec::new();
         for expr in body.into_iter() {
           let stack_len = context.stack().len();
@@ -242,7 +246,7 @@ impl Engine {
             ExprKind::Underscore => args.push(context.stack_pop(&expr)?),
             ExprKind::SExpr { .. } => {
               context = self.run_expr(context, expr.clone())?;
-              args.push(context.stack_silent_pop(&expr)?)
+              args.push(context.stack_pop(&expr)?)
             }
             _ => {
               context = self.run_expr(context, expr.clone())?;
@@ -251,7 +255,7 @@ impl Engine {
                 todo!("throw an error when stack is different");
               }
 
-              args.push(context.stack_silent_pop(&expr)?);
+              args.push(context.stack_pop(&expr)?);
             }
           }
         }
@@ -264,7 +268,7 @@ impl Engine {
         }
 
         for expr in args.drain(..) {
-          context.stack_silent_push(expr)?;
+          context.stack_push(expr)?;
         }
 
         self.run_expr(
