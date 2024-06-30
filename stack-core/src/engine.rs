@@ -135,7 +135,7 @@ impl Engine {
       }
 
       let mut args: Vec<Expr> = Vec::new();
-      for expr in body.into_iter() {
+      for expr in body {
         let stack_len = context.stack().len();
         match expr.kind {
           ExprKind::Underscore => args.push(context.stack_pop(expr)?),

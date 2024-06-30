@@ -250,6 +250,12 @@ pub fn paint_journal(journal: &Journal, layout_job: &mut LayoutJob) {
         JournalOp::Call(x) => {
           append_to_job(RichText::new(x.to_string()).monospace(), layout_job);
         }
+        JournalOp::SCall(x) => {
+          append_to_job(
+            RichText::new(x.to_string()).color(yellow).monospace(),
+            layout_job,
+          );
+        }
         JournalOp::FnCall(x) => {
           append_to_job(
             RichText::new(x.to_string()).color(yellow).monospace(),
@@ -286,6 +292,19 @@ pub fn string_with_quotes(expr: &Expr) -> String {
       core::iter::once("")
         .chain(core::iter::repeat(" "))
         .zip(x.iter())
+        .for_each(|(sep, x)| {
+          string.push_str(&format!("{sep}{}", string_with_quotes(x)))
+        });
+      string.push(')');
+
+      string
+    }
+
+    ExprKind::SExpr { body, .. } => {
+      let mut string = String::from("(");
+      core::iter::once("")
+        .chain(core::iter::repeat(" "))
+        .zip(body.iter())
         .for_each(|(sep, x)| {
           string.push_str(&format!("{sep}{}", string_with_quotes(x)))
         });
