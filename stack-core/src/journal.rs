@@ -61,6 +61,7 @@ impl fmt::Display for JournalOp {
     if f.alternate() {
       match self {
         Self::Call(call) => write!(f, "call({call})"),
+        Self::SCall(call) => write!(f, "{call}"),
         Self::FnCall(fn_call) => write!(f, "fn({fn_call})"),
         Self::Push(push) => write!(f, "push({push})"),
         Self::Pop(pop) => write!(f, "pop({pop})"),
@@ -69,6 +70,7 @@ impl fmt::Display for JournalOp {
     } else {
       match self {
         Self::Call(call) => write!(f, "{call}"),
+        Self::SCall(call) => write!(f, "{call}"),
         Self::FnCall(fn_call) => write!(f, "{fn_call}"),
         Self::Push(push) => write!(f, "{push}"),
         Self::Pop(pop) => write!(f, "{pop}"),

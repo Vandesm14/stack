@@ -156,6 +156,15 @@ pub fn paint_op(op: &JournalOp, layout_job: &mut LayoutJob) {
         layout_job,
       )
     }
+    JournalOp::SCall(expr) => {
+      // append_to_job(RichText::new("call(").color(yellow), layout_job);
+      // paint_expr(expr, layout_job);
+      // append_to_job(RichText::new(")").color(yellow), layout_job)
+      append_to_job(
+        RichText::new(format!("{}", string_with_quotes(expr))).color(yellow),
+        layout_job,
+      )
+    }
     JournalOp::FnCall(expr) => {
       // append_to_job(RichText::new("fn(").color(yellow), layout_job);
       // paint_expr(expr, layout_job);
