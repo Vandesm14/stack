@@ -3,7 +3,7 @@ use std::{cell::RefCell, collections::HashMap, sync::Arc};
 use crate::{
   chain::Chain,
   engine::{RunError, RunErrorReason},
-  expr::Expr,
+  expr::{Expr, ExprKind},
   journal::{Journal, JournalOp},
   scope::{Scanner, Scope},
   source::Source,
@@ -182,7 +182,10 @@ impl Context {
     let val = layer.define(symbol, value);
 
     if let Some(journal) = self.journal_mut() {
-      journal.push_op(JournalOp::ScopeSet(symbol, val));
+      journal.push_op(JournalOp::ScopeDef(
+        symbol,
+        val.borrow().val().unwrap_or(ExprKind::Nil.into()),
+      ));
     }
   }
 
@@ -192,10 +195,15 @@ impl Context {
     expr: Expr,
   ) -> Result<(), RunError> {
     let layer = self.scopes.last_mut();
+    let old = layer.get_val(symbol);
     match layer.set(symbol, expr.clone()) {
       Ok(val) => {
-        if let Some(journal) = self.journal_mut() {
-          journal.push_op(JournalOp::ScopeSet(symbol, val));
+        if let Some((journal, old)) = self.journal_mut().as_mut().zip(old) {
+          journal.push_op(JournalOp::ScopeSet(
+            symbol,
+            old,
+            val.borrow().val().unwrap_or(ExprKind::Nil.into()),
+          ));
         }
 
         Ok(())

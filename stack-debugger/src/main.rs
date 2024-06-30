@@ -8,11 +8,11 @@ use std::{
 };
 
 use clap::Parser;
-use eframe::egui::{self, text::LayoutJob, Color32, RichText, ScrollArea};
+use eframe::egui::{self, text::LayoutJob, Color32, RichText};
 use notify::{
   Config, Event, EventKind, RecommendedWatcher, RecursiveMode, Watcher,
 };
-use stack_core::prelude::*;
+use stack_core::{journal::JournalScope, prelude::*};
 use stack_debugger::*;
 
 #[derive(Debug, Clone, PartialEq, Eq, Default, clap::Parser)]
@@ -83,10 +83,13 @@ pub fn main() {
     engine,
     input: cli.input.clone(),
 
+    stack: Vec::new(),
+    scopes: Vec::new(),
+
     error: None,
     prints: Vec::new(),
     index: 0,
-    stack: Vec::new(),
+    last_index: 0,
     journal_string: Vec::new(),
   };
 
@@ -141,10 +144,13 @@ pub struct DebuggerApp {
   engine: Engine,
   input: PathBuf,
 
+  stack: Vec<Expr>,
+  scopes: Vec<JournalScope>,
+
   error: Option<String>,
   prints: Vec<IOHookEvent>,
   index: usize,
-  stack: Vec<Expr>,
+  last_index: usize,
   journal_string: Vec<String>,
 }
 
@@ -182,6 +188,7 @@ impl DebuggerApp {
     self.context.journal_mut().as_mut().unwrap().commit();
 
     self.index = self.stack_ops_len().saturating_sub(1);
+    self.last_index = self.index;
     self.prints.extend(self.print_rx.try_iter().map(|evt| {
       if let IOHookEvent::GoTo(index) = evt {
         self.index = index;
@@ -190,13 +197,12 @@ impl DebuggerApp {
       evt
     }));
 
-    self.stack = self
+    (self.stack, self.scopes) = self
       .context
       .journal()
       .as_ref()
       .unwrap()
-      .construct_to(self.index)
-      .to_vec();
+      .construct_to(self.index);
 
     self.journal_string = self
       .context
@@ -233,7 +239,7 @@ impl DebuggerApp {
         .iter()
         .enumerate()
         .skip(index + 1)
-        .find(|(i, entry)| entry.scope_level == scope_level)
+        .find(|(_, entry)| entry.scope_level == scope_level)
         .map(|(i, _)| i);
 
       if let Some(next_index) = next_index {
@@ -275,7 +281,7 @@ impl DebuggerApp {
 
 impl eframe::App for DebuggerApp {
   fn update(&mut self, ctx: &egui::Context, _: &mut eframe::Frame) {
-    let last_index = self.index;
+    self.last_index = self.index;
 
     if self.do_reload.try_iter().last().is_some() {
       self.reload();
@@ -517,12 +523,7 @@ impl eframe::App for DebuggerApp {
 
       let mut layout_job = LayoutJob::default();
       if let Some(entry) = entry {
-        let scope = self
-          .context
-          .journal()
-          .as_ref()
-          .unwrap()
-          .scope(entry.scope_id);
+        let scope = self.scopes.last();
         if let Some(scope) = scope {
           append_to_job(
             RichText::new(format!("Scope (level {}):\n", entry.scope_level))
@@ -534,40 +535,34 @@ impl eframe::App for DebuggerApp {
       }
       ui.label(layout_job);
 
-      ScrollArea::vertical().show(ui, |ui| {
-        ui.monospace(format!(
-          "Stack History (most recent first):\n{}",
-          core::iter::once("")
-            .chain(core::iter::repeat("\n"))
-            .zip(
-              self
-                .journal_string
-                .iter()
-                .skip(self.journal_string.len() - self.index - 1),
-            )
-            .fold(String::new(), |mut str, (sep, line)| {
-              str.push_str(sep);
-              str.push_str(line);
-              str
-            }),
-        ));
-      });
+      // ScrollArea::vertical().show(ui, |ui| {
+      //   let mut layout_job = LayoutJob::default();
+      //   paint_journal(
+      //     self.context.journal().as_ref().unwrap(),
+      //     &mut layout_job,
+      //   );
+      //   ui.label(layout_job);
+      // });
     });
 
     // Update stack
-    match self.index.cmp(&last_index) {
-      Ordering::Greater => self
-        .context
-        .journal()
-        .as_ref()
-        .unwrap()
-        .construct_from_to(&mut self.stack, last_index, self.index),
-      Ordering::Less => self
-        .context
-        .journal()
-        .as_ref()
-        .unwrap()
-        .construct_to_from(&mut self.stack, self.index, last_index),
+    match self.index.cmp(&self.last_index) {
+      Ordering::Greater => {
+        self.context.journal().as_ref().unwrap().construct_from_to(
+          &mut self.stack,
+          &mut self.scopes,
+          self.last_index,
+          self.index,
+        )
+      }
+      Ordering::Less => {
+        self.context.journal().as_ref().unwrap().construct_to_from(
+          &mut self.stack,
+          &mut self.scopes,
+          self.index,
+          self.last_index,
+        )
+      }
 
       _ => {}
     }
