@@ -251,7 +251,7 @@ impl Lexer {
           | 'a'..='z'
           | 'A'..='Z' => state = State::Symbol,
           // TODO: Square brackets should be checked in the parsing step.
-          ' ' | '\n' | '\t' | '\r' | '[' | ']' => start = self.cursor + c_len,
+          ' ' | '\n' | '\t' | '\r' => start = self.cursor + c_len,
           _ => state = State::Invalid,
         },
         State::Invalid => match c {

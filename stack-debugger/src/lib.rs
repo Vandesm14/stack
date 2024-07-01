@@ -151,11 +151,11 @@ pub fn paint_op(op: &JournalOp, layout_job: &mut LayoutJob) {
       layout_job,
     ),
     JournalOp::SCall(expr) => append_to_job(
-      RichText::new(format!("{}", string_with_quotes(expr))).color(yellow),
+      RichText::new(string_with_quotes(expr)).color(yellow),
       layout_job,
     ),
     JournalOp::FnCall(expr) => append_to_job(
-      RichText::new(format!("{}", string_with_quotes(expr))).color(yellow),
+      RichText::new(string_with_quotes(expr)).color(yellow),
       layout_job,
     ),
     JournalOp::Push(expr) => append_to_job(
