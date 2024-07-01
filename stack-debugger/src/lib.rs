@@ -166,10 +166,10 @@ pub fn paint_op(op: &JournalOp, layout_job: &mut LayoutJob) {
       RichText::new(format!("pop({})", string_with_quotes(expr))).color(red),
       layout_job,
     ),
-    JournalOp::ScopedFnStart(_) => {
+    JournalOp::ScopedFnStart(..) => {
       append_to_job(RichText::new("fn start"), layout_job);
     }
-    JournalOp::ScopelessFnStart => {
+    JournalOp::ScopelessFnStart(..) => {
       append_to_job(RichText::new("fn! start"), layout_job);
     }
     JournalOp::FnEnd(..) => {

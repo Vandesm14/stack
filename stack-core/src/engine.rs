@@ -312,11 +312,12 @@ impl Engine {
         let scope = context.scope().clone();
         let journal = context.journal_mut().as_mut().unwrap();
         journal.commit();
-        journal.push_op(JournalOp::ScopedFnStart(scope.into()));
+        journal
+          .push_op(JournalOp::ScopedFnStart(expr.info.clone(), scope.into()));
       } else {
         let journal = context.journal_mut().as_mut().unwrap();
         journal.commit();
-        journal.push_op(JournalOp::ScopelessFnStart);
+        journal.push_op(JournalOp::ScopelessFnStart(expr.info.clone()));
       }
     }
 
@@ -326,7 +327,7 @@ impl Engine {
           let scope = context.scope().clone();
           let journal = context.journal_mut().as_mut().unwrap();
           journal.commit();
-          journal.push_op(JournalOp::FnEnd(scope.into()));
+          journal.push_op(JournalOp::FnEnd(expr.info.clone(), scope.into()));
         }
 
         if context.stack().last().map(|e| &e.kind)
