@@ -251,24 +251,24 @@ impl Journal {
       }
 
       JournalOp::Push(expr) => {
-        if let Some(last_pop) = &self.last_pop {
-          if &expr.kind == last_pop {
-            self.ops.pop();
-            return;
-          }
-        }
+        // if let Some(last_pop) = &self.last_pop {
+        //   if &expr.kind == last_pop {
+        //     self.ops.pop();
+        //     return;
+        //   }
+        // }
 
-        self.last_push = Some(expr.kind.clone());
+        // self.last_push = Some(expr.kind.clone());
       }
       JournalOp::Pop(expr) => {
-        if let Some(last_push) = &self.last_push {
-          if &expr.kind == last_push {
-            self.ops.pop();
-            return;
-          }
-        }
+        // if let Some(last_push) = &self.last_push {
+        //   if &expr.kind == last_push {
+        //     self.ops.pop();
+        //     return;
+        //   }
+        // }
 
-        self.last_pop = Some(expr.kind.clone());
+        // self.last_pop = Some(expr.kind.clone());
       }
 
       _ => {}

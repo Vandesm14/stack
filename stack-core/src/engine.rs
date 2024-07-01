@@ -134,14 +134,27 @@ impl Engine {
         journal.push_op(JournalOp::SCall(expr.clone()));
       }
 
+      let has_underscore = body
+        .iter()
+        .any(|expr| matches!(expr.kind, ExprKind::Underscore));
       let mut args: Vec<Expr> = Vec::new();
       for expr in body {
         let stack_len = context.stack().len();
         match expr.kind {
-          ExprKind::Underscore => args.push(context.stack_pop(expr)?),
+          ExprKind::Underscore => {
+            if has_underscore {
+              args.push(context.stack_pop(expr)?);
+            } else {
+              args.push(context.stack_silent_pop(expr)?);
+            }
+          }
           ExprKind::SExpr { .. } => {
             context = self.run_expr(context, expr.clone())?;
-            args.push(context.stack_pop(expr)?)
+            if has_underscore {
+              args.push(context.stack_pop(expr)?);
+            } else {
+              args.push(context.stack_silent_pop(expr)?);
+            }
           }
           _ => {
             context = self.run_expr(context, expr.clone())?;
@@ -150,7 +163,11 @@ impl Engine {
               todo!("throw an error when stack is different");
             }
 
-            args.push(context.stack_pop(expr)?);
+            if has_underscore {
+              args.push(context.stack_pop(expr)?);
+            } else {
+              args.push(context.stack_silent_pop(expr)?);
+            }
           }
         }
       }
@@ -163,7 +180,11 @@ impl Engine {
       }
 
       for expr in args.drain(..) {
-        context.stack_push(expr)?;
+        if has_underscore {
+          context.stack_push(expr)?;
+        } else {
+          context.stack_silent_push(expr)?;
+        }
       }
 
       return self.run_expr(
