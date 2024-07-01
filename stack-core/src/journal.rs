@@ -2,7 +2,7 @@ use core::fmt;
 use std::collections::HashMap;
 
 use crate::{
-  expr::{Expr, ExprKind},
+  expr::{Expr, ExprInfo, ExprKind},
   scope::Scope,
   symbol::Symbol,
 };
@@ -48,9 +48,9 @@ pub enum JournalOp {
   Push(Expr),
   Pop(Expr),
 
-  ScopedFnStart(JournalScope),
-  ScopelessFnStart,
-  FnEnd(JournalScope),
+  ScopedFnStart(Option<ExprInfo>, JournalScope),
+  ScopelessFnStart(Option<ExprInfo>),
+  FnEnd(Option<ExprInfo>, JournalScope),
 
   ScopeDef(Symbol, Expr),
   ScopeSet(Symbol, Expr, Expr),
@@ -94,6 +94,16 @@ impl JournalOp {
       Self::Pop(expr) => Some(expr),
 
       _ => None,
+    }
+  }
+
+  pub fn info(&self) -> Option<&ExprInfo> {
+    match self {
+      Self::ScopedFnStart(info, _) => info.as_ref(),
+      Self::ScopelessFnStart(info) => info.as_ref(),
+      Self::FnEnd(info, _) => info.as_ref(),
+
+      _ => self.expr().and_then(|expr| expr.info.as_ref()),
     }
   }
 }
@@ -233,7 +243,7 @@ impl Journal {
       JournalOp::ScopedFnStart(..) => {
         self.scope_levels.push(true);
       }
-      JournalOp::ScopelessFnStart => {
+      JournalOp::ScopelessFnStart(..) => {
         self.scope_levels.push(false);
       }
       JournalOp::FnEnd(..) => {
@@ -300,7 +310,7 @@ impl Journal {
   ) {
     for op in entry.ops.iter() {
       match op {
-        JournalOp::ScopedFnStart(scope) => {
+        JournalOp::ScopedFnStart(_, scope) => {
           scopes.push(scope.clone());
         }
         JournalOp::FnEnd(..) => {
@@ -354,7 +364,7 @@ impl Journal {
         JournalOp::ScopedFnStart(..) => {
           scopes.pop();
         }
-        JournalOp::FnEnd(scope) => {
+        JournalOp::FnEnd(_, scope) => {
           scopes.push(scope.clone());
         }
         JournalOp::ScopeDef(key, ..) => {

@@ -438,14 +438,12 @@ impl eframe::App for DebuggerApp {
       );
       if let Some(entry) = entry {
         if let Some(first) = entry.ops.first() {
-          if let Some(expr) = first.expr() {
-            if let Some(info) = expr.info.clone() {
-              if let Some(location) = info.source.location(info.span.start) {
-                append_to_job(
-                  RichText::new(format!("{}:{}", info.source.name(), location)),
-                  &mut layout_job,
-                );
-              }
+          if let Some(info) = first.info() {
+            if let Some(location) = info.source.location(info.span.start) {
+              append_to_job(
+                RichText::new(format!("{}:{}", info.source.name(), location)),
+                &mut layout_job,
+              );
             }
           }
         }
@@ -455,67 +453,64 @@ impl eframe::App for DebuggerApp {
       let mut layout_job = LayoutJob::default();
       if let Some(entry) = entry {
         if let Some(first) = entry.ops.first() {
-          if let Some(expr) = first.expr() {
-            if let Some(info) = expr.info.clone() {
-              if let Some((start_loc, end_loc)) = info
-                .source
-                .location(info.span.start)
-                .zip(info.source.location(info.span.end))
-              {
-                const SURROUNDING_LINES: usize = 7;
+          if let Some(info) = first.info() {
+            if let Some((start_loc, end_loc)) = info
+              .source
+              .location(info.span.start)
+              .zip(info.source.location(info.span.end))
+            {
+              const SURROUNDING_LINES: usize = 7;
 
-                let start =
-                  start_loc.line.get().saturating_sub(SURROUNDING_LINES);
-                let end =
-                  start_loc.line.get().saturating_add(SURROUNDING_LINES);
+              let start =
+                start_loc.line.get().saturating_sub(SURROUNDING_LINES);
+              let end = start_loc.line.get().saturating_add(SURROUNDING_LINES);
 
-                ui.add_space(5.0);
-                ui.label(RichText::new(info.source.name()).monospace());
-                ui.add_space(5.0);
+              ui.add_space(5.0);
+              ui.label(RichText::new(info.source.name()).monospace());
+              ui.add_space(5.0);
 
-                for line in start..end {
-                  if let Some(line_str) = NonZeroUsize::new(line)
-                    .and_then(|line| info.source.line(line))
-                  {
-                    let mut text =
-                      RichText::new(format!("{}: ", line)).monospace();
+              for line in start..end {
+                if let Some(line_str) = NonZeroUsize::new(line)
+                  .and_then(|line| info.source.line(line))
+                {
+                  let mut text =
+                    RichText::new(format!("{}: ", line)).monospace();
 
-                    if line == start_loc.line.get() {
-                      text = text.color(Color32::YELLOW);
+                  if line == start_loc.line.get() {
+                    text = text.color(Color32::YELLOW);
+                  }
+
+                  append_to_job(text, &mut layout_job);
+
+                  line_str.char_indices().for_each(|(i, c)| {
+                    let mut text = RichText::new(c).monospace();
+                    // TODO: properly support multiline exprs
+                    //
+                    // TODO: if the line span is greater than the surrounding lines,
+                    // remove top surrounding lines until it fits
+                    //
+                    // TODO: lex and parse so we can use paint_expr
+                    if line >= start_loc.line.into()
+                      && line <= end_loc.line.into()
+                    {
+                      if (i + 1) >= start_loc.column.into()
+                        && (i + 1) < end_loc.column.into()
+                      {
+                        text = text
+                          .color(Color32::BLACK)
+                          .background_color(Color32::YELLOW);
+                      } else {
+                        text = text.color(Color32::YELLOW);
+                      }
                     }
 
                     append_to_job(text, &mut layout_job);
-
-                    line_str.char_indices().for_each(|(i, c)| {
-                      let mut text = RichText::new(c).monospace();
-                      // TODO: properly support multiline exprs
-                      //
-                      // TODO: if the line span is greater than the surrounding lines,
-                      // remove top surrounding lines until it fits
-                      //
-                      // TODO: lex and parse so we can use paint_expr
-                      if line >= start_loc.line.into()
-                        && line <= end_loc.line.into()
-                      {
-                        if (i + 1) >= start_loc.column.into()
-                          && (i + 1) < end_loc.column.into()
-                        {
-                          text = text
-                            .color(Color32::BLACK)
-                            .background_color(Color32::YELLOW);
-                        } else {
-                          text = text.color(Color32::YELLOW);
-                        }
-                      }
-
-                      append_to_job(text, &mut layout_job);
-                    });
-                  }
+                  });
                 }
-
-                ui.label(layout_job);
-                ui.add_space(5.0);
               }
+
+              ui.label(layout_job);
+              ui.add_space(5.0);
             }
           }
         }
