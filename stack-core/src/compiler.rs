@@ -42,6 +42,7 @@ pub enum VMError {
 
 #[derive(Debug, Clone, PartialEq, Default)]
 pub struct VM {
+  call_stack: Vec<(usize, usize)>,
   blocks: Vec<Block>,
   bp: usize,
   ip: usize,
@@ -53,6 +54,7 @@ pub struct VM {
 impl VM {
   pub fn new() -> Self {
     Self {
+      call_stack: Vec::new(),
       blocks: Vec::new(),
       bp: 0,
       ip: 0,
@@ -77,7 +79,7 @@ impl VM {
     self.stack.push(val);
   }
 
-  pub fn compile_expr(&self, expr: Expr) -> Op {
+  pub fn compile_expr(&mut self, expr: Expr) -> Op {
     match expr.kind {
       ExprKind::Nil => todo!(),
       ExprKind::Boolean(_) => todo!(),
@@ -94,7 +96,17 @@ impl VM {
       ExprKind::Lazy(_) => todo!(),
       ExprKind::List(_) => todo!(),
       ExprKind::Record(_) => todo!(),
-      ExprKind::Function { scope, body } => todo!(),
+      ExprKind::Function { scope, body } => {
+        let mut fn_block = Block::new();
+        for expr in body.into_iter() {
+          fn_block.ops.push(self.compile_expr(expr));
+        }
+
+        fn_block.ops.push(Op::Return);
+        self.blocks.push(fn_block);
+
+        Op::Goto(self.blocks.len() - 1, 0)
+      }
       ExprKind::SExpr { call, body } => todo!(),
       ExprKind::Underscore => todo!(),
     }
@@ -107,7 +119,9 @@ impl VM {
     }
 
     block.ops.push(Op::End);
+
     self.blocks.push(block);
+    self.bp = self.blocks.len() - 1;
   }
 
   pub fn step(&mut self) -> Result<(), VMError> {
@@ -128,12 +142,29 @@ impl VM {
         match op {
           Op::Push(val) => {
             self.stack.push(val);
+
             Ok(())
           }
           Op::Intrinsic(intrinsic) => intrinsic.run(self),
 
-          Op::Goto(bp, sp) => todo!(),
-          Op::Return => todo!(),
+          Op::Goto(bp, ip) => {
+            self.call_stack.push((self.bp, self.ip));
+
+            self.bp = bp;
+            self.ip = ip;
+
+            Ok(())
+          }
+          Op::Return => {
+            if let Some((bp, ip)) = self.call_stack.pop() {
+              self.bp = bp;
+              self.ip = ip;
+
+              Ok(())
+            } else {
+              todo!("None call stack")
+            }
+          }
           Op::End => Err(VMError::Halt),
         }
       } else {
