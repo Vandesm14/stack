@@ -6,10 +6,13 @@ use crate::{
   val::Val,
 };
 
-#[derive(Debug, Clone, Copy, PartialEq)]
+#[derive(Debug, Clone, PartialEq)]
 pub enum Op {
   Push(Val),
   Intrinsic(Intrinsic),
+  Goto(usize, usize),
+
+  Return,
   End,
 }
 
@@ -59,6 +62,10 @@ impl VM {
     }
   }
 
+  pub fn stack(&self) -> &[Val] {
+    &self.stack
+  }
+
   pub fn stack_pop(&mut self) -> Result<Val, VMError> {
     match self.stack.pop() {
       Some(val) => Ok(val),
@@ -100,7 +107,6 @@ impl VM {
     }
 
     block.ops.push(Op::End);
-
     self.blocks.push(block);
   }
 
@@ -125,6 +131,9 @@ impl VM {
             Ok(())
           }
           Op::Intrinsic(intrinsic) => intrinsic.run(self),
+
+          Op::Goto(bp, sp) => todo!(),
+          Op::Return => todo!(),
           Op::End => Err(VMError::Halt),
         }
       } else {

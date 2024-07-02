@@ -1,19 +1,63 @@
 use stack_core::{compiler::VM, prelude::*};
 
 fn main() {
-  let source = Source::new("", "10 2 2 + -");
+  let source = Source::new("", "(fn 2 2 +)");
   let mut lexer = Lexer::new(source);
   let exprs = parse(&mut lexer).unwrap();
 
   let mut vm = VM::new();
   vm.compile(exprs);
 
-  loop {
-    if let Err(err) = vm.step() {
-      eprintln!("{err:?}");
-      break;
+  // loop {
+  //   if let Err(err) = vm.step() {
+  //     eprintln!("{err:?}");
+  //     break;
+  //   }
+  // }
+
+  println!("{vm:?}");
+}
+
+#[cfg(test)]
+mod tests {
+  use stack_core::val::Val;
+
+  use super::*;
+
+  mod execution {
+    use super::*;
+
+    #[test]
+    fn stack_ops_should_work() {
+      let source = Source::new("", "10 2 2 + -");
+      let mut lexer = Lexer::new(source);
+      let exprs = parse(&mut lexer).unwrap();
+
+      let mut vm = VM::new();
+      vm.compile(exprs);
+
+      loop {
+        if let Err(err) = vm.step() {
+          eprintln!("{err:?}");
+          break;
+        }
+      }
+
+      assert_eq!(vm.stack(), &[Val::Integer(6)])
     }
   }
 
-  println!("{vm:?}");
+  mod compilation {
+    use super::*;
+
+    #[test]
+    fn functions_compile_to_blocks() {
+      let source = Source::new("", "(fn 2 2 +)");
+      let mut lexer = Lexer::new(source);
+      let exprs = parse(&mut lexer).unwrap();
+
+      let mut vm = VM::new();
+      vm.compile(exprs);
+    }
+  }
 }

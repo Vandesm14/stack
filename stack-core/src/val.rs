@@ -1,10 +1,22 @@
 use std::ops;
 
-#[derive(Debug, Clone, Copy, PartialEq, PartialOrd)]
+use compact_str::CompactString;
+
+#[derive(Debug, Clone, PartialEq, PartialOrd)]
 pub enum Val {
+  Boolean(bool),
   Integer(i64),
   Float(f64),
-  Boolean(bool),
+  String(CompactString),
+  // Symbol(Symbol),
+
+  // Lazy(Box<Expr>),
+  // List(Vec<Expr>),
+  // Record(HashMap<Symbol, Expr>),
+
+  // Function { scope: FnScope, body: Vec<Expr> },
+  // SExpr { call: Symbol, body: Vec<Expr> },
+  // Underscore,
 }
 
 impl ops::Add for Val {
