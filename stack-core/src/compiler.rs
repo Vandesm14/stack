@@ -92,7 +92,9 @@ impl VM {
   }
 
   pub fn step(&mut self) -> Result<(), VMError> {
-    let op = self.ops.get(self.ip);
+    // We have to copy here so we can pass the mutable ref to self in the match
+    // at the end of this fn.
+    let op = self.ops.get(self.ip).copied();
 
     let ip = self.ip.checked_add(1).map(|res| res.min(self.ops.len()));
     if let Some(ip) = ip {
@@ -103,70 +105,13 @@ impl VM {
 
     if let Some(op) = op {
       match op {
-        Op::Push(val) => self.stack.push(*val),
-        Op::Intrinsic(intrinsic) => match intrinsic {
-          Intrinsic::Add => {
-            let rhs = self.stack_pop()?;
-            let lhs = self.stack_pop()?;
-
-            let result = match lhs + rhs {
-              Ok(res) => res,
-              Err(_) => todo!(),
-            };
-
-            self.stack_push(result);
-          }
-          Intrinsic::Sub => todo!(),
-          Intrinsic::Mul => todo!(),
-          Intrinsic::Div => todo!(),
-          Intrinsic::Rem => todo!(),
-          Intrinsic::Eq => todo!(),
-          Intrinsic::Ne => todo!(),
-          Intrinsic::Lt => todo!(),
-          Intrinsic::Le => todo!(),
-          Intrinsic::Gt => todo!(),
-          Intrinsic::Ge => todo!(),
-          Intrinsic::Or => todo!(),
-          Intrinsic::And => todo!(),
-          Intrinsic::Not => todo!(),
-          Intrinsic::Assert => todo!(),
-          Intrinsic::Drop => todo!(),
-          Intrinsic::Dupe => todo!(),
-          Intrinsic::Swap => todo!(),
-          Intrinsic::Rot => todo!(),
-          Intrinsic::Len => todo!(),
-          Intrinsic::Nth => todo!(),
-          Intrinsic::Split => todo!(),
-          Intrinsic::Concat => todo!(),
-          Intrinsic::Push => todo!(),
-          Intrinsic::Pop => todo!(),
-          Intrinsic::Insert => todo!(),
-          Intrinsic::Prop => todo!(),
-          Intrinsic::Has => todo!(),
-          Intrinsic::Remove => todo!(),
-          Intrinsic::Keys => todo!(),
-          Intrinsic::Values => todo!(),
-          Intrinsic::Cast => todo!(),
-          Intrinsic::TypeOf => todo!(),
-          Intrinsic::Lazy => todo!(),
-          Intrinsic::If => todo!(),
-          Intrinsic::Halt => todo!(),
-          Intrinsic::Call => todo!(),
-          Intrinsic::Let => todo!(),
-          Intrinsic::Def => todo!(),
-          Intrinsic::Set => todo!(),
-          Intrinsic::Get => todo!(),
-          Intrinsic::Debug => todo!(),
-          Intrinsic::Print => todo!(),
-          Intrinsic::Pretty => todo!(),
-          Intrinsic::Recur => todo!(),
-          Intrinsic::OrElse => todo!(),
-          Intrinsic::Import => todo!(),
-        },
-        Op::End => return Err(VMError::Halt),
+        Op::Push(val) => {
+          self.stack.push(val);
+          Ok(())
+        }
+        Op::Intrinsic(intrinsic) => intrinsic.run(self),
+        Op::End => Err(VMError::Halt),
       }
-
-      Ok(())
     } else {
       todo!("ip out of bounds")
     }

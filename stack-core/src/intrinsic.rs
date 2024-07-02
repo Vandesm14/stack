@@ -118,7 +118,7 @@ intrinsics! {
 }
 
 impl Intrinsic {
-  pub fn run(&self, mut vm: VM) -> Result<VM, VMError> {
+  pub fn run(&self, vm: &mut VM) -> Result<(), VMError> {
     match self {
       // MARK: Add
       Self::Add => {
@@ -132,7 +132,7 @@ impl Intrinsic {
 
         vm.stack_push(result);
 
-        Ok(vm)
+        Ok(())
       }
       // MARK: Sub
       Self::Sub => {
@@ -146,7 +146,7 @@ impl Intrinsic {
 
         vm.stack_push(result);
 
-        Ok(vm)
+        Ok(())
       }
       // MARK: Mul
       Self::Mul => {
@@ -160,7 +160,7 @@ impl Intrinsic {
 
         vm.stack_push(result);
 
-        Ok(vm)
+        Ok(())
       }
       // MARK: Div
       Self::Div => {
@@ -174,7 +174,7 @@ impl Intrinsic {
 
         vm.stack_push(result);
 
-        Ok(vm)
+        Ok(())
       }
       // MARK: Rem
       Self::Rem => {
@@ -188,7 +188,7 @@ impl Intrinsic {
 
         vm.stack_push(result);
 
-        Ok(vm)
+        Ok(())
       }
 
       // MARK: Eq
@@ -200,7 +200,7 @@ impl Intrinsic {
 
         vm.stack_push(result);
 
-        Ok(vm)
+        Ok(())
       }
       // MARK: Ne
       Self::Ne => {
@@ -211,7 +211,7 @@ impl Intrinsic {
 
         vm.stack_push(result);
 
-        Ok(vm)
+        Ok(())
       }
       // MARK: Lt
       Self::Lt => {
@@ -222,7 +222,7 @@ impl Intrinsic {
 
         vm.stack_push(result);
 
-        Ok(vm)
+        Ok(())
       }
       // MARK: Le
       Self::Le => {
@@ -233,7 +233,7 @@ impl Intrinsic {
 
         vm.stack_push(result);
 
-        Ok(vm)
+        Ok(())
       }
       // MARK: Gt
       Self::Gt => {
@@ -244,7 +244,7 @@ impl Intrinsic {
 
         vm.stack_push(result);
 
-        Ok(vm)
+        Ok(())
       }
       // MARK: Ge
       Self::Ge => {
@@ -255,7 +255,7 @@ impl Intrinsic {
 
         vm.stack_push(result);
 
-        Ok(vm)
+        Ok(())
       }
 
       // MARK: Or
@@ -320,7 +320,7 @@ impl Intrinsic {
       // MARK: Drop
       Self::Drop => {
         vm.stack_pop()?;
-        Ok(vm)
+        Ok(())
       }
       // MARK: Dupe
       Self::Dupe => {
