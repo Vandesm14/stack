@@ -3141,6 +3141,13 @@ dependencies = [
 ]
 
 [[package]]
+name = "stack-compiler"
+version = "0.1.0"
+dependencies = [
+ "stack-core",
+]
+
+[[package]]
 name = "stack-core"
 version = "0.1.0"
 dependencies = [

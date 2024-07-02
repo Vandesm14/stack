@@ -1,0 +1,11 @@
+[package]
+name = "stack-compiler"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+stack-core = { path = "../stack-core" }
+
+[[bin]]
+name = "compile"
+path = "src/main.rs"

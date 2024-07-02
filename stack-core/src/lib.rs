@@ -1,4 +1,5 @@
 pub mod chain;
+pub mod compiler;
 pub mod context;
 pub mod engine;
 pub mod expr;
@@ -10,6 +11,7 @@ pub mod parser;
 pub mod scope;
 pub mod source;
 pub mod symbol;
+pub mod val;
 
 pub mod prelude {
   //! Re-exports commonly used items.

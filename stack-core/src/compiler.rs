@@ -1,88 +1,13 @@
-use std::{
-  ops::{self, Add},
-  str::FromStr,
+use std::str::FromStr;
+
+use crate::{
+  expr::{Expr, ExprKind},
+  intrinsic::Intrinsic,
+  parser,
+  prelude::Lexer,
+  source::Source,
+  val::Val,
 };
-
-use stack_core::{parser, prelude::*};
-
-#[derive(Debug, Clone, Copy, PartialEq, PartialOrd)]
-pub enum Val {
-  Integer(i64),
-  Float(f64),
-}
-
-impl ops::Add for Val {
-  type Output = Result<Self, (Self, Self)>;
-
-  fn add(self, rhs: Self) -> Self::Output {
-    match (self, rhs) {
-      (Self::Integer(lhs), Self::Integer(rhs)) => {
-        Ok(Self::Integer(lhs.saturating_add(rhs)))
-      }
-      (Self::Float(lhs), Self::Float(rhs)) => Ok(Self::Float(lhs + rhs)),
-
-      (lhs, rhs) => Err((lhs, rhs)),
-    }
-  }
-}
-
-impl ops::Sub for Val {
-  type Output = Result<Self, (Self, Self)>;
-
-  fn sub(self, rhs: Self) -> Self::Output {
-    match (self, rhs) {
-      (Self::Integer(lhs), Self::Integer(rhs)) => {
-        Ok(Self::Integer(lhs.saturating_sub(rhs)))
-      }
-      (Self::Float(lhs), Self::Float(rhs)) => Ok(Self::Float(lhs - rhs)),
-
-      (lhs, rhs) => Err((lhs, rhs)),
-    }
-  }
-}
-
-impl ops::Mul for Val {
-  type Output = Result<Self, (Self, Self)>;
-
-  fn mul(self, rhs: Self) -> Self::Output {
-    match (self, rhs) {
-      (Self::Integer(lhs), Self::Integer(rhs)) => {
-        Ok(Self::Integer(lhs.saturating_mul(rhs)))
-      }
-      (Self::Float(lhs), Self::Float(rhs)) => Ok(Self::Float(lhs * rhs)),
-
-      (lhs, rhs) => Err((lhs, rhs)),
-    }
-  }
-}
-
-impl ops::Div for Val {
-  type Output = Result<Self, (Self, Self)>;
-
-  fn div(self, rhs: Self) -> Self::Output {
-    match (self, rhs) {
-      (Self::Integer(lhs), Self::Integer(rhs)) => {
-        Ok(Self::Integer(lhs.saturating_div(rhs)))
-      }
-      (Self::Float(lhs), Self::Float(rhs)) => Ok(Self::Float(lhs / rhs)),
-
-      (lhs, rhs) => Err((lhs, rhs)),
-    }
-  }
-}
-
-impl ops::Rem for Val {
-  type Output = Result<Self, (Self, Self)>;
-
-  fn rem(self, rhs: Self) -> Self::Output {
-    match (self, rhs) {
-      (Self::Integer(lhs), Self::Integer(rhs)) => Ok(Self::Integer(lhs % rhs)),
-      (Self::Float(lhs), Self::Float(rhs)) => Ok(Self::Float(lhs % rhs)),
-
-      (lhs, rhs) => Err((lhs, rhs)),
-    }
-  }
-}
 
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub enum Op {
@@ -246,22 +171,4 @@ impl VM {
       todo!("ip out of bounds")
     }
   }
-}
-
-fn main() {
-  let source = Source::new("", "2 2 +");
-  let mut lexer = Lexer::new(source);
-  let exprs = parser::parse(&mut lexer).unwrap();
-
-  let mut vm = VM::new();
-  vm.compile(exprs);
-
-  loop {
-    if let Err(err) = vm.step() {
-      eprintln!("{err:?}");
-      break;
-    }
-  }
-
-  println!("{vm:?}");
 }

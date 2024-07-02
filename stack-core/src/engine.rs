@@ -116,175 +116,177 @@ impl Engine {
     mut context: Context,
     expr: Expr,
   ) -> Result<Context, RunError> {
-    if let (Some(start_time), Some(timeout)) = (self.start_time, self.timeout) {
-      if start_time.elapsed() > timeout {
-        return Err(RunError {
-          context,
-          expr,
-          reason: RunErrorReason::Timeout,
-        });
-      }
-    }
+    // if let (Some(start_time), Some(timeout)) = (self.start_time, self.timeout) {
+    //   if start_time.elapsed() > timeout {
+    //     return Err(RunError {
+    //       context,
+    //       expr,
+    //       reason: RunErrorReason::Timeout,
+    //     });
+    //   }
+    // }
 
-    let expr = context.scan_expr(expr)?;
+    // let expr = context.scan_expr(expr)?;
 
-    if let ExprKind::SExpr { call, body } = &expr.kind {
-      if let Some(journal) = context.journal_mut() {
-        journal.commit();
-        journal.push_op(JournalOp::SCall(expr.clone()));
-      }
+    // if let ExprKind::SExpr { call, body } = &expr.kind {
+    //   if let Some(journal) = context.journal_mut() {
+    //     journal.commit();
+    //     journal.push_op(JournalOp::SCall(expr.clone()));
+    //   }
 
-      let mut args: Vec<Expr> = Vec::new();
-      for expr in body {
-        let stack_len = context.stack().len();
-        match expr.kind {
-          ExprKind::Underscore => args.push(context.stack_pop(expr)?),
-          ExprKind::SExpr { .. } => {
-            context = self.run_expr(context, expr.clone())?;
-            args.push(context.stack_pop(expr)?)
-          }
-          _ => {
-            context = self.run_expr(context, expr.clone())?;
+    //   let mut args: Vec<Expr> = Vec::new();
+    //   for expr in body {
+    //     let stack_len = context.stack().len();
+    //     match expr.kind {
+    //       ExprKind::Underscore => args.push(context.stack_pop(expr)?),
+    //       ExprKind::SExpr { .. } => {
+    //         context = self.run_expr(context, expr.clone())?;
+    //         args.push(context.stack_pop(expr)?)
+    //       }
+    //       _ => {
+    //         context = self.run_expr(context, expr.clone())?;
 
-            if context.stack().len() != stack_len + 1 {
-              todo!("throw an error when stack is different");
-            }
+    //         if context.stack().len() != stack_len + 1 {
+    //           todo!("throw an error when stack is different");
+    //         }
 
-            args.push(context.stack_pop(expr)?);
-          }
-        }
-      }
+    //         args.push(context.stack_pop(expr)?);
+    //       }
+    //     }
+    //   }
 
-      if let Ok(intrinsic) = Intrinsic::from_str(call.as_str()) {
-        if intrinsic.has_flipped_s_expr_args() {
-          // TODO: use a for loop and iterate normally, instead of reversing
-          args.reverse();
-        }
-      }
+    //   if let Ok(intrinsic) = Intrinsic::from_str(call.as_str()) {
+    //     if intrinsic.has_flipped_s_expr_args() {
+    //       // TODO: use a for loop and iterate normally, instead of reversing
+    //       args.reverse();
+    //     }
+    //   }
 
-      for expr in args.drain(..) {
-        context.stack_push(expr)?;
-      }
+    //   for expr in args.drain(..) {
+    //     context.stack_push(expr)?;
+    //   }
 
-      return self.run_expr(
-        context,
-        Expr {
-          kind: ExprKind::Symbol(*call),
-          info: expr.info,
-        },
-      );
-    }
+    //   return self.run_expr(
+    //     context,
+    //     Expr {
+    //       kind: ExprKind::Symbol(*call),
+    //       info: expr.info,
+    //     },
+    //   );
+    // }
 
-    match expr.kind {
-      ExprKind::Nil
-      | ExprKind::Boolean(_)
-      | ExprKind::Integer(_)
-      | ExprKind::Float(_)
-      | ExprKind::String(_)
-      | ExprKind::List(_)
-      | ExprKind::Record(_) => {
-        context.stack_push(expr)?;
-        Ok(context)
-      }
-      // TODO: This is temporary until a proper solution is created.
-      ExprKind::Symbol(x) => {
-        if let Some(journal) = context.journal_mut() {
-          journal.commit();
-        }
+    // match expr.kind {
+    //   ExprKind::Nil
+    //   | ExprKind::Boolean(_)
+    //   | ExprKind::Integer(_)
+    //   | ExprKind::Float(_)
+    //   | ExprKind::String(_)
+    //   | ExprKind::List(_)
+    //   | ExprKind::Record(_) => {
+    //     context.stack_push(expr)?;
+    //     Ok(context)
+    //   }
+    //   // TODO: This is temporary until a proper solution is created.
+    //   ExprKind::Symbol(x) => {
+    //     if let Some(journal) = context.journal_mut() {
+    //       journal.commit();
+    //     }
 
-        if let Ok(intrinsic) = Intrinsic::from_str(x.as_str()) {
-          if let Some(journal) = context.journal_mut() {
-            journal.commit();
-            journal.push_op(JournalOp::FnCall(expr.clone()));
-          }
-          let mut context = intrinsic.run(self, context, expr)?;
-          if let Some(journal) = context.journal_mut() {
-            journal.commit();
-          }
+    //     if let Ok(intrinsic) = Intrinsic::from_str(x.as_str()) {
+    //       if let Some(journal) = context.journal_mut() {
+    //         journal.commit();
+    //         journal.push_op(JournalOp::FnCall(expr.clone()));
+    //       }
+    //       let mut context = intrinsic.run(self, context, expr)?;
+    //       if let Some(journal) = context.journal_mut() {
+    //         journal.commit();
+    //       }
 
-          Ok(context)
-        } else if let Some((namespace, func)) = x.as_str().split_once(':') {
-          if let Some(func) = self
-            .modules
-            .get(&Symbol::from_ref(namespace))
-            .and_then(|module| module.func(Symbol::from_ref(func)))
-          {
-            if let Some(journal) = context.journal_mut() {
-              journal.push_op(JournalOp::FnCall(expr.clone()));
-            }
-            context = func(self, context, expr)?;
-            if let Some(journal) = context.journal_mut() {
-              journal.commit();
-            }
-            Ok(context)
-          } else {
-            Err(RunError {
-              context: context.clone(),
-              expr,
-              reason: RunErrorReason::UnknownCall,
-            })
-          }
-        } else if let Some(item) = context.scope_item(x) {
-          if let ExprKind::Function { scope, body } = item.kind {
-            let mut _call_result = CallResult::None;
-            let mut is_recur = false;
-            loop {
-              _call_result =
-                self.call_fn(&expr, &scope, &body, context, is_recur);
-              is_recur = true;
+    //       Ok(context)
+    //     } else if let Some((namespace, func)) = x.as_str().split_once(':') {
+    //       if let Some(func) = self
+    //         .modules
+    //         .get(&Symbol::from_ref(namespace))
+    //         .and_then(|module| module.func(Symbol::from_ref(func)))
+    //       {
+    //         if let Some(journal) = context.journal_mut() {
+    //           journal.push_op(JournalOp::FnCall(expr.clone()));
+    //         }
+    //         context = func(self, context, expr)?;
+    //         if let Some(journal) = context.journal_mut() {
+    //           journal.commit();
+    //         }
+    //         Ok(context)
+    //       } else {
+    //         Err(RunError {
+    //           context: context.clone(),
+    //           expr,
+    //           reason: RunErrorReason::UnknownCall,
+    //         })
+    //       }
+    //     } else if let Some(item) = context.scope_item(x) {
+    //       if let ExprKind::Function { scope, body } = item.kind {
+    //         let mut _call_result = CallResult::None;
+    //         let mut is_recur = false;
+    //         loop {
+    //           _call_result =
+    //             self.call_fn(&expr, &scope, &body, context, is_recur);
+    //           is_recur = true;
 
-              match _call_result {
-                CallResult::Recur(c) => context = c,
-                CallResult::Once(result) => return result,
-                CallResult::None => unreachable!(),
-              }
-            }
-          }
-          if let ExprKind::SExpr { .. } = item.kind {
-            self.call_expr(context, item)
-          } else {
-            if let Some(journal) = context.journal_mut() {
-              journal.push_op(JournalOp::Call(expr.clone()));
-            }
-            let result = context.stack_push(item);
-            if let Some(journal) = context.journal_mut() {
-              journal.commit();
-            }
+    //           match _call_result {
+    //             CallResult::Recur(c) => context = c,
+    //             CallResult::Once(result) => return result,
+    //             CallResult::None => unreachable!(),
+    //           }
+    //         }
+    //       }
+    //       if let ExprKind::SExpr { .. } = item.kind {
+    //         self.call_expr(context, item)
+    //       } else {
+    //         if let Some(journal) = context.journal_mut() {
+    //           journal.push_op(JournalOp::Call(expr.clone()));
+    //         }
+    //         let result = context.stack_push(item);
+    //         if let Some(journal) = context.journal_mut() {
+    //           journal.commit();
+    //         }
 
-            result.map(|_| context)
-          }
-        } else {
-          Err(RunError {
-            context: context.clone(),
-            expr,
-            reason: RunErrorReason::UnknownCall,
-          })
-        }
-      }
-      ExprKind::Lazy(x) => {
-        context.stack_push(*x.clone())?;
-        Ok(context)
-      }
-      ExprKind::Function {
-        ref scope,
-        ref body,
-      } => {
-        let mut _call_result = CallResult::None;
-        let mut is_recur = false;
-        loop {
-          _call_result = self.call_fn(&expr, scope, body, context, is_recur);
-          is_recur = true;
+    //         result.map(|_| context)
+    //       }
+    //     } else {
+    //       Err(RunError {
+    //         context: context.clone(),
+    //         expr,
+    //         reason: RunErrorReason::UnknownCall,
+    //       })
+    //     }
+    //   }
+    //   ExprKind::Lazy(x) => {
+    //     context.stack_push(*x.clone())?;
+    //     Ok(context)
+    //   }
+    //   ExprKind::Function {
+    //     ref scope,
+    //     ref body,
+    //   } => {
+    //     let mut _call_result = CallResult::None;
+    //     let mut is_recur = false;
+    //     loop {
+    //       _call_result = self.call_fn(&expr, scope, body, context, is_recur);
+    //       is_recur = true;
 
-          match _call_result {
-            CallResult::Recur(c) => context = c,
-            CallResult::Once(result) => return result,
-            CallResult::None => unreachable!(),
-          }
-        }
-      }
-      ExprKind::SExpr { .. } => Ok(context),
-      ExprKind::Underscore => Ok(context),
-    }
+    //       match _call_result {
+    //         CallResult::Recur(c) => context = c,
+    //         CallResult::Once(result) => return result,
+    //         CallResult::None => unreachable!(),
+    //       }
+    //     }
+    //   }
+    //   ExprKind::SExpr { .. } => Ok(context),
+    //   ExprKind::Underscore => Ok(context),
+    // }
+
+    todo!()
   }
 
   /// Handles auto-calling symbols (calls) when they're pushed to the stack
