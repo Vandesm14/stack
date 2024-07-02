@@ -3,9 +3,6 @@ use std::str::FromStr;
 use crate::{
   expr::{Expr, ExprKind},
   intrinsic::Intrinsic,
-  parser,
-  prelude::Lexer,
-  source::Source,
   val::Val,
 };
 
@@ -16,7 +13,20 @@ pub enum Op {
   End,
 }
 
-type Ops = Vec<Op>;
+#[derive(Debug, Clone, PartialEq, Default)]
+pub struct Block {
+  constants: Vec<Val>,
+  ops: Vec<Op>,
+}
+
+impl Block {
+  pub fn new() -> Self {
+    Self {
+      constants: Vec::new(),
+      ops: Vec::new(),
+    }
+  }
+}
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Default)]
 pub enum VMError {
@@ -29,23 +39,23 @@ pub enum VMError {
 
 #[derive(Debug, Clone, PartialEq, Default)]
 pub struct VM {
-  ops: Ops,
+  blocks: Vec<Block>,
+  bp: usize,
   ip: usize,
 
   registers: Vec<Val>,
   stack: Vec<Val>,
-  sp: usize,
 }
 
 impl VM {
   pub fn new() -> Self {
     Self {
-      ops: Ops::new(),
+      blocks: Vec::new(),
+      bp: 0,
       ip: 0,
 
       registers: Vec::new(),
       stack: Vec::new(),
-      sp: 0,
     }
   }
 
@@ -84,36 +94,44 @@ impl VM {
   }
 
   pub fn compile(&mut self, exprs: Vec<Expr>) {
+    let mut block = Block::new();
     for expr in exprs.into_iter() {
-      self.ops.push(self.compile_expr(expr));
+      block.ops.push(self.compile_expr(expr));
     }
 
-    self.ops.push(Op::End);
+    block.ops.push(Op::End);
+
+    self.blocks.push(block);
   }
 
   pub fn step(&mut self) -> Result<(), VMError> {
-    // We have to copy here so we can pass the mutable ref to self in the match
-    // at the end of this fn.
-    let op = self.ops.get(self.ip).copied();
+    let block = self.blocks.get(self.bp);
+    if let Some(block) = block {
+      // We have to clone here so we can pass the mutable ref to self in the
+      // match at the end of this fn.
+      let op = block.ops.get(self.ip).cloned();
 
-    let ip = self.ip.checked_add(1).map(|res| res.min(self.ops.len()));
-    if let Some(ip) = ip {
-      self.ip = ip;
-    } else {
-      return Err(VMError::IPBounds);
-    }
+      let ip = self.ip.checked_add(1).map(|res| res.min(block.ops.len()));
+      if let Some(ip) = ip {
+        self.ip = ip;
+      } else {
+        return Err(VMError::IPBounds);
+      }
 
-    if let Some(op) = op {
-      match op {
-        Op::Push(val) => {
-          self.stack.push(val);
-          Ok(())
+      if let Some(op) = op {
+        match op {
+          Op::Push(val) => {
+            self.stack.push(val);
+            Ok(())
+          }
+          Op::Intrinsic(intrinsic) => intrinsic.run(self),
+          Op::End => Err(VMError::Halt),
         }
-        Op::Intrinsic(intrinsic) => intrinsic.run(self),
-        Op::End => Err(VMError::Halt),
+      } else {
+        todo!("None op")
       }
     } else {
-      todo!("ip out of bounds")
+      todo!("None block")
     }
   }
 }
