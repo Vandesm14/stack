@@ -2,7 +2,7 @@ use core::{fmt, str::FromStr};
 
 use crate::{
   compiler::{VMError, VM},
-  val::Val,
+  expr::ExprKind,
 };
 
 macro_rules! intrinsics {
@@ -125,12 +125,12 @@ impl Intrinsic {
         let rhs = vm.stack_pop()?;
         let lhs = vm.stack_pop()?;
 
-        let result = match lhs + rhs {
+        let kind = match lhs.kind.clone() + rhs.kind.clone() {
           Ok(res) => res,
           Err(_) => todo!(),
         };
 
-        vm.stack_push(result);
+        vm.stack_push(kind.into());
 
         Ok(())
       }
@@ -139,12 +139,12 @@ impl Intrinsic {
         let rhs = vm.stack_pop()?;
         let lhs = vm.stack_pop()?;
 
-        let result = match lhs - rhs {
+        let kind = match lhs.kind.clone() - rhs.kind.clone() {
           Ok(res) => res,
           Err(_) => todo!(),
         };
 
-        vm.stack_push(result);
+        vm.stack_push(kind.into());
 
         Ok(())
       }
@@ -153,12 +153,12 @@ impl Intrinsic {
         let rhs = vm.stack_pop()?;
         let lhs = vm.stack_pop()?;
 
-        let result = match lhs * rhs {
+        let kind = match lhs.kind.clone() * rhs.kind.clone() {
           Ok(res) => res,
           Err(_) => todo!(),
         };
 
-        vm.stack_push(result);
+        vm.stack_push(kind.into());
 
         Ok(())
       }
@@ -167,12 +167,12 @@ impl Intrinsic {
         let rhs = vm.stack_pop()?;
         let lhs = vm.stack_pop()?;
 
-        let result = match lhs / rhs {
+        let kind = match lhs.kind.clone() / rhs.kind.clone() {
           Ok(res) => res,
           Err(_) => todo!(),
         };
 
-        vm.stack_push(result);
+        vm.stack_push(kind.into());
 
         Ok(())
       }
@@ -181,12 +181,12 @@ impl Intrinsic {
         let rhs = vm.stack_pop()?;
         let lhs = vm.stack_pop()?;
 
-        let result = match lhs % rhs {
+        let kind = match lhs.kind.clone() % rhs.kind.clone() {
           Ok(res) => res,
           Err(_) => todo!(),
         };
 
-        vm.stack_push(result);
+        vm.stack_push(kind.into());
 
         Ok(())
       }
@@ -196,9 +196,9 @@ impl Intrinsic {
         let rhs = vm.stack_pop()?;
         let lhs = vm.stack_pop()?;
 
-        let result = Val::Boolean(lhs == rhs);
+        let kind = ExprKind::Boolean(lhs == rhs);
 
-        vm.stack_push(result);
+        vm.stack_push(kind.into());
 
         Ok(())
       }
@@ -207,9 +207,9 @@ impl Intrinsic {
         let rhs = vm.stack_pop()?;
         let lhs = vm.stack_pop()?;
 
-        let result = Val::Boolean(lhs != rhs);
+        let kind = ExprKind::Boolean(lhs != rhs);
 
-        vm.stack_push(result);
+        vm.stack_push(kind.into());
 
         Ok(())
       }
@@ -218,9 +218,9 @@ impl Intrinsic {
         let rhs = vm.stack_pop()?;
         let lhs = vm.stack_pop()?;
 
-        let result = Val::Boolean(lhs < rhs);
+        let kind = ExprKind::Boolean(lhs < rhs);
 
-        vm.stack_push(result);
+        vm.stack_push(kind.into());
 
         Ok(())
       }
@@ -229,9 +229,9 @@ impl Intrinsic {
         let rhs = vm.stack_pop()?;
         let lhs = vm.stack_pop()?;
 
-        let result = Val::Boolean(lhs <= rhs);
+        let kind = ExprKind::Boolean(lhs <= rhs);
 
-        vm.stack_push(result);
+        vm.stack_push(kind.into());
 
         Ok(())
       }
@@ -240,9 +240,9 @@ impl Intrinsic {
         let rhs = vm.stack_pop()?;
         let lhs = vm.stack_pop()?;
 
-        let result = Val::Boolean(lhs > rhs);
+        let kind = ExprKind::Boolean(lhs > rhs);
 
-        vm.stack_push(result);
+        vm.stack_push(kind.into());
 
         Ok(())
       }
@@ -251,52 +251,46 @@ impl Intrinsic {
         let rhs = vm.stack_pop()?;
         let lhs = vm.stack_pop()?;
 
-        let result = Val::Boolean(lhs >= rhs);
+        let kind = ExprKind::Boolean(lhs >= rhs);
 
-        vm.stack_push(result);
+        vm.stack_push(kind.into());
 
         Ok(())
       }
 
       // MARK: Or
       Self::Or => {
-        // let rhs = vm.stack_pop()?;
-        // let lhs = vm.stack_pop()?;
+        let rhs = vm.stack_pop()?;
+        let lhs = vm.stack_pop()?;
 
-        // let result =
-        //   ExprKind::Boolean(lhs.kind.is_truthy() || rhs.kind.is_truthy());
+        let kind =
+          ExprKind::Boolean(lhs.kind.is_truthy() || rhs.kind.is_truthy());
 
-        // vm.stack_push(kind.into())?;
+        vm.stack_push(kind.into());
 
-        // Ok(vm)
-
-        todo!()
+        Ok(())
       }
       // MARK: And
       Self::And => {
-        // let rhs = vm.stack_pop()?;
-        // let lhs = vm.stack_pop()?;
+        let rhs = vm.stack_pop()?;
+        let lhs = vm.stack_pop()?;
 
-        // let result =
-        //   ExprKind::Boolean(lhs.kind.is_truthy() && rhs.kind.is_truthy());
+        let kind =
+          ExprKind::Boolean(lhs.kind.is_truthy() && rhs.kind.is_truthy());
 
-        // vm.stack_push(kind.into())?;
+        vm.stack_push(kind.into());
 
-        // Ok(vm)
-
-        todo!()
+        Ok(())
       }
       // MARK: Not
       Self::Not => {
-        // let rhs = vm.stack_pop()?;
+        let rhs = vm.stack_pop()?;
 
-        // let result = ExprKind::Boolean(!rhs.kind.is_truthy());
+        let kind = ExprKind::Boolean(!rhs.kind.is_truthy());
 
-        // vm.stack_push(kind.into())?;
+        vm.stack_push(kind.into());
 
-        // Ok(vm)
-
-        todo!()
+        Ok(())
       }
 
       // MARK: Assert

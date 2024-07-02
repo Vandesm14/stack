@@ -20,8 +20,6 @@ fn main() {
 
 #[cfg(test)]
 mod tests {
-  use stack_core::val::Val;
-
   use super::*;
 
   mod execution {
@@ -43,7 +41,10 @@ mod tests {
         }
       }
 
-      assert_eq!(vm.stack(), &[Val::Integer(6)])
+      assert_eq!(
+        vm.stack().iter().map(|expr| &expr.kind).collect::<Vec<_>>(),
+        vec![&ExprKind::Integer(6)]
+      )
     }
 
     #[test]
@@ -62,7 +63,10 @@ mod tests {
         }
       }
 
-      assert_eq!(vm.stack(), &[Val::Integer(6)])
+      assert_eq!(
+        vm.stack().iter().map(|expr| &expr.kind).collect::<Vec<_>>(),
+        vec![&ExprKind::Integer(6)]
+      )
     }
   }
 

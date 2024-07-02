@@ -3,12 +3,11 @@ use std::str::FromStr;
 use crate::{
   expr::{Expr, ExprKind},
   intrinsic::Intrinsic,
-  val::Val,
 };
 
 #[derive(Debug, Clone, PartialEq)]
 pub enum Op {
-  Push(Val),
+  Push(Expr),
   Intrinsic(Intrinsic),
   Goto(usize, usize),
 
@@ -18,7 +17,7 @@ pub enum Op {
 
 #[derive(Debug, Clone, PartialEq, Default)]
 pub struct Block {
-  constants: Vec<Val>,
+  constants: Vec<Expr>,
   ops: Vec<Op>,
 }
 
@@ -47,8 +46,8 @@ pub struct VM {
   bp: usize,
   ip: usize,
 
-  registers: Vec<Val>,
-  stack: Vec<Val>,
+  registers: Vec<Expr>,
+  stack: Vec<Expr>,
 }
 
 impl VM {
@@ -64,26 +63,26 @@ impl VM {
     }
   }
 
-  pub fn stack(&self) -> &[Val] {
+  pub fn stack(&self) -> &[Expr] {
     &self.stack
   }
 
-  pub fn stack_pop(&mut self) -> Result<Val, VMError> {
+  pub fn stack_pop(&mut self) -> Result<Expr, VMError> {
     match self.stack.pop() {
       Some(val) => Ok(val),
       None => Err(VMError::Unknown),
     }
   }
 
-  pub fn stack_push(&mut self, val: Val) {
-    self.stack.push(val);
+  pub fn stack_push(&mut self, expr: Expr) {
+    self.stack.push(expr);
   }
 
   pub fn compile_expr(&mut self, expr: Expr) -> Op {
     match expr.kind {
       ExprKind::Nil => todo!(),
       ExprKind::Boolean(_) => todo!(),
-      ExprKind::Integer(int) => Op::Push(Val::Integer(int)),
+      ExprKind::Integer(int) => Op::Push(ExprKind::Integer(int).into()),
       ExprKind::Float(_) => todo!(),
       ExprKind::String(_) => todo!(),
       ExprKind::Symbol(symbol) => {
