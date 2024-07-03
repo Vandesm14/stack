@@ -835,9 +835,7 @@ impl Intrinsic {
       Self::Call => {
         let item = vm.stack_pop()?;
         let op = vm.compile_expr(item);
-        vm.run_op(op);
-
-        Ok(())
+        vm.run_op(op)
       }
 
       // MARK: Let
