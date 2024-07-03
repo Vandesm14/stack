@@ -833,10 +833,11 @@ impl Intrinsic {
 
       // MARK: Call
       Self::Call => {
-        // let item = context.stack_pop(&expr)?;
-        // engine.call_expr(context, item)
+        let item = vm.stack_pop()?;
+        let op = vm.compile_expr(item);
+        vm.run_op(op);
 
-        todo!()
+        Ok(())
       }
 
       // MARK: Let

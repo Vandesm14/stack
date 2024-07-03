@@ -1,21 +1,21 @@
 use stack_core::{compiler::VM, prelude::*};
 
 fn main() {
-  let source = Source::new("", "(fn 2 2 +)");
+  let source = Source::new("", "'(fn 2 2 +) call");
   let mut lexer = Lexer::new(source);
   let exprs = parse(&mut lexer).unwrap();
 
   let mut vm = VM::new();
   vm.compile(exprs);
 
-  // loop {
-  //   if let Err(err) = vm.step() {
-  //     eprintln!("{err:?}");
-  //     break;
-  //   }
-  // }
+  loop {
+    if let Err(err) = vm.step() {
+      eprintln!("{err:?}");
+      break;
+    }
+  }
 
-  println!("{vm:?}");
+  println!("{vm:#?}");
 }
 
 #[cfg(test)]
@@ -66,6 +66,28 @@ mod tests {
       assert_eq!(
         vm.stack().iter().map(|expr| &expr.kind).collect::<Vec<_>>(),
         vec![&ExprKind::Integer(6)]
+      )
+    }
+
+    #[test]
+    fn lazy_functions_run() {
+      let source = Source::new("", "'(fn 2 2 +) call");
+      let mut lexer = Lexer::new(source);
+      let exprs = parse(&mut lexer).unwrap();
+
+      let mut vm = VM::new();
+      vm.compile(exprs);
+
+      loop {
+        if let Err(err) = vm.step() {
+          eprintln!("{err:?}");
+          break;
+        }
+      }
+
+      assert_eq!(
+        vm.stack().iter().map(|expr| &expr.kind).collect::<Vec<_>>(),
+        vec![&ExprKind::Integer(4)]
       )
     }
   }

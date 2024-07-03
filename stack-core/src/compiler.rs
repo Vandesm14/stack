@@ -9,10 +9,9 @@ use crate::{
 pub enum Op {
   Push(Expr),
   Intrinsic(Intrinsic),
-  Goto(usize, usize),
 
+  Goto(usize, usize),
   Return,
-  End,
 }
 
 #[derive(Debug, Clone, PartialEq, Default)]
@@ -37,6 +36,7 @@ pub enum VMError {
 
   Halt,
   IPBounds,
+  End,
 }
 
 #[derive(Debug, Clone, PartialEq, Default)]
@@ -92,7 +92,7 @@ impl VM {
           todo!()
         }
       }
-      ExprKind::Lazy(_) => todo!(),
+      ExprKind::Lazy(expr) => Op::Push(*expr),
       ExprKind::List(_) => todo!(),
       ExprKind::Record(_) => todo!(),
       ExprKind::Function { scope, body } => {
@@ -111,66 +111,71 @@ impl VM {
     }
   }
 
+  pub fn block(&self) -> Option<&Block> {
+    self.blocks.get(self.bp)
+  }
+
+  pub fn block_mut(&mut self) -> Option<&mut Block> {
+    self.blocks.get_mut(self.bp)
+  }
+
+  pub fn op(&self) -> Option<&Op> {
+    self.block().and_then(|block| block.ops.get(self.ip))
+  }
+
   pub fn compile(&mut self, exprs: Vec<Expr>) {
     let mut block = Block::new();
     for expr in exprs.into_iter() {
       block.ops.push(self.compile_expr(expr));
     }
 
-    block.ops.push(Op::End);
-
     self.blocks.push(block);
     self.bp = self.blocks.len() - 1;
   }
 
-  pub fn step(&mut self) -> Result<(), VMError> {
-    let block = self.blocks.get(self.bp);
-    if let Some(block) = block {
-      // We have to clone here so we can pass the mutable ref to self in the
-      // match at the end of this fn.
-      let op = block.ops.get(self.ip).cloned();
+  pub fn run_op(&mut self, op: Op) -> Result<(), VMError> {
+    match op {
+      Op::Push(val) => {
+        self.stack.push(val);
 
-      let ip = self.ip.checked_add(1).map(|res| res.min(block.ops.len()));
+        Ok(())
+      }
+      Op::Intrinsic(intrinsic) => intrinsic.run(self),
+
+      Op::Goto(bp, ip) => {
+        self.call_stack.push((self.bp, self.ip));
+
+        self.bp = bp;
+        self.ip = ip;
+
+        Ok(())
+      }
+      Op::Return => {
+        if let Some((bp, ip)) = self.call_stack.pop() {
+          self.bp = bp;
+          self.ip = ip;
+
+          Ok(())
+        } else {
+          todo!("None call stack")
+        }
+      }
+    }
+  }
+
+  pub fn step(&mut self) -> Result<(), VMError> {
+    let op = self.op().cloned();
+    if let Some(op) = op {
+      let ip = self.ip.checked_add(1);
       if let Some(ip) = ip {
         self.ip = ip;
       } else {
         return Err(VMError::IPBounds);
       }
 
-      if let Some(op) = op {
-        match op {
-          Op::Push(val) => {
-            self.stack.push(val);
-
-            Ok(())
-          }
-          Op::Intrinsic(intrinsic) => intrinsic.run(self),
-
-          Op::Goto(bp, ip) => {
-            self.call_stack.push((self.bp, self.ip));
-
-            self.bp = bp;
-            self.ip = ip;
-
-            Ok(())
-          }
-          Op::Return => {
-            if let Some((bp, ip)) = self.call_stack.pop() {
-              self.bp = bp;
-              self.ip = ip;
-
-              Ok(())
-            } else {
-              todo!("None call stack")
-            }
-          }
-          Op::End => Err(VMError::Halt),
-        }
-      } else {
-        todo!("None op")
-      }
+      self.run_op(op)
     } else {
-      todo!("None block")
+      Err(VMError::End)
     }
   }
 }
