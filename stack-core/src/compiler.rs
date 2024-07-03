@@ -9,6 +9,7 @@ use crate::{
 pub enum Op {
   Push(Expr),
   Intrinsic(Intrinsic),
+  NoOp,
 
   Goto(usize, usize),
   Return,
@@ -67,6 +68,10 @@ impl VM {
     &self.stack
   }
 
+  pub fn stack_mut(&mut self) -> &mut [Expr] {
+    &mut self.stack
+  }
+
   pub fn stack_pop(&mut self) -> Result<Expr, VMError> {
     match self.stack.pop() {
       Some(val) => Ok(val),
@@ -80,11 +85,11 @@ impl VM {
 
   pub fn compile_expr(&mut self, expr: Expr) -> Op {
     match expr.kind {
-      ExprKind::Nil => todo!(),
-      ExprKind::Boolean(_) => todo!(),
-      ExprKind::Integer(int) => Op::Push(ExprKind::Integer(int).into()),
-      ExprKind::Float(_) => todo!(),
-      ExprKind::String(_) => todo!(),
+      ExprKind::Nil => Op::Push(expr),
+      ExprKind::Boolean(_) => Op::Push(expr),
+      ExprKind::Integer(_) => Op::Push(expr),
+      ExprKind::Float(_) => Op::Push(expr),
+      ExprKind::String(_) => Op::Push(expr),
       ExprKind::Symbol(symbol) => {
         if let Ok(intrinsic) = Intrinsic::from_str(symbol.as_str()) {
           Op::Intrinsic(intrinsic)
@@ -93,8 +98,8 @@ impl VM {
         }
       }
       ExprKind::Lazy(expr) => Op::Push(*expr),
-      ExprKind::List(_) => todo!(),
-      ExprKind::Record(_) => todo!(),
+      ExprKind::List(_) => Op::Push(expr),
+      ExprKind::Record(_) => Op::Push(expr),
       ExprKind::Function { scope, body } => {
         let mut fn_block = Block::new();
         for expr in body.into_iter() {
@@ -107,7 +112,7 @@ impl VM {
         Op::Goto(self.blocks.len() - 1, 0)
       }
       ExprKind::SExpr { call, body } => todo!(),
-      ExprKind::Underscore => todo!(),
+      ExprKind::Underscore => Op::NoOp,
     }
   }
 
@@ -141,6 +146,7 @@ impl VM {
         Ok(())
       }
       Op::Intrinsic(intrinsic) => intrinsic.run(self),
+      Op::NoOp => Ok(()),
 
       Op::Goto(bp, ip) => {
         self.call_stack.push((self.bp, self.ip));

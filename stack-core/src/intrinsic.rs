@@ -318,52 +318,34 @@ impl Intrinsic {
       }
       // MARK: Dupe
       Self::Dupe => {
-        // let item = context.stack().last().cloned().ok_or_else(|| RunError {
-        //   reason: RunErrorReason::StackUnderflow,
-        //   context: context.clone(),
-        //   expr,
-        // })?;
+        let item = vm.stack().last().cloned().ok_or_else(|| todo!())?;
+        vm.stack_push(item);
 
-        // context.stack_push(item)?;
-        // Ok(context)
-
-        todo!()
+        Ok(())
       }
       // MARK: Swap
       Self::Swap => {
-        // let len = context.stack().len();
+        let len = vm.stack().len();
 
-        // if len >= 2 {
-        //   context.stack_mut().swap(len - 1, len - 2);
-        //   Ok(context)
-        // } else {
-        //   Err(RunError {
-        //     reason: RunErrorReason::StackUnderflow,
-        //     context,
-        //     expr,
-        //   })
-        // }
-
-        todo!()
+        if len >= 2 {
+          vm.stack_mut().swap(len - 1, len - 2);
+          Ok(())
+        } else {
+          todo!()
+        }
       }
       // MARK: Rot
       Self::Rot => {
-        // let len = context.stack().len();
+        let len = vm.stack().len();
 
-        // if len >= 3 {
-        //   context.stack_mut().swap(len - 1, len - 3);
-        //   context.stack_mut().swap(len - 2, len - 3);
+        if len >= 3 {
+          vm.stack_mut().swap(len - 1, len - 3);
+          vm.stack_mut().swap(len - 2, len - 3);
 
-        //   Ok(context)
-        // } else {
-        //   Err(RunError {
-        //     reason: RunErrorReason::StackUnderflow,
-        //     context,
-        //     expr,
-        //   })
-        // }
-
-        todo!()
+          Ok(())
+        } else {
+          todo!()
+        }
       }
 
       // MARK: Len
