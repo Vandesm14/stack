@@ -1,13 +1,15 @@
-use std::str::FromStr;
+use std::{cell::RefCell, collections::HashMap, rc::Rc, str::FromStr};
 
 use crate::{
   expr::{Expr, ExprKind},
   intrinsic::Intrinsic,
+  symbol::Symbol,
 };
 
 #[derive(Debug, Clone, PartialEq)]
 pub enum Op {
   Push(Expr),
+  GetVal(Symbol),
   Intrinsic(Intrinsic),
   NoOp,
 
@@ -15,16 +17,18 @@ pub enum Op {
   Return,
 }
 
+pub type ScopeVal = Rc<RefCell<Expr>>;
+
 #[derive(Debug, Clone, PartialEq, Default)]
 pub struct Block {
-  constants: Vec<Expr>,
+  scope: HashMap<Symbol, ScopeVal>,
   ops: Vec<Op>,
 }
 
 impl Block {
   pub fn new() -> Self {
     Self {
-      constants: Vec::new(),
+      scope: HashMap::new(),
       ops: Vec::new(),
     }
   }
@@ -64,6 +68,34 @@ impl VM {
     }
   }
 
+  pub fn def_const(&mut self, symbol: Symbol, value: Expr) {
+    if let Some(block) = self.block_mut() {
+      block.scope.insert(symbol, Rc::new(RefCell::new(value)));
+    } else {
+      todo!()
+    }
+  }
+
+  pub fn set_const(&mut self, symbol: Symbol, value: Expr) {
+    if let Some(block) = self.block_mut() {
+      if let Some(item) = block.scope.get(&symbol) {
+        *item.borrow_mut() = value;
+      } else {
+        todo!()
+      }
+    } else {
+      todo!()
+    }
+  }
+
+  pub fn get_const(&self, symbol: Symbol) -> Option<&ScopeVal> {
+    if let Some(block) = self.block() {
+      block.scope.get(&symbol)
+    } else {
+      todo!()
+    }
+  }
+
   pub fn stack(&self) -> &[Expr] {
     &self.stack
   }
@@ -94,7 +126,7 @@ impl VM {
         if let Ok(intrinsic) = Intrinsic::from_str(symbol.as_str()) {
           Op::Intrinsic(intrinsic)
         } else {
-          todo!()
+          Op::GetVal(symbol)
         }
       }
       ExprKind::Lazy(expr) => Op::Push(*expr),
@@ -144,6 +176,15 @@ impl VM {
         self.stack.push(val);
 
         Ok(())
+      }
+      Op::GetVal(symbol) => {
+        if let Some(expr) = self.get_const(symbol).cloned() {
+          self.stack_push(expr.borrow().clone());
+
+          Ok(())
+        } else {
+          todo!("no var")
+        }
       }
       Op::Intrinsic(intrinsic) => intrinsic.run(self),
       Op::NoOp => Ok(()),

@@ -868,42 +868,32 @@ impl Intrinsic {
 
       // MARK: Def
       Self::Def => {
-        // let name = context.stack_pop(&expr)?;
-        // let value = context.stack_pop(&expr)?;
+        let name = vm.stack_pop()?;
+        let value = vm.stack_pop()?;
 
-        // match name.kind {
-        //   ExprKind::Symbol(symbol) => {
-        //     context.def_scope_item(symbol, value);
+        match name.kind {
+          ExprKind::Symbol(symbol) => {
+            vm.def_const(symbol, value);
 
-        //     Ok(context)
-        //   }
-        //   _ => Err(RunError {
-        //     reason: RunErrorReason::InvalidDefinition,
-        //     context: context.clone(),
-        //     expr: expr.clone(),
-        //   }),
-        // }
-
-        todo!()
+            Ok(())
+          }
+          _ => todo!(),
+        }
       }
 
       // MARK: Set
       Self::Set => {
-        // let name = context.stack_pop(&expr)?;
-        // let value = context.stack_pop(&expr)?;
+        let name = vm.stack_pop()?;
+        let value = vm.stack_pop()?;
 
-        // match name.kind {
-        //   ExprKind::Symbol(symbol) => {
-        //     context.set_scope_item(symbol, value).map(|_| context)
-        //   }
-        //   _ => Err(RunError {
-        //     reason: RunErrorReason::InvalidDefinition,
-        //     context: context.clone(),
-        //     expr: expr.clone(),
-        //   }),
-        // }
+        match name.kind {
+          ExprKind::Symbol(symbol) => {
+            vm.set_const(symbol, value);
 
-        todo!()
+            Ok(())
+          }
+          _ => todo!(),
+        }
       }
 
       // MARK: Get
