@@ -1,8 +1,13 @@
 use core::{fmt, str::FromStr};
+use std::{collections::HashMap, num::FpCategory};
+
+use compact_str::ToCompactString;
+use unicode_segmentation::UnicodeSegmentation;
 
 use crate::{
   compiler::{VMError, VM},
-  expr::ExprKind,
+  expr::{Expr, ExprKind},
+  symbol::Symbol,
 };
 
 macro_rules! intrinsics {
@@ -350,451 +355,432 @@ impl Intrinsic {
 
       // MARK: Len
       Self::Len => {
-        // let item = context.stack_pop(&expr)?;
+        let item = vm.stack_pop()?;
 
-        // let kind = match item.kind {
-        //   ExprKind::List(ref x) => {
-        //     debug_assert!(x.len() <= i64::MAX as usize);
-        //     ExprKind::Integer(x.len() as i64)
-        //   }
-        //   ExprKind::String(ref x) => {
-        //     let len = x.graphemes(true).count();
-        //     debug_assert!(len <= i64::MAX as usize);
-        //     ExprKind::Integer(len as i64)
-        //   }
-        //   ExprKind::Record(ref x) => {
-        //     debug_assert!(x.len() <= i64::MAX as usize);
-        //     ExprKind::Integer(x.len() as i64)
-        //   }
-        //   _ => ExprKind::Nil,
-        // };
+        let kind = match item.kind {
+          ExprKind::List(ref x) => {
+            debug_assert!(x.len() <= i64::MAX as usize);
+            ExprKind::Integer(x.len() as i64)
+          }
+          ExprKind::String(ref x) => {
+            let len = x.graphemes(true).count();
+            debug_assert!(len <= i64::MAX as usize);
+            ExprKind::Integer(len as i64)
+          }
+          ExprKind::Record(ref x) => {
+            debug_assert!(x.len() <= i64::MAX as usize);
+            ExprKind::Integer(x.len() as i64)
+          }
+          _ => ExprKind::Nil,
+        };
 
-        // context.stack_push(item.clone())?;
+        vm.stack_push(item.clone());
 
-        // context.stack_push(kind.into())?;
+        vm.stack_push(kind.into());
 
-        // Ok(context)
-
-        todo!()
+        Ok(())
       }
       // MARK: Nth
       Self::Nth => {
-        // let index = context.stack_pop(&expr)?;
-        // let item = context.stack_pop(&expr)?;
+        let index = vm.stack_pop()?;
+        let item = vm.stack_pop()?;
 
-        // let kind = match (item.kind.clone(), index.kind) {
-        //   (ExprKind::List(x), ExprKind::Integer(i)) if i >= 0 => x
-        //     .get(i as usize)
-        //     .map(|x| x.kind.clone())
-        //     .unwrap_or(ExprKind::Nil),
-        //   (ExprKind::String(x), ExprKind::Integer(i)) if i >= 0 => x
-        //     .as_str()
-        //     .graphemes(true)
-        //     .nth(i as usize)
-        //     .map(|x| ExprKind::String(x.into()))
-        //     .unwrap_or(ExprKind::Nil),
-        //   _ => ExprKind::Nil,
-        // };
+        let kind = match (item.kind.clone(), index.kind) {
+          (ExprKind::List(x), ExprKind::Integer(i)) if i >= 0 => x
+            .get(i as usize)
+            .map(|x| x.kind.clone())
+            .unwrap_or(ExprKind::Nil),
+          (ExprKind::String(x), ExprKind::Integer(i)) if i >= 0 => x
+            .as_str()
+            .graphemes(true)
+            .nth(i as usize)
+            .map(|x| ExprKind::String(x.into()))
+            .unwrap_or(ExprKind::Nil),
+          _ => ExprKind::Nil,
+        };
 
-        // context.stack_push(item.clone())?;
+        vm.stack_push(item.clone());
 
-        // context.stack_push(kind.into())?;
+        vm.stack_push(kind.into());
 
-        // Ok(context)
-
-        todo!()
+        Ok(())
       }
       // MARK: Split
       Self::Split => {
-        // let index = context.stack_pop(&expr)?;
-        // let item = context.stack_pop(&expr)?;
+        let index = vm.stack_pop()?;
+        let item = vm.stack_pop()?;
 
-        // match (item.kind, index.kind) {
-        //   (ExprKind::List(mut x), ExprKind::Integer(i)) if i >= 0 => {
-        //     if (i as usize) < x.len() {
-        //       let rest = x.split_off(i as usize);
+        match (item.kind, index.kind) {
+          (ExprKind::List(mut x), ExprKind::Integer(i)) if i >= 0 => {
+            if (i as usize) < x.len() {
+              let rest = x.split_off(i as usize);
 
-        //       context.stack_push(ExprKind::List(x).into())?;
+              vm.stack_push(ExprKind::List(x).into());
 
-        //       context.stack_push(ExprKind::List(rest).into())?;
-        //     } else {
-        //       context.stack_push(ExprKind::List(x).into())?;
+              vm.stack_push(ExprKind::List(rest).into());
+            } else {
+              vm.stack_push(ExprKind::List(x).into());
 
-        //       context.stack_push(ExprKind::Nil.into())?;
-        //     }
-        //   }
-        //   (ExprKind::String(mut x), ExprKind::Integer(i)) if i >= 0 => {
-        //     match x.as_str().grapheme_indices(true).nth(i as usize) {
-        //       Some((i, _)) => {
-        //         let rest = x.split_off(i);
+              vm.stack_push(ExprKind::Nil.into());
+            }
+          }
+          (ExprKind::String(mut x), ExprKind::Integer(i)) if i >= 0 => {
+            match x.as_str().grapheme_indices(true).nth(i as usize) {
+              Some((i, _)) => {
+                let rest = x.split_off(i);
 
-        //         context.stack_push(ExprKind::String(x).into())?;
+                vm.stack_push(ExprKind::String(x).into());
 
-        //         context.stack_push(ExprKind::String(rest).into())?;
-        //       }
-        //       None => {
-        //         context.stack_push(ExprKind::String(x).into())?;
+                vm.stack_push(ExprKind::String(rest).into());
+              }
+              None => {
+                vm.stack_push(ExprKind::String(x).into());
 
-        //         context.stack_push(ExprKind::Nil.into())?;
-        //       }
-        //     }
-        //   }
-        //   _ => {
-        //     context.stack_push(ExprKind::Nil.into())?;
+                vm.stack_push(ExprKind::Nil.into());
+              }
+            }
+          }
+          _ => {
+            vm.stack_push(ExprKind::Nil.into());
 
-        //     context.stack_push(ExprKind::Nil.into())?;
-        //   }
-        // }
+            vm.stack_push(ExprKind::Nil.into());
+          }
+        }
 
-        // Ok(context)
-
-        todo!()
+        Ok(())
       }
       // MARK: Concat
       Self::Concat => {
-        // let rhs = context.stack_pop(&expr)?;
-        // let lhs = context.stack_pop(&expr)?;
+        let rhs = vm.stack_pop()?;
+        let lhs = vm.stack_pop()?;
 
-        // let kind = match (lhs.kind, rhs.kind) {
-        //   (ExprKind::List(mut lhs), ExprKind::List(rhs)) => {
-        //     lhs.extend(rhs);
-        //     ExprKind::List(lhs)
-        //   }
-        //   (ExprKind::String(mut lhs), ExprKind::String(rhs)) => {
-        //     lhs.push_str(&rhs);
-        //     ExprKind::String(lhs)
-        //   }
-        //   _ => ExprKind::Nil,
-        // };
+        let kind = match (lhs.kind, rhs.kind) {
+          (ExprKind::List(mut lhs), ExprKind::List(rhs)) => {
+            lhs.extend(rhs);
+            ExprKind::List(lhs)
+          }
+          (ExprKind::String(mut lhs), ExprKind::String(rhs)) => {
+            lhs.push_str(&rhs);
+            ExprKind::String(lhs)
+          }
+          _ => ExprKind::Nil,
+        };
 
-        // context.stack_push(kind.into())?;
+        vm.stack_push(kind.into());
 
-        // Ok(context)
-
-        todo!()
+        Ok(())
       }
       // MARK: Push
       Self::Push => {
-        // let list = context.stack_pop(&expr)?;
-        // let item = context.stack_pop(&expr)?;
+        let list = vm.stack_pop()?;
+        let item = vm.stack_pop()?;
 
-        // let kind = match (list.kind.clone(), item.kind.clone()) {
-        //   (ExprKind::List(mut x), i) => {
-        //     x.push(Expr {
-        //       kind: i,
-        //       info: item.info.clone(),
-        //     });
-        //     ExprKind::List(x)
-        //   }
-        //   (ExprKind::String(mut x), ExprKind::String(s)) => {
-        //     x.push_str(&s);
-        //     ExprKind::String(x)
-        //   }
-        //   (ExprKind::String(mut x), ExprKind::Integer(c))
-        //     if c >= 0 && c <= u32::MAX as i64 =>
-        //   {
-        //     if let Some(c) = char::from_u32(c as u32) {
-        //       x.push(c);
-        //       ExprKind::String(x)
-        //     } else {
-        //       ExprKind::Nil
-        //     }
-        //   }
-        //   _ => ExprKind::Nil,
-        // };
+        let kind = match (list.kind.clone(), item.kind.clone()) {
+          (ExprKind::List(mut x), i) => {
+            x.push(Expr {
+              kind: i,
+              info: item.info.clone(),
+            });
+            ExprKind::List(x)
+          }
+          (ExprKind::String(mut x), ExprKind::String(s)) => {
+            x.push_str(&s);
+            ExprKind::String(x)
+          }
+          (ExprKind::String(mut x), ExprKind::Integer(c))
+            if c >= 0 && c <= u32::MAX as i64 =>
+          {
+            if let Some(c) = char::from_u32(c as u32) {
+              x.push(c);
+              ExprKind::String(x)
+            } else {
+              ExprKind::Nil
+            }
+          }
+          _ => ExprKind::Nil,
+        };
 
-        // context.stack_push(kind.into())?;
+        vm.stack_push(kind.into());
 
-        // Ok(context)
-
-        todo!()
+        Ok(())
       }
       // MARK: Pop
       Self::Pop => {
-        // let list = context.stack_pop(&expr)?;
+        let list = vm.stack_pop()?;
 
-        // match list.kind.clone() {
-        //   ExprKind::List(mut x) => {
-        //     let e = x.pop().unwrap_or(ExprKind::Nil.into());
+        match list.kind.clone() {
+          ExprKind::List(mut x) => {
+            let e = x.pop().unwrap_or(ExprKind::Nil.into());
 
-        //     context.stack_push(ExprKind::List(x).into())?;
-        //     context.stack_push(e)?;
-        //   }
-        //   ExprKind::String(mut x) => {
-        //     let e = x
-        //       .pop()
-        //       .map(|e| ExprKind::String(e.to_compact_string()).into())
-        //       .unwrap_or(ExprKind::Nil.into());
+            vm.stack_push(ExprKind::List(x).into());
+            vm.stack_push(e);
+          }
+          ExprKind::String(mut x) => {
+            let e = x
+              .pop()
+              .map(|e| ExprKind::String(e.to_compact_string()).into())
+              .unwrap_or(ExprKind::Nil.into());
 
-        //     context.stack_push(ExprKind::String(x).into())?;
-        //     context.stack_push(e)?;
-        //   }
-        //   _ => {
-        //     context.stack_push(list.clone())?;
-        //     context.stack_push(ExprKind::Nil.into())?;
-        //   }
-        // }
+            vm.stack_push(ExprKind::String(x).into());
+            vm.stack_push(e);
+          }
+          _ => {
+            vm.stack_push(list.clone());
+            vm.stack_push(ExprKind::Nil.into());
+          }
+        }
 
-        // Ok(context)
-
-        todo!()
+        Ok(())
       }
 
       // MARK: Insert
       Self::Insert => {
-        // let record = context.stack_pop(&expr)?;
-        // let name = context.stack_pop(&expr)?;
-        // let value = context.stack_pop(&expr)?;
+        let record = vm.stack_pop()?;
+        let name = vm.stack_pop()?;
+        let value = vm.stack_pop()?;
 
-        // match record.kind {
-        //   ExprKind::Record(ref record) => {
-        //     let symbol: Symbol = name.kind.into();
+        match record.kind {
+          ExprKind::Record(ref record) => {
+            let symbol: Symbol = name.kind.into();
 
-        //     let mut new_record = record.clone();
-        //     new_record.insert(symbol, value);
+            let mut new_record = record.clone();
+            new_record.insert(symbol, value);
 
-        //     context.stack_push(ExprKind::Record(new_record).into())?;
+            vm.stack_push(ExprKind::Record(new_record).into());
 
-        //     Ok(())
-        //   }
-        //   _ => context.stack_push(ExprKind::Nil.into()),
-        // }
-        // .map(|_| context)
-
-        todo!()
+            Ok(())
+          }
+          _ => {
+            vm.stack_push(ExprKind::Nil.into());
+            Ok(())
+          }
+        }
       }
       // MARK: Prop
       Self::Prop => {
-        // let name = context.stack_pop(&expr)?;
-        // let record = context.stack_pop(&expr)?;
+        let name = vm.stack_pop()?;
+        let record = vm.stack_pop()?;
 
-        // match record.kind {
-        //   ExprKind::Record(ref r) => {
-        //     let symbol: Symbol = name.kind.into();
+        match record.kind {
+          ExprKind::Record(ref r) => {
+            let symbol: Symbol = name.kind.into();
 
-        //     let result = r.get(&symbol).unwrap_or_else(|| &Expr {
-        //       info: None,
-        //       kind: ExprKind::Nil,
-        //     });
+            let result = r.get(&symbol).unwrap_or_else(|| &Expr {
+              info: None,
+              kind: ExprKind::Nil,
+            });
 
-        //     context.stack_push(record.clone())?;
-        //     context.stack_push(result.clone())?;
+            vm.stack_push(record.clone());
+            vm.stack_push(result.clone());
 
-        //     Ok(())
-        //   }
-        //   _ => context.stack_push(ExprKind::Nil.into()),
-        // }
-        // .map(|_| context)
-
-        todo!()
+            Ok(())
+          }
+          _ => {
+            vm.stack_push(ExprKind::Nil.into());
+            Ok(())
+          }
+        }
       }
       // MARK: Has
       Self::Has => {
-        // let name = context.stack_pop(&expr)?;
-        // let record = context.stack_pop(&expr)?;
+        let name = vm.stack_pop()?;
+        let record = vm.stack_pop()?;
 
-        // match record.kind {
-        //   ExprKind::Record(ref r) => {
-        //     let symbol: Symbol = name.kind.into();
+        match record.kind {
+          ExprKind::Record(ref r) => {
+            let symbol: Symbol = name.kind.into();
 
-        //     let result = r.contains_key(&symbol);
+            let result = r.contains_key(&symbol);
 
-        //     context.stack_push(record.clone())?;
-        //     context.stack_push(ExprKind::Boolean(result).into())?;
+            vm.stack_push(record.clone());
+            vm.stack_push(ExprKind::Boolean(result).into());
 
-        //     Ok(())
-        //   }
-        //   _ => context.stack_push(ExprKind::Nil.into()),
-        // }
-        // .map(|_| context)
-
-        todo!()
+            Ok(())
+          }
+          _ => {
+            vm.stack_push(ExprKind::Nil.into());
+            Ok(())
+          }
+        }
       }
       // MARK: Remove
       Self::Remove => {
-        // let name = context.stack_pop(&expr)?;
-        // let record = context.stack_pop(&expr)?;
+        let name = vm.stack_pop()?;
+        let record = vm.stack_pop()?;
 
-        // match record.kind {
-        //   ExprKind::Record(ref record) => {
-        //     let symbol: Symbol = name.kind.into();
+        match record.kind {
+          ExprKind::Record(ref record) => {
+            let symbol: Symbol = name.kind.into();
 
-        //     let mut new_record = record.clone();
-        //     new_record.remove(&symbol);
+            let mut new_record = record.clone();
+            new_record.remove(&symbol);
 
-        //     context.stack_push(ExprKind::Record(new_record).into())?;
+            vm.stack_push(ExprKind::Record(new_record).into());
 
-        //     Ok(())
-        //   }
-        //   _ => context.stack_push(ExprKind::Nil.into()),
-        // }
-        // .map(|_| context)
-
-        todo!()
+            Ok(())
+          }
+          _ => {
+            vm.stack_push(ExprKind::Nil.into());
+            Ok(())
+          }
+        }
       }
       // MARK: Keys
       Self::Keys => {
-        // let record = context.stack_pop(&expr)?;
+        let record = vm.stack_pop()?;
 
-        // match record.kind {
-        //   ExprKind::Record(ref r) => {
-        //     let result = r
-        //       .keys()
-        //       .copied()
-        //       .map(|s| Expr {
-        //         info: None,
-        //         kind: ExprKind::Symbol(s),
-        //       })
-        //       .collect::<Vec<_>>();
+        match record.kind {
+          ExprKind::Record(ref r) => {
+            let result = r
+              .keys()
+              .copied()
+              .map(|s| Expr {
+                info: None,
+                kind: ExprKind::Symbol(s),
+              })
+              .collect::<Vec<_>>();
 
-        //     context.stack_push(record.clone())?;
-        //     context.stack_push(ExprKind::List(result).into())?;
+            vm.stack_push(record.clone());
+            vm.stack_push(ExprKind::List(result).into());
 
-        //     Ok(())
-        //   }
-        //   _ => context.stack_push(ExprKind::Nil.into()),
-        // }
-        // .map(|_| context)
-
-        todo!()
+            Ok(())
+          }
+          _ => {
+            vm.stack_push(ExprKind::Nil.into());
+            Ok(())
+          }
+        }
       }
       // MARK: Values
       Self::Values => {
-        // let record = context.stack_pop(&expr)?;
+        let record = vm.stack_pop()?;
 
-        // match record.kind {
-        //   ExprKind::Record(ref r) => {
-        //     let result = r.values().cloned().collect::<Vec<_>>();
+        match record.kind {
+          ExprKind::Record(ref r) => {
+            let result = r.values().cloned().collect::<Vec<_>>();
 
-        //     context.stack_push(record.clone())?;
-        //     context.stack_push(ExprKind::List(result).into())?;
+            vm.stack_push(record.clone());
+            vm.stack_push(ExprKind::List(result).into());
 
-        //     Ok(())
-        //   }
-        //   _ => context.stack_push(ExprKind::Nil.into()),
-        // }
-        // .map(|_| context)
-
-        todo!()
+            Ok(())
+          }
+          _ => {
+            vm.stack_push(ExprKind::Nil.into());
+            Ok(())
+          }
+        }
       }
 
       // MARK: Cast
       Self::Cast => {
-        // let ty = context.stack_pop(&expr)?;
-        // let item = context.stack_pop(&expr)?;
+        let ty = vm.stack_pop()?;
+        let item = vm.stack_pop()?;
 
-        // // TODO: Can these eager clones be removed?
-        // let kind = match ty.kind {
-        //   ExprKind::String(ref x) => match (item.kind.clone(), x.as_str()) {
-        //     (ExprKind::Nil, "boolean") => ExprKind::Boolean(false),
-        //     (ExprKind::Boolean(x), "boolean") => ExprKind::Boolean(x),
-        //     (ExprKind::Integer(x), "boolean") => ExprKind::Boolean(x != 0),
-        //     (ExprKind::Float(x), "boolean") => ExprKind::Boolean(x == 0.0),
+        // TODO: Can these eager clones be removed?
+        let kind = match ty.kind {
+          ExprKind::String(ref x) => match (item.kind.clone(), x.as_str()) {
+            (ExprKind::Nil, "boolean") => ExprKind::Boolean(false),
+            (ExprKind::Boolean(x), "boolean") => ExprKind::Boolean(x),
+            (ExprKind::Integer(x), "boolean") => ExprKind::Boolean(x != 0),
+            (ExprKind::Float(x), "boolean") => ExprKind::Boolean(x == 0.0),
 
-        //     (ExprKind::Nil, "integer") => ExprKind::Integer(0),
-        //     (ExprKind::Boolean(x), "integer") => ExprKind::Integer(x as i64),
-        //     (ExprKind::Integer(x), "integer") => ExprKind::Integer(x),
-        //     (ExprKind::Float(x), "integer") => {
-        //       let x = x.floor();
+            (ExprKind::Nil, "integer") => ExprKind::Integer(0),
+            (ExprKind::Boolean(x), "integer") => ExprKind::Integer(x as i64),
+            (ExprKind::Integer(x), "integer") => ExprKind::Integer(x),
+            (ExprKind::Float(x), "integer") => {
+              let x = x.floor();
 
-        //       match x.classify() {
-        //         FpCategory::Zero => ExprKind::Integer(0),
-        //         FpCategory::Normal
-        //           if x >= i64::MIN as f64 && x <= i64::MAX as f64 =>
-        //         {
-        //           ExprKind::Integer(x as i64)
-        //         }
-        //         _ => ExprKind::Nil,
-        //       }
-        //     }
+              match x.classify() {
+                FpCategory::Zero => ExprKind::Integer(0),
+                FpCategory::Normal
+                  if x >= i64::MIN as f64 && x <= i64::MAX as f64 =>
+                {
+                  ExprKind::Integer(x as i64)
+                }
+                _ => ExprKind::Nil,
+              }
+            }
 
-        //     (ExprKind::Nil, "float") => ExprKind::Float(0.0),
-        //     (ExprKind::Boolean(x), "float") => ExprKind::Float(x as i64 as f64),
-        //     (ExprKind::Integer(x), "float") => ExprKind::Float(x as f64),
-        //     (ExprKind::Float(x), "float") => ExprKind::Float(x),
+            (ExprKind::Nil, "float") => ExprKind::Float(0.0),
+            (ExprKind::Boolean(x), "float") => ExprKind::Float(x as i64 as f64),
+            (ExprKind::Integer(x), "float") => ExprKind::Float(x as f64),
+            (ExprKind::Float(x), "float") => ExprKind::Float(x),
 
-        //     (ExprKind::Nil, "string") => ExprKind::String("nil".into()),
-        //     (ExprKind::Boolean(x), "string") => {
-        //       ExprKind::String(x.to_compact_string())
-        //     }
-        //     (ExprKind::Integer(x), "string") => {
-        //       ExprKind::String(x.to_compact_string())
-        //     }
-        //     (ExprKind::Float(x), "string") => {
-        //       ExprKind::String(x.to_compact_string())
-        //     }
-        //     (ExprKind::String(x), "string") => ExprKind::String(x),
-        //     (ExprKind::Symbol(x), "string") => {
-        //       ExprKind::String(x.as_str().into())
-        //     }
+            (ExprKind::Nil, "string") => ExprKind::String("nil".into()),
+            (ExprKind::Boolean(x), "string") => {
+              ExprKind::String(x.to_compact_string())
+            }
+            (ExprKind::Integer(x), "string") => {
+              ExprKind::String(x.to_compact_string())
+            }
+            (ExprKind::Float(x), "string") => {
+              ExprKind::String(x.to_compact_string())
+            }
+            (ExprKind::String(x), "string") => ExprKind::String(x),
+            (ExprKind::Symbol(x), "string") => {
+              ExprKind::String(x.as_str().into())
+            }
 
-        //     // TODO: Make sure these are correct, because the logic is pretty
-        //     //       nuanced in terms of when to choose a Symbol or Intrinsic.
-        //     (ExprKind::Nil, "symbol") => ExprKind::Nil,
-        //     (ExprKind::Boolean(x), "symbol") => ExprKind::Boolean(x),
-        //     // TODO: Handle conversion into `fn` and `fn!`.
-        //     (ExprKind::String(x), "symbol") => ExprKind::Symbol(Symbol::new(x)),
-        //     (ExprKind::Symbol(x), "symbol") => ExprKind::Symbol(x),
+            // TODO: Make sure these are correct, because the logic is pretty
+            //       nuanced in terms of when to choose a Symbol or Intrinsic.
+            (ExprKind::Nil, "symbol") => ExprKind::Nil,
+            (ExprKind::Boolean(x), "symbol") => ExprKind::Boolean(x),
+            // TODO: Handle conversion into `fn` and `fn!`.
+            (ExprKind::String(x), "symbol") => ExprKind::Symbol(Symbol::new(x)),
+            (ExprKind::Symbol(x), "symbol") => ExprKind::Symbol(x),
 
-        //     (ExprKind::Record(x), "record") => ExprKind::Record(x),
-        //     (ExprKind::Record(x), "list") => {
-        //       let mut list: Vec<Expr> = Vec::new();
-        //       x.into_iter().for_each(|(key, value)| {
-        //         list.push(
-        //           ExprKind::List(vec![ExprKind::Symbol(key).into(), value])
-        //             .into(),
-        //         );
-        //       });
+            (ExprKind::Record(x), "record") => ExprKind::Record(x),
+            (ExprKind::Record(x), "list") => {
+              let mut list: Vec<Expr> = Vec::new();
+              x.into_iter().for_each(|(key, value)| {
+                list.push(
+                  ExprKind::List(vec![ExprKind::Symbol(key).into(), value])
+                    .into(),
+                );
+              });
 
-        //       ExprKind::List(list)
-        //     }
+              ExprKind::List(list)
+            }
 
-        //     (ExprKind::List(x), "record") => {
-        //       let mut record: HashMap<Symbol, Expr> = HashMap::new();
-        //       x.into_iter().for_each(|item| {
-        //         if let ExprKind::List(chunk) = item.kind {
-        //           let key =
-        //             Symbol::from_ref(chunk[0].kind.to_string().as_str());
-        //           let value = &chunk[1];
-        //           record.insert(key, value.clone());
-        //         }
-        //       });
+            (ExprKind::List(x), "record") => {
+              let mut record: HashMap<Symbol, Expr> = HashMap::new();
+              x.into_iter().for_each(|item| {
+                if let ExprKind::List(chunk) = item.kind {
+                  let key =
+                    Symbol::from_ref(chunk[0].kind.to_string().as_str());
+                  let value = &chunk[1];
+                  record.insert(key, value.clone());
+                }
+              });
 
-        //       ExprKind::Record(record)
-        //     }
+              ExprKind::Record(record)
+            }
 
-        //     _ => ExprKind::Nil,
-        //   },
-        //   _ => ExprKind::Nil,
-        // };
+            _ => ExprKind::Nil,
+          },
+          _ => ExprKind::Nil,
+        };
 
-        // context.stack_push(kind.into())?;
+        vm.stack_push(kind.into());
 
-        // Ok(context)
-
-        todo!()
+        Ok(())
       }
       // MARK: TypeOf
       Self::TypeOf => {
-        // let expr = context.stack_pop(&expr)?;
+        let expr = vm.stack_pop()?;
 
-        // context
-        //   .stack_push(ExprKind::String(expr.kind.type_of().into()).into())?;
+        vm.stack_push(ExprKind::String(expr.kind.type_of().into()).into());
 
-        // Ok(context)
-
-        todo!()
+        Ok(())
       }
 
       // MARK: Lazy
       Self::Lazy => {
-        // let expr = context.stack_pop(&expr)?;
+        let expr = vm.stack_pop()?;
 
-        // context.stack_push(ExprKind::Lazy(Box::new(expr)).into())?;
+        vm.stack_push(ExprKind::Lazy(Box::new(expr)).into());
 
-        // Ok(context)
-
-        todo!()
+        Ok(())
       }
 
       // MARK: If
@@ -968,23 +954,19 @@ impl Intrinsic {
       }
       // MARK: Print
       Self::Print => {
-        // let val = context.stack_pop(&expr)?;
+        let val = vm.stack_pop()?;
 
-        // println!("{}", val);
+        println!("{}", val);
 
-        // Ok(context)
-
-        todo!()
+        Ok(())
       }
       // MARK: Pretty
       Self::Pretty => {
-        // let val = context.stack_pop(&expr)?;
+        let val = vm.stack_pop()?;
 
-        // println!("{:#}", val);
+        println!("{:#}", val);
 
-        // Ok(context)
-
-        todo!()
+        Ok(())
       }
       // MARK: Recur
       // Functionality is implemented in [`Engine::call_fn`]
@@ -999,17 +981,15 @@ impl Intrinsic {
 
       // MARK: OrElse
       Self::OrElse => {
-        // let rhs = context.stack_pop(&expr)?;
-        // let lhs = context.stack_pop(&expr)?;
+        let rhs = vm.stack_pop()?;
+        let lhs = vm.stack_pop()?;
 
-        // match lhs.kind {
-        //   ExprKind::Nil => context.stack_push(rhs)?,
-        //   _ => context.stack_push(lhs)?,
-        // }
+        match lhs.kind {
+          ExprKind::Nil => vm.stack_push(rhs),
+          _ => vm.stack_push(lhs),
+        }
 
-        // Ok(context)
-
-        todo!()
+        Ok(())
       }
 
       // MARK: Import
