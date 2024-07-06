@@ -873,7 +873,11 @@ impl Intrinsic {
 
         match name.kind {
           ExprKind::Symbol(symbol) => {
-            vm.def_const(symbol, value);
+            if let Some(scope) = vm.scope_mut() {
+              scope.define(symbol, value);
+            } else {
+              todo!("no scope")
+            }
 
             Ok(())
           }
@@ -888,7 +892,14 @@ impl Intrinsic {
 
         match name.kind {
           ExprKind::Symbol(symbol) => {
-            vm.set_const(symbol, value);
+            if let Some(scope) = vm.scope_mut() {
+              match scope.set(symbol, value) {
+                Ok(_) => {}
+                Err(_) => todo!(),
+              }
+            } else {
+              todo!("no scope")
+            }
 
             Ok(())
           }
@@ -898,29 +909,25 @@ impl Intrinsic {
 
       // MARK: Get
       Self::Get => {
-        // let name = context.stack_pop(&expr)?;
+        let name = vm.stack_pop()?;
 
-        // match name.kind {
-        //   ExprKind::Symbol(symbol) => {
-        //     // Lets take precedence over scoped vars
-        //     let item = context.scope_item(symbol);
+        match name.kind {
+          ExprKind::Symbol(symbol) => {
+            if let Some(scope) = vm.scope_mut() {
+              match scope.get_val(symbol) {
+                Some(expr) => {
+                  vm.stack_push(expr);
+                }
+                None => todo!("no var"),
+              }
+            } else {
+              todo!("no scope")
+            }
 
-        //     context
-        //       .stack_push(item.ok_or_else(|| RunError {
-        //         context: context.clone(),
-        //         expr,
-        //         reason: RunErrorReason::UnknownCall,
-        //       })?)
-        //       .map(|_| context)
-        //   }
-        //   _ => Err(RunError {
-        //     reason: RunErrorReason::UnknownCall,
-        //     context: context.clone(),
-        //     expr: expr.clone(),
-        //   }),
-        // }
-
-        todo!()
+            Ok(())
+          }
+          _ => todo!(),
+        }
       }
 
       // MARK: Debug

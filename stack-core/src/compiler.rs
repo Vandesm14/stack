@@ -4,6 +4,7 @@ use std::{cell::RefCell, collections::HashMap, rc::Rc, str::FromStr};
 use crate::{
   expr::{Expr, ExprKind},
   intrinsic::Intrinsic,
+  scope::Scope,
   symbol::Symbol,
 };
 
@@ -22,14 +23,14 @@ pub type ScopeVal = Rc<RefCell<Expr>>;
 
 #[derive(Debug, Clone, PartialEq, Default)]
 pub struct Block {
-  scope: HashMap<Symbol, ScopeVal>,
+  scope: Scope,
   ops: Vec<Op>,
 }
 
 impl Block {
   pub fn new() -> Self {
     Self {
-      scope: HashMap::new(),
+      scope: Scope::new(),
       ops: Vec::new(),
     }
   }
@@ -80,32 +81,12 @@ impl VM {
     }
   }
 
-  pub fn def_const(&mut self, symbol: Symbol, value: Expr) {
-    if let Some(block) = self.block_mut() {
-      block.scope.insert(symbol, Rc::new(RefCell::new(value)));
-    } else {
-      todo!()
-    }
+  pub fn scope(&self) -> Option<&Scope> {
+    self.block().map(|block| &block.scope)
   }
 
-  pub fn set_const(&mut self, symbol: Symbol, value: Expr) {
-    if let Some(block) = self.block_mut() {
-      if let Some(item) = block.scope.get(&symbol) {
-        *item.borrow_mut() = value;
-      } else {
-        todo!()
-      }
-    } else {
-      todo!()
-    }
-  }
-
-  pub fn get_const(&self, symbol: Symbol) -> Option<&ScopeVal> {
-    if let Some(block) = self.block() {
-      block.scope.get(&symbol)
-    } else {
-      todo!()
-    }
+  pub fn scope_mut(&mut self) -> Option<&mut Scope> {
+    self.block_mut().map(|block| &mut block.scope)
   }
 
   pub fn stack(&self) -> &[Expr] {
@@ -190,12 +171,16 @@ impl VM {
         Ok(())
       }
       Op::GetVal(symbol) => {
-        if let Some(expr) = self.get_const(symbol).cloned() {
-          self.stack_push(expr.borrow().clone());
+        if let Some(scope) = self.scope_mut() {
+          if let Some(expr) = scope.get_val(symbol) {
+            self.stack_push(expr);
 
-          Ok(())
+            Ok(())
+          } else {
+            todo!("no var")
+          }
         } else {
-          todo!("no var")
+          todo!("no scope")
         }
       }
       Op::Intrinsic(intrinsic) => intrinsic.run(self),
