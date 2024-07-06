@@ -23,7 +23,7 @@ use notify::{
   Config, Event, EventKind, RecommendedWatcher, RecursiveMode, Watcher,
 };
 use reedline::{DefaultPrompt, DefaultPromptSegment, Reedline, Signal};
-use stack_core::prelude::*;
+use stack_core::{compiler::VM, prelude::*};
 
 fn main() {
   let cli = Cli::parse();
@@ -36,23 +36,22 @@ fn main() {
     }
   };
 
-  let mut engine =
-    Engine::new().with_debug_hook(Some(Arc::new(|s| eprintln!("{s}"))));
+  let mut vm = VM::new();
   let mut context = new_context();
 
   #[cfg(feature = "stack-std")]
   {
-    if cli.enable_all || cli.enable_str {
-      engine.add_module(stack_std::str::module());
-    }
+    // if cli.enable_all || cli.enable_str {
+    //   engine.add_module(stack_std::str::module());
+    // }
 
-    if cli.enable_all || cli.enable_fs {
-      engine.add_module(stack_std::fs::module(cli.sandbox));
-    }
+    // if cli.enable_all || cli.enable_fs {
+    //   engine.add_module(stack_std::fs::module(cli.sandbox));
+    // }
 
-    if cli.enable_all || cli.enable_scope {
-      engine.add_module(stack_std::scope::module());
-    }
+    // if cli.enable_all || cli.enable_scope {
+    //   engine.add_module(stack_std::scope::module());
+    // }
   }
 
   match cli.subcommand {
@@ -66,8 +65,15 @@ fn main() {
       let mut lexer = Lexer::new(source);
       let exprs = ok_or_exit(parse(&mut lexer));
 
-      context = ok_or_exit(engine.run(context, exprs));
-      print_stack(&context);
+      vm.compile(exprs);
+      let result = vm.run();
+      match result {
+        Ok(stack) => print_stack(stack),
+        Err(err) => {
+          eprint!("error: {err}");
+          eprint_stack(vm.stack())
+        }
+      }
     }
     Subcommand::Repl => {
       let mut repl = Reedline::create();
@@ -102,15 +108,16 @@ fn main() {
               let mut lexer = Lexer::new(source);
               let exprs = ok_or_exit(parse(&mut lexer));
 
-              context = match engine.run(context, exprs) {
-                Ok(context) => {
-                  print_stack(&context);
-                  context
+              vm = VM::new();
+              vm.compile(exprs);
+
+              match vm.run() {
+                Ok(stack) => {
+                  print_stack(stack);
                 }
                 Err(e) => {
                   eprintln!("error: {e}");
-                  eprint_stack(&e.context);
-                  e.context
+                  eprint_stack(vm.stack());
                 }
               }
             }
@@ -124,8 +131,17 @@ fn main() {
         let mut lexer = Lexer::new(source);
         let exprs = ok_or_exit(parse(&mut lexer));
 
-        context = ok_or_exit(engine.run(context, exprs));
-        print_stack(&context);
+        vm.compile(exprs);
+
+        match vm.run() {
+          Ok(stack) => {
+            print_stack(stack);
+          }
+          Err(e) => {
+            eprintln!("error: {e}");
+            eprint_stack(vm.stack());
+          }
+        }
       } else {
         let (tx, rx) = std::sync::mpsc::channel();
 
@@ -133,14 +149,14 @@ fn main() {
           ok_or_exit(RecommendedWatcher::new(tx, Config::default()));
         ok_or_exit(watcher.watch(&input, RecursiveMode::NonRecursive));
 
-        let run_file = |input| {
+        let mut run_file = |input| {
           let mut context = new_context();
 
           let source = match Source::from_path(input) {
             Ok(source) => source,
             Err(e) => {
               eprintln!("error: {e}");
-              return context;
+              return;
             }
           };
 
@@ -152,59 +168,26 @@ fn main() {
             Ok(exprs) => exprs,
             Err(e) => {
               eprintln!("error: {e}");
-              return context;
+              return;
             }
           };
 
-          match engine.run(context, exprs) {
-            Ok(context) => {
-              print_stack(&context);
-              if let Some(journal) = context.journal() {
-                eprintln!("{:#}", journal);
-              }
+          vm = VM::new();
+          vm.compile(exprs);
 
-              context
+          match vm.run() {
+            Ok(stack) => {
+              print_stack(stack);
             }
             Err(e) => {
-              if let Some(info) = &e.expr.info {
-                let span = info.span;
-                let span = span.start..span.end;
-
-                let mut files = SimpleFiles::new();
-                let mut file_id = 0;
-                for (name, source) in e.context.sources() {
-                  let id = files.add(name, source.source());
-
-                  if info.source.name() == name.as_str() {
-                    file_id = id;
-                  }
-                }
-
-                let diagnostic = Diagnostic::error()
-                  .with_message(e.clone().to_string())
-                  .with_labels(vec![Label::primary(file_id, span)
-                    .with_message("error occurs here")]);
-
-                let writer = StandardStream::stderr(ColorChoice::Always);
-                let config = codespan_reporting::term::Config::default();
-
-                // TODO: Should we do anything for this error or can we just unwrap?
-                let _ =
-                  term::emit(&mut writer.lock(), &config, &files, &diagnostic);
-              }
-
-              eprint_stack(&e.context);
-              if let Some(journal) = e.context.journal() {
-                eprintln!("{}", journal);
-              }
-
-              e.context
+              eprint_stack(vm.stack());
+              eprintln!("error: {e}");
             }
           }
         };
 
         ok_or_exit(clear_screen());
-        let context = run_file(&input);
+        run_file(&input);
 
         ok_or_exit(context.sources().try_for_each(|source| {
           watcher
@@ -239,21 +222,21 @@ where
   }
 }
 
-fn print_stack(context: &Context) {
+fn print_stack(stack: &[Expr]) {
   print!("stack:");
 
   core::iter::repeat(" ")
-    .zip(context.stack())
+    .zip(stack)
     .for_each(|(sep, x)| print!("{sep}{x:#}"));
 
   println!()
 }
 
-fn eprint_stack(context: &Context) {
+fn eprint_stack(stack: &[Expr]) {
   eprint!("stack:");
 
   core::iter::repeat(" ")
-    .zip(context.stack())
+    .zip(stack)
     .for_each(|(sep, x)| eprint!("{sep}{x:#}"));
 
   eprintln!()

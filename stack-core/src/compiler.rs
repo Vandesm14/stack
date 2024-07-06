@@ -1,3 +1,4 @@
+use core::fmt;
 use std::{cell::RefCell, collections::HashMap, rc::Rc, str::FromStr};
 
 use crate::{
@@ -42,6 +43,17 @@ pub enum VMError {
   Halt,
   IPBounds,
   End,
+}
+
+impl fmt::Display for VMError {
+  fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+    match self {
+      VMError::Unknown => write!(f, "Unknown error"),
+      VMError::Halt => write!(f, "Halted"),
+      VMError::IPBounds => write!(f, "Instruction pointer out of bounds"),
+      VMError::End => write!(f, "End of execution"),
+    }
+  }
 }
 
 #[derive(Debug, Clone, PartialEq, Default)]
@@ -223,6 +235,18 @@ impl VM {
       self.run_op(op)
     } else {
       Err(VMError::End)
+    }
+  }
+
+  pub fn run(&mut self) -> Result<&[Expr], VMError> {
+    loop {
+      if let Err(err) = self.step() {
+        return match err {
+          VMError::End => Ok(self.stack()),
+
+          err => Err(err),
+        };
+      }
     }
   }
 }
