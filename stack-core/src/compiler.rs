@@ -2,7 +2,7 @@ use core::fmt;
 use std::{cell::RefCell, collections::HashMap, rc::Rc, str::FromStr};
 
 use crate::{
-  expr::{Expr, ExprKind},
+  expr::{Expr, ExprKind, FnScope},
   intrinsic::Intrinsic,
   scope::Scope,
   symbol::Symbol,
@@ -34,6 +34,11 @@ impl Block {
       ops: Vec::new(),
     }
   }
+
+  pub fn inherit_from(mut self, scope: &Scope) -> Self {
+    self.scope = scope.duplicate();
+    self
+  }
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Default)]
@@ -41,6 +46,7 @@ pub enum VMError {
   #[default]
   Unknown,
 
+  StackUnderflow,
   Halt,
   IPBounds,
   End,
@@ -50,6 +56,7 @@ impl fmt::Display for VMError {
   fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
     match self {
       VMError::Unknown => write!(f, "Unknown error"),
+      VMError::StackUnderflow => write!(f, "Stack underflow"),
       VMError::Halt => write!(f, "Halted"),
       VMError::IPBounds => write!(f, "Instruction pointer out of bounds"),
       VMError::End => write!(f, "End of execution"),
@@ -100,12 +107,24 @@ impl VM {
   pub fn stack_pop(&mut self) -> Result<Expr, VMError> {
     match self.stack.pop() {
       Some(val) => Ok(val),
-      None => Err(VMError::Unknown),
+      None => {
+        println!("{self:#?}");
+        panic!("{:?}", VMError::StackUnderflow)
+      }
     }
   }
 
   pub fn stack_push(&mut self, expr: Expr) {
-    self.stack.push(expr);
+    let mut expr = expr;
+    if let ExprKind::Function { ref mut scope, .. } = expr.kind {
+      if let Some(block) = self.block() {
+        if let FnScope::Scoped(ref mut scope) = scope {
+          scope.merge(block.scope.clone());
+        }
+      }
+    }
+
+    self.stack.push(expr)
   }
 
   pub fn compile_expr(&mut self, expr: Expr) -> Op {
@@ -126,7 +145,23 @@ impl VM {
       ExprKind::List(_) => Op::Push(expr),
       ExprKind::Record(_) => Op::Push(expr),
       ExprKind::Function { scope, body } => {
-        let mut fn_block = Block::new();
+        let mut fn_block: Block = match scope {
+          FnScope::Scoped(mut scope) => {
+            if let Some(block) = self.block() {
+              scope.merge(block.scope.clone());
+            }
+            Block::new().inherit_from(&scope)
+          }
+          FnScope::Scopeless => {
+            if let Some(block) = self.block() {
+              Block::new().inherit_from(&block.scope)
+            } else {
+              Block::new()
+            }
+          }
+        };
+
+        // let mut fn_block = Block::new().inherit_from();
         for expr in body.into_iter() {
           fn_block.ops.push(self.compile_expr(expr));
         }
@@ -177,6 +212,7 @@ impl VM {
 
             Ok(())
           } else {
+            println!("{self:#?}");
             todo!("no var")
           }
         } else {

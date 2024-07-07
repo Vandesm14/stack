@@ -1,7 +1,7 @@
 use stack_core::{compiler::VM, prelude::*};
 
 fn main() {
-  let source = Source::new("", "'(fn 2 2 +) call");
+  let source = Source::new("", include_str!("../../testing/test.stack"));
   let mut lexer = Lexer::new(source);
   let exprs = parse(&mut lexer).unwrap();
 

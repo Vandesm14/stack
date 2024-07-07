@@ -913,7 +913,7 @@ impl Intrinsic {
 
         match name.kind {
           ExprKind::Symbol(symbol) => {
-            if let Some(scope) = vm.scope_mut() {
+            if let Some(scope) = vm.scope() {
               match scope.get_val(symbol) {
                 Some(expr) => {
                   vm.stack_push(expr);
