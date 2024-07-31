@@ -263,7 +263,40 @@ fn main() {
 
             match request {
               Ok(incoming) => match incoming {
-                Incoming::RunNew(_) => todo!(),
+                Incoming::RunNew(code) => {
+                  let source = Source::new("runner", code);
+                  let mut lexer = Lexer::new(source);
+                  let exprs = parse(&mut lexer).unwrap();
+
+                  match (eng_mutex.try_lock(), ctx_mutex.try_lock()) {
+                    (Ok(engine), Ok(mut guard)) => {
+                      mem::replace(&mut *guard, Context::new());
+
+                      let context = mem::take(&mut *guard);
+                      let result = engine.run(context, exprs);
+
+                      match result {
+                        Ok(ctx) => {
+                          *guard = ctx;
+
+                          if let Some(expr) = guard.stack().last() {
+                            if let Ok(string) = serde_json::to_string(expr) {
+                              println!("sending: {string:?}");
+
+                              out.send(string)
+                            } else {
+                              todo!("failed serde json")
+                            }
+                          } else {
+                            todo!("no last item")
+                          }
+                        }
+                        Err(_) => todo!("run error"),
+                      }
+                    }
+                    _ => todo!("mutex not lock"),
+                  }
+                }
                 Incoming::Run(code) => {
                   let source = Source::new("runner", code);
                   let mut lexer = Lexer::new(source);
@@ -290,7 +323,7 @@ fn main() {
                             todo!("no last item")
                           }
                         }
-                        Err(_) => todo!(),
+                        Err(_) => todo!("run error"),
                       }
                     }
                     _ => todo!("mutex not lock"),
