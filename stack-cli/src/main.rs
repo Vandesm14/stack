@@ -2,7 +2,7 @@ use core::fmt;
 use std::{
   io::{self, prelude::Write, Read},
   path::{Path, PathBuf},
-  sync::Arc,
+  sync::{Arc, Mutex},
 };
 
 use clap::Parser;
@@ -223,6 +223,48 @@ fn main() {
         }
       }
     }
+    Subcommand::Serve => {
+      #[cfg(feature = "server")]
+      {
+        use serde::{Deserialize, Serialize};
+        use ws::listen;
+
+        let engine = Mutex::new(Engine::new());
+        let context = Mutex::new(Context::new());
+
+        #[derive(
+          Debug,
+          Clone,
+          PartialEq,
+          Eq,
+          PartialOrd,
+          Ord,
+          Hash,
+          Serialize,
+          Deserialize,
+        )]
+        enum Incoming {
+          Run(String),
+          RunNew(String),
+          ClearStack,
+          ClearScope,
+          ClearAll,
+        }
+
+        listen("127.0.0.1:5001", |out| {
+          move |msg| {
+            println!("msg: {msg:?}");
+            Ok(())
+          }
+        })
+        .unwrap();
+      }
+
+      #[cfg(not(feature = "server"))]
+      {
+        eprintln!("Server feature is not enabled. Compile the Stack CLI with --features server");
+      }
+    }
   }
 }
 
@@ -329,4 +371,7 @@ enum Subcommand {
     #[arg(short, long)]
     watch: bool,
   },
+
+  // TODO: add host and port as options
+  Serve,
 }
