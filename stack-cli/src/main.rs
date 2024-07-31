@@ -233,14 +233,19 @@ fn main() {
       let eng_mutex = Rc::new(Mutex::new(Engine::new()));
       let ctx_mutex = Rc::new(Mutex::new(Context::new()));
 
-      #[derive(Debug, Clone, PartialEq, PartialOrd, Serialize, Deserialize)]
+      #[derive(Debug, Clone, Deserialize)]
       #[serde(tag = "type", content = "code", rename_all = "lowercase")]
       enum Incoming {
+        /// Run code within the existing engine
+        Run(String),
         /// Run code within a new engine
         #[serde(rename = "run_new")]
         RunNew(String),
-        /// Run code within the existing engine
-        Run(String),
+
+        /// Exports the stack
+        Stack,
+        /// Exports the current scope
+        Scope,
 
         /// Clear the stack
         #[serde(rename = "clear_stack")]
@@ -251,6 +256,24 @@ fn main() {
         /// Clear everything
         #[serde(rename = "clear")]
         ClearAll,
+      }
+
+      #[derive(Debug, Clone, Serialize)]
+      #[serde(tag = "error", content = "value", rename_all = "lowercase")]
+      enum OutgoingError {
+        /// Error from the Engine
+        #[serde(rename = "run_error")]
+        RunError(RunError),
+      }
+
+      #[derive(Debug, Clone, Serialize)]
+      #[serde(tag = "type", content = "value", rename_all = "lowercase")]
+      enum Outgoing {
+        /// The last item of the stack
+        Ok(Expr),
+
+        /// An error
+        Error(OutgoingError),
       }
 
       listen("127.0.0.1:5001", |out| {
@@ -279,20 +302,22 @@ fn main() {
                         Ok(ctx) => {
                           *guard = ctx;
 
-                          if let Some(expr) = guard.stack().last() {
-                            if let Ok(string) = serde_json::to_string(expr) {
-                              out.send(string)
-                            } else {
-                              todo!("failed serde json")
-                            }
-                          } else {
-                            todo!("no last item")
-                          }
+                          let expr = guard
+                            .stack()
+                            .last()
+                            .cloned()
+                            .unwrap_or_else(|| ExprKind::Nil.into());
+
+                          out.send(
+                            serde_json::to_string(&Outgoing::Ok(expr)).unwrap(),
+                          )
                         }
-                        Err(error) => match serde_json::to_string(&error) {
-                          Ok(string) => out.send(string),
-                          Err(_) => todo!(),
-                        },
+                        Err(error) => out.send(
+                          serde_json::to_string(&Outgoing::Error(
+                            OutgoingError::RunError(error),
+                          ))
+                          .unwrap(),
+                        ),
                       }
                     }
                     _ => todo!("mutex not lock"),
@@ -312,25 +337,31 @@ fn main() {
                         Ok(ctx) => {
                           *guard = ctx;
 
-                          if let Some(expr) = guard.stack().last() {
-                            if let Ok(string) = serde_json::to_string(expr) {
-                              out.send(string)
-                            } else {
-                              todo!("failed serde json")
-                            }
-                          } else {
-                            todo!("no last item")
-                          }
+                          let expr = guard
+                            .stack()
+                            .last()
+                            .cloned()
+                            .unwrap_or_else(|| ExprKind::Nil.into());
+
+                          out.send(
+                            serde_json::to_string(&Outgoing::Ok(expr)).unwrap(),
+                          )
                         }
-                        Err(error) => match serde_json::to_string(&error) {
-                          Ok(string) => out.send(string),
-                          Err(_) => todo!(),
-                        },
+                        Err(error) => out.send(
+                          serde_json::to_string(&Outgoing::Error(
+                            OutgoingError::RunError(error),
+                          ))
+                          .unwrap(),
+                        ),
                       }
                     }
                     _ => todo!("mutex not lock"),
                   }
                 }
+
+                Incoming::Stack => todo!(),
+                Incoming::Scope => todo!(),
+
                 Incoming::ClearStack => todo!(),
                 Incoming::ClearScope => todo!(),
                 Incoming::ClearAll => todo!(),
