@@ -1,10 +1,7 @@
 use core::fmt;
 use std::{cell::RefCell, collections::HashMap, fmt::Formatter, sync::Arc};
 
-use serde::{
-  de::{MapAccess, Visitor},
-  Deserialize, Deserializer,
-};
+use serde::{Deserialize, Deserializer};
 
 use crate::{chain::Chain, expr::FnScope, prelude::*};
 

@@ -229,7 +229,7 @@ impl<'de> Deserialize<'de> for ExprKind {
           }
           "Lazy" => {
             let value: Expr = map.next_value()?;
-            Ok(ExprKind::Lazy(Box::new(value.into())))
+            Ok(ExprKind::Lazy(Box::new(value)))
           }
           "List" => {
             let value: Vec<Expr> = map.next_value()?;
@@ -245,7 +245,7 @@ impl<'de> Deserialize<'de> for ExprKind {
             Ok(ExprKind::Record(map))
           }
           "Function" => {
-            let mut scope = todo!("Deserialize FnScope");
+            let mut scope: FnScope = map.next_value()?;
             let mut body = Vec::new();
             while let Some(key) = map.next_key::<String>()? {
               match key.as_str() {
@@ -262,7 +262,7 @@ impl<'de> Deserialize<'de> for ExprKind {
             Ok(ExprKind::Function { scope, body })
           }
           "SExpr" => {
-            let mut call = todo!("Deserialize Symbol");
+            let mut call: Symbol = map.next_value()?;
             let mut body = Vec::new();
             while let Some(key) = map.next_key::<String>()? {
               match key.as_str() {
