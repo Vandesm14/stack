@@ -1,11 +1,11 @@
 use core::fmt;
-use std::{cell::RefCell, collections::HashMap, fmt::Formatter, sync::Arc};
+use std::{cell::RefCell, collections::HashMap, fmt::Formatter, rc::Rc};
 
 use serde::{Deserialize, Deserializer};
 
 use crate::{chain::Chain, expr::FnScope, prelude::*};
 
-pub type Val = Arc<RefCell<Chain<Option<Expr>>>>;
+pub type Val = Rc<RefCell<Chain<Option<Expr>>>>;
 
 #[derive(Default, PartialEq)]
 pub struct Scope {
@@ -41,9 +41,9 @@ impl<'de> Deserialize<'de> for Scope {
       .map(|(k, v)| {
         let val = match v {
           DeserializeVal::Some(expr) => {
-            Arc::new(RefCell::new(Chain::new(Some(expr))))
+            Rc::new(RefCell::new(Chain::new(Some(expr))))
           }
-          DeserializeVal::None => Arc::new(RefCell::new(Chain::new(None))),
+          DeserializeVal::None => Rc::new(RefCell::new(Chain::new(None))),
         };
         (k, val)
       })
@@ -65,7 +65,7 @@ impl fmt::Debug for Scope {
 }
 
 impl Clone for Scope {
-  /// Clones the scope, using the same Arc's as self
+  /// Clones the scope, using the same Rc's as self
   fn clone(&self) -> Self {
     let mut items = HashMap::new();
 
@@ -100,7 +100,7 @@ impl Scope {
 
       c.clone()
     } else {
-      let val = Arc::new(RefCell::new(Chain::new(Some(item))));
+      let val = Rc::new(RefCell::new(Chain::new(Some(item))));
       self.items.insert(name, val.clone());
 
       val
@@ -111,7 +111,7 @@ impl Scope {
     self
       .items
       .entry(name)
-      .or_insert_with(|| Arc::new(RefCell::new(Chain::new(None))));
+      .or_insert_with(|| Rc::new(RefCell::new(Chain::new(None))));
   }
 
   pub fn set(

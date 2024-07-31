@@ -1,4 +1,4 @@
-use std::{cell::RefCell, collections::HashMap, sync::Arc};
+use std::{cell::RefCell, collections::HashMap, rc::Rc};
 
 use serde::ser::{Serialize, SerializeMap};
 
@@ -175,7 +175,7 @@ impl Context {
   #[inline]
   pub fn scope_items(
     &self,
-  ) -> impl Iterator<Item = (&Symbol, &Arc<RefCell<Chain<Option<Expr>>>>)> {
+  ) -> impl Iterator<Item = (&Symbol, &Rc<RefCell<Chain<Option<Expr>>>>)> {
     self.scopes.last().items.iter()
   }
 
