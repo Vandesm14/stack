@@ -1,6 +1,11 @@
 use core::fmt;
 use std::{cell::RefCell, collections::HashMap, fmt::Formatter, sync::Arc};
 
+use serde::{
+  de::{MapAccess, Visitor},
+  Deserialize, Deserializer,
+};
+
 use crate::{chain::Chain, expr::FnScope, prelude::*};
 
 pub type Val = Arc<RefCell<Chain<Option<Expr>>>>;
@@ -8,6 +13,51 @@ pub type Val = Arc<RefCell<Chain<Option<Expr>>>>;
 #[derive(Default, PartialEq)]
 pub struct Scope {
   pub items: HashMap<Symbol, Val>,
+}
+
+impl<'de> Deserialize<'de> for Scope {
+  fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
+  where
+    D: Deserializer<'de>,
+  {
+    // Helper struct to deserialize the items
+    #[derive(Deserialize)]
+    struct ScopeHelper {
+      items: HashMap<String, DeserializeVal>,
+    }
+
+    // Helper enum to deserialize Val
+    #[derive(Deserialize)]
+    #[serde(untagged)]
+    enum DeserializeVal {
+      Some(Expr),
+      None,
+    }
+
+    // Deserialize into the helper struct
+    let helper = ScopeHelper::deserialize(deserializer)?;
+
+    // Convert DeserializeVal to Val
+    let mut items: HashMap<String, Val> = helper
+      .items
+      .into_iter()
+      .map(|(k, v)| {
+        let val = match v {
+          DeserializeVal::Some(expr) => {
+            Arc::new(RefCell::new(Chain::new(Some(expr))))
+          }
+          DeserializeVal::None => Arc::new(RefCell::new(Chain::new(None))),
+        };
+        (k, val)
+      })
+      .collect();
+    let mut scope: HashMap<Symbol, Val> = HashMap::new();
+    for (k, v) in items.drain() {
+      scope.insert(Symbol::from_ref(k.as_str()), v);
+    }
+
+    Ok(Scope { items: scope })
+  }
 }
 
 impl fmt::Debug for Scope {

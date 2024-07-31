@@ -1,17 +1,19 @@
 use core::{cmp::Ordering, fmt, hash::Hash, ops};
 use std::collections::HashMap;
+use std::str::FromStr;
 
 use compact_str::CompactString;
 use internment::Intern;
+use serde::de::{self, Deserializer, MapAccess, Visitor};
+use serde::Deserialize;
 use serde::{
   ser::{SerializeMap, SerializeTuple},
   Serialize,
 };
-use yansi::Paint;
 
 use crate::{lexer::Span, scope::Scope, source::Source, symbol::Symbol};
 
-#[derive(Clone, Serialize)]
+#[derive(Clone, Serialize, Deserialize)]
 pub struct Expr {
   pub kind: ExprKind,
   pub info: Option<ExprInfo>,
@@ -102,7 +104,7 @@ pub fn display_fn_scope(scope: &FnScope) -> String {
   .into()
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Deserialize)]
 pub enum FnScope {
   Scoped(Scope),
   Scopeless,
@@ -176,6 +178,127 @@ impl Serialize for ExprKind {
       ExprKind::SExpr { .. } => serializer.serialize_unit(),
       ExprKind::Underscore => serializer.serialize_unit(),
     }
+  }
+}
+
+impl<'de> Deserialize<'de> for ExprKind {
+  fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
+  where
+    D: Deserializer<'de>,
+  {
+    struct ExprKindVisitor;
+
+    impl<'de> Visitor<'de> for ExprKindVisitor {
+      type Value = ExprKind;
+
+      fn expecting(&self, formatter: &mut fmt::Formatter) -> fmt::Result {
+        formatter.write_str("an ExprKind variant")
+      }
+
+      fn visit_map<V>(self, mut map: V) -> Result<ExprKind, V::Error>
+      where
+        V: MapAccess<'de>,
+      {
+        let variant = map.next_key::<String>()?.ok_or_else(|| {
+          de::Error::invalid_value(de::Unexpected::Map, &"variant name")
+        })?;
+
+        match variant.as_str() {
+          "Nil" => Ok(ExprKind::Nil),
+          "Boolean" => {
+            let value = map.next_value()?;
+            Ok(ExprKind::Boolean(value))
+          }
+          "Integer" => {
+            let value = map.next_value()?;
+            Ok(ExprKind::Integer(value))
+          }
+          "Float" => {
+            let value = map.next_value()?;
+            Ok(ExprKind::Float(value))
+          }
+          "String" => {
+            let value: String = map.next_value()?;
+            Ok(ExprKind::String(
+              CompactString::from_str(value.as_str()).unwrap(),
+            ))
+          }
+          "Symbol" => {
+            let value: String = map.next_value()?;
+            Ok(ExprKind::Symbol(Symbol::from_ref(value.as_str())))
+          }
+          "Lazy" => {
+            let value: Expr = map.next_value()?;
+            Ok(ExprKind::Lazy(Box::new(value.into())))
+          }
+          "List" => {
+            let value: Vec<Expr> = map.next_value()?;
+            Ok(ExprKind::List(value))
+          }
+          "Record" => {
+            let mut value: HashMap<String, Expr> = map.next_value()?;
+            let mut map: HashMap<Symbol, Expr> = HashMap::new();
+            for (k, v) in value.drain() {
+              map.insert(Symbol::from_ref(k.as_str()), v);
+            }
+
+            Ok(ExprKind::Record(map))
+          }
+          "Function" => {
+            let mut scope = todo!("Deserialize FnScope");
+            let mut body = Vec::new();
+            while let Some(key) = map.next_key::<String>()? {
+              match key.as_str() {
+                "scope" => scope = map.next_value()?,
+                "body" => body = map.next_value()?,
+                _ => {
+                  return Err(de::Error::unknown_field(
+                    &key,
+                    &["scope", "body"],
+                  ))
+                }
+              }
+            }
+            Ok(ExprKind::Function { scope, body })
+          }
+          "SExpr" => {
+            let mut call = todo!("Deserialize Symbol");
+            let mut body = Vec::new();
+            while let Some(key) = map.next_key::<String>()? {
+              match key.as_str() {
+                "call" => call = map.next_value()?,
+                "body" => body = map.next_value()?,
+                _ => {
+                  return Err(de::Error::unknown_field(&key, &["call", "body"]))
+                }
+              }
+            }
+            Ok(ExprKind::SExpr { call, body })
+          }
+          "Underscore" => Ok(ExprKind::Underscore),
+          _ => Err(de::Error::unknown_variant(
+            &variant,
+            &[
+              "Nil",
+              "Boolean",
+              "Integer",
+              "Float",
+              "String",
+              "Symbol",
+              "Lazy",
+              "List",
+              "Record",
+              "Function",
+              "SExpr",
+              "Underscore",
+            ],
+          )),
+        }
+      }
+    }
+
+    const FIELDS: &[&str] = &["type", "value"];
+    deserializer.deserialize_struct("ExprKind", FIELDS, ExprKindVisitor)
   }
 }
 
@@ -380,6 +503,8 @@ impl ops::Rem for ExprKind {
 
 impl fmt::Display for ExprKind {
   fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+    use yansi::Paint;
+
     // TODO: Is there a nicer way to do this that avoids the duplication?
     if f.alternate() {
       match self {
@@ -554,7 +679,7 @@ impl fmt::Display for ErrorInner {
   }
 }
 
-#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct ExprInfo {
   pub source: Source,
   pub span: Span,

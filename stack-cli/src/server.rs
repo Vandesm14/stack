@@ -41,33 +41,9 @@ pub enum OutgoingError {
 }
 
 #[derive(Debug, Clone, Serialize)]
-pub struct PublicContext {
-  pub stack: Vec<Expr>,
-  pub scopes: Vec<HashMap<String, Expr>>,
-  pub sources: HashMap<String, Source>,
-}
-
-#[derive(Debug, Clone, Serialize)]
-pub struct PublicRunError {
-  pub reason: RunErrorReason,
-  pub context: Vec<Expr>,
-  pub expr: Expr,
-}
-
-impl From<RunError> for PublicRunError {
-  fn from(value: RunError) -> Self {
-    Self {
-      reason: value.reason,
-      context: value.context.stack().to_vec(),
-      expr: value.expr,
-    }
-  }
-}
-
-#[derive(Debug, Clone, Serialize)]
 pub struct RunErrorPayload {
   pub for_id: u32,
-  pub value: PublicRunError,
+  pub value: RunError,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -184,7 +160,7 @@ pub fn listen() {
                       serde_json::to_string(&Outgoing::Error(
                         OutgoingError::RunError(RunErrorPayload {
                           for_id: id,
-                          value: error.into(),
+                          value: error,
                         }),
                       ))
                       .unwrap(),
@@ -230,7 +206,7 @@ pub fn listen() {
                       serde_json::to_string(&Outgoing::Error(
                         OutgoingError::RunError(RunErrorPayload {
                           for_id: id,
-                          value: error.into(),
+                          value: error,
                         }),
                       ))
                       .unwrap(),

@@ -3,7 +3,7 @@
 use core::{fmt, num::NonZeroUsize};
 use std::{fs, io, path::Path, sync::Arc};
 
-use serde::Serialize;
+use serde::{Deserialize, Deserializer, Serialize};
 use unicode_segmentation::UnicodeSegmentation;
 
 /// Contains metadata for a source.
@@ -18,6 +18,19 @@ impl Serialize for Source {
     S: serde::Serializer,
   {
     self.0.serialize(serializer)
+  }
+}
+
+impl<'de> Deserialize<'de> for Source {
+  fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
+  where
+    D: Deserializer<'de>,
+  {
+    // First, deserialize SourceInner
+    let inner = SourceInner::deserialize(deserializer)?;
+
+    // Then wrap it in an Arc and return Source
+    Ok(Source(Arc::new(inner)))
   }
 }
 
@@ -136,7 +149,8 @@ impl fmt::Display for Location {
   }
 }
 
-#[derive(Debug, Clone, Eq, Serialize)]
+#[derive(Debug, Clone, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
 struct SourceInner {
   name: String,
   source: String,
