@@ -5,7 +5,7 @@ use std::{
   time::{Duration, Instant},
 };
 
-use serde::Serialize;
+use serde::{Deserialize, Serialize};
 
 use crate::{
   context::Context,
@@ -373,7 +373,7 @@ impl fmt::Display for RunError {
   }
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub enum RunErrorReason {
   StackUnderflow,
   DoubleError,

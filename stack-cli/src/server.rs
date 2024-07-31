@@ -41,38 +41,102 @@ impl Incoming {
 }
 
 #[derive(Debug, Clone, Serialize)]
-#[serde(tag = "error", content = "value", rename_all = "lowercase")]
+#[serde(tag = "error", rename_all = "snake_case")]
 pub enum OutgoingError {
-  /// Error from the Engine
-  #[serde(rename = "run_error")]
-  RunError(RunError),
-
-  /// Error from the command reader
-  #[serde(rename = "command_error")]
-  CommandError(String),
+  RunError(RunErrorPayload),
+  CommandError(CommandErrorPayload),
 }
 
 #[derive(Debug, Clone, Serialize)]
-#[serde(tag = "status", content = "value", rename_all = "lowercase")]
+pub struct PublicContext {
+  pub stack: Vec<Expr>,
+  pub scopes: Vec<HashMap<String, Expr>>,
+  pub sources: HashMap<String, Source>,
+}
+
+#[derive(Debug, Clone, Serialize)]
+pub struct PublicRunError {
+  pub reason: RunErrorReason,
+  pub context: Vec<Expr>,
+  pub expr: Expr,
+}
+
+impl From<RunError> for PublicRunError {
+  fn from(value: RunError) -> Self {
+    Self {
+      reason: value.reason,
+      context: value.context.stack().to_vec(),
+      expr: value.expr,
+    }
+  }
+}
+
+#[derive(Debug, Clone, Serialize)]
+pub struct RunErrorPayload {
+  pub for_id: u32,
+  pub value: PublicRunError,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct CommandErrorPayload {
+  pub for_id: u32,
+  pub value: String,
+}
+
+#[derive(Debug, Clone, Serialize)]
+#[serde(tag = "status", rename_all = "snake_case")]
 pub enum Outgoing {
-  /// A Expr
-  #[serde(rename = "ok")]
-  Single(Expr),
-
-  /// A Null Response
-  #[serde(rename = "ok")]
-  Null(()),
-
-  /// A Vec of Exprs
-  #[serde(rename = "ok")]
-  Many(Vec<Expr>),
-
-  /// A Map of Exprs
-  #[serde(rename = "ok")]
-  Map(HashMap<String, Expr>),
-
-  /// An Error
+  Ok(OkPayload),
   Error(OutgoingError),
+}
+
+#[derive(Debug, Clone, Serialize)]
+#[serde(tag = "type", rename_all = "snake_case")]
+pub enum OkPayload {
+  Single(SinglePayload),
+  Null(NullPayload),
+  Many(ManyPayload),
+  Map(MapPayload),
+}
+
+#[derive(Debug, Clone, Serialize)]
+pub struct SinglePayload {
+  pub for_id: u32,
+  pub value: Expr,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct NullPayload {
+  pub for_id: u32,
+}
+
+#[derive(Debug, Clone, Serialize)]
+pub struct ManyPayload {
+  pub for_id: u32,
+  pub value: Vec<Expr>,
+}
+
+#[derive(Debug, Clone, Serialize)]
+pub struct MapPayload {
+  pub for_id: u32,
+  pub value: HashMap<String, Expr>,
+}
+
+impl Outgoing {
+  pub fn for_id(&self) -> u32 {
+    match self {
+      Outgoing::Ok(payload) => match payload {
+        OkPayload::Single(p) => p.for_id,
+        OkPayload::Null(p) => p.for_id,
+        OkPayload::Many(p) => p.for_id,
+        OkPayload::Map(p) => p.for_id,
+      },
+      Outgoing::Error(error) => match error {
+        OutgoingError::RunError(p) => p.for_id,
+        OutgoingError::CommandError(p) => p.for_id,
+      },
+    }
+  }
 }
 
 pub fn listen() {
@@ -107,17 +171,28 @@ pub fn listen() {
 
                       match guard.stack().last().cloned() {
                         Some(expr) => out.send(
-                          serde_json::to_string(&Outgoing::Single(expr))
-                            .unwrap(),
+                          serde_json::to_string(&Outgoing::Ok(
+                            OkPayload::Single(SinglePayload {
+                              for_id: id,
+                              value: expr,
+                            }),
+                          ))
+                          .unwrap(),
                         ),
                         None => out.send(
-                          serde_json::to_string(&Outgoing::Null(())).unwrap(),
+                          serde_json::to_string(&Outgoing::Ok(
+                            OkPayload::Null(NullPayload { for_id: id }),
+                          ))
+                          .unwrap(),
                         ),
                       }
                     }
                     Err(error) => out.send(
                       serde_json::to_string(&Outgoing::Error(
-                        OutgoingError::RunError(error),
+                        OutgoingError::RunError(RunErrorPayload {
+                          for_id: id,
+                          value: error.into(),
+                        }),
                       ))
                       .unwrap(),
                     ),
@@ -140,19 +215,30 @@ pub fn listen() {
                     Ok(ctx) => {
                       *guard = ctx;
 
-                      let expr = guard
-                        .stack()
-                        .last()
-                        .cloned()
-                        .unwrap_or_else(|| ExprKind::Nil.into());
-
-                      out.send(
-                        serde_json::to_string(&Outgoing::Single(expr)).unwrap(),
-                      )
+                      match guard.stack().last().cloned() {
+                        Some(expr) => out.send(
+                          serde_json::to_string(&Outgoing::Ok(
+                            OkPayload::Single(SinglePayload {
+                              for_id: id,
+                              value: expr,
+                            }),
+                          ))
+                          .unwrap(),
+                        ),
+                        None => out.send(
+                          serde_json::to_string(&Outgoing::Ok(
+                            OkPayload::Null(NullPayload { for_id: id }),
+                          ))
+                          .unwrap(),
+                        ),
+                      }
                     }
                     Err(error) => out.send(
                       serde_json::to_string(&Outgoing::Error(
-                        OutgoingError::RunError(error),
+                        OutgoingError::RunError(RunErrorPayload {
+                          for_id: id,
+                          value: error.into(),
+                        }),
                       ))
                       .unwrap(),
                     ),
@@ -164,9 +250,12 @@ pub fn listen() {
 
             Incoming::Stack(BasePayload { id }) => match ctx_mutex.try_lock() {
               Ok(context) => out.send(
-                serde_json::to_string(&Outgoing::Many(
-                  context.stack().to_vec(),
-                ))
+                serde_json::to_string(&Outgoing::Ok(OkPayload::Many(
+                  ManyPayload {
+                    for_id: id,
+                    value: context.stack().to_vec(),
+                  },
+                )))
                 .unwrap(),
               ),
               Err(_) => todo!(),
@@ -179,7 +268,15 @@ pub fn listen() {
                     .insert(k.to_string(), v.borrow().val().clone().unwrap());
                 }
 
-                out.send(serde_json::to_string(&Outgoing::Map(scope)).unwrap())
+                out.send(
+                  serde_json::to_string(&Outgoing::Ok(OkPayload::Map(
+                    MapPayload {
+                      for_id: id,
+                      value: scope,
+                    },
+                  )))
+                  .unwrap(),
+                )
               }
               Err(_) => todo!(),
             },
@@ -190,7 +287,11 @@ pub fn listen() {
           },
           Err(parse_error) => out.send(
             serde_json::to_string(&Outgoing::Error(
-              OutgoingError::CommandError(parse_error.to_string()),
+              OutgoingError::CommandError(CommandErrorPayload {
+                // TODO: we don't get an ID here so this is a special case
+                for_id: 0,
+                value: parse_error.to_string(),
+              }),
             ))
             .unwrap(),
           ),
