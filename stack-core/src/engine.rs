@@ -5,6 +5,8 @@ use std::{
   time::{Duration, Instant},
 };
 
+use serde::Serialize;
+
 use crate::{
   context::Context,
   expr::{Expr, ExprKind, FnScope},
@@ -350,7 +352,7 @@ impl Engine {
   }
 }
 
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq, Serialize)]
 pub struct RunError {
   pub reason: RunErrorReason,
   pub context: Context,
@@ -371,7 +373,7 @@ impl fmt::Display for RunError {
   }
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize)]
 pub enum RunErrorReason {
   StackUnderflow,
   DoubleError,

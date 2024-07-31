@@ -270,7 +270,7 @@ fn main() {
 
                   match (eng_mutex.try_lock(), ctx_mutex.try_lock()) {
                     (Ok(engine), Ok(mut guard)) => {
-                      mem::replace(&mut *guard, Context::new());
+                      let _ = mem::replace(&mut *guard, Context::new());
 
                       let context = mem::take(&mut *guard);
                       let result = engine.run(context, exprs);
@@ -281,8 +281,6 @@ fn main() {
 
                           if let Some(expr) = guard.stack().last() {
                             if let Ok(string) = serde_json::to_string(expr) {
-                              println!("sending: {string:?}");
-
                               out.send(string)
                             } else {
                               todo!("failed serde json")
@@ -291,7 +289,10 @@ fn main() {
                             todo!("no last item")
                           }
                         }
-                        Err(_) => todo!("run error"),
+                        Err(error) => match serde_json::to_string(&error) {
+                          Ok(string) => out.send(string),
+                          Err(_) => todo!(),
+                        },
                       }
                     }
                     _ => todo!("mutex not lock"),
@@ -313,8 +314,6 @@ fn main() {
 
                           if let Some(expr) = guard.stack().last() {
                             if let Ok(string) = serde_json::to_string(expr) {
-                              println!("sending: {string:?}");
-
                               out.send(string)
                             } else {
                               todo!("failed serde json")
@@ -323,7 +322,10 @@ fn main() {
                             todo!("no last item")
                           }
                         }
-                        Err(_) => todo!("run error"),
+                        Err(error) => match serde_json::to_string(&error) {
+                          Ok(string) => out.send(string),
+                          Err(_) => todo!(),
+                        },
                       }
                     }
                     _ => todo!("mutex not lock"),

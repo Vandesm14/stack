@@ -3,24 +3,18 @@ use std::collections::HashMap;
 
 use compact_str::CompactString;
 use internment::Intern;
-use serde::ser::{Serialize, SerializeMap, SerializeTuple};
+use serde::{
+  ser::{SerializeMap, SerializeTuple},
+  Serialize,
+};
 use yansi::Paint;
 
 use crate::{lexer::Span, scope::Scope, source::Source, symbol::Symbol};
 
-#[derive(Clone)]
+#[derive(Clone, Serialize)]
 pub struct Expr {
   pub kind: ExprKind,
   pub info: Option<ExprInfo>,
-}
-
-impl Serialize for Expr {
-  fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
-  where
-    S: serde::Serializer,
-  {
-    self.kind.serialize(serializer)
-  }
 }
 
 impl fmt::Debug for Expr {
@@ -560,7 +554,7 @@ impl fmt::Display for ErrorInner {
   }
 }
 
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
 pub struct ExprInfo {
   pub source: Source,
   pub span: Span,

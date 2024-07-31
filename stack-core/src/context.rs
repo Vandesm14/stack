@@ -1,5 +1,7 @@
 use std::{cell::RefCell, collections::HashMap, sync::Arc};
 
+use serde::ser::{Serialize, SerializeMap};
+
 use crate::{
   chain::Chain,
   engine::{RunError, RunErrorReason},
@@ -18,6 +20,17 @@ pub struct Context {
   scopes: VecOne<Scope>,
   journal: Option<Journal>,
   sources: HashMap<Symbol, Source>,
+}
+
+impl Serialize for Context {
+  fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+  where
+    S: serde::Serializer,
+  {
+    let mut record = serializer.serialize_map(Some(1))?;
+    record.serialize_entry("stack", &self.stack)?;
+    record.end()
+  }
 }
 
 impl Context {

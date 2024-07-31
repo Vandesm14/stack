@@ -1,5 +1,7 @@
 use core::{fmt, ops::Range};
 
+use serde::Serialize;
+
 use crate::source::Source;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -14,7 +16,7 @@ impl fmt::Display for Token {
   }
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize)]
 pub struct Span {
   /// The lower byte bound (inclusive).
   pub start: usize,
