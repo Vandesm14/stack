@@ -8,6 +8,7 @@ internment = "0.7.4"
 unicode-segmentation.workspace = true
 compact_str.workspace = true
 yansi = "1"
+serde.workspace = true
 
 [dev-dependencies]
 test-case.workspace = true

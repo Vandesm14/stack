@@ -3,6 +3,7 @@ use std::collections::HashMap;
 
 use compact_str::CompactString;
 use internment::Intern;
+use serde::ser::{Serialize, SerializeMap, SerializeTuple};
 use yansi::Paint;
 
 use crate::{lexer::Span, scope::Scope, source::Source, symbol::Symbol};
@@ -11,6 +12,15 @@ use crate::{lexer::Span, scope::Scope, source::Source, symbol::Symbol};
 pub struct Expr {
   pub kind: ExprKind,
   pub info: Option<ExprInfo>,
+}
+
+impl Serialize for Expr {
+  fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+  where
+    S: serde::Serializer,
+  {
+    self.kind.serialize(serializer)
+  }
 }
 
 impl fmt::Debug for Expr {
@@ -134,6 +144,45 @@ pub enum ExprKind {
   Function { scope: FnScope, body: Vec<Expr> },
   SExpr { call: Symbol, body: Vec<Expr> },
   Underscore,
+}
+
+impl Serialize for ExprKind {
+  fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+  where
+    S: serde::Serializer,
+  {
+    match self {
+      ExprKind::Nil => serializer.serialize_unit(),
+      ExprKind::Boolean(v) => serializer.serialize_bool(*v),
+      ExprKind::Integer(v) => serializer.serialize_i64(*v),
+      ExprKind::Float(v) => serializer.serialize_f64(*v),
+      ExprKind::String(v) => serializer.serialize_str(v.as_str()),
+      // TODO: Symbol serialization isn't 1:1, as it's turned into a str here.
+      // Is that what we want?
+      ExprKind::Symbol(v) => serializer.serialize_str(v.as_str()),
+      ExprKind::Lazy(inner) => inner.kind.serialize(serializer),
+      ExprKind::List(v) => {
+        let mut tup = serializer.serialize_tuple(v.len())?;
+        for item in v.iter() {
+          tup.serialize_element(&item.kind)?;
+        }
+        tup.end()
+      }
+      ExprKind::Record(v) => {
+        let mut record = serializer.serialize_map(Some(v.len()))?;
+        for (key, val) in v.iter() {
+          let key = key.as_str();
+          record.serialize_entry(key, &val.kind)?;
+        }
+        record.end()
+      }
+
+      // We won't serialize these for now since they aren't really datatypes.
+      ExprKind::Function { .. } => serializer.serialize_unit(),
+      ExprKind::SExpr { .. } => serializer.serialize_unit(),
+      ExprKind::Underscore => serializer.serialize_unit(),
+    }
+  }
 }
 
 impl ExprKind {

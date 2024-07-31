@@ -8,3 +8,4 @@ compact_str = "=0.8.0-beta"
 
 test-case = "3"
 clap = { version = "4", features = ["derive"] }
+serde = { version = "1.0.204", features = ["derive"] }
