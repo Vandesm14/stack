@@ -1,7 +1,7 @@
 use core::fmt;
 use std::collections::HashMap;
 
-use serde::Deserialize;
+use serde::{Deserialize, Serialize};
 
 use crate::{
   expr::{Expr, ExprInfo, ExprKind},
@@ -9,7 +9,7 @@ use crate::{
   symbol::Symbol,
 };
 
-#[derive(Debug, Clone, PartialEq, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct JournalEntry {
   pub ops: Vec<JournalOp>,
   pub scope_level: usize,
@@ -41,7 +41,7 @@ impl JournalEntry {
   }
 }
 
-#[derive(Debug, Clone, PartialEq, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub enum JournalOp {
   Call(Expr),
   SCall(Expr),
@@ -125,7 +125,7 @@ impl From<Scope> for JournalScope {
   }
 }
 
-#[derive(Debug, Clone, PartialEq, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 // TODO: implement this as a ring buffer with max_commits so we never go over
 pub struct Journal {
   ops: Vec<JournalOp>,

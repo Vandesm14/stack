@@ -4,7 +4,7 @@ use compact_str::{CompactString, ToCompactString};
 use internment::Intern;
 use serde::{
   de::{self, Visitor},
-  Deserialize, Deserializer,
+  Deserialize, Deserializer, Serialize,
 };
 
 use crate::expr::ExprKind;
@@ -12,6 +12,16 @@ use crate::expr::ExprKind;
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 #[repr(transparent)]
 pub struct Symbol(Intern<CompactString>);
+
+impl Serialize for Symbol {
+  fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+  where
+    S: serde::Serializer,
+  {
+    // TODO: is this okay to make Symbol transparently a string?
+    serializer.serialize_str(self.as_str())
+  }
+}
 
 impl<'de> Deserialize<'de> for Symbol {
   fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>

@@ -1,9 +1,6 @@
 use std::{cell::RefCell, collections::HashMap, rc::Rc};
 
-use serde::{
-  ser::{Serialize, SerializeMap},
-  Deserialize,
-};
+use serde::{Deserialize, Serialize};
 
 use crate::{
   chain::Chain,
@@ -17,23 +14,12 @@ use crate::{
 };
 
 // TODO: This API could be a lot nicer.
-#[derive(Debug, Clone, PartialEq, Default, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Default, Serialize, Deserialize)]
 pub struct Context {
   stack: Vec<Expr>,
   scopes: VecOne<Scope>,
   journal: Option<Journal>,
   sources: HashMap<Symbol, Source>,
-}
-
-impl Serialize for Context {
-  fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
-  where
-    S: serde::Serializer,
-  {
-    let mut record = serializer.serialize_map(Some(1))?;
-    record.serialize_entry("stack", &self.stack)?;
-    record.end()
-  }
 }
 
 impl Context {

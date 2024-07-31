@@ -1,7 +1,10 @@
 use core::fmt;
 use std::{cell::RefCell, collections::HashMap, fmt::Formatter, rc::Rc};
 
-use serde::{Deserialize, Deserializer};
+use serde::{
+  ser::{Serialize, SerializeMap},
+  Deserialize, Deserializer,
+};
 
 use crate::{chain::Chain, expr::FnScope, prelude::*};
 
@@ -10,6 +13,21 @@ pub type Val = Rc<RefCell<Chain<Option<Expr>>>>;
 #[derive(Default, PartialEq)]
 pub struct Scope {
   pub items: HashMap<Symbol, Val>,
+}
+
+impl Serialize for Scope {
+  fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+  where
+    S: serde::Serializer,
+  {
+    let mut map = serializer.serialize_map(Some(self.items.len()))?;
+    for (k, v) in self.items.iter() {
+      // TODO: don't unwrap and handle the error somehow
+      let expr: Expr = v.borrow().val().unwrap();
+      map.serialize_entry(k, &expr)?;
+    }
+    map.end()
+  }
 }
 
 impl<'de> Deserialize<'de> for Scope {

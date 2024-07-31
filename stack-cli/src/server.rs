@@ -13,7 +13,6 @@ pub enum Incoming {
 
   // Querying
   Stack(BasePayload),
-  Scope(BasePayload),
   Context(BasePayload),
 }
 
@@ -32,9 +31,7 @@ impl Incoming {
   pub fn id(&self) -> u32 {
     match self {
       Incoming::Run(payload) | Incoming::RunNew(payload) => payload.id,
-      Incoming::Stack(payload)
-      | Incoming::Scope(payload)
-      | Incoming::Context(payload) => payload.id,
+      Incoming::Stack(payload) | Incoming::Context(payload) => payload.id,
     }
   }
 }
@@ -241,26 +238,6 @@ pub fn listen() {
                 )))
                 .unwrap(),
               ),
-              Err(_) => todo!(),
-            },
-            Incoming::Scope(BasePayload { id }) => match ctx_mutex.try_lock() {
-              Ok(context) => {
-                let mut scope: HashMap<String, Expr> = HashMap::new();
-                for (k, v) in context.scope().items.iter() {
-                  scope
-                    .insert(k.to_string(), v.borrow().val().clone().unwrap());
-                }
-
-                out.send(
-                  serde_json::to_string(&Outgoing::Ok(OkPayload::Map(
-                    MapPayload {
-                      for_id: id,
-                      value: scope,
-                    },
-                  )))
-                  .unwrap(),
-                )
-              }
               Err(_) => todo!(),
             },
             Incoming::Context(BasePayload { id }) => {
