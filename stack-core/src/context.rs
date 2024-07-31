@@ -241,3 +241,23 @@ impl Context {
     self.scopes.try_pop();
   }
 }
+
+#[cfg(test)]
+mod tests {
+  use super::*;
+
+  #[test]
+  fn test_ser_and_de() {
+    let mut context = Context::new();
+    context.stack_push(ExprKind::Integer(2).into()).unwrap();
+    context.def_scope_item(
+      Symbol::from_ref("foo"),
+      ExprKind::Symbol(Symbol::from_ref("bar")).into(),
+    );
+
+    let json = serde_json::to_string(&context).unwrap();
+    let ser_context: Context = serde_json::from_str(json.as_str()).unwrap();
+
+    assert_eq!(context, ser_context);
+  }
+}

@@ -917,6 +917,7 @@ dependencies = [
  "itoa",
  "rustversion",
  "ryu",
+ "serde",
  "static_assertions",
 ]
 
@@ -3400,6 +3401,7 @@ dependencies = [
  "compact_str",
  "internment",
  "serde",
+ "serde_json",
  "test-case",
  "unicode-segmentation",
  "yansi",
