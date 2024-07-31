@@ -5,7 +5,7 @@ use compact_str::CompactString;
 use internment::Intern;
 use serde::{
   ser::{SerializeMap, SerializeTuple},
-  Deserialize, Serialize,
+  Serialize,
 };
 use yansi::Paint;
 

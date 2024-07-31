@@ -11,9 +11,6 @@ pub enum Incoming {
   RunNew(RunPayload),
   Stack(BasePayload),
   Scope(BasePayload),
-  ClearStack(BasePayload),
-  ClearScope(BasePayload),
-  Clear(BasePayload),
 }
 
 #[derive(Debug, Clone, Deserialize, Serialize)]
@@ -31,11 +28,7 @@ impl Incoming {
   pub fn id(&self) -> u32 {
     match self {
       Incoming::Run(payload) | Incoming::RunNew(payload) => payload.id,
-      Incoming::Stack(payload)
-      | Incoming::Scope(payload)
-      | Incoming::ClearStack(payload)
-      | Incoming::ClearScope(payload)
-      | Incoming::Clear(payload) => payload.id,
+      Incoming::Stack(payload) | Incoming::Scope(payload) => payload.id,
     }
   }
 }
@@ -280,10 +273,6 @@ pub fn listen() {
               }
               Err(_) => todo!(),
             },
-
-            Incoming::ClearStack(BasePayload { id }) => todo!(),
-            Incoming::ClearScope(BasePayload { id }) => todo!(),
-            Incoming::Clear(BasePayload { id }) => todo!(),
           },
           Err(parse_error) => out.send(
             serde_json::to_string(&Outgoing::Error(
