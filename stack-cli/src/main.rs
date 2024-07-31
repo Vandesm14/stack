@@ -265,31 +265,25 @@ fn main() {
             match (eng_mutex.try_lock(), ctx_mutex.try_lock()) {
               (Ok(engine), Ok(mut guard)) => {
                 let context = mem::take(&mut *guard);
-                drop(guard);
-
                 let result = engine.run(context, exprs);
-                let guard = ctx_mutex.try_lock();
-                if let Ok(mut guard) = guard {
-                  match result {
-                    Ok(ctx) => {
-                      *guard = ctx;
 
-                      if let Some(expr) = guard.stack().last() {
-                        if let Ok(string) = serde_json::to_string(expr) {
-                          println!("sending: {string:?}");
+                match result {
+                  Ok(ctx) => {
+                    *guard = ctx;
 
-                          out.send(string)
-                        } else {
-                          todo!("failed serde json")
-                        }
+                    if let Some(expr) = guard.stack().last() {
+                      if let Ok(string) = serde_json::to_string(expr) {
+                        println!("sending: {string:?}");
+
+                        out.send(string)
                       } else {
-                        todo!("no last item")
+                        todo!("failed serde json")
                       }
+                    } else {
+                      todo!("no last item")
                     }
-                    Err(_) => todo!(),
                   }
-                } else {
-                  todo!("mutex no lock 2");
+                  Err(_) => todo!(),
                 }
               }
               _ => todo!("mutex not lock"),
