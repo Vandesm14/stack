@@ -1,6 +1,9 @@
 use std::{cell::RefCell, collections::HashMap, rc::Rc};
 
-use serde::ser::{Serialize, SerializeMap};
+use serde::{
+  ser::{Serialize, SerializeMap},
+  Deserialize,
+};
 
 use crate::{
   chain::Chain,
@@ -14,7 +17,7 @@ use crate::{
 };
 
 // TODO: This API could be a lot nicer.
-#[derive(Debug, Clone, PartialEq, Default)]
+#[derive(Debug, Clone, PartialEq, Default, Deserialize)]
 pub struct Context {
   stack: Vec<Expr>,
   scopes: VecOne<Scope>,

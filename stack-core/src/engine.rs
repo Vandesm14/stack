@@ -352,7 +352,7 @@ impl Engine {
   }
 }
 
-#[derive(Debug, Clone, PartialEq, Serialize)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct RunError {
   pub reason: RunErrorReason,
   pub context: Context,

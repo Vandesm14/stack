@@ -7,10 +7,14 @@ use ws::Message;
 #[derive(Debug, Clone, Deserialize, Serialize)]
 #[serde(tag = "type", rename_all = "snake_case")]
 pub enum Incoming {
+  // Execution
   Run(RunPayload),
   RunNew(RunPayload),
+
+  // Querying
   Stack(BasePayload),
   Scope(BasePayload),
+  Context(BasePayload),
 }
 
 #[derive(Debug, Clone, Deserialize, Serialize)]
@@ -28,19 +32,21 @@ impl Incoming {
   pub fn id(&self) -> u32 {
     match self {
       Incoming::Run(payload) | Incoming::RunNew(payload) => payload.id,
-      Incoming::Stack(payload) | Incoming::Scope(payload) => payload.id,
+      Incoming::Stack(payload)
+      | Incoming::Scope(payload)
+      | Incoming::Context(payload) => payload.id,
     }
   }
 }
 
-#[derive(Debug, Clone, Serialize)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(tag = "error", rename_all = "snake_case")]
 pub enum OutgoingError {
   RunError(RunErrorPayload),
   CommandError(CommandErrorPayload),
 }
 
-#[derive(Debug, Clone, Serialize)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct RunErrorPayload {
   pub for_id: u32,
   pub value: RunError,
@@ -52,23 +58,24 @@ pub struct CommandErrorPayload {
   pub value: String,
 }
 
-#[derive(Debug, Clone, Serialize)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(tag = "status", rename_all = "snake_case")]
 pub enum Outgoing {
   Ok(OkPayload),
   Error(OutgoingError),
 }
 
-#[derive(Debug, Clone, Serialize)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(tag = "type", rename_all = "snake_case")]
 pub enum OkPayload {
   Single(SinglePayload),
   Null(NullPayload),
   Many(ManyPayload),
   Map(MapPayload),
+  Context(ContextPayload),
 }
 
-#[derive(Debug, Clone, Serialize)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct SinglePayload {
   pub for_id: u32,
   pub value: Expr,
@@ -79,16 +86,22 @@ pub struct NullPayload {
   pub for_id: u32,
 }
 
-#[derive(Debug, Clone, Serialize)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ManyPayload {
   pub for_id: u32,
   pub value: Vec<Expr>,
 }
 
-#[derive(Debug, Clone, Serialize)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct MapPayload {
   pub for_id: u32,
   pub value: HashMap<String, Expr>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct ContextPayload {
+  pub for_id: u32,
+  pub value: Context,
 }
 
 impl Outgoing {
@@ -99,6 +112,7 @@ impl Outgoing {
         OkPayload::Null(p) => p.for_id,
         OkPayload::Many(p) => p.for_id,
         OkPayload::Map(p) => p.for_id,
+        OkPayload::Context(p) => p.for_id,
       },
       Outgoing::Error(error) => match error {
         OutgoingError::RunError(p) => p.for_id,
@@ -249,6 +263,20 @@ pub fn listen() {
               }
               Err(_) => todo!(),
             },
+            Incoming::Context(BasePayload { id }) => {
+              match ctx_mutex.try_lock() {
+                Ok(context) => out.send(
+                  serde_json::to_string(&Outgoing::Ok(OkPayload::Context(
+                    ContextPayload {
+                      for_id: id,
+                      value: context.clone(),
+                    },
+                  )))
+                  .unwrap(),
+                ),
+                Err(_) => todo!(),
+              }
+            }
           },
           Err(parse_error) => out.send(
             serde_json::to_string(&Outgoing::Error(
