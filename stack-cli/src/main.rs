@@ -1,5 +1,6 @@
 use core::fmt;
 use std::{
+  collections::HashMap,
   io::{self, prelude::Write, Read},
   mem,
   path::{Path, PathBuf},
@@ -264,15 +265,32 @@ fn main() {
         /// Error from the Engine
         #[serde(rename = "run_error")]
         RunError(RunError),
+
+        /// Error from the command reader
+        #[serde(rename = "command_error")]
+        CommandError(String),
       }
 
       #[derive(Debug, Clone, Serialize)]
-      #[serde(tag = "type", content = "value", rename_all = "lowercase")]
+      #[serde(tag = "status", content = "value", rename_all = "lowercase")]
       enum Outgoing {
-        /// The last item of the stack
-        Ok(Expr),
+        /// A Expr
+        #[serde(rename = "ok")]
+        Single(Expr),
 
-        /// An error
+        /// A Null Response
+        #[serde(rename = "ok")]
+        Null(()),
+
+        /// A Vec of Exprs
+        #[serde(rename = "ok")]
+        Many(Vec<Expr>),
+
+        /// A Map of Exprs
+        #[serde(rename = "ok")]
+        Map(HashMap<String, Expr>),
+
+        /// An Error
         Error(OutgoingError),
       }
 
@@ -302,15 +320,16 @@ fn main() {
                         Ok(ctx) => {
                           *guard = ctx;
 
-                          let expr = guard
-                            .stack()
-                            .last()
-                            .cloned()
-                            .unwrap_or_else(|| ExprKind::Nil.into());
-
-                          out.send(
-                            serde_json::to_string(&Outgoing::Ok(expr)).unwrap(),
-                          )
+                          match guard.stack().last().cloned() {
+                            Some(expr) => out.send(
+                              serde_json::to_string(&Outgoing::Single(expr))
+                                .unwrap(),
+                            ),
+                            None => out.send(
+                              serde_json::to_string(&Outgoing::Null(()))
+                                .unwrap(),
+                            ),
+                          }
                         }
                         Err(error) => out.send(
                           serde_json::to_string(&Outgoing::Error(
@@ -344,7 +363,8 @@ fn main() {
                             .unwrap_or_else(|| ExprKind::Nil.into());
 
                           out.send(
-                            serde_json::to_string(&Outgoing::Ok(expr)).unwrap(),
+                            serde_json::to_string(&Outgoing::Single(expr))
+                              .unwrap(),
                           )
                         }
                         Err(error) => out.send(
@@ -359,14 +379,42 @@ fn main() {
                   }
                 }
 
-                Incoming::Stack => todo!(),
-                Incoming::Scope => todo!(),
+                Incoming::Stack => match ctx_mutex.try_lock() {
+                  Ok(context) => out.send(
+                    serde_json::to_string(&Outgoing::Many(
+                      context.stack().to_vec(),
+                    ))
+                    .unwrap(),
+                  ),
+                  Err(_) => todo!(),
+                },
+                Incoming::Scope => match ctx_mutex.try_lock() {
+                  Ok(context) => {
+                    let mut scope: HashMap<String, Expr> = HashMap::new();
+                    for (k, v) in context.scope().items.iter() {
+                      scope.insert(
+                        k.to_string(),
+                        v.borrow().val().clone().unwrap(),
+                      );
+                    }
+
+                    out.send(
+                      serde_json::to_string(&Outgoing::Map(scope)).unwrap(),
+                    )
+                  }
+                  Err(_) => todo!(),
+                },
 
                 Incoming::ClearStack => todo!(),
                 Incoming::ClearScope => todo!(),
                 Incoming::ClearAll => todo!(),
               },
-              Err(parse_error) => todo!("parse error"),
+              Err(parse_error) => out.send(
+                serde_json::to_string(&Outgoing::Error(
+                  OutgoingError::CommandError(parse_error.to_string()),
+                ))
+                .unwrap(),
+              ),
             }
           } else {
             todo!("message not text")
