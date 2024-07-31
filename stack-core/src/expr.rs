@@ -1,15 +1,10 @@
 use core::{cmp::Ordering, fmt, hash::Hash, ops};
 use std::collections::HashMap;
-use std::str::FromStr;
 
 use compact_str::CompactString;
 use internment::Intern;
-use serde::de::{self, Deserializer, MapAccess, Visitor};
 use serde::Deserialize;
-use serde::{
-  ser::{SerializeMap, SerializeTuple},
-  Serialize,
-};
+use serde::Serialize;
 
 use crate::{lexer::Span, scope::Scope, source::Source, symbol::Symbol};
 
@@ -104,7 +99,7 @@ pub fn display_fn_scope(scope: &FnScope) -> String {
   .into()
 }
 
-#[derive(Debug, Clone, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub enum FnScope {
   Scoped(Scope),
   Scopeless,
@@ -122,7 +117,7 @@ impl FnScope {
   }
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub enum ExprKind {
   Nil,
 
@@ -140,166 +135,6 @@ pub enum ExprKind {
   Function { scope: FnScope, body: Vec<Expr> },
   SExpr { call: Symbol, body: Vec<Expr> },
   Underscore,
-}
-
-impl Serialize for ExprKind {
-  fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
-  where
-    S: serde::Serializer,
-  {
-    match self {
-      ExprKind::Nil => serializer.serialize_unit(),
-      ExprKind::Boolean(v) => serializer.serialize_bool(*v),
-      ExprKind::Integer(v) => serializer.serialize_i64(*v),
-      ExprKind::Float(v) => serializer.serialize_f64(*v),
-      ExprKind::String(v) => serializer.serialize_str(v.as_str()),
-      // TODO: Symbol serialization isn't 1:1, as it's turned into a str here.
-      // Is that what we want?
-      ExprKind::Symbol(v) => serializer.serialize_str(v.as_str()),
-      ExprKind::Lazy(inner) => inner.kind.serialize(serializer),
-      ExprKind::List(v) => {
-        let mut tup = serializer.serialize_tuple(v.len())?;
-        for item in v.iter() {
-          tup.serialize_element(&item.kind)?;
-        }
-        tup.end()
-      }
-      ExprKind::Record(v) => {
-        let mut record = serializer.serialize_map(Some(v.len()))?;
-        for (key, val) in v.iter() {
-          let key = key.as_str();
-          record.serialize_entry(key, &val.kind)?;
-        }
-        record.end()
-      }
-
-      // We won't serialize these for now since they aren't really datatypes.
-      ExprKind::Function { .. } => serializer.serialize_unit(),
-      ExprKind::SExpr { .. } => serializer.serialize_unit(),
-      ExprKind::Underscore => serializer.serialize_unit(),
-    }
-  }
-}
-
-impl<'de> Deserialize<'de> for ExprKind {
-  fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-  where
-    D: Deserializer<'de>,
-  {
-    struct ExprKindVisitor;
-
-    impl<'de> Visitor<'de> for ExprKindVisitor {
-      type Value = ExprKind;
-
-      fn expecting(&self, formatter: &mut fmt::Formatter) -> fmt::Result {
-        formatter.write_str("an ExprKind variant")
-      }
-
-      fn visit_map<V>(self, mut map: V) -> Result<ExprKind, V::Error>
-      where
-        V: MapAccess<'de>,
-      {
-        let variant = map.next_key::<String>()?.ok_or_else(|| {
-          de::Error::invalid_value(de::Unexpected::Map, &"variant name")
-        })?;
-
-        match variant.as_str() {
-          "Nil" => Ok(ExprKind::Nil),
-          "Boolean" => {
-            let value = map.next_value()?;
-            Ok(ExprKind::Boolean(value))
-          }
-          "Integer" => {
-            let value = map.next_value()?;
-            Ok(ExprKind::Integer(value))
-          }
-          "Float" => {
-            let value = map.next_value()?;
-            Ok(ExprKind::Float(value))
-          }
-          "String" => {
-            let value: String = map.next_value()?;
-            Ok(ExprKind::String(
-              CompactString::from_str(value.as_str()).unwrap(),
-            ))
-          }
-          "Symbol" => {
-            let value: String = map.next_value()?;
-            Ok(ExprKind::Symbol(Symbol::from_ref(value.as_str())))
-          }
-          "Lazy" => {
-            let value: Expr = map.next_value()?;
-            Ok(ExprKind::Lazy(Box::new(value)))
-          }
-          "List" => {
-            let value: Vec<Expr> = map.next_value()?;
-            Ok(ExprKind::List(value))
-          }
-          "Record" => {
-            let mut value: HashMap<String, Expr> = map.next_value()?;
-            let mut map: HashMap<Symbol, Expr> = HashMap::new();
-            for (k, v) in value.drain() {
-              map.insert(Symbol::from_ref(k.as_str()), v);
-            }
-
-            Ok(ExprKind::Record(map))
-          }
-          "Function" => {
-            let mut scope: FnScope = map.next_value()?;
-            let mut body = Vec::new();
-            while let Some(key) = map.next_key::<String>()? {
-              match key.as_str() {
-                "scope" => scope = map.next_value()?,
-                "body" => body = map.next_value()?,
-                _ => {
-                  return Err(de::Error::unknown_field(
-                    &key,
-                    &["scope", "body"],
-                  ))
-                }
-              }
-            }
-            Ok(ExprKind::Function { scope, body })
-          }
-          "SExpr" => {
-            let mut call: Symbol = map.next_value()?;
-            let mut body = Vec::new();
-            while let Some(key) = map.next_key::<String>()? {
-              match key.as_str() {
-                "call" => call = map.next_value()?,
-                "body" => body = map.next_value()?,
-                _ => {
-                  return Err(de::Error::unknown_field(&key, &["call", "body"]))
-                }
-              }
-            }
-            Ok(ExprKind::SExpr { call, body })
-          }
-          "Underscore" => Ok(ExprKind::Underscore),
-          _ => Err(de::Error::unknown_variant(
-            &variant,
-            &[
-              "Nil",
-              "Boolean",
-              "Integer",
-              "Float",
-              "String",
-              "Symbol",
-              "Lazy",
-              "List",
-              "Record",
-              "Function",
-              "SExpr",
-              "Underscore",
-            ],
-          )),
-        }
-      }
-    }
-
-    const FIELDS: &[&str] = &["type", "value"];
-    deserializer.deserialize_struct("ExprKind", FIELDS, ExprKindVisitor)
-  }
 }
 
 impl ExprKind {
