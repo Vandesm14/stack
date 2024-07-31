@@ -233,22 +233,23 @@ fn main() {
       let eng_mutex = Rc::new(Mutex::new(Engine::new()));
       let ctx_mutex = Rc::new(Mutex::new(Context::new()));
 
-      #[derive(
-        Debug,
-        Clone,
-        PartialEq,
-        Eq,
-        PartialOrd,
-        Ord,
-        Hash,
-        Serialize,
-        Deserialize,
-      )]
+      #[derive(Debug, Clone, PartialEq, PartialOrd, Serialize, Deserialize)]
+      #[serde(tag = "type", content = "code", rename_all = "lowercase")]
       enum Incoming {
-        Run(String),
+        /// Run code within a new engine
+        #[serde(rename = "run_new")]
         RunNew(String),
+        /// Run code within the existing engine
+        Run(String),
+
+        /// Clear the stack
+        #[serde(rename = "clear_stack")]
         ClearStack,
+        /// Clear the scope
+        #[serde(rename = "clear_scope")]
         ClearScope,
+        /// Clear everything
+        #[serde(rename = "clear")]
         ClearAll,
       }
 
@@ -258,35 +259,48 @@ fn main() {
 
         move |msg| {
           if let Message::Text(string) = msg {
-            let source = Source::new("runner", string);
-            let mut lexer = Lexer::new(source);
-            let exprs = parse(&mut lexer).unwrap();
+            let request = serde_json::from_str::<Incoming>(&string);
 
-            match (eng_mutex.try_lock(), ctx_mutex.try_lock()) {
-              (Ok(engine), Ok(mut guard)) => {
-                let context = mem::take(&mut *guard);
-                let result = engine.run(context, exprs);
+            match request {
+              Ok(incoming) => match incoming {
+                Incoming::RunNew(_) => todo!(),
+                Incoming::Run(code) => {
+                  let source = Source::new("runner", code);
+                  let mut lexer = Lexer::new(source);
+                  let exprs = parse(&mut lexer).unwrap();
 
-                match result {
-                  Ok(ctx) => {
-                    *guard = ctx;
+                  match (eng_mutex.try_lock(), ctx_mutex.try_lock()) {
+                    (Ok(engine), Ok(mut guard)) => {
+                      let context = mem::take(&mut *guard);
+                      let result = engine.run(context, exprs);
 
-                    if let Some(expr) = guard.stack().last() {
-                      if let Ok(string) = serde_json::to_string(expr) {
-                        println!("sending: {string:?}");
+                      match result {
+                        Ok(ctx) => {
+                          *guard = ctx;
 
-                        out.send(string)
-                      } else {
-                        todo!("failed serde json")
+                          if let Some(expr) = guard.stack().last() {
+                            if let Ok(string) = serde_json::to_string(expr) {
+                              println!("sending: {string:?}");
+
+                              out.send(string)
+                            } else {
+                              todo!("failed serde json")
+                            }
+                          } else {
+                            todo!("no last item")
+                          }
+                        }
+                        Err(_) => todo!(),
                       }
-                    } else {
-                      todo!("no last item")
                     }
+                    _ => todo!("mutex not lock"),
                   }
-                  Err(_) => todo!(),
                 }
-              }
-              _ => todo!("mutex not lock"),
+                Incoming::ClearStack => todo!(),
+                Incoming::ClearScope => todo!(),
+                Incoming::ClearAll => todo!(),
+              },
+              Err(parse_error) => todo!("parse error"),
             }
           } else {
             todo!("message not text")
