@@ -1,7 +1,9 @@
 use core::fmt;
 use std::{
   io::{self, prelude::Write, Read},
+  mem,
   path::{Path, PathBuf},
+  rc::Rc,
   sync::{Arc, Mutex},
 };
 
@@ -24,6 +26,7 @@ use notify::{
 };
 use reedline::{DefaultPrompt, DefaultPromptSegment, Reedline, Signal};
 use stack_core::prelude::*;
+use ws::Message;
 
 fn main() {
   let cli = Cli::parse();
@@ -224,46 +227,79 @@ fn main() {
       }
     }
     Subcommand::Serve => {
-      #[cfg(feature = "server")]
-      {
-        use serde::{Deserialize, Serialize};
-        use ws::listen;
+      use serde::{Deserialize, Serialize};
+      use ws::listen;
 
-        let engine = Mutex::new(Engine::new());
-        let context = Mutex::new(Context::new());
+      let eng_mutex = Rc::new(Mutex::new(Engine::new()));
+      let ctx_mutex = Rc::new(Mutex::new(Context::new()));
 
-        #[derive(
-          Debug,
-          Clone,
-          PartialEq,
-          Eq,
-          PartialOrd,
-          Ord,
-          Hash,
-          Serialize,
-          Deserialize,
-        )]
-        enum Incoming {
-          Run(String),
-          RunNew(String),
-          ClearStack,
-          ClearScope,
-          ClearAll,
-        }
+      #[derive(
+        Debug,
+        Clone,
+        PartialEq,
+        Eq,
+        PartialOrd,
+        Ord,
+        Hash,
+        Serialize,
+        Deserialize,
+      )]
+      enum Incoming {
+        Run(String),
+        RunNew(String),
+        ClearStack,
+        ClearScope,
+        ClearAll,
+      }
 
-        listen("127.0.0.1:5001", |out| {
-          move |msg| {
-            println!("msg: {msg:?}");
-            Ok(())
+      listen("127.0.0.1:5001", |out| {
+        let eng_mutex = eng_mutex.clone();
+        let ctx_mutex = ctx_mutex.clone();
+
+        move |msg| {
+          if let Message::Text(string) = msg {
+            let source = Source::new("runner", string);
+            let mut lexer = Lexer::new(source);
+            let exprs = parse(&mut lexer).unwrap();
+
+            match (eng_mutex.try_lock(), ctx_mutex.try_lock()) {
+              (Ok(engine), Ok(mut guard)) => {
+                let context = mem::take(&mut *guard);
+                drop(guard);
+
+                let result = engine.run(context, exprs);
+                let guard = ctx_mutex.try_lock();
+                if let Ok(mut guard) = guard {
+                  match result {
+                    Ok(ctx) => {
+                      *guard = ctx;
+
+                      if let Some(expr) = guard.stack().last() {
+                        if let Ok(string) = serde_json::to_string(expr) {
+                          println!("sending: {string:?}");
+
+                          out.send(string)
+                        } else {
+                          todo!("failed serde json")
+                        }
+                      } else {
+                        todo!("no last item")
+                      }
+                    }
+                    Err(_) => todo!(),
+                  }
+                } else {
+                  todo!("mutex no lock 2");
+                }
+              }
+              _ => todo!("mutex not lock"),
+            }
+          } else {
+            todo!("message not text")
           }
-        })
-        .unwrap();
-      }
-
-      #[cfg(not(feature = "server"))]
-      {
-        eprintln!("Server feature is not enabled. Compile the Stack CLI with --features server");
-      }
+        }
+      })
+      .unwrap();
     }
   }
 }
