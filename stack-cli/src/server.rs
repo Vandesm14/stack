@@ -125,12 +125,13 @@ fn run(
   code: String,
   eng_mutex: Rc<Mutex<Engine>>,
   ctx_mutex: Rc<Mutex<Context>>,
-  out: Sender,
+  out: &Sender,
   id: u32,
   reset: bool,
 ) -> ws::Result<()> {
   let source = Source::new("runner", code);
   let mut lexer = Lexer::new(source);
+  // TODO: Don't unwrap on fail to parse
   let exprs = parse(&mut lexer).unwrap();
 
   match (eng_mutex.try_lock(), ctx_mutex.try_lock()) {
@@ -186,8 +187,8 @@ fn run(
 }
 
 pub fn handle(
-  out: Sender,
-  msg: Message,
+  out: &Sender,
+  msg: &Message,
   eng_mutex: Rc<Mutex<Engine>>,
   ctx_mutex: Rc<Mutex<Context>>,
 ) -> ws::Result<()> {
@@ -252,7 +253,7 @@ pub fn listen() {
     let eng_mutex = eng_mutex.clone();
     let ctx_mutex = ctx_mutex.clone();
 
-    |msg| handle(out, msg, eng_mutex, ctx_mutex)
+    move |msg| handle(&out, &msg, eng_mutex.clone(), ctx_mutex.clone())
   })
   .unwrap();
 }
