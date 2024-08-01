@@ -121,6 +121,7 @@ impl Outgoing {
   }
 }
 
+#[allow(clippy::result_large_err)]
 fn run(
   code: String,
   eng_mutex: Rc<Mutex<Engine>>,
@@ -186,6 +187,7 @@ fn run(
   }
 }
 
+#[allow(clippy::result_large_err)]
 pub fn handle(
   out: &Sender,
   msg: &Message,
@@ -193,7 +195,7 @@ pub fn handle(
   ctx_mutex: Rc<Mutex<Context>>,
 ) -> ws::Result<()> {
   if let Message::Text(string) = msg {
-    let request = serde_json::from_str::<Incoming>(&string);
+    let request = serde_json::from_str::<Incoming>(string);
 
     match request {
       Ok(incoming) => match incoming {
