@@ -2,7 +2,9 @@ use stack_core::prelude::*;
 use std::{collections::HashMap, mem, rc::Rc, sync::Mutex};
 
 use serde::{Deserialize, Serialize};
-use ws::Message;
+use ws::{Message, Sender};
+
+use crate::{eprint_stack, print_stack};
 
 #[derive(Debug, Clone, Deserialize, Serialize)]
 #[serde(tag = "type", rename_all = "snake_case")]
@@ -119,6 +121,129 @@ impl Outgoing {
   }
 }
 
+fn run(
+  code: String,
+  eng_mutex: Rc<Mutex<Engine>>,
+  ctx_mutex: Rc<Mutex<Context>>,
+  out: Sender,
+  id: u32,
+  reset: bool,
+) -> ws::Result<()> {
+  let source = Source::new("runner", code);
+  let mut lexer = Lexer::new(source);
+  let exprs = parse(&mut lexer).unwrap();
+
+  match (eng_mutex.try_lock(), ctx_mutex.try_lock()) {
+    (Ok(engine), Ok(mut guard)) => {
+      if reset {
+        let _ = mem::replace(&mut *guard, Context::new());
+      }
+
+      let context = mem::take(&mut *guard);
+      let result = engine.run(context, exprs);
+
+      match result {
+        Ok(ctx) => {
+          print_stack(&ctx);
+          *guard = ctx;
+
+          match guard.stack().last().cloned() {
+            Some(expr) => out.send(
+              serde_json::to_string(&Outgoing::Ok(OkPayload::Single(
+                SinglePayload {
+                  for_id: id,
+                  value: expr,
+                },
+              )))
+              .unwrap(),
+            ),
+            None => out.send(
+              serde_json::to_string(&Outgoing::Ok(OkPayload::Null(
+                NullPayload { for_id: id },
+              )))
+              .unwrap(),
+            ),
+          }
+        }
+        Err(e) => {
+          eprintln!("error: {e}");
+          eprint_stack(&e.context);
+
+          out.send(
+            serde_json::to_string(&Outgoing::Error(OutgoingError::RunError(
+              RunErrorPayload {
+                for_id: id,
+                value: e,
+              },
+            )))
+            .unwrap(),
+          )
+        }
+      }
+    }
+    _ => todo!("mutex not lock"),
+  }
+}
+
+pub fn handle(
+  out: Sender,
+  msg: Message,
+  eng_mutex: Rc<Mutex<Engine>>,
+  ctx_mutex: Rc<Mutex<Context>>,
+) -> ws::Result<()> {
+  if let Message::Text(string) = msg {
+    let request = serde_json::from_str::<Incoming>(&string);
+
+    match request {
+      Ok(incoming) => match incoming {
+        Incoming::RunNew(RunPayload { id, code }) => {
+          run(code, eng_mutex, ctx_mutex, out, id, true)
+        }
+        Incoming::Run(RunPayload { id, code }) => {
+          run(code, eng_mutex, ctx_mutex, out, id, false)
+        }
+
+        Incoming::Stack(BasePayload { id }) => match ctx_mutex.try_lock() {
+          Ok(context) => out.send(
+            serde_json::to_string(&Outgoing::Ok(OkPayload::Many(
+              ManyPayload {
+                for_id: id,
+                value: context.stack().to_vec(),
+              },
+            )))
+            .unwrap(),
+          ),
+          Err(_) => todo!(),
+        },
+        Incoming::Context(BasePayload { id }) => match ctx_mutex.try_lock() {
+          Ok(context) => out.send(
+            serde_json::to_string(&Outgoing::Ok(OkPayload::Context(
+              ContextPayload {
+                for_id: id,
+                value: context.clone(),
+              },
+            )))
+            .unwrap(),
+          ),
+          Err(_) => todo!(),
+        },
+      },
+      Err(parse_error) => out.send(
+        serde_json::to_string(&Outgoing::Error(OutgoingError::CommandError(
+          CommandErrorPayload {
+            // TODO: we don't get an ID here so this is a special case
+            for_id: 0,
+            value: parse_error.to_string(),
+          },
+        )))
+        .unwrap(),
+      ),
+    }
+  } else {
+    todo!("message not text")
+  }
+}
+
 pub fn listen() {
   let eng_mutex = Rc::new(Mutex::new(Engine::new()));
   let ctx_mutex = Rc::new(Mutex::new(Context::new()));
@@ -127,149 +252,7 @@ pub fn listen() {
     let eng_mutex = eng_mutex.clone();
     let ctx_mutex = ctx_mutex.clone();
 
-    move |msg| {
-      if let Message::Text(string) = msg {
-        let request = serde_json::from_str::<Incoming>(&string);
-
-        match request {
-          Ok(incoming) => match incoming {
-            Incoming::RunNew(RunPayload { id, code }) => {
-              let source = Source::new("runner", code);
-              let mut lexer = Lexer::new(source);
-              let exprs = parse(&mut lexer).unwrap();
-
-              match (eng_mutex.try_lock(), ctx_mutex.try_lock()) {
-                (Ok(engine), Ok(mut guard)) => {
-                  let _ = mem::replace(&mut *guard, Context::new());
-
-                  let context = mem::take(&mut *guard);
-                  let result = engine.run(context, exprs);
-
-                  match result {
-                    Ok(ctx) => {
-                      *guard = ctx;
-
-                      match guard.stack().last().cloned() {
-                        Some(expr) => out.send(
-                          serde_json::to_string(&Outgoing::Ok(
-                            OkPayload::Single(SinglePayload {
-                              for_id: id,
-                              value: expr,
-                            }),
-                          ))
-                          .unwrap(),
-                        ),
-                        None => out.send(
-                          serde_json::to_string(&Outgoing::Ok(
-                            OkPayload::Null(NullPayload { for_id: id }),
-                          ))
-                          .unwrap(),
-                        ),
-                      }
-                    }
-                    Err(error) => out.send(
-                      serde_json::to_string(&Outgoing::Error(
-                        OutgoingError::RunError(RunErrorPayload {
-                          for_id: id,
-                          value: error,
-                        }),
-                      ))
-                      .unwrap(),
-                    ),
-                  }
-                }
-                _ => todo!("mutex not lock"),
-              }
-            }
-            Incoming::Run(RunPayload { id, code }) => {
-              let source = Source::new("runner", code);
-              let mut lexer = Lexer::new(source);
-              let exprs = parse(&mut lexer).unwrap();
-
-              match (eng_mutex.try_lock(), ctx_mutex.try_lock()) {
-                (Ok(engine), Ok(mut guard)) => {
-                  let context = mem::take(&mut *guard);
-                  let result = engine.run(context, exprs);
-
-                  match result {
-                    Ok(ctx) => {
-                      *guard = ctx;
-
-                      match guard.stack().last().cloned() {
-                        Some(expr) => out.send(
-                          serde_json::to_string(&Outgoing::Ok(
-                            OkPayload::Single(SinglePayload {
-                              for_id: id,
-                              value: expr,
-                            }),
-                          ))
-                          .unwrap(),
-                        ),
-                        None => out.send(
-                          serde_json::to_string(&Outgoing::Ok(
-                            OkPayload::Null(NullPayload { for_id: id }),
-                          ))
-                          .unwrap(),
-                        ),
-                      }
-                    }
-                    Err(error) => out.send(
-                      serde_json::to_string(&Outgoing::Error(
-                        OutgoingError::RunError(RunErrorPayload {
-                          for_id: id,
-                          value: error,
-                        }),
-                      ))
-                      .unwrap(),
-                    ),
-                  }
-                }
-                _ => todo!("mutex not lock"),
-              }
-            }
-
-            Incoming::Stack(BasePayload { id }) => match ctx_mutex.try_lock() {
-              Ok(context) => out.send(
-                serde_json::to_string(&Outgoing::Ok(OkPayload::Many(
-                  ManyPayload {
-                    for_id: id,
-                    value: context.stack().to_vec(),
-                  },
-                )))
-                .unwrap(),
-              ),
-              Err(_) => todo!(),
-            },
-            Incoming::Context(BasePayload { id }) => {
-              match ctx_mutex.try_lock() {
-                Ok(context) => out.send(
-                  serde_json::to_string(&Outgoing::Ok(OkPayload::Context(
-                    ContextPayload {
-                      for_id: id,
-                      value: context.clone(),
-                    },
-                  )))
-                  .unwrap(),
-                ),
-                Err(_) => todo!(),
-              }
-            }
-          },
-          Err(parse_error) => out.send(
-            serde_json::to_string(&Outgoing::Error(
-              OutgoingError::CommandError(CommandErrorPayload {
-                // TODO: we don't get an ID here so this is a special case
-                for_id: 0,
-                value: parse_error.to_string(),
-              }),
-            ))
-            .unwrap(),
-          ),
-        }
-      } else {
-        todo!("message not text")
-      }
-    }
+    |msg| handle(out, msg, eng_mutex, ctx_mutex)
   })
   .unwrap();
 }
