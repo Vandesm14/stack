@@ -10,9 +10,29 @@ use crate::{chain::Chain, expr::FnScope, prelude::*};
 
 pub type Val = Rc<RefCell<Chain<Option<Expr>>>>;
 
-#[derive(Default, PartialEq)]
+#[derive(Default)]
 pub struct Scope {
   pub items: HashMap<Symbol, Val>,
+}
+
+impl PartialEq for Scope {
+  fn eq(&self, other: &Self) -> bool {
+    let a: HashMap<Symbol, Expr> = HashMap::from_iter(
+      self
+        .items
+        .iter()
+        .map(|(k, v)| (*k, v.borrow().val().clone().unwrap())),
+    );
+
+    let b: HashMap<Symbol, Expr> = HashMap::from_iter(
+      other
+        .items
+        .iter()
+        .map(|(k, v)| (*k, v.borrow().val().clone().unwrap())),
+    );
+
+    a == b
+  }
 }
 
 impl Serialize for Scope {
@@ -37,6 +57,7 @@ impl<'de> Deserialize<'de> for Scope {
   {
     // Helper struct to deserialize the items
     #[derive(Deserialize)]
+    #[serde(transparent)]
     struct ScopeHelper {
       items: HashMap<String, DeserializeVal>,
     }

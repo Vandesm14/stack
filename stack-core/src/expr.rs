@@ -218,6 +218,17 @@ impl PartialEq for ExprKind {
       (Self::Record(lhs), Self::Record(rhs)) => lhs == rhs,
 
       (
+        Self::Function {
+          scope: lhs_scope,
+          body: lhs_body,
+        },
+        Self::Function {
+          scope: rhs_scope,
+          body: rhs_body,
+        },
+      ) => lhs_scope == rhs_scope && lhs_body == rhs_body,
+
+      (
         Self::SExpr {
           call: lhs_call,
           body: lhs_body,
