@@ -42,6 +42,7 @@ impl Incoming {
 #[serde(tag = "error", rename_all = "snake_case")]
 pub enum OutgoingError {
   RunError(RunErrorPayload),
+  ParseError(ParseErrorPayload),
   CommandError(CommandErrorPayload),
 }
 
@@ -49,6 +50,12 @@ pub enum OutgoingError {
 pub struct RunErrorPayload {
   pub for_id: u32,
   pub value: RunError,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct ParseErrorPayload {
+  pub for_id: u32,
+  pub value: ParseError,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -115,6 +122,7 @@ impl Outgoing {
       },
       Outgoing::Error(error) => match error {
         OutgoingError::RunError(p) => p.for_id,
+        OutgoingError::ParseError(p) => p.for_id,
         OutgoingError::CommandError(p) => p.for_id,
       },
     }
@@ -132,8 +140,20 @@ fn run(
 ) -> ws::Result<()> {
   let source = Source::new("runner", code);
   let mut lexer = Lexer::new(source);
-  // TODO: Don't unwrap on fail to parse
-  let exprs = parse(&mut lexer).unwrap();
+  let exprs = match parse(&mut lexer) {
+    Ok(e) => e,
+    Err(err) => {
+      return out.send(
+        serde_json::to_string(&Outgoing::Error(OutgoingError::ParseError(
+          ParseErrorPayload {
+            for_id: id,
+            value: err,
+          },
+        )))
+        .unwrap(),
+      );
+    }
+  };
 
   match (eng_mutex.try_lock(), ctx_mutex.try_lock()) {
     (Ok(engine), Ok(mut guard)) => {

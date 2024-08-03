@@ -4,7 +4,7 @@ use serde::{Deserialize, Serialize};
 
 use crate::source::Source;
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 pub struct Token {
   pub kind: TokenKind,
   pub span: Span,
@@ -35,7 +35,7 @@ impl Span {
   }
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub enum TokenKind {
   Invalid,
   Eof,
