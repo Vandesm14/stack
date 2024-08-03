@@ -271,7 +271,8 @@ pub fn listen() {
   let eng_mutex = Rc::new(Mutex::new(Engine::new()));
   let ctx_mutex = Rc::new(Mutex::new(Context::new()));
 
-  ws::listen("127.0.0.1:5001", |out| {
+  println!("Websocket server running on ws://localhost:5501");
+  ws::listen("localhost:5001", |out| {
     let eng_mutex = eng_mutex.clone();
     let ctx_mutex = ctx_mutex.clone();
 
