@@ -1,4 +1,6 @@
-use std::{cell::RefCell, collections::HashMap, sync::Arc};
+use std::{cell::RefCell, collections::HashMap, rc::Rc};
+
+use serde::{Deserialize, Serialize};
 
 use crate::{
   chain::Chain,
@@ -12,7 +14,7 @@ use crate::{
 };
 
 // TODO: This API could be a lot nicer.
-#[derive(Debug, Clone, PartialEq, Default)]
+#[derive(Debug, Clone, PartialEq, Default, Serialize, Deserialize)]
 pub struct Context {
   stack: Vec<Expr>,
   scopes: VecOne<Scope>,
@@ -162,7 +164,7 @@ impl Context {
   #[inline]
   pub fn scope_items(
     &self,
-  ) -> impl Iterator<Item = (&Symbol, &Arc<RefCell<Chain<Option<Expr>>>>)> {
+  ) -> impl Iterator<Item = (&Symbol, &Rc<RefCell<Chain<Option<Expr>>>>)> {
     self.scopes.last().items.iter()
   }
 
@@ -237,5 +239,25 @@ impl Context {
   #[inline]
   pub fn pop_scope(&mut self) {
     self.scopes.try_pop();
+  }
+}
+
+#[cfg(test)]
+mod tests {
+  use super::*;
+
+  #[test]
+  fn test_ser_and_de() {
+    let mut context = Context::new();
+    context.stack_push(ExprKind::Integer(2).into()).unwrap();
+    context.def_scope_item(
+      Symbol::from_ref("foo"),
+      ExprKind::Symbol(Symbol::from_ref("bar")).into(),
+    );
+
+    let json = serde_json::to_string(&context).unwrap();
+    let ser_context: Context = serde_json::from_str(json.as_str()).unwrap();
+
+    assert_eq!(context, ser_context);
   }
 }

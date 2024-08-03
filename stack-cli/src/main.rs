@@ -1,6 +1,5 @@
-use core::fmt;
 use std::{
-  io::{self, prelude::Write, Read},
+  io::Read,
   path::{Path, PathBuf},
   sync::Arc,
 };
@@ -14,15 +13,13 @@ use codespan_reporting::{
     termcolor::{ColorChoice, StandardStream},
   },
 };
-use crossterm::{
-  cursor::{self, MoveTo},
-  style::Print,
-  terminal, QueueableCommand,
-};
 use notify::{
   Config, Event, EventKind, RecommendedWatcher, RecursiveMode, Watcher,
 };
 use reedline::{DefaultPrompt, DefaultPromptSegment, Reedline, Signal};
+use stack_cli::{
+  clear_screen, eprint_stack, ok_or_exit, print_stack, server::listen,
+};
 use stack_core::prelude::*;
 
 fn main() {
@@ -223,54 +220,8 @@ fn main() {
         }
       }
     }
+    Subcommand::Serve => listen(),
   }
-}
-
-fn ok_or_exit<T, E>(result: Result<T, E>) -> T
-where
-  E: fmt::Display,
-{
-  match result {
-    Ok(x) => x,
-    Err(e) => {
-      eprintln!("error: {e}");
-      std::process::exit(1);
-    }
-  }
-}
-
-fn print_stack(context: &Context) {
-  print!("stack:");
-
-  core::iter::repeat(" ")
-    .zip(context.stack())
-    .for_each(|(sep, x)| print!("{sep}{x:#}"));
-
-  println!()
-}
-
-fn eprint_stack(context: &Context) {
-  eprint!("stack:");
-
-  core::iter::repeat(" ")
-    .zip(context.stack())
-    .for_each(|(sep, x)| eprint!("{sep}{x:#}"));
-
-  eprintln!()
-}
-
-fn clear_screen() -> io::Result<()> {
-  let mut stdout = std::io::stdout();
-
-  stdout.queue(cursor::Hide)?;
-  let (_, num_lines) = terminal::size()?;
-  for _ in 0..2 * num_lines {
-    stdout.queue(Print("\n"))?;
-  }
-  stdout.queue(MoveTo(0, 0))?;
-  stdout.queue(cursor::Show)?;
-
-  stdout.flush()
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Default, clap::Parser)]
@@ -329,4 +280,7 @@ enum Subcommand {
     #[arg(short, long)]
     watch: bool,
   },
+
+  // TODO: add host and port as options
+  Serve,
 }

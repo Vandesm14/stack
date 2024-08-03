@@ -5,6 +5,8 @@ use std::{
   time::{Duration, Instant},
 };
 
+use serde::{Deserialize, Serialize};
+
 use crate::{
   context::Context,
   expr::{Expr, ExprKind, FnScope},
@@ -350,7 +352,7 @@ impl Engine {
   }
 }
 
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct RunError {
   pub reason: RunErrorReason,
   pub context: Context,
@@ -371,7 +373,7 @@ impl fmt::Display for RunError {
   }
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub enum RunErrorReason {
   StackUnderflow,
   DoubleError,
@@ -612,5 +614,21 @@ mod tests {
         .collect::<Vec<_>>(),
       vec![&ExprKind::Integer(1), &ExprKind::Integer(2),]
     );
+  }
+
+  #[test]
+  fn test_ser_and_de() {
+    let source = Source::new("", "0 'a def 2 2 + '(fn)");
+    let mut lexer = Lexer::new(source);
+    let exprs = crate::parser::parse(&mut lexer).unwrap();
+
+    let engine = Engine::new();
+    let mut context = Context::new().with_stack_capacity(32);
+    context = engine.run(context, exprs).unwrap();
+
+    let json = serde_json::to_string(&context).unwrap();
+    let ser_context: Context = serde_json::from_str(json.as_str()).unwrap();
+
+    assert_eq!(context, ser_context);
   }
 }

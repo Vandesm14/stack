@@ -1,8 +1,10 @@
 use core::{fmt, ops::Range};
 
+use serde::{Deserialize, Serialize};
+
 use crate::source::Source;
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 pub struct Token {
   pub kind: TokenKind,
   pub span: Span,
@@ -14,7 +16,7 @@ impl fmt::Display for Token {
   }
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub struct Span {
   /// The lower byte bound (inclusive).
   pub start: usize,
@@ -33,7 +35,7 @@ impl Span {
   }
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub enum TokenKind {
   Invalid,
   Eof,

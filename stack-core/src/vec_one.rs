@@ -3,8 +3,21 @@
 use core::slice::{Iter, IterMut, SliceIndex};
 use std::vec::IntoIter;
 
+use serde::{Deserialize, Serialize};
+
 /// A [`Vec`] with at least one element.
-#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Default)]
+#[derive(
+  Debug,
+  Clone,
+  PartialEq,
+  Eq,
+  PartialOrd,
+  Ord,
+  Hash,
+  Default,
+  Serialize,
+  Deserialize,
+)]
 pub(crate) struct VecOne<T> {
   vec: Vec<T>,
 }

@@ -1,13 +1,99 @@
 use core::fmt;
-use std::{cell::RefCell, collections::HashMap, fmt::Formatter, sync::Arc};
+use std::{cell::RefCell, collections::HashMap, fmt::Formatter, rc::Rc};
+
+use serde::{
+  ser::{Serialize, SerializeMap},
+  Deserialize, Deserializer,
+};
 
 use crate::{chain::Chain, expr::FnScope, prelude::*};
 
-pub type Val = Arc<RefCell<Chain<Option<Expr>>>>;
+pub type Val = Rc<RefCell<Chain<Option<Expr>>>>;
 
-#[derive(Default, PartialEq)]
+#[derive(Default)]
 pub struct Scope {
   pub items: HashMap<Symbol, Val>,
+}
+
+impl PartialEq for Scope {
+  fn eq(&self, other: &Self) -> bool {
+    let a: HashMap<Symbol, Expr> = HashMap::from_iter(
+      self
+        .items
+        .iter()
+        .map(|(k, v)| (*k, v.borrow().val().clone().unwrap())),
+    );
+
+    let b: HashMap<Symbol, Expr> = HashMap::from_iter(
+      other
+        .items
+        .iter()
+        .map(|(k, v)| (*k, v.borrow().val().clone().unwrap())),
+    );
+
+    a == b
+  }
+}
+
+impl Serialize for Scope {
+  fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+  where
+    S: serde::Serializer,
+  {
+    let mut map = serializer.serialize_map(Some(self.items.len()))?;
+    for (k, v) in self.items.iter() {
+      // TODO: don't unwrap and handle the error somehow
+      let expr: Expr = v.borrow().val().unwrap();
+      map.serialize_entry(k, &expr)?;
+    }
+    map.end()
+  }
+}
+
+impl<'de> Deserialize<'de> for Scope {
+  fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
+  where
+    D: Deserializer<'de>,
+  {
+    // Helper struct to deserialize the items
+    #[derive(Deserialize)]
+    #[serde(transparent)]
+    struct ScopeHelper {
+      items: HashMap<String, DeserializeVal>,
+    }
+
+    // Helper enum to deserialize Val
+    #[derive(Deserialize)]
+    #[serde(untagged)]
+    enum DeserializeVal {
+      Some(Expr),
+      None,
+    }
+
+    // Deserialize into the helper struct
+    let helper = ScopeHelper::deserialize(deserializer)?;
+
+    // Convert DeserializeVal to Val
+    let mut items: HashMap<String, Val> = helper
+      .items
+      .into_iter()
+      .map(|(k, v)| {
+        let val = match v {
+          DeserializeVal::Some(expr) => {
+            Rc::new(RefCell::new(Chain::new(Some(expr))))
+          }
+          DeserializeVal::None => Rc::new(RefCell::new(Chain::new(None))),
+        };
+        (k, val)
+      })
+      .collect();
+    let mut scope: HashMap<Symbol, Val> = HashMap::new();
+    for (k, v) in items.drain() {
+      scope.insert(Symbol::from_ref(k.as_str()), v);
+    }
+
+    Ok(Scope { items: scope })
+  }
 }
 
 impl fmt::Debug for Scope {
@@ -18,7 +104,7 @@ impl fmt::Debug for Scope {
 }
 
 impl Clone for Scope {
-  /// Clones the scope, using the same Arc's as self
+  /// Clones the scope, using the same Rc's as self
   fn clone(&self) -> Self {
     let mut items = HashMap::new();
 
@@ -53,7 +139,7 @@ impl Scope {
 
       c.clone()
     } else {
-      let val = Arc::new(RefCell::new(Chain::new(Some(item))));
+      let val = Rc::new(RefCell::new(Chain::new(Some(item))));
       self.items.insert(name, val.clone());
 
       val
@@ -64,7 +150,7 @@ impl Scope {
     self
       .items
       .entry(name)
-      .or_insert_with(|| Arc::new(RefCell::new(Chain::new(None))));
+      .or_insert_with(|| Rc::new(RefCell::new(Chain::new(None))));
   }
 
   pub fn set(

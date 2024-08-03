@@ -3,11 +3,12 @@ use std::collections::HashMap;
 
 use compact_str::CompactString;
 use internment::Intern;
-use yansi::Paint;
+use serde::Deserialize;
+use serde::Serialize;
 
 use crate::{lexer::Span, scope::Scope, source::Source, symbol::Symbol};
 
-#[derive(Clone)]
+#[derive(Clone, Serialize, Deserialize)]
 pub struct Expr {
   pub kind: ExprKind,
   pub info: Option<ExprInfo>,
@@ -98,7 +99,7 @@ pub fn display_fn_scope(scope: &FnScope) -> String {
   .into()
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub enum FnScope {
   Scoped(Scope),
   Scopeless,
@@ -116,7 +117,7 @@ impl FnScope {
   }
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub enum ExprKind {
   Nil,
 
@@ -215,6 +216,17 @@ impl PartialEq for ExprKind {
       (Self::Lazy(lhs), Self::Lazy(rhs)) => lhs == rhs,
       (Self::List(lhs), Self::List(rhs)) => lhs == rhs,
       (Self::Record(lhs), Self::Record(rhs)) => lhs == rhs,
+
+      (
+        Self::Function {
+          scope: lhs_scope,
+          body: lhs_body,
+        },
+        Self::Function {
+          scope: rhs_scope,
+          body: rhs_body,
+        },
+      ) => lhs_scope == rhs_scope && lhs_body == rhs_body,
 
       (
         Self::SExpr {
@@ -337,6 +349,8 @@ impl ops::Rem for ExprKind {
 
 impl fmt::Display for ExprKind {
   fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+    use yansi::Paint;
+
     // TODO: Is there a nicer way to do this that avoids the duplication?
     if f.alternate() {
       match self {
@@ -511,7 +525,7 @@ impl fmt::Display for ErrorInner {
   }
 }
 
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct ExprInfo {
   pub source: Source,
   pub span: Span,

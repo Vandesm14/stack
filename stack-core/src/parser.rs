@@ -1,5 +1,6 @@
 use compact_str::ToCompactString;
 use core::fmt;
+use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 
 use crate::{
@@ -256,7 +257,7 @@ fn parse_record(
   }
 }
 
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct ParseError {
   pub source: Source,
   pub kind: ParseErrorKind,
@@ -280,7 +281,7 @@ impl fmt::Display for ParseError {
   }
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 pub enum ParseErrorKind {
   UnexpectedToken(Token),
   InvalidLiteral(Token),

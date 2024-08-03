@@ -9,3 +9,9 @@ debug file:
 
 serve:
   cd docs; mdbook serve --open
+
+ws-serve:
+  cargo run -p stack-cli -- serve
+
+ws-connect:
+  rlwrap websocat ws://localhost:5001
